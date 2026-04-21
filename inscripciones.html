@@ -108,14 +108,22 @@
       .badge { border: 1px solid #999 !important; color: #333 !important; background: #eee !important; }
       @page { size: A4 landscape; margin: 12mm; }
     }
+    #auth-overlay { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center; }
+    .btn-logout { background:none;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;transition:all 0.2s; }
+    .btn-logout:hover { border-color:var(--danger);color:var(--danger); }
+    .user-name { font-size:13px;color:var(--muted); }
+    @media print { #auth-overlay, .btn-logout, .user-name { display:none !important; } }
   </style>
 </head>
 <body>
+<div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;"></div></div>
 <div id="toast-container"></div>
 
 <div class="topbar">
   <a id="back-link" href="reuniones.html" class="btn-back">← Volver</a>
   <h1 id="topbar-title">Inscripciones</h1>
+  <span class="user-name" id="user-name"></span>
+  <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
   <button class="btn-outline" onclick="window.print()">🖨️ Imprimir</button>
   <button class="btn-primary" id="btn-nueva" onclick="openModal()" style="display:none">+ Inscribir SPC</button>
 </div>
@@ -237,9 +245,9 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const { createClient } = supabase;
-const sb = createClient('https://unlhcuanfrtpatoipwve.supabase.co', 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
-const CLUB_ID = 'a6da7e40-1515-45dc-8933-4eef33ce937a';
+let sb, CLUB_ID, currentUser;
+async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre,rol').eq('email',session.user.email).single();if(!usr?.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;currentUser={...session.user,nombre:usr.nombre,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
+function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
 const params = new URLSearchParams(location.search);
 let currentCarreraId = params.get('carrera_id');
@@ -517,7 +525,7 @@ document.addEventListener('click', e => {
   if (!e.target.closest('.spc-search')) document.getElementById('spc-dropdown').style.display='none';
 });
 document.getElementById('modal').addEventListener('click', e=>{if(e.target===e.currentTarget) closeModal();});
-loadAll();
+(async()=>{if(await initAuth())loadAll();})();
 </script>
 </body>
 </html>

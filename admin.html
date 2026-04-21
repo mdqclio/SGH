@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel Super Admin — SGH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e2318; --card: #1a3d26; --accent: #c9a84c;
+      --text: #f5f0e8; --muted: #a0b8a0; --danger: #e05252;
+      --success: #4caf82; --border: rgba(201,168,76,0.2); --input-bg: #0e2318;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    h1,h2,h3 { font-family: 'Playfair Display', serif; }
+    .topbar { background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+    .topbar h1 { font-size: 22px; color: var(--accent); flex: 1; }
+    .user-name { font-size: 13px; color: var(--muted); }
+    .btn-logout { background: none; border: 1px solid var(--border); color: var(--muted); padding: 6px 14px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; transition: all 0.2s; }
+    .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
+    .content { max-width: 1200px; margin: 0 auto; padding: 28px 24px; }
+    .toolbar { display: flex; gap: 12px; margin-bottom: 24px; align-items: center; flex-wrap: wrap; }
+    .toolbar-title { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--text); flex: 1; }
+    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: opacity 0.2s; white-space: nowrap; }
+    .btn-primary:hover { opacity: 0.9; }
+    /* STATS */
+    .stats-row { display: flex; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+    .stat-chip { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 24px; text-align: center; min-width: 130px; }
+    .stat-chip-val { font-size: 28px; font-weight: 700; color: var(--accent); font-family: 'Playfair Display', serif; }
+    .stat-chip-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+    /* TABLE */
+    .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { background: rgba(0,0,0,0.25); padding: 12px 18px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+    tbody tr { border-top: 1px solid var(--border); transition: background 0.15s; }
+    tbody tr:hover { background: rgba(201,168,76,0.04); }
+    tbody td { padding: 14px 18px; font-size: 14px; vertical-align: middle; }
+    .club-name { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--accent); }
+    .club-sigla { font-size: 11px; color: var(--muted); }
+    .club-loc { font-size: 13px; color: var(--muted); }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .badge-activo { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-inactivo { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .count-cell { text-align: center; }
+    .count-val { font-size: 16px; font-weight: 600; color: var(--text); }
+    .count-lbl { font-size: 11px; color: var(--muted); }
+    .actions-cell { display: flex; gap: 8px; }
+    .btn-sm { padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; transition: all 0.2s; white-space: nowrap; }
+    .btn-toggle-on  { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .btn-toggle-on:hover  { background: rgba(224,82,82,0.2); }
+    .btn-toggle-off { background: rgba(76,175,130,0.1); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .btn-toggle-off:hover { background: rgba(76,175,130,0.2); }
+    .empty-state { text-align: center; padding: 60px 20px; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 18px; color: var(--muted); }
+    .loading-state { display: flex; align-items: center; justify-content: center; padding: 60px; gap: 12px; color: var(--muted); }
+    .spinner { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #auth-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 320px; animation: slideIn 0.3s ease; }
+    .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
+    .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @media (max-width: 700px) { .count-cell { display: none; } }
+  </style>
+</head>
+<body>
+<div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;"></div></div>
+<div id="toast-container"></div>
+
+<div class="topbar">
+  <h1>⚙️ Panel Super Admin</h1>
+  <span class="user-name" id="user-name"></span>
+  <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+</div>
+
+<div class="content">
+  <div class="stats-row" id="stats-row">
+    <div class="stat-chip"><div class="stat-chip-val" id="stat-clubs">—</div><div class="stat-chip-lbl">Clubs totales</div></div>
+    <div class="stat-chip"><div class="stat-chip-val" id="stat-activos">—</div><div class="stat-chip-lbl">Activos</div></div>
+    <div class="stat-chip"><div class="stat-chip-val" id="stat-inactivos">—</div><div class="stat-chip-lbl">Inactivos</div></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="toolbar-title">Clubs registrados</div>
+    <a href="registro.html" class="btn-primary">+ Nuevo Cliente</a>
+  </div>
+
+  <div id="list-container">
+    <div class="loading-state"><div class="spinner"></div> Cargando clubs…</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+let sb, CLUB_ID, currentUser;
+let allClubs = [];
+let clubStats = {};
+
+async function initAuth(){
+  const{createClient}=supabase;
+  sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
+  const{data:{session}}=await sb.auth.getSession();
+  if(!session){window.location.replace('login.html');return false;}
+  const{data:usr}=await sb.from('usuarios').select('club_id,nombre,rol').eq('email',session.user.email).single();
+  if(!usr?.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}
+  if(usr.rol!=='super_admin'){window.location.replace('index.html');return false;}
+  CLUB_ID=usr.club_id;
+  currentUser={...session.user,nombre:usr.nombre,rol:usr.rol};
+  const uEl=document.getElementById('user-name');
+  if(uEl)uEl.textContent=usr.nombre||session.user.email;
+  document.getElementById('auth-overlay').style.display='none';
+  return true;
+}
+function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
+
+function toast(msg,type='success'){const t=document.createElement('div');t.className=`toast toast-${type}`;t.textContent=msg;document.getElementById('toast-container').appendChild(t);setTimeout(()=>t.remove(),3500);}
+
+async function load() {
+  document.getElementById('list-container').innerHTML='<div class="loading-state"><div class="spinner"></div> Cargando clubs…</div>';
+
+  // Load all clubs
+  const{data:clubs,error}=await sb.from('clubs').select('*').order('nombre');
+  if(error){toast(error.message,'error');return;}
+  allClubs=clubs||[];
+
+  // Load aggregate stats per club
+  const[{data:usuarios},{data:reuniones},{data:spcs}]=await Promise.all([
+    sb.from('usuarios').select('club_id').eq('activo',true),
+    sb.from('reuniones').select('club_id'),
+    sb.from('spcs').select('club_id').eq('estado','activo'),
+  ]);
+
+  clubStats={};
+  (usuarios||[]).forEach(r=>{clubStats[r.club_id]=clubStats[r.club_id]||{u:0,r:0,s:0};clubStats[r.club_id].u++;});
+  (reuniones||[]).forEach(r=>{clubStats[r.club_id]=clubStats[r.club_id]||{u:0,r:0,s:0};clubStats[r.club_id].r++;});
+  (spcs||[]).forEach(r=>{clubStats[r.club_id]=clubStats[r.club_id]||{u:0,r:0,s:0};clubStats[r.club_id].s++;});
+
+  updateStats();
+  renderTable();
+}
+
+function updateStats(){
+  document.getElementById('stat-clubs').textContent=allClubs.length;
+  document.getElementById('stat-activos').textContent=allClubs.filter(c=>c.activo!==false).length;
+  document.getElementById('stat-inactivos').textContent=allClubs.filter(c=>c.activo===false).length;
+}
+
+function renderTable(){
+  if(!allClubs.length){
+    document.getElementById('list-container').innerHTML='<div class="empty-state"><div class="icon">🏟️</div><h3>Sin clubs registrados</h3></div>';
+    return;
+  }
+  const rows=allClubs.map(c=>{
+    const st=clubStats[c.id]||{u:0,r:0,s:0};
+    const activo=c.activo!==false;
+    const toggleBtn=activo
+      ?`<button class="btn-sm btn-toggle-on" onclick="toggleActivo('${c.id}',false)">Desactivar</button>`
+      :`<button class="btn-sm btn-toggle-off" onclick="toggleActivo('${c.id}',true)">Activar</button>`;
+    return `<tr>
+      <td>
+        <div class="club-name">${c.nombre}</div>
+        <div class="club-sigla">${c.sigla||''}</div>
+      </td>
+      <td class="club-loc">${[c.localidad,c.provincia].filter(Boolean).join(', ')||'—'}</td>
+      <td><span class="badge badge-${activo?'activo':'inactivo'}">${activo?'Activo':'Inactivo'}</span></td>
+      <td class="count-cell"><div class="count-val">${st.u}</div><div class="count-lbl">Usuarios</div></td>
+      <td class="count-cell"><div class="count-val">${st.r}</div><div class="count-lbl">Reuniones</div></td>
+      <td class="count-cell"><div class="count-val">${st.s}</div><div class="count-lbl">SPCs</div></td>
+      <td>
+        <div class="actions-cell">
+          ${toggleBtn}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+  document.getElementById('list-container').innerHTML=`
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Club</th>
+            <th>Ubicación</th>
+            <th>Estado</th>
+            <th class="count-cell">Usuarios</th>
+            <th class="count-cell">Reuniones</th>
+            <th class="count-cell">SPCs</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+async function toggleActivo(id, activo){
+  const club=allClubs.find(c=>c.id===id);
+  const action=activo?'activar':'desactivar';
+  if(!confirm(`¿Deseas ${action} el club "${club?.nombre}"?`))return;
+  const{error}=await sb.from('clubs').update({activo}).eq('id',id);
+  if(error){toast(error.message,'error');return;}
+  toast(`Club ${activo?'activado':'desactivado'}`);
+  load();
+}
+
+(async()=>{if(await initAuth())load();})();
+</script>
+</body>
+</html>

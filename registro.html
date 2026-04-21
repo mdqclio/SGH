@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registrar Cliente — SGH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e2318; --card: #1a3d26; --accent: #c9a84c;
+      --text: #f5f0e8; --muted: #a0b8a0; --danger: #e05252;
+      --success: #4caf82; --border: rgba(201,168,76,0.2); --input-bg: #0e2318;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    h1,h2,h3 { font-family: 'Playfair Display', serif; }
+    .topbar { background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+    .btn-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; }
+    .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+    .topbar h1 { font-size: 22px; color: var(--accent); flex: 1; }
+    .user-name { font-size: 13px; color: var(--muted); }
+    .btn-logout { background: none; border: 1px solid var(--border); color: var(--muted); padding: 6px 14px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; transition: all 0.2s; }
+    .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
+    .content { max-width: 640px; margin: 0 auto; padding: 36px 24px; }
+    .page-header { margin-bottom: 28px; }
+    .page-header h2 { font-size: 26px; color: var(--accent); margin-bottom: 6px; }
+    .page-header p { font-size: 14px; color: var(--muted); }
+    .form-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; }
+    .section-title { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; margin-top: 24px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    .section-title:first-child { margin-top: 0; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 0; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { font-size: 13px; font-weight: 500; color: var(--muted); }
+    input, select { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 10px 14px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; width: 100%; transition: border 0.2s; }
+    input:focus, select:focus { border-color: var(--accent); }
+    select option { background: #1a3d26; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .cats-preview { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .cat-chip { background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.25); border-radius: 6px; padding: 4px 10px; font-size: 12px; color: var(--accent); }
+    .form-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
+    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 12px 28px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; }
+    .btn-primary:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 12px 24px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .success-banner { display: none; background: rgba(76,175,130,0.1); border: 1px solid rgba(76,175,130,0.3); border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; }
+    .success-banner.show { display: flex; gap: 14px; align-items: flex-start; }
+    .success-banner .icon { font-size: 24px; flex-shrink: 0; }
+    .success-banner h3 { font-size: 15px; color: var(--success); margin-bottom: 4px; }
+    .success-banner p { font-size: 13px; color: var(--muted); }
+    .error-banner { display: none; background: rgba(224,82,82,0.1); border: 1px solid rgba(224,82,82,0.3); border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; font-size: 13px; color: var(--danger); }
+    .error-banner.show { display: block; }
+    .spinner { width: 18px; height: 18px; border: 2px solid rgba(26,26,10,0.3); border-top-color: #1a1a0a; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #auth-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 320px; animation: slideIn 0.3s ease; }
+    .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
+    .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .form-group.full { grid-column: 1; } }
+  </style>
+</head>
+<body>
+<div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;border-color:rgba(201,168,76,0.3);border-top-color:var(--accent);"></div></div>
+<div id="toast-container"></div>
+
+<div class="topbar">
+  <a href="admin.html" class="btn-back">← Admin</a>
+  <h1>Registrar Nuevo Cliente</h1>
+  <span class="user-name" id="user-name"></span>
+  <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+</div>
+
+<div class="content">
+  <div class="page-header">
+    <h2>Nuevo Hipódromo / Club</h2>
+    <p>Completa el formulario para crear una cuenta completa con usuario administrador y categorías estándar.</p>
+  </div>
+
+  <div class="success-banner" id="success-banner">
+    <div class="icon">✅</div>
+    <div>
+      <h3 id="success-title">Cliente creado exitosamente</h3>
+      <p id="success-detail"></p>
+    </div>
+  </div>
+
+  <div class="error-banner" id="error-banner"></div>
+
+  <div class="form-card">
+    <div class="section-title">Datos del Club</div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Nombre del hipódromo / club *</label>
+        <input type="text" id="f-club-nombre" placeholder="Ej: Hipódromo de La Plata" required>
+      </div>
+      <div class="form-group">
+        <label>Sigla</label>
+        <input type="text" id="f-club-sigla" placeholder="Ej: HLP" maxlength="10">
+      </div>
+      <div class="form-group">
+        <label>Localidad</label>
+        <input type="text" id="f-club-localidad" placeholder="Ej: La Plata">
+      </div>
+      <div class="form-group">
+        <label>Provincia</label>
+        <input type="text" id="f-club-provincia" placeholder="Ej: Buenos Aires">
+      </div>
+      <div class="form-group">
+        <label>País</label>
+        <input type="text" id="f-club-pais" value="Argentina">
+      </div>
+    </div>
+
+    <div class="section-title">Usuario Administrador</div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Nombre del administrador *</label>
+        <input type="text" id="f-admin-nombre" placeholder="Nombre y apellido">
+      </div>
+      <div class="form-group full">
+        <label>Email *</label>
+        <input type="email" id="f-admin-email" placeholder="admin@hipodromo.com.ar">
+        <span class="hint">Se usará para iniciar sesión en el sistema.</span>
+      </div>
+      <div class="form-group">
+        <label>Contraseña inicial *</label>
+        <input type="password" id="f-admin-pass" placeholder="Mínimo 6 caracteres" minlength="6">
+      </div>
+      <div class="form-group">
+        <label>Confirmar contraseña *</label>
+        <input type="password" id="f-admin-pass2" placeholder="Repetir contraseña">
+      </div>
+    </div>
+
+    <div class="section-title">Categorías de Carrera (se crean automáticamente)</div>
+    <div class="cats-preview">
+      <span class="cat-chip">OC — Oficial Clásico</span>
+      <span class="cat-chip">ONC — Oficial No Clásico</span>
+      <span class="cat-chip">NO — No Oficial</span>
+      <span class="cat-chip">CC — Clásico Confirmado</span>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="resetForm()">Limpiar</button>
+      <button class="btn-primary" id="btn-crear" onclick="crearCliente()">
+        <span id="btn-text">Crear Cliente</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+let sb, CLUB_ID, currentUser;
+async function initAuth(){
+  const{createClient}=supabase;
+  sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
+  const{data:{session}}=await sb.auth.getSession();
+  if(!session){window.location.replace('login.html');return false;}
+  const{data:usr}=await sb.from('usuarios').select('club_id,nombre,rol').eq('email',session.user.email).single();
+  if(!usr?.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}
+  if(usr.rol!=='super_admin'){window.location.replace('index.html');return false;}
+  CLUB_ID=usr.club_id;
+  currentUser={...session.user,nombre:usr.nombre,rol:usr.rol};
+  const uEl=document.getElementById('user-name');
+  if(uEl)uEl.textContent=usr.nombre||session.user.email;
+  document.getElementById('auth-overlay').style.display='none';
+  return true;
+}
+function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
+
+function toast(msg,type='success'){const t=document.createElement('div');t.className=`toast toast-${type}`;t.textContent=msg;document.getElementById('toast-container').appendChild(t);setTimeout(()=>t.remove(),3500);}
+
+function setLoading(on){
+  const btn=document.getElementById('btn-crear');
+  const txt=document.getElementById('btn-text');
+  btn.disabled=on;
+  txt.innerHTML=on?'<span class="spinner"></span> Creando…':'Crear Cliente';
+}
+
+function showError(msg){
+  const el=document.getElementById('error-banner');
+  el.textContent=msg;
+  el.classList.add('show');
+  document.getElementById('success-banner').classList.remove('show');
+}
+
+function hideError(){document.getElementById('error-banner').classList.remove('show');}
+
+function resetForm(){
+  ['f-club-nombre','f-club-sigla','f-club-localidad','f-club-provincia','f-admin-nombre','f-admin-email','f-admin-pass','f-admin-pass2'].forEach(id=>{
+    document.getElementById(id).value='';
+  });
+  document.getElementById('f-club-pais').value='Argentina';
+  hideError();
+  document.getElementById('success-banner').classList.remove('show');
+}
+
+async function crearCliente(){
+  hideError();
+
+  const clubNombre = document.getElementById('f-club-nombre').value.trim();
+  const clubSigla  = document.getElementById('f-club-sigla').value.trim() || null;
+  const localidad  = document.getElementById('f-club-localidad').value.trim() || null;
+  const provincia  = document.getElementById('f-club-provincia').value.trim() || null;
+  const pais       = document.getElementById('f-club-pais').value.trim() || 'Argentina';
+  const adminNombre= document.getElementById('f-admin-nombre').value.trim();
+  const adminEmail = document.getElementById('f-admin-email').value.trim();
+  const pass       = document.getElementById('f-admin-pass').value;
+  const pass2      = document.getElementById('f-admin-pass2').value;
+
+  if(!clubNombre)  {showError('El nombre del club es requerido.');return;}
+  if(!adminNombre) {showError('El nombre del administrador es requerido.');return;}
+  if(!adminEmail)  {showError('El email del administrador es requerido.');return;}
+  if(!pass || pass.length<6){showError('La contraseña debe tener al menos 6 caracteres.');return;}
+  if(pass!==pass2) {showError('Las contraseñas no coinciden.');return;}
+
+  setLoading(true);
+
+  try {
+    // 1. Crear el club
+    const{data:clubData,error:clubErr}=await sb.from('clubs').insert({
+      nombre:clubNombre, sigla:clubSigla, localidad, provincia, pais, activo:true
+    }).select('id').single();
+    if(clubErr) throw new Error('Error al crear club: '+clubErr.message);
+    const newClubId=clubData.id;
+
+    // 2. Crear usuario en Supabase Auth usando la Admin API (requiere service key)
+    // Con la anon key usamos signUp desde el cliente y luego insertamos en usuarios
+    const{data:authData,error:authErr}=await sb.auth.signUp({
+      email:adminEmail, password:pass,
+      options:{ data:{ nombre:adminNombre } }
+    });
+    if(authErr) throw new Error('Error al crear usuario auth: '+authErr.message);
+    if(!authData.user) throw new Error('No se pudo crear el usuario en Auth.');
+
+    // 3. Insertar en tabla usuarios
+    const{error:usrErr}=await sb.from('usuarios').insert({
+      email:adminEmail, nombre:adminNombre,
+      club_id:newClubId, rol:'admin', activo:true
+    });
+    if(usrErr) throw new Error('Error al crear registro de usuario: '+usrErr.message);
+
+    // 4. Crear las 4 categorías estándar
+    const cats=[
+      {nombre:'Oficial Clásico',codigo:'OC',simbolo:'★',color_hex:'#c9a84c',es_computable:true,es_oficial:true,orden_display:1},
+      {nombre:'Oficial No Clásico',codigo:'ONC',simbolo:'◆',color_hex:'#4caf82',es_computable:true,es_oficial:true,orden_display:2},
+      {nombre:'No Oficial',codigo:'NO',simbolo:'▲',color_hex:'#a0b8a0',es_computable:false,es_oficial:false,orden_display:3},
+      {nombre:'Clásico Confirmado',codigo:'CC',simbolo:'⭐',color_hex:'#e8b84b',es_computable:true,es_oficial:true,orden_display:4},
+    ].map(c=>({...c,club_id:newClubId,activo:true}));
+    const{error:catErr}=await sb.from('categorias').insert(cats);
+    if(catErr) throw new Error('Club y usuario creados, pero error en categorías: '+catErr.message);
+
+    // Todo OK
+    setLoading(false);
+    document.getElementById('success-title').textContent='¡Cliente creado exitosamente!';
+    document.getElementById('success-detail').textContent=
+      `Club "${clubNombre}" registrado. Usuario admin: ${adminEmail}. Se crearon 4 categorías estándar.`;
+    document.getElementById('success-banner').classList.add('show');
+    resetForm();
+    toast('Cliente creado: '+clubNombre);
+
+  } catch(err) {
+    setLoading(false);
+    showError(err.message);
+  }
+}
+
+(async()=>{if(await initAuth()){/* ready */}})();
+</script>
+</body>
+</html>

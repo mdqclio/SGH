@@ -86,9 +86,16 @@
     }
     .menu-toggle { display: none; background: none; border: none; color: var(--text); font-size: 22px; cursor: pointer; }
     @media (max-width: 768px) { .menu-toggle { display: block; } }
+    /* AUTH */
+    #auth-overlay { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center; }
+    .user-bar { display:flex;align-items:center;gap:10px; }
+    .user-name { font-size:13px;color:var(--muted); }
+    .btn-logout { background:none;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;transition:all 0.2s; }
+    .btn-logout:hover { border-color:var(--danger);color:var(--danger); }
   </style>
 </head>
 <body>
+<div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;"></div></div>
 <div id="toast-container"></div>
 
 <div class="layout">
@@ -137,6 +144,12 @@
       <a href="sanciones.html" class="nav-link"><span class="nav-icon">⚠️</span>Sanciones</a>
       <a href="resoluciones.html" class="nav-link"><span class="nav-icon">📜</span>Resoluciones</a>
     </div>
+
+    <div class="sidebar-section" id="section-superadmin" style="display:none;">
+      <div class="sidebar-section-title">Super Admin</div>
+      <a href="admin.html" class="nav-link"><span class="nav-icon">⚙️</span>Panel Admin</a>
+      <a href="registro.html" class="nav-link"><span class="nav-icon">➕</span>Nuevo Cliente</a>
+    </div>
   </aside>
 
   <!-- MAIN -->
@@ -146,7 +159,11 @@
         <button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
         <h1>Sistema de Gestión Hípica</h1>
       </div>
-      <span class="club-badge" id="club-name">Cargando...</span>
+      <div class="user-bar">
+        <span class="club-badge" id="club-name">Cargando...</span>
+        <span class="user-name" id="user-name"></span>
+        <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+      </div>
     </div>
 
     <div class="content">
@@ -263,9 +280,9 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const { createClient } = supabase;
-const sb = createClient('https://unlhcuanfrtpatoipwve.supabase.co', 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
-const CLUB_ID = 'a6da7e40-1515-45dc-8933-4eef33ce937a';
+let sb, CLUB_ID, currentUser;
+async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre,rol').eq('email',session.user.email).single();if(!usr?.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;currentUser={...session.user,nombre:usr.nombre,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
+function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
 function toast(msg, type = 'success') {
   const t = document.createElement('div');
@@ -303,7 +320,14 @@ async function loadDashboard() {
   }
 }
 
-loadDashboard();
+(async()=>{
+  if(await initAuth()){
+    if(currentUser?.rol==='super_admin'){
+      document.getElementById('section-superadmin').style.display='';
+    }
+    loadDashboard();
+  }
+})();
 </script>
 </body>
 </html>

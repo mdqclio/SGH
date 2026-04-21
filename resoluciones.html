@@ -88,14 +88,21 @@
     .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .form-group.full { grid-column: 1; } }
+    #auth-overlay { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center; }
+    .btn-logout { background:none;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;transition:all 0.2s;margin-left:auto; }
+    .btn-logout:hover { border-color:var(--danger);color:var(--danger); }
+    .user-name { font-size:13px;color:var(--muted); }
   </style>
 </head>
 <body>
+<div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;"></div></div>
 <div id="toast-container"></div>
 
 <div class="topbar">
   <a href="index.html" class="btn-back">← Volver</a>
   <h1>Resoluciones de Comisión</h1>
+  <span class="user-name" id="user-name"></span>
+  <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
 </div>
 
 <div class="content">
@@ -178,9 +185,9 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const { createClient } = supabase;
-const sb = createClient('https://unlhcuanfrtpatoipwve.supabase.co', 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
-const CLUB_ID = 'a6da7e40-1515-45dc-8933-4eef33ce937a';
+let sb, CLUB_ID, currentUser;
+async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre,rol').eq('email',session.user.email).single();if(!usr?.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;currentUser={...session.user,nombre:usr.nombre,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
+function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
 let allData=[], reuniones=[];
 
@@ -321,7 +328,7 @@ async function deleteRecord(id) {
 }
 
 document.getElementById('modal').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeModal(); });
-load();
+(async()=>{if(await initAuth())load();})();
 </script>
 </body>
 </html>
