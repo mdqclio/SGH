@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resoluciones — SGH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e2318; --card: #1a3d26; --accent: #c9a84c;
+      --text: #f5f0e8; --muted: #a0b8a0; --danger: #e05252;
+      --success: #4caf82; --border: rgba(201,168,76,0.2); --input-bg: #0e2318;
+      --info: #74b0f7;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    h1,h2,h3 { font-family: 'Playfair Display', serif; }
+    .topbar { background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+    .btn-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; }
+    .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+    .topbar h1 { font-size: 22px; color: var(--accent); flex: 1; }
+    .content { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .toolbar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+    .search-box { flex: 1; min-width: 200px; position: relative; }
+    .search-box input { width: 100%; background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 10px 16px 10px 40px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; transition: border 0.2s; }
+    .search-box input:focus { border-color: var(--accent); }
+    .search-box::before { content: '🔍'; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 14px; }
+    .filter-select { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 10px 14px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; outline: none; }
+    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: opacity 0.2s; }
+    .btn-primary:hover { opacity: 0.9; }
+    .stats-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .stat-chip { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 18px; text-align: center; min-width: 110px; }
+    .stat-chip-val { font-size: 20px; font-weight: 700; color: var(--accent); }
+    .stat-chip-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+    /* GRID */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; transition: border-color 0.2s; }
+    .card:hover { border-color: rgba(201,168,76,0.4); }
+    .card.borrador { border-left: 4px solid var(--muted); }
+    .card.publicada { border-left: 4px solid var(--accent); }
+    .card.notificada { border-left: 4px solid var(--success); }
+    .card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+    .res-numero { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--accent); }
+    .res-fecha { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .badge-borrador { background: rgba(160,184,160,0.1); color: var(--muted); border: 1px solid rgba(160,184,160,0.3); }
+    .badge-publicada { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    .badge-notificada { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .res-tipo { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .res-texto { font-size: 13px; color: var(--text); line-height: 1.5; margin-bottom: 12px; max-height: 80px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+    .res-reunion { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+    .res-reunion span { color: var(--text); }
+    .res-doc { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--info); text-decoration: none; margin-bottom: 12px; }
+    .card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-sm { padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; transition: all 0.2s; }
+    .btn-edit { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    .btn-edit:hover { background: rgba(201,168,76,0.25); }
+    .btn-pub { background: rgba(116,176,247,0.1); color: var(--info); border: 1px solid rgba(116,176,247,0.3); }
+    .btn-not { background: rgba(76,175,130,0.1); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .btn-delete { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .empty-state { text-align: center; padding: 60px 20px; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 18px; color: var(--muted); }
+    .loading-state { display: flex; align-items: center; justify-content: center; padding: 60px; gap: 12px; color: var(--muted); }
+    .spinner { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* MODAL */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; display: none; align-items: flex-start; justify-content: center; padding: 20px; overflow-y: auto; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 660px; margin: auto; }
+    .modal-header { padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+    .modal-header h2 { font-size: 20px; color: var(--accent); }
+    .btn-close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; }
+    .modal-body { padding: 20px 24px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { font-size: 13px; font-weight: 500; color: var(--muted); }
+    input, select, textarea { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 9px 13px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; width: 100%; transition: border 0.2s; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 100px; }
+    select option { background: #1a3d26; }
+    .modal-footer { padding: 16px 24px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
+    .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; }
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 320px; animation: slideIn 0.3s ease; }
+    .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
+    .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .form-group.full { grid-column: 1; } }
+  </style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<div class="topbar">
+  <a href="index.html" class="btn-back">← Volver</a>
+  <h1>Resoluciones de Comisión</h1>
+</div>
+
+<div class="content">
+  <div class="stats-row">
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-total">—</div><div class="stat-chip-lbl">Total</div></div>
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-borrador">—</div><div class="stat-chip-lbl">Borrador</div></div>
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-publicadas">—</div><div class="stat-chip-lbl">Publicadas</div></div>
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-notificadas">—</div><div class="stat-chip-lbl">Notificadas</div></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-box">
+      <input type="text" id="search" placeholder="Buscar por número, tipo o texto…" oninput="filterRender()">
+    </div>
+    <select class="filter-select" id="f-estado" onchange="filterRender()">
+      <option value="">Todos los estados</option>
+      <option value="borrador">Borrador</option>
+      <option value="publicada">Publicada</option>
+      <option value="notificada">Notificada</option>
+    </select>
+    <select class="filter-select" id="f-reunion" onchange="filterRender()">
+      <option value="">Todas las reuniones</option>
+    </select>
+    <button class="btn-primary" onclick="openModal()">+ Nueva Resolución</button>
+  </div>
+
+  <div id="list-container"></div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Nueva Resolución</h2>
+      <button class="btn-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <input type="hidden" id="f-id">
+        <div class="form-group">
+          <label>Número *</label>
+          <input type="text" id="f-numero" required placeholder="Ej: RES-001/2025">
+        </div>
+        <div class="form-group">
+          <label>Fecha *</label>
+          <input type="date" id="f-fecha" required>
+        </div>
+        <div class="form-group full">
+          <label>Tipo *</label>
+          <input type="text" id="f-tipo" required placeholder="Ej: Sanción, Ratificación de resultado, Descalificación…">
+        </div>
+        <div class="form-group">
+          <label>Reunión vinculada</label>
+          <select id="f-reunion-id"></select>
+        </div>
+        <div class="form-group">
+          <label>Estado</label>
+          <select id="f-estado-r">
+            <option value="borrador">Borrador</option>
+            <option value="publicada">Publicada</option>
+            <option value="notificada">Notificada</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label>Texto de la resolución *</label>
+          <textarea id="f-texto" required placeholder="Redactar el texto completo de la resolución…"></textarea>
+        </div>
+        <div class="form-group full">
+          <label>URL del documento (PDF u otro)</label>
+          <input type="url" id="f-doc-url" placeholder="https://…">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="saveRecord()" id="btn-save">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const { createClient } = supabase;
+const sb = createClient('https://unlhcuanfrtpatoipwve.supabase.co', 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
+const CLUB_ID = 'a6da7e40-1515-45dc-8933-4eef33ce937a';
+
+let allData=[], reuniones=[];
+
+function toast(msg,type='success') {
+  const t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
+  document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),3500);
+}
+function fmtDate(d) { return d ? new Date(d+'T12:00:00').toLocaleDateString('es-AR') : '—'; }
+
+async function load() {
+  document.getElementById('list-container').innerHTML='<div class="loading-state"><div class="spinner"></div> Cargando resoluciones…</div>';
+  const [{ data: ress, error }, { data: reuns }] = await Promise.all([
+    sb.from('resoluciones').select('*').eq('club_id', CLUB_ID).order('fecha', {ascending:false}).order('numero'),
+    sb.from('reuniones').select('id,numero,fecha,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha',{ascending:false}),
+  ]);
+  if (error) { toast(error.message,'error'); return; }
+  allData = ress||[];
+  reuniones = reuns||[];
+  // Populate selects
+  const rOpts = '<option value="">— Sin reunión —</option>' + reuniones.map(r=>`<option value="${r.id}">Reunión ${r.numero||''} — ${fmtDate(r.fecha)} — ${r.hipodromos?.nombre||''}</option>`).join('');
+  document.getElementById('f-reunion-id').innerHTML = rOpts;
+  document.getElementById('f-reunion').innerHTML = '<option value="">Todas las reuniones</option>' + reuniones.map(r=>`<option value="${r.id}">Reunión ${r.numero||''} — ${fmtDate(r.fecha)}</option>`).join('');
+  updateStats();
+  filterRender();
+}
+
+function updateStats() {
+  document.getElementById('cnt-total').textContent = allData.length;
+  document.getElementById('cnt-borrador').textContent = allData.filter(r=>r.estado==='borrador').length;
+  document.getElementById('cnt-publicadas').textContent = allData.filter(r=>r.estado==='publicada').length;
+  document.getElementById('cnt-notificadas').textContent = allData.filter(r=>r.estado==='notificada').length;
+}
+
+function filterRender() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const estado = document.getElementById('f-estado').value;
+  const rid = document.getElementById('f-reunion').value;
+  const data = allData.filter(r =>
+    (!q || r.numero?.toLowerCase().includes(q) || r.tipo?.toLowerCase().includes(q) || r.texto?.toLowerCase().includes(q))
+    && (!estado || r.estado===estado)
+    && (!rid || r.reunion_id===rid)
+  );
+  renderList(data);
+}
+
+const estadoBadge = { borrador:'badge-borrador', publicada:'badge-publicada', notificada:'badge-notificada' };
+
+function renderList(data) {
+  if (!data.length) {
+    document.getElementById('list-container').innerHTML=`<div class="empty-state"><div class="icon">📜</div><h3>Sin resoluciones</h3><p style="color:var(--muted);font-size:13px;margin-top:8px;">No se encontraron resoluciones con los filtros aplicados.</p></div>`;
+    return;
+  }
+  document.getElementById('list-container').innerHTML = `<div class="grid">${data.map(r => {
+    const reun = reuniones.find(x=>x.id===r.reunion_id);
+    return `<div class="card ${r.estado}">
+      <div class="card-header">
+        <div>
+          <div class="res-numero">Res. ${r.numero||'—'}</div>
+          <div class="res-fecha">${fmtDate(r.fecha)}</div>
+        </div>
+        <span class="badge ${estadoBadge[r.estado]||''}">${r.estado}</span>
+      </div>
+      <div class="res-tipo">📋 ${r.tipo||'—'}</div>
+      ${r.texto?`<div class="res-texto">${r.texto}</div>`:''}
+      ${reun?`<div class="res-reunion">Reunión: <span>N° ${reun.numero||''} — ${fmtDate(reun.fecha)} — ${reun.hipodromos?.nombre||''}</span></div>`:''}
+      ${r.documento_url?`<a href="${r.documento_url}" target="_blank" class="res-doc">📄 Ver documento</a>`:''}
+      <div class="card-actions">
+        <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(r)})'>✏️ Editar</button>
+        ${r.estado==='borrador'?`<button class="btn-sm btn-pub" onclick="cambiarEstado('${r.id}','publicada')">📢 Publicar</button>`:''}
+        ${r.estado==='publicada'?`<button class="btn-sm btn-not" onclick="cambiarEstado('${r.id}','notificada')">✅ Notificar</button>`:''}
+        <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+async function cambiarEstado(id, estado) {
+  const { error } = await sb.from('resoluciones').update({ estado }).eq('id',id);
+  if (error) { toast(error.message,'error'); return; }
+  toast(`Estado actualizado: ${estado}`);
+  allData = allData.map(r=>r.id===id?{...r,estado}:r);
+  updateStats();
+  filterRender();
+}
+
+function openModal(rec=null) {
+  document.getElementById('modal-title').textContent = rec ? `Editar Res. ${rec.numero||''}` : 'Nueva Resolución';
+  document.getElementById('f-id').value = rec?.id||'';
+  document.getElementById('f-numero').value = rec?.numero||'';
+  document.getElementById('f-fecha').value = rec?.fecha||new Date().toISOString().slice(0,10);
+  document.getElementById('f-tipo').value = rec?.tipo||'';
+  document.getElementById('f-reunion-id').value = rec?.reunion_id||'';
+  document.getElementById('f-estado-r').value = rec?.estado||'borrador';
+  document.getElementById('f-texto').value = rec?.texto||'';
+  document.getElementById('f-doc-url').value = rec?.documento_url||'';
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+async function saveRecord() {
+  const numero = document.getElementById('f-numero').value.trim();
+  const fecha = document.getElementById('f-fecha').value;
+  const tipo = document.getElementById('f-tipo').value.trim();
+  const texto = document.getElementById('f-texto').value.trim();
+  if (!numero || !fecha || !tipo || !texto) { toast('Completar los campos requeridos','error'); return; }
+  const id = document.getElementById('f-id').value;
+  const btn = document.getElementById('btn-save');
+  btn.disabled=true; btn.textContent='Guardando…';
+  const payload = {
+    club_id: CLUB_ID,
+    numero,
+    fecha,
+    tipo,
+    texto,
+    reunion_id: document.getElementById('f-reunion-id').value || null,
+    estado: document.getElementById('f-estado-r').value,
+    documento_url: document.getElementById('f-doc-url').value.trim() || null,
+  };
+  const { error } = id
+    ? await sb.from('resoluciones').update(payload).eq('id',id)
+    : await sb.from('resoluciones').insert(payload);
+  btn.disabled=false; btn.textContent='Guardar';
+  if (error) { toast(error.message,'error'); return; }
+  toast(id ? 'Resolución actualizada' : 'Resolución creada');
+  closeModal();
+  load();
+}
+
+async function deleteRecord(id) {
+  if (!confirm('¿Eliminar esta resolución?')) return;
+  const { error } = await sb.from('resoluciones').delete().eq('id',id);
+  if (error) { toast(error.message,'error'); return; }
+  toast('Resolución eliminada');
+  allData = allData.filter(r=>r.id!==id);
+  updateStats();
+  filterRender();
+}
+
+document.getElementById('modal').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeModal(); });
+load();
+</script>
+</body>
+</html>

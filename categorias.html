@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Categorías de Carrera — SGH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e2318; --card: #1a3d26; --accent: #c9a84c;
+      --text: #f5f0e8; --muted: #a0b8a0; --danger: #e05252;
+      --success: #4caf82; --border: rgba(201,168,76,0.2); --input-bg: #0e2318;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    h1,h2,h3 { font-family: 'Playfair Display', serif; }
+    .topbar { background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+    .btn-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; }
+    .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+    .topbar h1 { font-size: 22px; color: var(--accent); flex: 1; }
+    .content { max-width: 1000px; margin: 0 auto; padding: 24px; }
+    .toolbar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+    .btn-primary:hover { opacity: 0.9; }
+    /* TABLE */
+    .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { background: rgba(0,0,0,0.2); padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    tbody tr { border-top: 1px solid var(--border); transition: background 0.15s; }
+    tbody tr:hover { background: rgba(201,168,76,0.04); }
+    tbody td { padding: 12px 16px; font-size: 14px; vertical-align: middle; }
+    .cat-simbolo { font-size: 22px; text-align: center; }
+    .cat-name { font-weight: 600; color: var(--accent); }
+    .cat-code { font-size: 11px; color: var(--muted); }
+    .color-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); display: inline-block; vertical-align: middle; margin-right: 6px; }
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .badge-si { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-no { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .badge-activo { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-inactivo { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .actions-cell { display: flex; gap: 6px; }
+    .btn-sm { padding: 5px 12px; border-radius: 7px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; }
+    .btn-edit { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    .btn-delete { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .empty-state { text-align: center; padding: 60px 20px; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 18px; color: var(--muted); }
+    .loading-state { display: flex; align-items: center; justify-content: center; padding: 60px; gap: 12px; color: var(--muted); }
+    .spinner { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 16px; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 580px; max-height: 90vh; overflow-y: auto; }
+    .modal-header { padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+    .modal-header h2 { font-size: 20px; color: var(--accent); }
+    .btn-close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; }
+    .modal-body { padding: 20px 24px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { font-size: 13px; font-weight: 500; color: var(--muted); }
+    input, select, textarea { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 9px 13px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; width: 100%; transition: border 0.2s; }
+    input:focus, select:focus { border-color: var(--accent); }
+    select option { background: #1a3d26; }
+    textarea { resize: vertical; min-height: 70px; }
+    .color-preview { display: flex; gap: 8px; align-items: center; }
+    .color-preview input[type=color] { width: 44px; height: 38px; padding: 2px; cursor: pointer; border-radius: 6px; }
+    .color-preview input[type=text] { flex: 1; }
+    .modal-footer { padding: 16px 24px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
+    .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; }
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 320px; animation: slideIn 0.3s ease; }
+    .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
+    .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .form-group.full { grid-column: 1; } }
+  </style>
+</head>
+<body>
+<div id="toast-container"></div>
+<div class="topbar">
+  <a href="index.html" class="btn-back">← Volver</a>
+  <h1>Categorías de Carrera</h1>
+</div>
+<div class="content">
+  <div class="toolbar">
+    <button class="btn-primary" onclick="openModal()">+ Nueva Categoría</button>
+  </div>
+  <div id="list-container"></div>
+</div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Nueva Categoría</h2>
+      <button class="btn-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="f-id">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Nombre *</label>
+          <input type="text" id="f-nombre" required placeholder="Ej: Grupo 1, Clásico, Handicap…">
+        </div>
+        <div class="form-group">
+          <label>Código</label>
+          <input type="text" id="f-codigo" placeholder="Ej: G1, HC" maxlength="10">
+        </div>
+        <div class="form-group">
+          <label>Símbolo</label>
+          <input type="text" id="f-simbolo" placeholder="Ej: ★, ◆, ▲" maxlength="5">
+        </div>
+        <div class="form-group full">
+          <label>Color</label>
+          <div class="color-preview">
+            <input type="color" id="f-color-picker" value="#c9a84c" oninput="document.getElementById('f-color-hex').value=this.value">
+            <input type="text" id="f-color-hex" placeholder="#c9a84c" maxlength="7" oninput="syncColorPicker()">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>¿Es computable?</label>
+          <select id="f-computable">
+            <option value="true">Sí</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>¿Es oficial?</label>
+          <select id="f-oficial">
+            <option value="true">Sí</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Orden de display</label>
+          <input type="number" id="f-orden" min="1" placeholder="1">
+        </div>
+        <div class="form-group">
+          <label>Activo</label>
+          <select id="f-activo">
+            <option value="true">Sí</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label>Descripción</label>
+          <textarea id="f-desc" placeholder="Descripción de la categoría…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="saveRecord()" id="btn-save">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const { createClient } = supabase;
+const sb = createClient('https://unlhcuanfrtpatoipwve.supabase.co', 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
+const CLUB_ID = 'a6da7e40-1515-45dc-8933-4eef33ce937a';
+let allData = [];
+
+function toast(msg,type='success'){const t=document.createElement('div');t.className=`toast toast-${type}`;t.textContent=msg;document.getElementById('toast-container').appendChild(t);setTimeout(()=>t.remove(),3500);}
+function syncColorPicker(){const v=document.getElementById('f-color-hex').value;if(/^#[0-9a-fA-F]{6}$/.test(v))document.getElementById('f-color-picker').value=v;}
+
+async function load(){
+  document.getElementById('list-container').innerHTML='<div class="loading-state"><div class="spinner"></div> Cargando…</div>';
+  const {data,error}=await sb.from('categorias_carrera').select('*').eq('club_id',CLUB_ID).order('orden_display').order('nombre');
+  if(error){toast(error.message,'error');return;}
+  allData=data||[];
+  renderList();
+}
+
+function renderList(){
+  if(!allData.length){document.getElementById('list-container').innerHTML='<div class="empty-state"><div class="icon">🏷️</div><h3>Sin categorías</h3></div>';return;}
+  const rows=allData.map(r=>`<tr>
+    <td class="cat-simbolo">${r.simbolo||'—'}</td>
+    <td><div class="cat-name">${r.nombre}</div>${r.codigo?`<div class="cat-code">${r.codigo}</div>`:''}</td>
+    <td>${r.color_hex?`<span class="color-dot" style="background:${r.color_hex}"></span>${r.color_hex}`:'—'}</td>
+    <td><span class="badge badge-${r.es_computable?'si':'no'}">${r.es_computable?'Sí':'No'}</span></td>
+    <td><span class="badge badge-${r.es_oficial?'si':'no'}">${r.es_oficial?'Sí':'No'}</span></td>
+    <td>${r.orden_display??'—'}</td>
+    <td><span class="badge badge-${r.activo?'activo':'inactivo'}">${r.activo?'Activo':'Inactivo'}</span></td>
+    <td class="actions-cell">
+      <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(r)})'>✏️</button>
+      <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}','${r.nombre.replace(/'/g,"\\'")}')">🗑️</button>
+    </td>
+  </tr>`).join('');
+  document.getElementById('list-container').innerHTML=`<div class="table-wrap"><table>
+    <thead><tr><th>Símbolo</th><th>Nombre</th><th>Color</th><th>Computable</th><th>Oficial</th><th>Orden</th><th>Estado</th><th>Acciones</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+
+function openModal(rec=null){
+  document.getElementById('modal-title').textContent=rec?'Editar Categoría':'Nueva Categoría';
+  document.getElementById('f-id').value=rec?.id||'';
+  document.getElementById('f-nombre').value=rec?.nombre||'';
+  document.getElementById('f-codigo').value=rec?.codigo||'';
+  document.getElementById('f-simbolo').value=rec?.simbolo||'';
+  const color=rec?.color_hex||'#c9a84c';
+  document.getElementById('f-color-picker').value=color;
+  document.getElementById('f-color-hex').value=color;
+  document.getElementById('f-computable').value=rec?String(rec.es_computable):'true';
+  document.getElementById('f-oficial').value=rec?String(rec.es_oficial):'true';
+  document.getElementById('f-orden').value=rec?.orden_display||'';
+  document.getElementById('f-activo').value=rec?String(rec.activo):'true';
+  document.getElementById('f-desc').value=rec?.descripcion||'';
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){document.getElementById('modal').classList.remove('open');}
+
+async function saveRecord(){
+  const nombre=document.getElementById('f-nombre').value.trim();
+  if(!nombre){toast('El nombre es requerido','error');return;}
+  const id=document.getElementById('f-id').value;
+  const btn=document.getElementById('btn-save');btn.disabled=true;btn.textContent='Guardando…';
+  const payload={
+    club_id:CLUB_ID,nombre,
+    codigo:document.getElementById('f-codigo').value.trim()||null,
+    simbolo:document.getElementById('f-simbolo').value.trim()||null,
+    color_hex:document.getElementById('f-color-hex').value.trim()||null,
+    es_computable:document.getElementById('f-computable').value==='true',
+    es_oficial:document.getElementById('f-oficial').value==='true',
+    orden_display:document.getElementById('f-orden').value?parseInt(document.getElementById('f-orden').value):null,
+    activo:document.getElementById('f-activo').value==='true',
+    descripcion:document.getElementById('f-desc').value.trim()||null,
+  };
+  const {error}=id?await sb.from('categorias_carrera').update(payload).eq('id',id):await sb.from('categorias_carrera').insert(payload);
+  btn.disabled=false;btn.textContent='Guardar';
+  if(error){toast(error.message,'error');return;}
+  toast(id?'Categoría actualizada':'Categoría creada');closeModal();load();
+}
+
+async function deleteRecord(id,nombre){
+  if(!confirm(`¿Eliminar "${nombre}"?`))return;
+  const {error}=await sb.from('categorias_carrera').delete().eq('id',id);
+  if(error){toast(error.message,'error');return;}
+  toast('Categoría eliminada');load();
+}
+
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+load();
+</script>
+</body>
+</html>

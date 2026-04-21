@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hipódromos — SGH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e2318; --card: #1a3d26; --accent: #c9a84c;
+      --text: #f5f0e8; --muted: #a0b8a0; --danger: #e05252;
+      --success: #4caf82; --border: rgba(201,168,76,0.2); --input-bg: #0e2318;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    h1,h2,h3 { font-family: 'Playfair Display', serif; }
+    .topbar { background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+    .btn-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; }
+    .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+    .topbar h1 { font-size: 22px; color: var(--accent); flex: 1; }
+    .content { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .toolbar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; margin-left: auto; transition: opacity 0.2s; }
+    .btn-primary:hover { opacity: 0.9; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; transition: border-color 0.2s; }
+    .card:hover { border-color: rgba(201,168,76,0.4); }
+    .card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+    .card-name { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--accent); }
+    .card-sigla { font-size: 12px; color: var(--muted); }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .badge-activo { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-inactivo { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .card-detail { font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 12px; }
+    .card-detail span { color: var(--text); }
+    .pista-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .pista-chip { font-size: 11px; background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.2); color: var(--accent); padding: 2px 9px; border-radius: 5px; }
+    .card-actions { display: flex; gap: 8px; }
+    .btn-sm { padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; transition: all 0.2s; }
+    .btn-edit { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    .btn-delete { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .empty-state { text-align: center; padding: 60px 20px; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 18px; color: var(--muted); }
+    .loading-state { display: flex; align-items: center; justify-content: center; padding: 60px; gap: 12px; color: var(--muted); }
+    .spinner { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 16px; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; }
+    .modal-header { padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+    .modal-header h2 { font-size: 20px; color: var(--accent); }
+    .btn-close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; }
+    .modal-body { padding: 20px 24px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { font-size: 13px; font-weight: 500; color: var(--muted); }
+    input, select { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 9px 13px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; width: 100%; transition: border 0.2s; }
+    input:focus, select:focus { border-color: var(--accent); }
+    select option { background: #1a3d26; }
+    .modal-footer { padding: 16px 24px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
+    .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; }
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 320px; animation: slideIn 0.3s ease; }
+    .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
+    .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .form-group.full { grid-column: 1; } }
+  </style>
+</head>
+<body>
+<div id="toast-container"></div>
+<div class="topbar">
+  <a href="index.html" class="btn-back">← Volver</a>
+  <h1>Hipódromos</h1>
+</div>
+<div class="content">
+  <div class="toolbar">
+    <button class="btn-primary" onclick="openModal()">+ Nuevo Hipódromo</button>
+  </div>
+  <div id="list-container"></div>
+</div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Nuevo Hipódromo</h2>
+      <button class="btn-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="f-id">
+      <div class="form-grid">
+        <div class="form-group two" style="grid-column:span 2;">
+          <label>Nombre *</label>
+          <input type="text" id="f-nombre" required placeholder="Nombre del hipódromo">
+        </div>
+        <div class="form-group">
+          <label>Sigla</label>
+          <input type="text" id="f-sigla" placeholder="Ej: HLP" maxlength="6">
+        </div>
+        <div class="form-group">
+          <label>Tipo de pista</label>
+          <select id="f-tipo-pista">
+            <option value="cesped">Césped</option>
+            <option value="arena">Arena</option>
+            <option value="mixta">Mixta</option>
+            <option value="sintetica">Sintética</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Localidad</label>
+          <input type="text" id="f-localidad">
+        </div>
+        <div class="form-group">
+          <label>Provincia</label>
+          <input type="text" id="f-provincia">
+        </div>
+        <div class="form-group">
+          <label>Activo</label>
+          <select id="f-activo">
+            <option value="true">Sí</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="saveRecord()" id="btn-save">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const { createClient } = supabase;
+const sb = createClient('https://unlhcuanfrtpatoipwve.supabase.co', 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
+const CLUB_ID = 'a6da7e40-1515-45dc-8933-4eef33ce937a';
+let allData = [];
+function toast(msg,type='success'){const t=document.createElement('div');t.className=`toast toast-${type}`;t.textContent=msg;document.getElementById('toast-container').appendChild(t);setTimeout(()=>t.remove(),3500);}
+async function load() {
+  document.getElementById('list-container').innerHTML='<div class="loading-state"><div class="spinner"></div> Cargando…</div>';
+  const { data, error } = await sb.from('hipodromos').select('*').eq('club_id', CLUB_ID).order('nombre');
+  if (error) { toast(error.message,'error'); return; }
+  allData = data||[];
+  renderList();
+}
+function renderList() {
+  if (!allData.length) { document.getElementById('list-container').innerHTML='<div class="empty-state"><div class="icon">🏟️</div><h3>Sin hipódromos</h3></div>'; return; }
+  document.getElementById('list-container').innerHTML=`<div class="grid">${allData.map(r=>`<div class="card">
+    <div class="card-header">
+      <div><div class="card-name">${r.nombre}</div>${r.sigla?`<div class="card-sigla">${r.sigla}</div>`:''}</div>
+      <span class="badge badge-${r.activo?'activo':'inactivo'}">${r.activo?'Activo':'Inactivo'}</span>
+    </div>
+    <div class="pista-chips">${r.tipo_pista?`<span class="pista-chip">🌿 ${r.tipo_pista}</span>`:''}</div>
+    <div class="card-detail">
+      ${r.localidad?`<div>📍 <span>${r.localidad}${r.provincia?', '+r.provincia:''}</span></div>`:''}
+    </div>
+    <div class="card-actions">
+      <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(r)})'>✏️ Editar</button>
+      <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}','${r.nombre.replace(/'/g,"\\'")}')">🗑️</button>
+    </div>
+  </div>`).join('')}</div>`;
+}
+function openModal(rec=null){
+  document.getElementById('modal-title').textContent=rec?'Editar Hipódromo':'Nuevo Hipódromo';
+  document.getElementById('f-id').value=rec?.id||'';
+  document.getElementById('f-nombre').value=rec?.nombre||'';
+  document.getElementById('f-sigla').value=rec?.sigla||'';
+  document.getElementById('f-tipo-pista').value=rec?.tipo_pista||'cesped';
+  document.getElementById('f-localidad').value=rec?.localidad||'';
+  document.getElementById('f-provincia').value=rec?.provincia||'';
+  document.getElementById('f-activo').value=rec?String(rec.activo):'true';
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){document.getElementById('modal').classList.remove('open');}
+async function saveRecord(){
+  const nombre=document.getElementById('f-nombre').value.trim();
+  if(!nombre){toast('El nombre es requerido','error');return;}
+  const id=document.getElementById('f-id').value;
+  const btn=document.getElementById('btn-save');btn.disabled=true;btn.textContent='Guardando…';
+  const payload={club_id:CLUB_ID,nombre,sigla:document.getElementById('f-sigla').value.trim()||null,tipo_pista:document.getElementById('f-tipo-pista').value,localidad:document.getElementById('f-localidad').value.trim()||null,provincia:document.getElementById('f-provincia').value.trim()||null,activo:document.getElementById('f-activo').value==='true'};
+  const {error}=id?await sb.from('hipodromos').update(payload).eq('id',id):await sb.from('hipodromos').insert(payload);
+  btn.disabled=false;btn.textContent='Guardar';
+  if(error){toast(error.message,'error');return;}
+  toast(id?'Hipódromo actualizado':'Hipódromo creado');closeModal();load();
+}
+async function deleteRecord(id,nombre){
+  if(!confirm(`¿Eliminar "${nombre}"?`))return;
+  const {error}=await sb.from('hipodromos').delete().eq('id',id);
+  if(error){toast(error.message,'error');return;}
+  toast('Hipódromo eliminado');load();
+}
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+load();
+</script>
+</body>
+</html>
