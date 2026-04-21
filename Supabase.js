@@ -2,7 +2,7 @@
 // CONFIGURACIÓN GLOBAL — Sistema de Gestión Hípica
 // ============================================================
 
-const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
+const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.Supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK';
 const CLUB_ID      = 'a6da7e40-1515-45dc-8933-4eef33ce937a';
 
