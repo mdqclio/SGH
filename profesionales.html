@@ -1,286 +1,433 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SGH — Profesionales</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
-:root{--verde:#0e2318;--verde-mid:#163520;--verde-card:#1a3d26;--verde-borde:#245033;--oro:#c9a84c;--oro-suave:#e8d5a3;--crema:#f5f0e8;--gris:#8a9e90;--rojo:#c0392b;--esme:#059669;--sombra:0 4px 24px rgba(0,0,0,0.4);--radio:10px}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'DM Sans',sans-serif;background:var(--verde);color:var(--crema);min-height:100vh;padding:28px 20px}
-h2{font-family:'Playfair Display',serif;font-size:24px;color:var(--crema);margin-bottom:4px}
-.sub{color:var(--gris);font-size:13px;margin-bottom:24px}
-.topbar{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:24px}
-.card{background:var(--verde-card);border:1px solid var(--verde-borde);border-radius:var(--radio);padding:20px;margin-bottom:16px;box-shadow:var(--sombra)}
-.search-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
-.search-bar input{flex:1;min-width:180px}
-.search-bar select{min-width:140px}
-input,select,textarea{background:var(--verde-mid);border:1px solid var(--verde-borde);border-radius:7px;padding:9px 13px;color:var(--crema);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:100%;transition:border-color .15s}
-input:focus,select:focus,textarea:focus{border-color:var(--oro);box-shadow:0 0 0 3px rgba(201,168,76,.1)}
-select option{background:var(--verde-mid)}
-textarea{resize:vertical;min-height:70px}
-.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;white-space:nowrap}
-.btn-primary{background:var(--oro);color:var(--verde)}
-.btn-primary:hover{background:var(--oro-suave);transform:translateY(-1px)}
-.btn-ghost{background:transparent;border:1px solid var(--verde-borde);color:var(--gris)}
-.btn-ghost:hover{border-color:var(--gris);color:var(--crema)}
-.btn-danger{background:transparent;border:1px solid #c0392b44;color:#e74c3c}
-.btn-danger:hover{background:#c0392b22}
-.btn-sm{padding:5px 11px;font-size:12px}
-.btn-back{background:transparent;border:1px solid var(--verde-borde);color:var(--gris);margin-bottom:20px}
-.table-wrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:13px}
-thead th{text-align:left;padding:9px 13px;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--gris);border-bottom:1px solid var(--verde-borde);white-space:nowrap}
-tbody tr{border-bottom:1px solid #ffffff0a;transition:background .12s}
-tbody tr:hover{background:rgba(255,255,255,.03)}
-tbody td{padding:12px 13px;vertical-align:middle}
-.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.03em}
-.badge-green{background:#05966922;color:#34d399;border:1px solid #05966944}
-.badge-red{background:#c0392b22;color:#e74c3c;border:1px solid #c0392b44}
-.badge-blue{background:#2563EB22;color:#60a5fa;border:1px solid #2563EB44}
-.badge-purple{background:#7C3AED22;color:#a78bfa;border:1px solid #7C3AED44}
-.badge-amber{background:#D9770622;color:#fbbf24;border:1px solid #D9770644}
-.avatar{width:34px;height:34px;border-radius:50%;background:var(--verde-borde);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--oro);flex-shrink:0}
-.pro-info{display:flex;align-items:center;gap:10px}
-.pro-nombre{font-weight:500}
-.pro-mat{font-size:11px;color:var(--gris)}
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;align-items:center;justify-content:center;padding:16px}
-.modal-overlay.open{display:flex}
-.modal{background:var(--verde-card);border:1px solid var(--verde-borde);border-radius:12px;padding:24px;width:100%;max-width:580px;box-shadow:0 20px 60px rgba(0,0,0,.6);animation:modalIn .2s ease;max-height:90vh;overflow-y:auto}
-@keyframes modalIn{from{opacity:0;transform:scale(.95) translateY(10px)}to{opacity:1;transform:none}}
-.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
-.modal-header h3{font-family:'Playfair Display',serif;font-size:19px;color:var(--oro)}
-.modal-close{background:none;border:none;color:var(--gris);font-size:20px;cursor:pointer;padding:4px}
-.modal-close:hover{color:var(--crema)}
-.modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
-.form-grid.three{grid-template-columns:1fr 1fr 1fr}
-.field{display:flex;flex-direction:column;gap:5px}
-.field.span2{grid-column:span 2}
-.field.span3{grid-column:span 3}
-label{font-size:11px;font-weight:500;color:var(--oro-suave);letter-spacing:.04em;text-transform:uppercase}
-.switch-wrap{display:flex;align-items:center;gap:10px}
-.switch{position:relative;width:40px;height:22px}
-.switch input{opacity:0;width:0;height:0}
-.slider{position:absolute;inset:0;background:var(--verde-borde);border-radius:22px;cursor:pointer;transition:.2s}
-.slider:before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:white;border-radius:50%;transition:.2s}
-.switch input:checked+.slider{background:var(--oro)}
-.switch input:checked+.slider:before{transform:translateX(18px)}
-.divider{border:none;border-top:1px solid var(--verde-borde);margin:16px 0}
-.section-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--gris);margin:16px 0 10px}
-.empty-state{text-align:center;padding:40px;color:var(--gris)}
-.empty-state .icon{font-size:36px;margin-bottom:10px}
-.toast{position:fixed;bottom:24px;right:24px;background:var(--verde-card);border:1px solid var(--verde-borde);border-radius:9px;padding:13px 18px;font-size:13px;color:var(--crema);box-shadow:var(--sombra);z-index:9999;transform:translateY(80px);opacity:0;transition:all .3s ease;min-width:240px}
-.toast.show{transform:translateY(0);opacity:1}
-.toast.ok{border-left:3px solid var(--esme)}
-.toast.err{border-left:3px solid var(--rojo)}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
-.stat-card{background:var(--verde-card);border:1px solid var(--verde-borde);border-radius:var(--radio);padding:16px;text-align:center}
-.stat-num{font-family:'Playfair Display',serif;font-size:28px;color:var(--oro)}
-.stat-label{font-size:11px;color:var(--gris);margin-top:3px;text-transform:uppercase;letter-spacing:.06em}
-@media(max-width:600px){.form-grid,.form-grid.three{grid-template-columns:1fr}.field.span2,.field.span3{grid-column:span 1}.stats{grid-template-columns:1fr 1fr}}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profesionales — SGH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e2318; --card: #1a3d26; --accent: #c9a84c;
+      --text: #f5f0e8; --muted: #a0b8a0; --danger: #e05252;
+      --success: #4caf82; --border: rgba(201,168,76,0.2); --input-bg: #0e2318;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    h1,h2,h3 { font-family: 'Playfair Display', serif; }
+    .topbar { background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+    .btn-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; }
+    .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+    .topbar h1 { font-size: 22px; color: var(--accent); flex: 1; }
+    .content { max-width: 1200px; margin: 0 auto; padding: 28px 24px; }
+    .toolbar { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
+    .search-box { flex: 1; min-width: 200px; position: relative; }
+    .search-box input { width: 100%; background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 10px 16px 10px 40px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; transition: border 0.2s; }
+    .search-box input:focus { border-color: var(--accent); }
+    .search-box::before { content: '🔍'; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 14px; }
+    .filter-select { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 10px 16px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; outline: none; }
+    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: opacity 0.2s; white-space: nowrap; }
+    .btn-primary:hover { opacity: 0.9; }
+    .stats-row { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+    .stat-chip { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 20px; text-align: center; min-width: 110px; }
+    .stat-chip-val { font-size: 22px; font-weight: 700; color: var(--accent); }
+    .stat-chip-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; transition: border-color 0.2s; }
+    .card:hover { border-color: rgba(201,168,76,0.4); }
+    .card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .card-avatar { width: 44px; height: 44px; border-radius: 50%; background: rgba(201,168,76,0.15); border: 2px solid rgba(201,168,76,0.3); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .card-info { flex: 1; min-width: 0; }
+    .card-name { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--accent); margin-bottom: 3px; }
+    .card-matricula { font-size: 12px; color: var(--muted); }
+    .badges { display: flex; gap: 4px; flex-wrap: wrap; }
+    .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+    .badge-jockey { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    .badge-entrenador { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-ambos { background: rgba(150,100,200,0.15); color: #c8a0f0; border: 1px solid rgba(150,100,200,0.3); }
+    .badge-aprendiz { background: rgba(74,144,226,0.15); color: #74b0f7; border: 1px solid rgba(74,144,226,0.3); }
+    .badge-clasico { background: rgba(201,168,76,0.1); color: var(--accent); border: 1px solid rgba(201,168,76,0.2); }
+    .badge-senior { background: rgba(76,175,130,0.1); color: var(--success); border: 1px solid rgba(76,175,130,0.2); }
+    .badge-amateur { background: rgba(180,180,180,0.1); color: var(--muted); border: 1px solid rgba(180,180,180,0.2); }
+    .badge-inactivo { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .card-detail { font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 12px; }
+    .card-detail span { color: var(--text); }
+    .peso-row { display: flex; gap: 12px; margin-bottom: 12px; }
+    .peso-box { flex: 1; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 8px 12px; text-align: center; }
+    .peso-val { font-size: 18px; font-weight: 600; color: var(--text); }
+    .peso-lbl { font-size: 11px; color: var(--muted); }
+    .card-actions { display: flex; gap: 8px; }
+    .btn-sm { padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; transition: all 0.2s; }
+    .btn-edit { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    .btn-edit:hover { background: rgba(201,168,76,0.25); }
+    .btn-delete { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .btn-delete:hover { background: rgba(224,82,82,0.2); }
+    .empty-state { text-align: center; padding: 60px 20px; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 18px; color: var(--muted); margin-bottom: 8px; }
+    .loading-state { display: flex; align-items: center; justify-content: center; padding: 60px; gap: 12px; color: var(--muted); }
+    .spinner { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 16px; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 680px; max-height: 90vh; overflow-y: auto; }
+    .modal-header { padding: 24px 24px 0; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--card); z-index: 1; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .modal-header h2 { font-size: 20px; color: var(--accent); }
+    .btn-close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; }
+    .modal-body { padding: 20px 24px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { font-size: 13px; font-weight: 500; color: var(--muted); }
+    input, select, textarea { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 10px 14px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; width: 100%; transition: border 0.2s; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 70px; }
+    select option { background: #1a3d26; }
+    .section-divider { grid-column: 1/-1; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; padding-top: 8px; border-top: 1px solid var(--border); margin-top: 4px; }
+    .modal-footer { padding: 16px 24px 24px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
+    .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .tipo-toggle { display: flex; gap: 4px; }
+    .tipo-toggle input { display: none; }
+    .tipo-toggle label { cursor: pointer; padding: 8px 16px; border-radius: 8px; font-size: 13px; border: 1px solid var(--border); color: var(--muted); transition: all 0.2s; }
+    .tipo-toggle input:checked + label { background: rgba(201,168,76,0.15); border-color: var(--accent); color: var(--accent); }
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 320px; animation: slideIn 0.3s ease; }
+    .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
+    .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .jockey-fields { display: contents; }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .form-group.full { grid-column: 1; } }
+  </style>
 </head>
 <body>
-
-<button class="btn btn-back" onclick="window.location.href='index.html'">← Volver</button>
+<div id="toast-container"></div>
 
 <div class="topbar">
-  <div>
-    <h2>👤 Profesionales</h2>
-    <p class="sub">Jockeys y entrenadores habilitados</p>
-  </div>
-  <button class="btn btn-primary" onclick="abrirModal()">+ Nuevo</button>
+  <a href="index.html" class="btn-back">← Volver</a>
+  <h1>Profesionales</h1>
 </div>
 
-<div class="stats">
-  <div class="stat-card">
-    <div class="stat-num" id="stat-total">—</div>
-    <div class="stat-label">Total</div>
+<div class="content">
+  <div class="stats-row">
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-total">—</div><div class="stat-chip-lbl">Total</div></div>
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-jockeys">—</div><div class="stat-chip-lbl">Jockeys</div></div>
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-entrenadores">—</div><div class="stat-chip-lbl">Entrenadores</div></div>
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-activos">—</div><div class="stat-chip-lbl">Activos</div></div>
   </div>
-  <div class="stat-card">
-    <div class="stat-num" id="stat-jockeys">—</div>
-    <div class="stat-label">Jockeys</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-num" id="stat-entrenadores">—</div>
-    <div class="stat-label">Entrenadores</div>
-  </div>
-</div>
 
-<div class="card">
-  <div class="search-bar">
-    <input type="text" id="buscar" placeholder="🔍 Buscar por nombre o matrícula..." oninput="filtrar()">
-    <select id="filtro-tipo" onchange="filtrar()">
+  <div class="toolbar">
+    <div class="search-box">
+      <input type="text" id="search" placeholder="Buscar por nombre o matrícula…" oninput="filterRender()">
+    </div>
+    <select class="filter-select" id="filter-tipo" onchange="filterRender()">
       <option value="">Todos los tipos</option>
-      <option value="jockey">Jockeys</option>
-      <option value="entrenador">Entrenadores</option>
+      <option value="jockey">Jockey</option>
+      <option value="entrenador">Entrenador</option>
       <option value="ambos">Ambos</option>
     </select>
-    <select id="filtro-estado" onchange="filtrar()">
+    <select class="filter-select" id="filter-activo" onchange="filterRender()">
       <option value="">Todos</option>
       <option value="true">Activos</option>
       <option value="false">Inactivos</option>
     </select>
+    <button class="btn-primary" id="btn-nuevo" onclick="openModal()">+ Nuevo Profesional</button>
   </div>
 
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Profesional</th>
-          <th>Tipo</th>
-          <th>Categoría</th>
-          <th>Matrícula</th>
-          <th>Peso min/max</th>
-          <th>Teléfono</th>
-          <th>Estado</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="tabla-body">
-        <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--gris)">
-          Cargando...
-        </td></tr>
-      </tbody>
-    </table>
-  </div>
+  <div id="list-container"></div>
 </div>
 
 <!-- MODAL -->
 <div class="modal-overlay" id="modal">
   <div class="modal">
     <div class="modal-header">
-      <h3 id="modal-title">Nuevo Profesional</h3>
-      <button class="modal-close" onclick="cerrarModal('modal')">✕</button>
+      <h2 id="modal-title">Nuevo Profesional</h2>
+      <button class="btn-close" onclick="closeModal()">✕</button>
     </div>
+    <div class="modal-body">
+      <form id="form" onsubmit="saveRecord(event)">
+        <input type="hidden" id="f-id">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Tipo *</label>
+            <div class="tipo-toggle">
+              <input type="radio" name="tipo" id="t-jockey" value="jockey" checked onchange="toggleJockeyFields()">
+              <label for="t-jockey">🎽 Jockey</label>
+              <input type="radio" name="tipo" id="t-entrenador" value="entrenador" onchange="toggleJockeyFields()">
+              <label for="t-entrenador">🧢 Entrenador</label>
+              <input type="radio" name="tipo" id="t-ambos" value="ambos" onchange="toggleJockeyFields()">
+              <label for="t-ambos">⭐ Ambos</label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Nombre *</label>
+            <input type="text" id="f-nombre" required placeholder="Nombre(s)">
+          </div>
+          <div class="form-group">
+            <label>Apellido *</label>
+            <input type="text" id="f-apellido" required placeholder="Apellido(s)">
+          </div>
+          <div class="form-group">
+            <label>Tipo documento</label>
+            <select id="f-doc-tipo">
+              <option value="DNI">DNI</option>
+              <option value="CUIT">CUIT</option>
+              <option value="Pasaporte">Pasaporte</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>N° documento</label>
+            <input type="text" id="f-doc-nro">
+          </div>
+          <div class="form-group">
+            <label>Fecha nacimiento</label>
+            <input type="date" id="f-nacimiento">
+          </div>
+          <div class="form-group">
+            <label>N° matrícula</label>
+            <input type="text" id="f-matricula" placeholder="Mat-XXXXX">
+          </div>
+          <div class="form-group">
+            <label>Caballeriza</label>
+            <select id="f-caballeriza">
+              <option value="">— Sin asignar —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Teléfono</label>
+            <input type="tel" id="f-telefono">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="f-email">
+          </div>
+          <div class="form-group">
+            <label>Activo</label>
+            <select id="f-activo">
+              <option value="true">Sí</option>
+              <option value="false">No</option>
+            </select>
+          </div>
 
-    <div class="section-label">Datos personales</div>
-    <div class="form-grid">
-      <div class="field">
-        <label>Nombre</label>
-        <input type="text" id="p-nombre" placeholder="Nombre">
-      </div>
-      <div class="field">
-        <label>Apellido</label>
-        <input type="text" id="p-apellido" placeholder="Apellido">
-      </div>
-      <div class="field">
-        <label>Tipo documento</label>
-        <select id="p-doc-tipo">
-          <option value="DNI">DNI</option>
-          <option value="CUIT">CUIT</option>
-          <option value="Pasaporte">Pasaporte</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Nº documento</label>
-        <input type="text" id="p-doc-nro" placeholder="12.345.678">
-      </div>
-      <div class="field">
-        <label>Fecha de nacimiento</label>
-        <input type="date" id="p-nacimiento">
-      </div>
-      <div class="field">
-        <label>Teléfono</label>
-        <input type="text" id="p-telefono" placeholder="+54 9 223 000-0000">
-      </div>
-      <div class="field span2">
-        <label>Email</label>
-        <input type="email" id="p-email" placeholder="email@ejemplo.com">
-      </div>
-    </div>
+          <!-- JOCKEY FIELDS -->
+          <div class="section-divider" id="jockey-divider">Datos de Jockey</div>
+          <div class="form-group" id="fg-categoria">
+            <label>Categoría jockey</label>
+            <select id="f-categoria">
+              <option value="aprendiz">Aprendiz</option>
+              <option value="clasico">Clásico</option>
+              <option value="senior">Senior</option>
+              <option value="amateur">Amateur</option>
+            </select>
+          </div>
+          <div class="form-group" id="fg-peso-min">
+            <label>Peso mínimo (kg)</label>
+            <input type="number" id="f-peso-min" min="40" max="80" step="0.1">
+          </div>
+          <div class="form-group" id="fg-peso-max">
+            <label>Peso máximo (kg)</label>
+            <input type="number" id="f-peso-max" min="40" max="80" step="0.1">
+          </div>
 
-    <div class="section-label">Datos profesionales</div>
-    <div class="form-grid">
-      <div class="field">
-        <label>Tipo</label>
-        <select id="p-tipo" onchange="toggleJockey()">
-          <option value="jockey">Jockey</option>
-          <option value="entrenador">Entrenador</option>
-          <option value="ambos">Ambos</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Nº Matrícula</label>
-        <input type="text" id="p-matricula" placeholder="MAT-0001">
-      </div>
-    </div>
-
-    <div id="campos-jockey">
-      <div class="section-label">Datos de jockey</div>
-      <div class="form-grid three">
-        <div class="field">
-          <label>Categoría</label>
-          <select id="p-categoria">
-            <option value="aprendiz">Aprendiz</option>
-            <option value="clasico">Clásico</option>
-            <option value="senior">Senior</option>
-            <option value="amateur">Amateur</option>
-          </select>
+          <div class="form-group full">
+            <label>Notas</label>
+            <textarea id="f-notas" placeholder="Observaciones…"></textarea>
+          </div>
         </div>
-        <div class="field">
-          <label>Peso mínimo (kg)</label>
-          <input type="number" id="p-peso-min" placeholder="52" step="0.5">
-        </div>
-        <div class="field">
-          <label>Peso máximo (kg)</label>
-          <input type="number" id="p-peso-max" placeholder="60" step="0.5">
-        </div>
-      </div>
+      </form>
     </div>
-
-    <div class="section-label">Observaciones</div>
-    <div class="field">
-      <textarea id="p-notas" placeholder="Notas adicionales..."></textarea>
-    </div>
-
-    <hr class="divider">
-    <div class="switch-wrap">
-      <label class="switch">
-        <input type="checkbox" id="p-activo" checked>
-        <span class="slider"></span>
-      </label>
-      <span style="font-size:13px;color:var(--gris)">Habilitado</span>
-    </div>
-
-    <input type="hidden" id="p-id">
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="cerrarModal('modal')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardar()">💾 Guardar</button>
+      <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="document.getElementById('form').requestSubmit()" id="btn-save">Guardar</button>
     </div>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
-
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK';
-const CLUB_ID      = 'a6da7e40-1515-45dc-8933-4eef33ce937a';
 const { createClient } = supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = createClient('https://unlhcuanfrtpatoipwve.supabase.co', 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
+const CLUB_ID = 'a6da7e40-1515-45dc-8933-4eef33ce937a';
 
-let todos = [];
+let allData = [];
+let caballerizas = [];
 
-function toast(msg, tipo='ok') {
-  const t = document.getElementById('toast');
-  t.textContent = tipo==='ok' ? '✅ '+msg : '❌ '+msg;
-  t.className = 'toast show '+tipo;
-  setTimeout(()=>t.className='toast', 3500);
+function toast(msg, type = 'success') {
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.textContent = msg;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(() => t.remove(), 3500);
 }
 
-function cerrarModal(id) {
-  document.getElementById(id).classList.remove('open');
+function toggleJockeyFields() {
+  const tipo = document.querySelector('input[name="tipo"]:checked')?.value;
+  const show = tipo === 'jockey' || tipo === 'ambos';
+  ['jockey-divider','fg-categoria','fg-peso-min','fg-peso-max'].forEach(id => {
+    document.getElementById(id).style.display = show ? '' : 'none';
+  });
 }
 
-function toggleJockey() {
-  const tipo = document.getElementById('p-tipo').value;
-  document.getElementById('campos-jockey').style.display =
-    (tipo === 'entrenador') ? 'none' : 'block';
+async function load() {
+  document.getElementById('list-container').innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando profesionales…</div>';
+  const [{ data: profs, error }, { data: cabs }] = await Promise.all([
+    sb.from('profesionales').select('*').eq('club_id', CLUB_ID).order('apellido').order('nombre'),
+    sb.from('caballerizas').select('id,nombre').eq('club_id', CLUB_ID).eq('activo', true).order('nombre'),
+  ]);
+  if (error) { toast(error.message, 'error'); document.getElementById('list-container').innerHTML = ''; return; }
+  allData = profs || [];
+  caballerizas = cabs || [];
+  populateCaballerizaSelect();
+  updateStats();
+  filterRender();
 }
 
-function iniciales(nombre, apellido) {
-  return ((nombre||'')[0]||
+function populateCaballerizaSelect() {
+  const sel = document.getElementById('f-caballeriza');
+  sel.innerHTML = '<option value="">— Sin asignar —</option>' +
+    caballerizas.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+}
+
+function updateStats() {
+  document.getElementById('cnt-total').textContent = allData.length;
+  document.getElementById('cnt-jockeys').textContent = allData.filter(r => r.tipo === 'jockey' || r.tipo === 'ambos').length;
+  document.getElementById('cnt-entrenadores').textContent = allData.filter(r => r.tipo === 'entrenador' || r.tipo === 'ambos').length;
+  document.getElementById('cnt-activos').textContent = allData.filter(r => r.activo).length;
+}
+
+function filterRender() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const tipo = document.getElementById('filter-tipo').value;
+  const activo = document.getElementById('filter-activo').value;
+  const data = allData.filter(r => {
+    const fullName = `${r.apellido} ${r.nombre}`.toLowerCase();
+    const matchQ = !q || fullName.includes(q) || r.matricula_nro?.toLowerCase().includes(q);
+    const matchTipo = !tipo || r.tipo === tipo;
+    const matchActivo = activo === '' || String(r.activo) === activo;
+    return matchQ && matchTipo && matchActivo;
+  });
+  renderList(data);
+}
+
+const tipoIcon = { jockey: '🎽', entrenador: '🧢', ambos: '⭐' };
+const tipoBadgeClass = { jockey: 'badge-jockey', entrenador: 'badge-entrenador', ambos: 'badge-ambos' };
+const catBadgeClass = { aprendiz: 'badge-aprendiz', clasico: 'badge-clasico', senior: 'badge-senior', amateur: 'badge-amateur' };
+
+function renderList(data) {
+  if (!data.length) {
+    document.getElementById('list-container').innerHTML = `<div class="empty-state"><div class="icon">🎽</div><h3>Sin resultados</h3><p>No se encontraron profesionales con los filtros aplicados.</p></div>`;
+    return;
+  }
+  document.getElementById('list-container').innerHTML = `<div class="grid">${data.map(r => cardHTML(r)).join('')}</div>`;
+}
+
+function cardHTML(r) {
+  const nombre = `${r.apellido}, ${r.nombre}`;
+  const cabNombre = caballerizas.find(c => c.id === r.caballeriza_id)?.nombre || null;
+  const isJockey = r.tipo === 'jockey' || r.tipo === 'ambos';
+  return `<div class="card">
+    <div class="card-header">
+      <div class="card-avatar">${tipoIcon[r.tipo] || '👤'}</div>
+      <div class="card-info">
+        <div class="card-name">${nombre}</div>
+        ${r.matricula_nro ? `<div class="card-matricula">Mat. ${r.matricula_nro}</div>` : ''}
+      </div>
+      <div class="badges">
+        <span class="badge ${tipoBadgeClass[r.tipo]}">${r.tipo}</span>
+        ${!r.activo ? `<span class="badge badge-inactivo">Inactivo</span>` : ''}
+      </div>
+    </div>
+    ${isJockey && (r.peso_minimo || r.peso_maximo) ? `
+    <div class="peso-row">
+      ${r.peso_minimo ? `<div class="peso-box"><div class="peso-val">${r.peso_minimo} kg</div><div class="peso-lbl">Peso mín.</div></div>` : ''}
+      ${r.peso_maximo ? `<div class="peso-box"><div class="peso-val">${r.peso_maximo} kg</div><div class="peso-lbl">Peso máx.</div></div>` : ''}
+      ${r.categoria_jockey ? `<div class="peso-box"><div class="peso-val"><span class="badge ${catBadgeClass[r.categoria_jockey] || ''}">${r.categoria_jockey}</span></div><div class="peso-lbl">Categoría</div></div>` : ''}
+    </div>` : ''}
+    <div class="card-detail">
+      ${r.documento_nro ? `<div>🪪 <span>${r.documento_tipo || ''} ${r.documento_nro}</span></div>` : ''}
+      ${r.fecha_nacimiento ? `<div>🎂 <span>${new Date(r.fecha_nacimiento).toLocaleDateString('es-AR')}</span></div>` : ''}
+      ${cabNombre ? `<div>🏠 <span>${cabNombre}</span></div>` : ''}
+      ${r.telefono ? `<div>📞 <span>${r.telefono}</span></div>` : ''}
+    </div>
+    <div class="card-actions">
+      <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(r)})'>✏️ Editar</button>
+      <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}','${r.apellido} ${r.nombre}')">🗑️ Eliminar</button>
+    </div>
+  </div>`;
+}
+
+function openModal(rec = null) {
+  document.getElementById('modal-title').textContent = rec ? 'Editar Profesional' : 'Nuevo Profesional';
+  document.getElementById('f-id').value = rec?.id || '';
+  const tipo = rec?.tipo || 'jockey';
+  document.querySelector(`input[name="tipo"][value="${tipo}"]`).checked = true;
+  document.getElementById('f-nombre').value = rec?.nombre || '';
+  document.getElementById('f-apellido').value = rec?.apellido || '';
+  document.getElementById('f-doc-tipo').value = rec?.documento_tipo || 'DNI';
+  document.getElementById('f-doc-nro').value = rec?.documento_nro || '';
+  document.getElementById('f-nacimiento').value = rec?.fecha_nacimiento || '';
+  document.getElementById('f-matricula').value = rec?.matricula_nro || '';
+  document.getElementById('f-caballeriza').value = rec?.caballeriza_id || '';
+  document.getElementById('f-telefono').value = rec?.telefono || '';
+  document.getElementById('f-email').value = rec?.email || '';
+  document.getElementById('f-activo').value = rec ? String(rec.activo) : 'true';
+  document.getElementById('f-categoria').value = rec?.categoria_jockey || 'aprendiz';
+  document.getElementById('f-peso-min').value = rec?.peso_minimo || '';
+  document.getElementById('f-peso-max').value = rec?.peso_maximo || '';
+  document.getElementById('f-notas').value = rec?.notas || '';
+  toggleJockeyFields();
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  document.getElementById('form').reset();
+}
+
+async function saveRecord(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-save');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  const id = document.getElementById('f-id').value;
+  const tipo = document.querySelector('input[name="tipo"]:checked').value;
+  const isJockey = tipo === 'jockey' || tipo === 'ambos';
+  const payload = {
+    club_id: CLUB_ID,
+    tipo,
+    nombre: document.getElementById('f-nombre').value.trim(),
+    apellido: document.getElementById('f-apellido').value.trim(),
+    documento_tipo: document.getElementById('f-doc-tipo').value,
+    documento_nro: document.getElementById('f-doc-nro').value.trim() || null,
+    fecha_nacimiento: document.getElementById('f-nacimiento').value || null,
+    matricula_nro: document.getElementById('f-matricula').value.trim() || null,
+    caballeriza_id: document.getElementById('f-caballeriza').value || null,
+    telefono: document.getElementById('f-telefono').value.trim() || null,
+    email: document.getElementById('f-email').value.trim() || null,
+    activo: document.getElementById('f-activo').value === 'true',
+    categoria_jockey: isJockey ? document.getElementById('f-categoria').value : null,
+    peso_minimo: isJockey && document.getElementById('f-peso-min').value ? parseFloat(document.getElementById('f-peso-min').value) : null,
+    peso_maximo: isJockey && document.getElementById('f-peso-max').value ? parseFloat(document.getElementById('f-peso-max').value) : null,
+    notas: document.getElementById('f-notas').value.trim() || null,
+  };
+  const { error } = id
+    ? await sb.from('profesionales').update(payload).eq('id', id)
+    : await sb.from('profesionales').insert(payload);
+  btn.disabled = false; btn.textContent = 'Guardar';
+  if (error) { toast(error.message, 'error'); return; }
+  toast(id ? 'Profesional actualizado' : 'Profesional creado');
+  closeModal();
+  load();
+}
+
+async function deleteRecord(id, nombre) {
+  if (!confirm(`¿Eliminar a "${nombre}"?`)) return;
+  const { error } = await sb.from('profesionales').delete().eq('id', id);
+  if (error) { toast(error.message, 'error'); return; }
+  toast('Profesional eliminado');
+  load();
+}
+
+document.getElementById('modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+load();
+</script>
+</body>
+</html>

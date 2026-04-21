@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reuniones — SGH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e2318; --card: #1a3d26; --accent: #c9a84c;
+      --text: #f5f0e8; --muted: #a0b8a0; --danger: #e05252;
+      --success: #4caf82; --border: rgba(201,168,76,0.2); --input-bg: #0e2318;
+      --info: #74b0f7;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    h1,h2,h3 { font-family: 'Playfair Display', serif; }
+    .topbar { background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+    .btn-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; }
+    .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+    .topbar h1 { font-size: 22px; color: var(--accent); flex: 1; }
+    .content { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .toolbar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+    .filter-select { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 10px 14px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; outline: none; }
+    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: opacity 0.2s; margin-left: auto; }
+    .btn-primary:hover { opacity: 0.9; }
+    .stats-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .stat-chip { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 18px; text-align: center; min-width: 110px; }
+    .stat-chip-val { font-size: 20px; font-weight: 700; color: var(--accent); }
+    .stat-chip-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+    /* LISTA */
+    .list { display: flex; flex-direction: column; gap: 12px; }
+    .reunion-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px;
+      display: flex; align-items: center; gap: 16px; cursor: pointer; transition: all 0.2s;
+    }
+    .reunion-card:hover { border-color: var(--accent); transform: translateX(4px); }
+    .reunion-card.en_curso { border-left: 4px solid var(--success); }
+    .reunion-card.publicada { border-left: 4px solid var(--info); }
+    .reunion-card.borrador { border-left: 4px solid var(--muted); }
+    .reunion-card.finalizada { border-left: 4px solid rgba(201,168,76,0.4); }
+    .reunion-card.cancelada, .reunion-card.suspendida { border-left: 4px solid var(--danger); }
+    .fecha-col { text-align: center; min-width: 56px; }
+    .fecha-dia { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: var(--accent); line-height: 1; }
+    .fecha-mes { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+    .fecha-anio { font-size: 11px; color: var(--muted); }
+    .divider { width: 1px; height: 50px; background: var(--border); flex-shrink: 0; }
+    .reunion-info { flex: 1; min-width: 0; }
+    .reunion-title { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--accent); margin-bottom: 3px; }
+    .reunion-sub { font-size: 13px; color: var(--muted); }
+    .badges { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .badge-borrador { background: rgba(160,184,160,0.1); color: var(--muted); border: 1px solid rgba(160,184,160,0.3); }
+    .badge-publicada { background: rgba(116,176,247,0.1); color: var(--info); border: 1px solid rgba(116,176,247,0.3); }
+    .badge-en_curso { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.4); }
+    .badge-finalizada { background: rgba(201,168,76,0.1); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    .badge-cancelada, .badge-suspendida { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .badge-tipo { background: rgba(201,168,76,0.08); color: var(--accent); border: 1px solid rgba(201,168,76,0.2); }
+    .reunion-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+    .btn-sm { padding: 6px 12px; border-radius: 7px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; white-space: nowrap; }
+    .btn-carta { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    .btn-edit { background: rgba(116,176,247,0.1); color: var(--info); border: 1px solid rgba(116,176,247,0.3); }
+    .btn-estado { background: rgba(76,175,130,0.1); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .btn-delete { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .empty-state { text-align: center; padding: 60px 20px; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 18px; color: var(--muted); }
+    .loading-state { display: flex; align-items: center; justify-content: center; padding: 60px; gap: 12px; color: var(--muted); }
+    .spinner { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* MODAL */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 16px; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; }
+    .modal-header { padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+    .modal-header h2 { font-size: 20px; color: var(--accent); }
+    .btn-close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; }
+    .modal-body { padding: 20px 24px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { font-size: 13px; font-weight: 500; color: var(--muted); }
+    input, select, textarea { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 9px 13px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; width: 100%; transition: border 0.2s; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 70px; }
+    select option { background: #1a3d26; }
+    .modal-footer { padding: 16px 24px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
+    .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; }
+    /* ESTADO MODAL */
+    .estado-flow { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-flow { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 10px 16px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .btn-flow:hover, .btn-flow.current { border-color: var(--accent); color: var(--accent); background: rgba(201,168,76,0.1); }
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 320px; animation: slideIn 0.3s ease; }
+    .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
+    .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @media (max-width: 700px) {
+      .reunion-card { flex-direction: column; align-items: flex-start; }
+      .divider { display: none; }
+      .reunion-actions { width: 100%; }
+    }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .form-group.full { grid-column: 1; } }
+  </style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<div class="topbar">
+  <a href="index.html" class="btn-back">← Volver</a>
+  <h1>Reuniones Hípicas</h1>
+</div>
+
+<div class="content">
+  <div class="stats-row">
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-total">—</div><div class="stat-chip-lbl">Total</div></div>
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-encurso">—</div><div class="stat-chip-lbl">En curso</div></div>
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-publicadas">—</div><div class="stat-chip-lbl">Publicadas</div></div>
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-finalizadas">—</div><div class="stat-chip-lbl">Finalizadas</div></div>
+  </div>
+
+  <div class="toolbar">
+    <select class="filter-select" id="f-estado-f" onchange="filterRender()">
+      <option value="">Todos los estados</option>
+      <option value="borrador">Borrador</option>
+      <option value="publicada">Publicada</option>
+      <option value="en_curso">En curso</option>
+      <option value="finalizada">Finalizada</option>
+      <option value="cancelada">Cancelada</option>
+      <option value="suspendida">Suspendida</option>
+    </select>
+    <select class="filter-select" id="f-tipo" onchange="filterRender()">
+      <option value="">Todos los tipos</option>
+      <option value="oficial">Oficial</option>
+      <option value="extraoficial">Extraoficial</option>
+      <option value="especial">Especial</option>
+      <option value="nocturna">Nocturna</option>
+    </select>
+    <select class="filter-select" id="f-hip" onchange="filterRender()">
+      <option value="">Todos los hipódromos</option>
+    </select>
+    <button class="btn-primary" onclick="openModal()">+ Nueva Reunión</button>
+  </div>
+
+  <div id="list-container"></div>
+</div>
+
+<!-- MODAL REUNIÓN -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Nueva Reunión</h2>
+      <button class="btn-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="f-id">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Hipódromo *</label>
+          <select id="f-hipodromo" required></select>
+        </div>
+        <div class="form-group">
+          <label>Fecha *</label>
+          <input type="date" id="f-fecha" required>
+        </div>
+        <div class="form-group">
+          <label>Número</label>
+          <input type="number" id="f-numero" min="1" placeholder="Nro de reunión">
+        </div>
+        <div class="form-group">
+          <label>Tipo</label>
+          <select id="f-tipo-r">
+            <option value="oficial">Oficial</option>
+            <option value="extraoficial">Extraoficial</option>
+            <option value="especial">Especial</option>
+            <option value="nocturna">Nocturna</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Condición de pista</label>
+          <select id="f-condicion">
+            <option value="">—</option>
+            <option value="seco">Seco</option>
+            <option value="bueno">Bueno</option>
+            <option value="algo pesado">Algo pesado</option>
+            <option value="pesado">Pesado</option>
+            <option value="muy pesado">Muy pesado</option>
+            <option value="fangoso">Fangoso</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Clima</label>
+          <input type="text" id="f-clima" placeholder="Ej: Soleado, 22°C">
+        </div>
+        <div class="form-group full">
+          <label>Observaciones</label>
+          <textarea id="f-observaciones" placeholder="Notas adicionales…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="saveRecord()" id="btn-save">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ESTADO -->
+<div class="modal-overlay" id="modal-estado">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <h2>Cambiar Estado</h2>
+      <button class="btn-close" onclick="document.getElementById('modal-estado').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--muted);font-size:13px;margin-bottom:16px;">Seleccionar nuevo estado para la reunión</p>
+      <div class="estado-flow" id="estado-flow"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const { createClient } = supabase;
+const sb = createClient('https://unlhcuanfrtpatoipwve.supabase.co', 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
+const CLUB_ID = 'a6da7e40-1515-45dc-8933-4eef33ce937a';
+
+let allData=[], hipodromos=[];
+const ESTADOS = ['borrador','publicada','en_curso','finalizada','cancelada','suspendida'];
+const ESTADO_LABELS = { borrador:'📝 Borrador', publicada:'📢 Publicada', en_curso:'🏁 En curso', finalizada:'✅ Finalizada', cancelada:'❌ Cancelada', suspendida:'⏸️ Suspendida' };
+const MESES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+
+function toast(msg, type='success') {
+  const t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
+  document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),3500);
+}
+
+async function load() {
+  document.getElementById('list-container').innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando reuniones…</div>';
+  const [{ data: reuns, error }, { data: hips }] = await Promise.all([
+    sb.from('reuniones').select('*').eq('club_id', CLUB_ID).order('fecha', {ascending: false}),
+    sb.from('hipodromos').select('id,nombre,sigla').eq('club_id', CLUB_ID).eq('activo', true).order('nombre'),
+  ]);
+  if (error) { toast(error.message,'error'); return; }
+  allData = reuns || [];
+  hipodromos = hips || [];
+  // populate filter & form select
+  const hipOpts = hipodromos.map(h=>`<option value="${h.id}">${h.nombre}</option>`).join('');
+  document.getElementById('f-hipodromo').innerHTML = '<option value="">— Seleccionar —</option>' + hipOpts;
+  document.getElementById('f-hip').innerHTML = '<option value="">Todos los hipódromos</option>' +
+    hipodromos.map(h=>`<option value="${h.id}">${h.nombre}</option>`).join('');
+  updateStats();
+  filterRender();
+}
+
+function updateStats() {
+  document.getElementById('cnt-total').textContent = allData.length;
+  document.getElementById('cnt-encurso').textContent = allData.filter(r=>r.estado==='en_curso').length;
+  document.getElementById('cnt-publicadas').textContent = allData.filter(r=>r.estado==='publicada').length;
+  document.getElementById('cnt-finalizadas').textContent = allData.filter(r=>r.estado==='finalizada').length;
+}
+
+function filterRender() {
+  const estado = document.getElementById('f-estado-f').value;
+  const tipo = document.getElementById('f-tipo').value;
+  const hip = document.getElementById('f-hip').value;
+  const data = allData.filter(r =>
+    (!estado || r.estado===estado) && (!tipo || r.tipo===tipo) && (!hip || r.hipodromo_id===hip)
+  );
+  renderList(data);
+}
+
+function renderList(data) {
+  if (!data.length) {
+    document.getElementById('list-container').innerHTML = `<div class="empty-state"><div class="icon">📅</div><h3>Sin reuniones</h3><p>No se encontraron reuniones. Crea la primera con el botón +</p></div>`;
+    return;
+  }
+  document.getElementById('list-container').innerHTML = `<div class="list">${data.map(r => {
+    const f = new Date(r.fecha + 'T12:00:00');
+    const hip = hipodromos.find(h=>h.id===r.hipodromo_id);
+    return `<div class="reunion-card ${r.estado}">
+      <div class="fecha-col">
+        <div class="fecha-dia">${String(f.getDate()).padStart(2,'0')}</div>
+        <div class="fecha-mes">${MESES[f.getMonth()]}</div>
+        <div class="fecha-anio">${f.getFullYear()}</div>
+      </div>
+      <div class="divider"></div>
+      <div class="reunion-info">
+        <div class="reunion-title">
+          ${r.numero ? `Reunión N° ${r.numero} — ` : ''}${hip?.nombre || 'Hipódromo desconocido'}
+        </div>
+        <div class="reunion-sub">${hip?.sigla ? `(${hip.sigla})` : ''} ${r.condicion_pista ? `• Pista: ${r.condicion_pista}` : ''} ${r.tiempo_clima ? `• ${r.tiempo_clima}` : ''}</div>
+        <div class="badges">
+          <span class="badge badge-${r.estado}">${ESTADO_LABELS[r.estado]||r.estado}</span>
+          <span class="badge badge-tipo">${r.tipo}</span>
+        </div>
+      </div>
+      <div class="reunion-actions" onclick="event.stopPropagation()">
+        <button class="btn-sm btn-carta" onclick="window.location.href='carta-llamados.html?reunion_id=${r.id}'">📋 Carta llamados</button>
+        <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(r)})'>✏️</button>
+        <button class="btn-sm btn-estado" onclick='openEstadoModal("${r.id}","${r.estado}")'>⟳</button>
+        <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+let estadoEditId = null;
+function openEstadoModal(id, estadoActual) {
+  estadoEditId = id;
+  document.getElementById('estado-flow').innerHTML = ESTADOS.map(e =>
+    `<button class="btn-flow ${e===estadoActual?'current':''}" onclick="changeEstado('${e}')">${ESTADO_LABELS[e]}</button>`
+  ).join('');
+  document.getElementById('modal-estado').classList.add('open');
+}
+
+async function changeEstado(nuevoEstado) {
+  const { error } = await sb.from('reuniones').update({ estado: nuevoEstado }).eq('id', estadoEditId);
+  if (error) { toast(error.message,'error'); return; }
+  toast(`Estado cambiado a: ${nuevoEstado}`);
+  document.getElementById('modal-estado').classList.remove('open');
+  load();
+}
+
+function openModal(rec=null) {
+  document.getElementById('modal-title').textContent = rec ? 'Editar Reunión' : 'Nueva Reunión';
+  document.getElementById('f-id').value = rec?.id || '';
+  document.getElementById('f-hipodromo').value = rec?.hipodromo_id || '';
+  document.getElementById('f-fecha').value = rec?.fecha || '';
+  document.getElementById('f-numero').value = rec?.numero || '';
+  document.getElementById('f-tipo-r').value = rec?.tipo || 'oficial';
+  document.getElementById('f-condicion').value = rec?.condicion_pista || '';
+  document.getElementById('f-clima').value = rec?.tiempo_clima || '';
+  document.getElementById('f-observaciones').value = rec?.observaciones || '';
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+async function saveRecord() {
+  const hipId = document.getElementById('f-hipodromo').value;
+  const fecha = document.getElementById('f-fecha').value;
+  if (!hipId || !fecha) { toast('Hipódromo y fecha son requeridos','error'); return; }
+  const id = document.getElementById('f-id').value;
+  const btn = document.getElementById('btn-save');
+  btn.disabled=true; btn.textContent='Guardando…';
+  const payload = {
+    club_id: CLUB_ID,
+    hipodromo_id: hipId,
+    fecha,
+    numero: document.getElementById('f-numero').value ? parseInt(document.getElementById('f-numero').value) : null,
+    tipo: document.getElementById('f-tipo-r').value,
+    condicion_pista: document.getElementById('f-condicion').value || null,
+    tiempo_clima: document.getElementById('f-clima').value.trim() || null,
+    observaciones: document.getElementById('f-observaciones').value.trim() || null,
+    estado: id ? undefined : 'borrador',
+  };
+  if (!id) payload.estado = 'borrador';
+  else delete payload.estado;
+  const { error } = id
+    ? await sb.from('reuniones').update(payload).eq('id',id)
+    : await sb.from('reuniones').insert(payload);
+  btn.disabled=false; btn.textContent='Guardar';
+  if (error) { toast(error.message,'error'); return; }
+  toast(id ? 'Reunión actualizada' : 'Reunión creada');
+  closeModal();
+  load();
+}
+
+async function deleteRecord(id) {
+  if (!confirm('¿Eliminar esta reunión? Se perderán las carreras asociadas.')) return;
+  const { error } = await sb.from('reuniones').delete().eq('id',id);
+  if (error) { toast(error.message,'error'); return; }
+  toast('Reunión eliminada');
+  load();
+}
+
+document.getElementById('modal').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeModal(); });
+document.getElementById('modal-estado').addEventListener('click', e=>{ if(e.target===e.currentTarget) document.getElementById('modal-estado').classList.remove('open'); });
+load();
+</script>
+</body>
+</html>

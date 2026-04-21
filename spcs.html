@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPCs — Stud Book — SGH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e2318; --card: #1a3d26; --accent: #c9a84c;
+      --text: #f5f0e8; --muted: #a0b8a0; --danger: #e05252;
+      --success: #4caf82; --border: rgba(201,168,76,0.2); --input-bg: #0e2318;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    h1,h2,h3 { font-family: 'Playfair Display', serif; }
+    .topbar { background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+    .btn-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; }
+    .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+    .topbar h1 { font-size: 22px; color: var(--accent); flex: 1; }
+    .content { max-width: 1300px; margin: 0 auto; padding: 24px; }
+    .toolbar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+    .search-box { flex: 1; min-width: 200px; position: relative; }
+    .search-box input { width: 100%; background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 10px 16px 10px 40px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; transition: border 0.2s; }
+    .search-box input:focus { border-color: var(--accent); }
+    .search-box::before { content: '🔍'; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 14px; }
+    .filter-select { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 10px 14px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; outline: none; }
+    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: opacity 0.2s; }
+    .btn-primary:hover { opacity: 0.9; }
+    .stats-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .stat-chip { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 18px; text-align: center; min-width: 100px; }
+    .stat-chip-val { font-size: 20px; font-weight: 700; color: var(--accent); }
+    .stat-chip-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+    /* TABLE */
+    .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { background: rgba(0,0,0,0.2); padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+    tbody tr { border-top: 1px solid var(--border); transition: background 0.15s; cursor: pointer; }
+    tbody tr:hover { background: rgba(201,168,76,0.05); }
+    tbody td { padding: 12px 16px; font-size: 14px; vertical-align: middle; }
+    .spc-name { font-weight: 600; color: var(--accent); font-family: 'Playfair Display', serif; }
+    .spc-reg { font-size: 12px; color: var(--muted); }
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .badge-activo { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-retirado { background: rgba(180,180,180,0.1); color: var(--muted); border: 1px solid rgba(180,180,180,0.2); }
+    .badge-suspendido { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .badge-fallecido { background: rgba(100,100,100,0.2); color: #888; border: 1px solid rgba(100,100,100,0.3); }
+    .badge-vendido { background: rgba(201,168,76,0.1); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    .badge-macho { background: rgba(74,144,226,0.1); color: #74b0f7; border: 1px solid rgba(74,144,226,0.3); }
+    .badge-hembra { background: rgba(230,100,180,0.1); color: #f07cca; border: 1px solid rgba(230,100,180,0.3); }
+    .badge-castrado { background: rgba(150,200,150,0.1); color: #90c890; border: 1px solid rgba(150,200,150,0.3); }
+    .actions-cell { display: flex; gap: 6px; }
+    .btn-sm { padding: 5px 12px; border-radius: 7px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; transition: all 0.2s; white-space: nowrap; }
+    .btn-edit { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    .btn-delete { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .empty-state { text-align: center; padding: 60px 20px; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 18px; color: var(--muted); }
+    .loading-state { display: flex; align-items: center; justify-content: center; padding: 60px; gap: 12px; color: var(--muted); }
+    .spinner { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* MODAL */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; display: none; align-items: flex-start; justify-content: center; padding: 20px; overflow-y: auto; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 760px; margin: auto; }
+    .modal-header { padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--card); border-radius: 16px 16px 0 0; z-index: 1; }
+    .modal-header h2 { font-size: 20px; color: var(--accent); }
+    .btn-close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; }
+    .modal-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); }
+    .tab-btn { background: none; border: none; padding: 12px 20px; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-panel { display: none; padding: 20px 24px; }
+    .tab-panel.active { display: block; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.full { grid-column: 1 / -1; }
+    .section-label { grid-column: 1/-1; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; padding-top: 6px; border-top: 1px solid var(--border); margin-top: 4px; }
+    label { font-size: 13px; font-weight: 500; color: var(--muted); }
+    input, select, textarea { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 9px 13px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; width: 100%; transition: border 0.2s; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 70px; }
+    select option { background: #1a3d26; }
+    /* PROPIETARIOS EN MODAL */
+    .prop-list { display: flex; flex-direction: column; gap: 10px; }
+    .prop-row { background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; gap: 10px; align-items: center; }
+    .prop-row select, .prop-row input { flex: 1; }
+    .prop-pct { width: 90px !important; flex: 0 0 90px !important; }
+    .btn-add-prop { background: rgba(76,175,130,0.1); border: 1px dashed rgba(76,175,130,0.4); color: var(--success); padding: 10px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; width: 100%; text-align: center; margin-top: 8px; }
+    .btn-rem-prop { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 16px; padding: 4px; flex-shrink: 0; }
+    .pct-total { font-size: 13px; color: var(--muted); text-align: right; margin-top: 6px; }
+    .pct-total.ok { color: var(--success); }
+    .pct-total.bad { color: var(--danger); }
+    .modal-footer { padding: 16px 24px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
+    .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 320px; animation: slideIn 0.3s ease; }
+    .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
+    .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @media (max-width: 900px) { table { font-size: 12px; } thead th, tbody td { padding: 8px 10px; } }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .form-group.full { grid-column: 1; } }
+  </style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<div class="topbar">
+  <a href="index.html" class="btn-back">← Volver</a>
+  <h1>SPCs — Stud Book</h1>
+</div>
+
+<div class="content">
+  <div class="stats-row">
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-total">—</div><div class="stat-chip-lbl">Total</div></div>
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-activos">—</div><div class="stat-chip-lbl">Activos</div></div>
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-machos">—</div><div class="stat-chip-lbl">Machos</div></div>
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-hembras">—</div><div class="stat-chip-lbl">Hembras</div></div>
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-castrados">—</div><div class="stat-chip-lbl">Castrados</div></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-box">
+      <input type="text" id="search" placeholder="Buscar por nombre o registro…" oninput="filterRender()">
+    </div>
+    <select class="filter-select" id="f-estado" onchange="filterRender()">
+      <option value="">Todos los estados</option>
+      <option value="activo">Activo</option>
+      <option value="retirado">Retirado</option>
+      <option value="suspendido">Suspendido</option>
+      <option value="fallecido">Fallecido</option>
+      <option value="vendido">Vendido</option>
+    </select>
+    <select class="filter-select" id="f-sexo" onchange="filterRender()">
+      <option value="">Todo sexo</option>
+      <option value="macho">Machos</option>
+      <option value="hembra">Hembras</option>
+      <option value="castrado">Castrados</option>
+    </select>
+    <select class="filter-select" id="f-caballeriza" onchange="filterRender()">
+      <option value="">Todas las caballerizas</option>
+    </select>
+    <button class="btn-primary" onclick="openModal()">+ Nuevo SPC</button>
+  </div>
+
+  <div id="list-container"></div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Nuevo SPC</h2>
+      <button class="btn-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="tab-btn active" onclick="switchTab('datos')">Datos generales</button>
+      <button class="tab-btn" onclick="switchTab('origen')">Origen & Pedigree</button>
+      <button class="tab-btn" onclick="switchTab('propietarios')">Propietarios</button>
+    </div>
+
+    <!-- TAB DATOS -->
+    <div class="tab-panel active" id="tab-datos">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Nombre *</label>
+          <input type="text" id="f-nombre" required placeholder="Nombre del SPC en mayúsculas">
+        </div>
+        <div class="form-group">
+          <label>N° Registro Stud Book</label>
+          <input type="text" id="f-registro" placeholder="SB-XXXX">
+        </div>
+        <div class="form-group">
+          <label>Fecha nacimiento</label>
+          <input type="date" id="f-nacimiento">
+        </div>
+        <div class="form-group">
+          <label>Sexo *</label>
+          <select id="f-sexo" required>
+            <option value="macho">Macho</option>
+            <option value="hembra">Hembra</option>
+            <option value="castrado">Castrado</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Color</label>
+          <input type="text" id="f-color" placeholder="Ej: Alazán tostado">
+        </div>
+        <div class="form-group">
+          <label>Marcas</label>
+          <input type="text" id="f-marcas" placeholder="Ej: Lunar frente, calzado izq.">
+        </div>
+        <div class="section-label">Asignaciones</div>
+        <div class="form-group">
+          <label>Caballeriza</label>
+          <select id="f-caballeriza"></select>
+        </div>
+        <div class="form-group">
+          <label>Entrenador</label>
+          <select id="f-entrenador"></select>
+        </div>
+        <div class="form-group">
+          <label>Jockey habitual</label>
+          <select id="f-jockey"></select>
+        </div>
+        <div class="form-group">
+          <label>Estado</label>
+          <select id="f-estado-spc">
+            <option value="activo">Activo</option>
+            <option value="retirado">Retirado</option>
+            <option value="suspendido">Suspendido</option>
+            <option value="fallecido">Fallecido</option>
+            <option value="vendido">Vendido</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label>Notas</label>
+          <textarea id="f-notas" placeholder="Observaciones…"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB ORIGEN -->
+    <div class="tab-panel" id="tab-origen">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Padrillo (padre)</label>
+          <input type="text" id="f-padrillo" placeholder="Nombre del padre">
+        </div>
+        <div class="form-group">
+          <label>Madre</label>
+          <input type="text" id="f-madre" placeholder="Nombre de la madre">
+        </div>
+        <div class="form-group">
+          <label>Abuela materna</label>
+          <input type="text" id="f-abuela" placeholder="Nombre de la abuela materna">
+        </div>
+        <div class="form-group">
+          <label>País de origen</label>
+          <input type="text" id="f-pais" placeholder="Argentina">
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB PROPIETARIOS -->
+    <div class="tab-panel" id="tab-propietarios">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Asignar uno o más propietarios con porcentaje de participación. La suma debe ser 100%.</p>
+      <div class="prop-list" id="prop-list"></div>
+      <button class="btn-add-prop" onclick="addPropRow()">+ Agregar propietario</button>
+      <div class="pct-total" id="pct-total">Total: 0%</div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="saveRecord()" id="btn-save">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const { createClient } = supabase;
+const sb = createClient('https://unlhcuanfrtpatoipwve.supabase.co', 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
+const CLUB_ID = 'a6da7e40-1515-45dc-8933-4eef33ce937a';
+
+let allData = [], caballerizas = [], entrenadores = [], jockeys = [], propietarios = [], propOwners = {};
+let editingId = null;
+
+function toast(msg, type='success') {
+  const t = document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
+  document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),3500);
+}
+
+function calcEdad(fecha) {
+  if (!fecha) return '—';
+  const hoy = new Date(), nac = new Date(fecha);
+  const anos = Math.floor((hoy - nac) / (365.25 * 24 * 3600 * 1000));
+  return `${anos} a.`;
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active', ['datos','origen','propietarios'][i]===name));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active', p.id===`tab-${name}`));
+}
+
+async function load() {
+  document.getElementById('list-container').innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando SPCs…</div>';
+  const params = new URLSearchParams(location.search);
+  const cabFilter = params.get('caballeriza');
+
+  const [{ data: spcs, error }, { data: cabs }, { data: profs }, { data: props }] = await Promise.all([
+    sb.from('spcs').select('*').eq('club_id', CLUB_ID).order('nombre'),
+    sb.from('caballerizas').select('id,nombre').eq('club_id', CLUB_ID).eq('activo', true).order('nombre'),
+    sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID).eq('activo', true).order('apellido'),
+    sb.from('propietarios').select('id,nombre,tipo').eq('club_id', CLUB_ID).eq('activo', true).order('nombre'),
+  ]);
+  if (error) { toast(error.message, 'error'); return; }
+  allData = spcs || [];
+  caballerizas = cabs || [];
+  entrenadores = (profs||[]).filter(p => p.tipo==='entrenador'||p.tipo==='ambos');
+  jockeys = (profs||[]).filter(p => p.tipo==='jockey'||p.tipo==='ambos');
+  propietarios = props || [];
+
+  // Load spc_propietarios
+  if (allData.length) {
+    const ids = allData.map(s=>s.id);
+    const { data: ownersData } = await sb.from('spc_propietarios').select('spc_id,propietario_id,porcentaje').eq('activo', true).in('spc_id', ids);
+    propOwners = {};
+    (ownersData||[]).forEach(o => { if (!propOwners[o.spc_id]) propOwners[o.spc_id]=[]; propOwners[o.spc_id].push(o); });
+  }
+
+  // Populate filters & selects
+  const cabSel = document.getElementById('f-caballeriza');
+  cabSel.innerHTML = '<option value="">— Sin asignar —</option>' + caballerizas.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
+  document.getElementById('f-entrenador').innerHTML = '<option value="">— Sin asignar —</option>' + entrenadores.map(p=>`<option value="${p.id}">${p.apellido}, ${p.nombre}</option>`).join('');
+  document.getElementById('f-jockey').innerHTML = '<option value="">— Sin asignar —</option>' + jockeys.map(p=>`<option value="${p.id}">${p.apellido}, ${p.nombre}</option>`).join('');
+
+  const filterCab = document.getElementById('f-caballeriza');
+  const filterCabOpt = `<option value="">Todas las caballerizas</option>` + caballerizas.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
+  // fill filter select differently from form select
+  const filterCabEl = document.querySelector('.toolbar #f-caballeriza');
+  if (filterCabEl) filterCabEl.innerHTML = filterCabOpt;
+
+  updateStats();
+  if (cabFilter) document.querySelector('.toolbar #f-caballeriza').value = cabFilter;
+  filterRender();
+}
+
+function updateStats() {
+  document.getElementById('cnt-total').textContent = allData.length;
+  document.getElementById('cnt-activos').textContent = allData.filter(r=>r.estado==='activo').length;
+  document.getElementById('cnt-machos').textContent = allData.filter(r=>r.sexo==='macho').length;
+  document.getElementById('cnt-hembras').textContent = allData.filter(r=>r.sexo==='hembra').length;
+  document.getElementById('cnt-castrados').textContent = allData.filter(r=>r.sexo==='castrado').length;
+}
+
+function filterRender() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const estado = document.getElementById('f-estado').value;
+  const sexo = document.getElementById('f-sexo').value;
+  const cabId = document.querySelector('.toolbar #f-caballeriza')?.value || '';
+  const data = allData.filter(r => {
+    return (!q || r.nombre?.toLowerCase().includes(q) || r.registro_stud_book?.toLowerCase().includes(q))
+      && (!estado || r.estado === estado)
+      && (!sexo || r.sexo === sexo)
+      && (!cabId || r.caballeriza_id === cabId);
+  });
+  renderList(data);
+}
+
+const estadoBadge = { activo:'badge-activo', retirado:'badge-retirado', suspendido:'badge-suspendido', fallecido:'badge-fallecido', vendido:'badge-vendido' };
+const sexoBadge = { macho:'badge-macho', hembra:'badge-hembra', castrado:'badge-castrado' };
+
+function renderList(data) {
+  if (!data.length) {
+    document.getElementById('list-container').innerHTML = `<div class="empty-state"><div class="icon">🐴</div><h3>Sin resultados</h3><p>No se encontraron SPCs con los filtros aplicados.</p></div>`;
+    return;
+  }
+  const rows = data.map(r => {
+    const cab = caballerizas.find(c=>c.id===r.caballeriza_id)?.nombre || '—';
+    const entr = entrenadores.find(p=>p.id===r.entrenador_id);
+    const entrNombre = entr ? `${entr.apellido}, ${entr.nombre}` : '—';
+    const owners = (propOwners[r.id]||[]);
+    const ownerNames = owners.map(o => {
+      const p = propietarios.find(pr=>pr.id===o.propietario_id);
+      return p ? `${p.nombre} (${o.porcentaje}%)` : '';
+    }).filter(Boolean).join(' / ') || '—';
+    return `<tr>
+      <td><div class="spc-name">${r.nombre}</div>${r.registro_stud_book?`<div class="spc-reg">${r.registro_stud_book}</div>`:''}</td>
+      <td><span class="badge ${sexoBadge[r.sexo]||''}">${r.sexo||'—'}</span></td>
+      <td>${calcEdad(r.fecha_nacimiento)}</td>
+      <td><span class="badge ${estadoBadge[r.estado]||''}">${r.estado||'—'}</span></td>
+      <td>${cab}</td>
+      <td>${entrNombre}</td>
+      <td style="max-width:180px;font-size:12px;">${ownerNames}</td>
+      <td class="actions-cell">
+        <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(r)})'>✏️</button>
+        <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}','${r.nombre}')">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('');
+  document.getElementById('list-container').innerHTML = `<div class="table-wrap"><table>
+    <thead><tr>
+      <th>Nombre</th><th>Sexo</th><th>Edad</th><th>Estado</th><th>Caballeriza</th><th>Entrenador</th><th>Propietario(s)</th><th>Acciones</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+
+// PROPIETARIOS ROWS
+let propRows = [];
+function addPropRow(propId='', pct='') {
+  const idx = propRows.length;
+  const div = document.createElement('div');
+  div.className = 'prop-row';
+  div.dataset.idx = idx;
+  div.innerHTML = `
+    <select onchange="updatePctTotal()" data-prop>
+      <option value="">— Seleccionar propietario —</option>
+      ${propietarios.map(p=>`<option value="${p.id}" ${p.id===propId?'selected':''}>${p.nombre}</option>`).join('')}
+    </select>
+    <input type="number" class="prop-pct" min="0" max="100" step="0.01" placeholder="%" value="${pct}" oninput="updatePctTotal()" data-pct>
+    <button class="btn-rem-prop" onclick="removePropRow(this)">✕</button>`;
+  document.getElementById('prop-list').appendChild(div);
+  propRows.push(div);
+  updatePctTotal();
+}
+function removePropRow(btn) {
+  btn.closest('.prop-row').remove();
+  propRows = propRows.filter(r=>r.isConnected);
+  updatePctTotal();
+}
+function updatePctTotal() {
+  const rows = document.querySelectorAll('#prop-list .prop-row');
+  let total = 0;
+  rows.forEach(r => { total += parseFloat(r.querySelector('[data-pct]').value||0)||0; });
+  const el = document.getElementById('pct-total');
+  el.textContent = `Total: ${total.toFixed(2)}%`;
+  el.className = 'pct-total ' + (Math.abs(total-100)<0.01 ? 'ok' : 'bad');
+}
+
+function openModal(rec=null) {
+  editingId = rec?.id || null;
+  document.getElementById('modal-title').textContent = rec ? `Editar: ${rec.nombre}` : 'Nuevo SPC';
+  document.getElementById('f-nombre').value = rec?.nombre || '';
+  document.getElementById('f-registro').value = rec?.registro_stud_book || '';
+  document.getElementById('f-nacimiento').value = rec?.fecha_nacimiento || '';
+  document.getElementById('f-sexo').value = rec?.sexo || 'macho';
+  document.getElementById('f-color').value = rec?.color || '';
+  document.getElementById('f-marcas').value = rec?.marcas || '';
+  document.getElementById('f-caballeriza').value = rec?.caballeriza_id || '';
+  document.getElementById('f-entrenador').value = rec?.entrenador_id || '';
+  document.getElementById('f-jockey').value = rec?.jockey_habitual_id || '';
+  document.getElementById('f-estado-spc').value = rec?.estado || 'activo';
+  document.getElementById('f-notas').value = rec?.notas || '';
+  document.getElementById('f-padrillo').value = rec?.padrillo_nombre || '';
+  document.getElementById('f-madre').value = rec?.madre_nombre || '';
+  document.getElementById('f-abuela').value = rec?.abuela_materna || '';
+  document.getElementById('f-pais').value = rec?.pais_origen || 'Argentina';
+  // Propietarios tab
+  document.getElementById('prop-list').innerHTML = '';
+  propRows = [];
+  const owners = rec ? (propOwners[rec.id]||[]) : [];
+  if (owners.length) owners.forEach(o => addPropRow(o.propietario_id, o.porcentaje));
+  else addPropRow();
+  switchTab('datos');
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  editingId = null;
+}
+
+async function saveRecord() {
+  const nombre = document.getElementById('f-nombre').value.trim();
+  if (!nombre) { toast('El nombre es requerido','error'); switchTab('datos'); return; }
+  const btn = document.getElementById('btn-save');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  const payload = {
+    club_id: CLUB_ID,
+    nombre,
+    registro_stud_book: document.getElementById('f-registro').value.trim() || null,
+    fecha_nacimiento: document.getElementById('f-nacimiento').value || null,
+    sexo: document.getElementById('f-sexo').value,
+    color: document.getElementById('f-color').value.trim() || null,
+    marcas: document.getElementById('f-marcas').value.trim() || null,
+    caballeriza_id: document.getElementById('f-caballeriza').value || null,
+    entrenador_id: document.getElementById('f-entrenador').value || null,
+    jockey_habitual_id: document.getElementById('f-jockey').value || null,
+    estado: document.getElementById('f-estado-spc').value,
+    notas: document.getElementById('f-notas').value.trim() || null,
+    padrillo_nombre: document.getElementById('f-padrillo').value.trim() || null,
+    madre_nombre: document.getElementById('f-madre').value.trim() || null,
+    abuela_materna: document.getElementById('f-abuela').value.trim() || null,
+    pais_origen: document.getElementById('f-pais').value.trim() || null,
+  };
+  let spcId = editingId;
+  if (editingId) {
+    const { error } = await sb.from('spcs').update(payload).eq('id', editingId);
+    if (error) { toast(error.message,'error'); btn.disabled=false; btn.textContent='Guardar'; return; }
+  } else {
+    const { data, error } = await sb.from('spcs').insert(payload).select().single();
+    if (error) { toast(error.message,'error'); btn.disabled=false; btn.textContent='Guardar'; return; }
+    spcId = data.id;
+  }
+  // Save propietarios
+  await sb.from('spc_propietarios').update({ activo: false }).eq('spc_id', spcId);
+  const propRows = document.querySelectorAll('#prop-list .prop-row');
+  const inserts = [];
+  propRows.forEach(row => {
+    const pid = row.querySelector('[data-prop]').value;
+    const pct = parseFloat(row.querySelector('[data-pct]').value)||0;
+    if (pid && pct > 0) inserts.push({ spc_id: spcId, propietario_id: pid, porcentaje: pct, fecha_desde: new Date().toISOString().slice(0,10), activo: true });
+  });
+  if (inserts.length) await sb.from('spc_propietarios').insert(inserts);
+  btn.disabled=false; btn.textContent='Guardar';
+  toast(editingId ? 'SPC actualizado' : 'SPC creado');
+  closeModal();
+  load();
+}
+
+async function deleteRecord(id, nombre) {
+  if (!confirm(`¿Eliminar SPC "${nombre}"?`)) return;
+  const { error } = await sb.from('spcs').delete().eq('id', id);
+  if (error) { toast(error.message,'error'); return; }
+  toast('SPC eliminado');
+  load();
+}
+
+document.getElementById('modal').addEventListener('click', e => { if (e.target===e.currentTarget) closeModal(); });
+load();
+</script>
+</body>
+</html>

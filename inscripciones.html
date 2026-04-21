@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inscripciones — SGH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e2318; --card: #1a3d26; --accent: #c9a84c;
+      --text: #f5f0e8; --muted: #a0b8a0; --danger: #e05252;
+      --success: #4caf82; --border: rgba(201,168,76,0.2); --input-bg: #0e2318;
+      --info: #74b0f7;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    h1,h2,h3 { font-family: 'Playfair Display', serif; }
+    .topbar { background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .btn-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 7px 14px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s; }
+    .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+    .topbar h1 { font-size: 18px; color: var(--accent); flex: 1; min-width: 180px; }
+    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: opacity 0.2s; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    /* SELECTOR */
+    .selector-bar { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .selector-bar label { font-size: 12px; color: var(--muted); }
+    .selector-bar select { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; }
+    /* CARRERA HEADER */
+    .carrera-header { background: rgba(201,168,76,0.07); border-bottom: 1px solid var(--border); padding: 14px 24px; }
+    .carrera-info { display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; align-items: center; }
+    .carrera-num { font-family: 'Playfair Display', serif; font-size: 28px; color: var(--accent); font-weight: 700; }
+    .carrera-name { font-family: 'Playfair Display', serif; font-size: 17px; }
+    .carrera-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+    .chip { font-size: 11px; background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.2); color: var(--muted); padding: 2px 9px; border-radius: 5px; }
+    /* STATS */
+    .stats-row { display: flex; gap: 12px; padding: 16px 24px; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+    .stat-chip { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 18px; text-align: center; min-width: 100px; }
+    .stat-chip-val { font-size: 20px; font-weight: 700; color: var(--accent); }
+    .stat-chip-val.danger { color: var(--danger); }
+    .stat-chip-val.success { color: var(--success); }
+    .stat-chip-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+    /* TABLE */
+    .content { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .table-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+    .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { background: rgba(0,0,0,0.2); padding: 11px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+    tbody tr { border-top: 1px solid var(--border); transition: background 0.15s; }
+    tbody tr:hover { background: rgba(201,168,76,0.04); }
+    tbody td { padding: 12px 14px; font-size: 13px; vertical-align: middle; }
+    .num-partidor { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: var(--accent); text-align: center; min-width: 40px; }
+    .spc-name { font-weight: 600; color: var(--accent); }
+    .spc-sub { font-size: 11px; color: var(--muted); }
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .badge-confirmado { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-ratificado { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    .badge-pre_inscripto { background: rgba(116,176,247,0.1); color: var(--info); border: 1px solid rgba(116,176,247,0.3); }
+    .badge-forfait { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .badge-no_presentado { background: rgba(180,180,180,0.1); color: var(--muted); border: 1px solid rgba(180,180,180,0.3); }
+    .actions-cell { display: flex; gap: 5px; }
+    .btn-sm { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; white-space: nowrap; }
+    .btn-edit { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    .btn-delete { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .empty-state { text-align: center; padding: 50px 20px; }
+    .empty-state .icon { font-size: 44px; margin-bottom: 14px; }
+    .empty-state h3 { font-size: 17px; color: var(--muted); }
+    .loading-state { display: flex; align-items: center; justify-content: center; padding: 50px; gap: 12px; color: var(--muted); }
+    .spinner { width: 22px; height: 22px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* MODAL */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; display: none; align-items: flex-start; justify-content: center; padding: 20px; overflow-y: auto; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 620px; margin: auto; }
+    .modal-header { padding: 18px 22px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+    .modal-header h2 { font-size: 18px; color: var(--accent); }
+    .btn-close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; }
+    .modal-body { padding: 18px 22px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group.full { grid-column: 1 / -1; }
+    .section-lbl { grid-column: 1/-1; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; padding-top: 6px; border-top: 1px solid var(--border); }
+    label { font-size: 12px; font-weight: 500; color: var(--muted); }
+    input, select, textarea { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; width: 100%; transition: border 0.2s; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    select option { background: #1a3d26; }
+    .spc-search { position: relative; }
+    .spc-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: #1a3d26; border: 1px solid var(--border); border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 10; display: none; }
+    .spc-option { padding: 9px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid var(--border); }
+    .spc-option:last-child { border-bottom: none; }
+    .spc-option:hover { background: rgba(201,168,76,0.1); color: var(--accent); }
+    .modal-footer { padding: 14px 22px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
+    .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; }
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 320px; animation: slideIn 0.3s ease; }
+    .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
+    .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    @media print {
+      body { background: #fff !important; color: #000 !important; }
+      .topbar, .selector-bar, .table-actions .btn-primary, .btn-outline, .actions-cell, #toast-container { display: none !important; }
+      .table-wrap { border: 1px solid #ccc !important; background: #fff !important; }
+      thead th { background: #f0f0f0 !important; color: #333 !important; }
+      tbody td { color: #000 !important; }
+      .spc-name { color: #000 !important; }
+      .badge { border: 1px solid #999 !important; color: #333 !important; background: #eee !important; }
+      @page { size: A4 landscape; margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<div class="topbar">
+  <a id="back-link" href="reuniones.html" class="btn-back">← Volver</a>
+  <h1 id="topbar-title">Inscripciones</h1>
+  <button class="btn-outline" onclick="window.print()">🖨️ Imprimir</button>
+  <button class="btn-primary" id="btn-nueva" onclick="openModal()" style="display:none">+ Inscribir SPC</button>
+</div>
+
+<div class="selector-bar">
+  <label>Reunión:</label>
+  <select id="sel-reunion" onchange="onReunionChange()">
+    <option value="">— Seleccionar —</option>
+  </select>
+  <label>Carrera:</label>
+  <select id="sel-carrera" onchange="onCarreraChange()">
+    <option value="">— Seleccionar reunión primero —</option>
+  </select>
+</div>
+
+<div id="carrera-header" style="display:none" class="carrera-header">
+  <div class="carrera-info">
+    <div class="carrera-num" id="ch-num">—</div>
+    <div>
+      <div class="carrera-name" id="ch-name">—</div>
+      <div class="carrera-chips" id="ch-chips"></div>
+    </div>
+  </div>
+</div>
+
+<div class="stats-row" id="stats-row" style="display:none">
+  <div class="stat-chip"><div class="stat-chip-val" id="cnt-insc">—</div><div class="stat-chip-lbl">Inscriptos</div></div>
+  <div class="stat-chip"><div class="stat-chip-val success" id="cnt-conf">—</div><div class="stat-chip-lbl">Confirmados</div></div>
+  <div class="stat-chip"><div class="stat-chip-val danger" id="cnt-fort">—</div><div class="stat-chip-lbl">Forfaits</div></div>
+  <div class="stat-chip"><div class="stat-chip-val" id="cnt-cupo">—</div><div class="stat-chip-lbl">Cupo disp.</div></div>
+</div>
+
+<div class="content">
+  <div class="table-actions">
+    <span style="font-size:13px;color:var(--muted);" id="tabla-label">Seleccionar una reunión y carrera para ver inscriptos</span>
+  </div>
+  <div id="list-container"></div>
+</div>
+
+<!-- MODAL INSCRIPCIÓN -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Inscribir SPC</h2>
+      <button class="btn-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="f-id">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Buscar SPC *</label>
+          <div class="spc-search">
+            <input type="text" id="spc-search-input" placeholder="Escribir nombre del SPC…" autocomplete="off" oninput="searchSpc()">
+            <input type="hidden" id="f-spc-id">
+            <div class="spc-dropdown" id="spc-dropdown"></div>
+          </div>
+        </div>
+        <div class="form-group full">
+          <label>Propietario</label>
+          <input type="text" id="f-propietario-display" readonly placeholder="Auto-completar al seleccionar SPC">
+          <input type="hidden" id="f-propietario-id">
+        </div>
+        <div class="form-group full">
+          <label>Entrenador</label>
+          <select id="f-entrenador"></select>
+        </div>
+        <div class="section-lbl">Jockey</div>
+        <div class="form-group">
+          <label>Jockey titular *</label>
+          <select id="f-jockey-titular" required></select>
+        </div>
+        <div class="form-group">
+          <label>Jockey suplente</label>
+          <select id="f-jockey-suplente"></select>
+        </div>
+        <div class="section-lbl">Detalles</div>
+        <div class="form-group">
+          <label>N° partidor</label>
+          <input type="number" id="f-partidor" min="1" max="30">
+        </div>
+        <div class="form-group">
+          <label>Peso declarado (kg)</label>
+          <input type="number" id="f-peso" min="40" max="80" step="0.1">
+        </div>
+        <div class="form-group">
+          <label>Canal</label>
+          <select id="f-canal">
+            <option value="manual">Manual</option>
+            <option value="web">Web</option>
+            <option value="app">App</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Estado</label>
+          <select id="f-estado">
+            <option value="pre_inscripto">Pre-inscripto</option>
+            <option value="confirmado">Confirmado</option>
+            <option value="ratificado">Ratificado</option>
+            <option value="forfait">Forfait</option>
+            <option value="no_presentado">No presentado</option>
+          </select>
+        </div>
+        <div class="form-group full" id="forfait-motivo-group" style="display:none">
+          <label>Motivo forfait</label>
+          <input type="text" id="f-motivo-forfait" placeholder="Motivo del forfait…">
+        </div>
+        <div class="form-group full">
+          <label>Información adicional</label>
+          <input type="text" id="f-info" placeholder="Observaciones adicionales…">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="saveRecord()" id="btn-save">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const { createClient } = supabase;
+const sb = createClient('https://unlhcuanfrtpatoipwve.supabase.co', 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
+const CLUB_ID = 'a6da7e40-1515-45dc-8933-4eef33ce937a';
+
+const params = new URLSearchParams(location.search);
+let currentCarreraId = params.get('carrera_id');
+let reuniones=[], carreras=[], inscripciones=[], spcs=[], profesionales=[], propietarios=[], spcOwners={};
+let currentCarrera = null;
+
+function toast(msg, type='success') {
+  const t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
+  document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),3500);
+}
+
+async function loadAll() {
+  const [{ data: reuns }, { data: sprofs }, { data: props }, { data: sprcs }] = await Promise.all([
+    sb.from('reuniones').select('id,numero,fecha,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
+    sb.from('profesionales').select('id,nombre,apellido,tipo,jockey_habitual_id').eq('club_id', CLUB_ID).eq('activo', true).order('apellido'),
+    sb.from('propietarios').select('id,nombre').eq('club_id', CLUB_ID).eq('activo', true).order('nombre'),
+    sb.from('spcs').select('id,nombre,caballeriza_id,entrenador_id,jockey_habitual_id,estado').eq('club_id', CLUB_ID).order('nombre'),
+  ]);
+  reuniones = reuns||[];
+  profesionales = sprofs||[];
+  propietarios = props||[];
+  spcs = sprcs||[];
+
+  // Load spc_propietarios for active ones
+  if (spcs.length) {
+    const { data: ownData } = await sb.from('spc_propietarios').select('spc_id,propietario_id').eq('activo',true);
+    spcOwners = {};
+    (ownData||[]).forEach(o => { if (!spcOwners[o.spc_id]) spcOwners[o.spc_id]=[]; spcOwners[o.spc_id].push(o.propietario_id); });
+  }
+
+  // Populate reunion select
+  const selR = document.getElementById('sel-reunion');
+  selR.innerHTML = '<option value="">— Seleccionar —</option>' +
+    reuniones.map(r=>`<option value="${r.id}">Reunión ${r.numero||''} — ${new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR')} — ${r.hipodromos?.nombre||''}</option>`).join('');
+
+  // Populate profesional selects
+  const jockeys = profesionales.filter(p=>p.tipo==='jockey'||p.tipo==='ambos');
+  const entrenadores = profesionales.filter(p=>p.tipo==='entrenador'||p.tipo==='ambos');
+  const jOpts = '<option value="">— Sin jockey —</option>' + jockeys.map(p=>`<option value="${p.id}">${p.apellido}, ${p.nombre}</option>`).join('');
+  const eOpts = '<option value="">— Sin entrenador —</option>' + entrenadores.map(p=>`<option value="${p.id}">${p.apellido}, ${p.nombre}</option>`).join('');
+  document.getElementById('f-jockey-titular').innerHTML = jOpts;
+  document.getElementById('f-jockey-suplente').innerHTML = jOpts;
+  document.getElementById('f-entrenador').innerHTML = eOpts;
+
+  if (currentCarreraId) {
+    // find reunion for this carrera
+    const { data: car } = await sb.from('carreras').select('*,reuniones(id)').eq('id', currentCarreraId).single();
+    if (car && car.reuniones) {
+      selR.value = car.reuniones.id;
+      await onReunionChange();
+      document.getElementById('sel-carrera').value = currentCarreraId;
+      await onCarreraChange();
+    }
+  }
+}
+
+async function onReunionChange() {
+  const rid = document.getElementById('sel-reunion').value;
+  const selC = document.getElementById('sel-carrera');
+  if (!rid) { selC.innerHTML='<option value="">— Seleccionar reunión primero —</option>'; return; }
+  const { data: cars } = await sb.from('carreras').select('id,numero_turno,nombre,distancia_metros').eq('reunion_id', rid).order('numero_turno');
+  carreras = cars||[];
+  selC.innerHTML = '<option value="">— Seleccionar carrera —</option>' +
+    carreras.map(c=>`<option value="${c.id}">Turno ${c.numero_turno}${c.nombre?` — ${c.nombre}`:''} (${c.distancia_metros}m)</option>`).join('');
+}
+
+async function onCarreraChange() {
+  const cid = document.getElementById('sel-carrera').value;
+  currentCarreraId = cid || null;
+  if (!cid) {
+    document.getElementById('carrera-header').style.display='none';
+    document.getElementById('stats-row').style.display='none';
+    document.getElementById('btn-nueva').style.display='none';
+    document.getElementById('list-container').innerHTML='';
+    return;
+  }
+  currentCarrera = carreras.find(c=>c.id===cid) || null;
+  if (!currentCarrera) {
+    const { data } = await sb.from('carreras').select('*').eq('id', cid).single();
+    currentCarrera = data;
+  }
+  renderCarreraHeader();
+  await loadInscripciones();
+}
+
+function renderCarreraHeader() {
+  if (!currentCarrera) return;
+  document.getElementById('carrera-header').style.display='block';
+  document.getElementById('stats-row').style.display='flex';
+  document.getElementById('btn-nueva').style.display='';
+  document.getElementById('ch-num').textContent = currentCarrera.numero_turno;
+  document.getElementById('ch-name').textContent = currentCarrera.nombre || `Carrera ${currentCarrera.numero_turno}`;
+  document.getElementById('ch-chips').innerHTML = `
+    <span class="chip">${currentCarrera.distancia_metros}m</span>
+    <span class="chip">${currentCarrera.tipo_pista||'—'}</span>
+    ${currentCarrera.condicion_sexo?`<span class="chip">${currentCarrera.condicion_sexo}</span>`:''}
+    ${currentCarrera.cupo_maximo?`<span class="chip">Cupo: ${currentCarrera.cupo_maximo}</span>`:''}
+    ${currentCarrera.bolsa_total?`<span class="chip">💰 $${currentCarrera.bolsa_total.toLocaleString('es-AR')}</span>`:''}
+  `;
+}
+
+async function loadInscripciones() {
+  if (!currentCarreraId) return;
+  document.getElementById('list-container').innerHTML='<div class="loading-state"><div class="spinner"></div> Cargando inscriptos…</div>';
+  const { data, error } = await sb.from('inscripciones').select('*').eq('carrera_id', currentCarreraId).order('numero_partidor');
+  if (error) { toast(error.message,'error'); return; }
+  inscripciones = data||[];
+  updateStats();
+  renderInscripciones();
+}
+
+function updateStats() {
+  const activos = inscripciones.filter(i=>i.estado!=='forfait'&&i.estado!=='no_presentado');
+  const cupo = currentCarrera?.cupo_maximo;
+  document.getElementById('cnt-insc').textContent = activos.length;
+  document.getElementById('cnt-conf').textContent = inscripciones.filter(i=>i.estado==='confirmado'||i.estado==='ratificado').length;
+  document.getElementById('cnt-fort').textContent = inscripciones.filter(i=>i.estado==='forfait').length;
+  document.getElementById('cnt-cupo').textContent = cupo ? Math.max(0, cupo - activos.length) : '∞';
+}
+
+function getSpc(id) { return spcs.find(s=>s.id===id); }
+function getProp(id) { return propietarios.find(p=>p.id===id); }
+function getProf(id) { return profesionales.find(p=>p.id===id); }
+
+function renderInscripciones() {
+  if (!inscripciones.length) {
+    document.getElementById('list-container').innerHTML=`<div class="empty-state"><div class="icon">📋</div><h3>Sin inscriptos</h3><p>No hay SPCs inscriptos en esta carrera.</p></div>`;
+    return;
+  }
+  const rows = inscripciones.map(i => {
+    const spc = getSpc(i.spc_id);
+    const prop = getProp(i.propietario_id);
+    const jkey = getProf(i.jockey_titular_id);
+    const jkeySup = getProf(i.jockey_suplente_id);
+    const entr = getProf(i.entrenador_id);
+    return `<tr>
+      <td class="num-partidor">${i.numero_partidor||'—'}</td>
+      <td><div class="spc-name">${spc?.nombre||i.spc_id}</div><div class="spc-sub">${prop?.nombre||'—'}</div></td>
+      <td>${entr?`${entr.apellido}`:'-'}</td>
+      <td>${jkey?`${jkey.apellido}, ${jkey.nombre}`:'-'}${jkeySup?`<br><span class="spc-sub">Sup: ${jkeySup.apellido}</span>`:''}</td>
+      <td>${i.peso_declarado?`${i.peso_declarado} kg`:'—'}</td>
+      <td><span class="badge badge-${i.estado}">${i.estado?.replace('_',' ')||'—'}</span></td>
+      <td>${i.canal||'manual'}</td>
+      <td class="actions-cell">
+        <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(i)})'>✏️</button>
+        <button class="btn-sm btn-delete" onclick="deleteRecord('${i.id}')">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('');
+  document.getElementById('list-container').innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>SPC / Propietario</th><th>Entrenador</th><th>Jockey</th><th>Peso</th><th>Estado</th><th>Canal</th><th>Acciones</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+
+// SPC search
+let spcSearchTimer;
+function searchSpc() {
+  clearTimeout(spcSearchTimer);
+  const q = document.getElementById('spc-search-input').value.toLowerCase();
+  if (!q) { document.getElementById('spc-dropdown').style.display='none'; return; }
+  spcSearchTimer = setTimeout(() => {
+    const matches = spcs.filter(s=>s.nombre.toLowerCase().includes(q)&&s.estado==='activo').slice(0,10);
+    const dd = document.getElementById('spc-dropdown');
+    if (!matches.length) { dd.style.display='none'; return; }
+    dd.innerHTML = matches.map(s=>`<div class="spc-option" onclick="selectSpc('${s.id}','${s.nombre.replace(/'/g,"\\'")}','${s.entrenador_id||''}','${s.jockey_habitual_id||''}')">${s.nombre}</div>`).join('');
+    dd.style.display='block';
+  }, 200);
+}
+
+function selectSpc(id, nombre, entrenadorId, jockeyId) {
+  document.getElementById('f-spc-id').value = id;
+  document.getElementById('spc-search-input').value = nombre;
+  document.getElementById('spc-dropdown').style.display='none';
+  // Auto-fill entrenador
+  if (entrenadorId) document.getElementById('f-entrenador').value = entrenadorId;
+  // Auto-fill jockey habitual
+  if (jockeyId) document.getElementById('f-jockey-titular').value = jockeyId;
+  // Auto-fill propietario
+  const ownerIds = spcOwners[id] || [];
+  if (ownerIds.length) {
+    const prop = getProp(ownerIds[0]);
+    document.getElementById('f-propietario-display').value = prop?.nombre || '';
+    document.getElementById('f-propietario-id').value = ownerIds[0];
+  } else {
+    document.getElementById('f-propietario-display').value = '';
+    document.getElementById('f-propietario-id').value = '';
+  }
+}
+
+document.getElementById('f-estado').addEventListener('change', () => {
+  document.getElementById('forfait-motivo-group').style.display = document.getElementById('f-estado').value === 'forfait' ? '' : 'none';
+});
+
+function openModal(rec=null) {
+  document.getElementById('modal-title').textContent = rec ? 'Editar Inscripción' : 'Inscribir SPC';
+  document.getElementById('f-id').value = rec?.id||'';
+  if (rec) {
+    const spc = getSpc(rec.spc_id);
+    document.getElementById('spc-search-input').value = spc?.nombre||'';
+    document.getElementById('f-spc-id').value = rec.spc_id||'';
+    const prop = getProp(rec.propietario_id);
+    document.getElementById('f-propietario-display').value = prop?.nombre||'';
+    document.getElementById('f-propietario-id').value = rec.propietario_id||'';
+    document.getElementById('f-entrenador').value = rec.entrenador_id||'';
+    document.getElementById('f-jockey-titular').value = rec.jockey_titular_id||'';
+    document.getElementById('f-jockey-suplente').value = rec.jockey_suplente_id||'';
+    document.getElementById('f-partidor').value = rec.numero_partidor||'';
+    document.getElementById('f-peso').value = rec.peso_declarado||'';
+    document.getElementById('f-canal').value = rec.canal||'manual';
+    document.getElementById('f-estado').value = rec.estado||'pre_inscripto';
+    document.getElementById('f-motivo-forfait').value = rec.motivo_forfait||'';
+    document.getElementById('f-info').value = rec.info_adicional||'';
+    document.getElementById('forfait-motivo-group').style.display = rec.estado==='forfait'?'':'none';
+  } else {
+    document.getElementById('spc-search-input').value='';
+    document.getElementById('f-spc-id').value='';
+    document.getElementById('f-propietario-display').value='';
+    document.getElementById('f-propietario-id').value='';
+    document.getElementById('f-entrenador').value='';
+    document.getElementById('f-jockey-titular').value='';
+    document.getElementById('f-jockey-suplente').value='';
+    document.getElementById('f-partidor').value='';
+    document.getElementById('f-peso').value='';
+    document.getElementById('f-canal').value='manual';
+    document.getElementById('f-estado').value='pre_inscripto';
+    document.getElementById('f-motivo-forfait').value='';
+    document.getElementById('f-info').value='';
+    document.getElementById('forfait-motivo-group').style.display='none';
+  }
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+async function saveRecord() {
+  const spcId = document.getElementById('f-spc-id').value;
+  if (!spcId || !currentCarreraId) { toast('Seleccionar un SPC','error'); return; }
+  const btn=document.getElementById('btn-save');
+  btn.disabled=true; btn.textContent='Guardando…';
+  const id=document.getElementById('f-id').value;
+  const payload = {
+    carrera_id: currentCarreraId,
+    spc_id: spcId,
+    propietario_id: document.getElementById('f-propietario-id').value || null,
+    entrenador_id: document.getElementById('f-entrenador').value || null,
+    jockey_titular_id: document.getElementById('f-jockey-titular').value || null,
+    jockey_suplente_id: document.getElementById('f-jockey-suplente').value || null,
+    numero_partidor: document.getElementById('f-partidor').value ? parseInt(document.getElementById('f-partidor').value) : null,
+    peso_declarado: document.getElementById('f-peso').value ? parseFloat(document.getElementById('f-peso').value) : null,
+    canal: document.getElementById('f-canal').value,
+    estado: document.getElementById('f-estado').value,
+    motivo_forfait: document.getElementById('f-motivo-forfait').value.trim() || null,
+    info_adicional: document.getElementById('f-info').value.trim() || null,
+  };
+  const { error } = id
+    ? await sb.from('inscripciones').update(payload).eq('id',id)
+    : await sb.from('inscripciones').insert(payload);
+  btn.disabled=false; btn.textContent='Guardar';
+  if (error) { toast(error.message,'error'); return; }
+  toast(id ? 'Inscripción actualizada' : 'SPC inscripto');
+  closeModal();
+  await loadInscripciones();
+}
+
+async function deleteRecord(id) {
+  if (!confirm('¿Eliminar esta inscripción?')) return;
+  const { error } = await sb.from('inscripciones').delete().eq('id',id);
+  if (error) { toast(error.message,'error'); return; }
+  toast('Inscripción eliminada');
+  await loadInscripciones();
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.spc-search')) document.getElementById('spc-dropdown').style.display='none';
+});
+document.getElementById('modal').addEventListener('click', e=>{if(e.target===e.currentTarget) closeModal();});
+loadAll();
+</script>
+</body>
+</html>

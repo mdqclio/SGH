@@ -1,1179 +1,309 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sistema Hípico — Configuración</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
-  :root {
-    --verde:      #0e2318;
-    --verde-mid:  #163520;
-    --verde-card: #1a3d26;
-    --verde-borde:#245033;
-    --oro:        #c9a84c;
-    --oro-suave:  #e8d5a3;
-    --crema:      #f5f0e8;
-    --blanco:     #ffffff;
-    --gris:       #8a9e90;
-    --rojo:       #c0392b;
-    --azul:       #2563EB;
-    --purp:       #7C3AED;
-    --ambar:      #D97706;
-    --esme:       #059669;
-    --sombra:     0 4px 24px rgba(0,0,0,0.4);
-    --radio:      10px;
-  }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SGH — Sistema de Gestión Hípica</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e2318; --card: #1a3d26; --accent: #c9a84c;
+      --text: #f5f0e8; --muted: #a0b8a0; --danger: #e05252;
+      --success: #4caf82; --border: rgba(201,168,76,0.2);
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    h1,h2,h3 { font-family: 'Playfair Display', serif; }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+    /* LAYOUT */
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 260px; background: rgba(0,0,0,0.3); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; z-index: 100;
+    }
+    .sidebar-logo {
+      padding: 24px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .logo-icon { width: 40px; height: 40px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+    .logo-text h2 { font-size: 18px; color: var(--accent); }
+    .logo-text p { font-size: 11px; color: var(--muted); }
+    .sidebar-section { padding: 12px 0; }
+    .sidebar-section-title { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; padding: 8px 20px 4px; }
+    .nav-link {
+      display: flex; align-items: center; gap: 10px; padding: 10px 20px;
+      color: var(--text); text-decoration: none; font-size: 14px; font-weight: 500;
+      border-left: 3px solid transparent; transition: all 0.2s;
+    }
+    .nav-link:hover, .nav-link.active { background: rgba(201,168,76,0.1); border-left-color: var(--accent); color: var(--accent); }
+    .nav-icon { font-size: 16px; width: 20px; text-align: center; }
 
-  body {
-    font-family: 'DM Sans', sans-serif;
-    background: var(--verde);
-    color: var(--crema);
-    min-height: 100vh;
-    display: flex;
-  }
+    .main { margin-left: 260px; flex: 1; }
+    .topbar { background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar h1 { font-size: 22px; color: var(--accent); }
+    .club-badge { font-size: 12px; color: var(--muted); background: var(--card); padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border); }
+    .content { padding: 32px; }
 
-  /* ── SIDEBAR ── */
-  .sidebar {
-    width: 240px;
-    min-height: 100vh;
-    background: var(--verde-mid);
-    border-right: 1px solid var(--verde-borde);
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    top: 0; left: 0; bottom: 0;
-    z-index: 100;
-  }
+    /* HERO */
+    .hero { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 32px; margin-bottom: 32px; display: flex; align-items: center; gap: 24px; }
+    .hero-icon { font-size: 48px; }
+    .hero h2 { font-size: 28px; color: var(--accent); margin-bottom: 6px; }
+    .hero p { color: var(--muted); font-size: 15px; }
 
-  .sidebar-logo {
-    padding: 28px 24px 20px;
-    border-bottom: 1px solid var(--verde-borde);
-  }
+    /* STATS */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+    .stat-value { font-size: 32px; font-weight: 700; color: var(--accent); font-family: 'Playfair Display', serif; }
+    .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
 
-  .sidebar-logo h1 {
-    font-family: 'Playfair Display', serif;
-    font-size: 18px;
-    color: var(--oro);
-    line-height: 1.2;
-  }
+    /* MODULE GRID */
+    .section-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .module-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px 20px;
+      text-decoration: none; color: var(--text); transition: all 0.2s; display: flex; flex-direction: column; gap: 8px;
+    }
+    .module-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+    .module-card-icon { font-size: 28px; margin-bottom: 4px; }
+    .module-card-title { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--accent); }
+    .module-card-desc { font-size: 13px; color: var(--muted); line-height: 1.4; }
 
-  .sidebar-logo p {
-    font-size: 11px;
-    color: var(--gris);
-    margin-top: 4px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
+    /* TOAST */
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 320px; animation: slideIn 0.3s ease; }
+    .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
+    .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-  .sidebar nav { padding: 16px 12px; flex: 1; }
-
-  .nav-section {
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--gris);
-    padding: 12px 12px 6px;
-  }
-
-  .nav-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 7px;
-    cursor: pointer;
-    font-size: 14px;
-    color: var(--gris);
-    transition: all 0.18s;
-    margin-bottom: 2px;
-    text-decoration: none;
-  }
-
-  .nav-item:hover { background: var(--verde-card); color: var(--crema); }
-  .nav-item.active { background: var(--verde-card); color: var(--oro); font-weight: 500; }
-  .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
-
-  /* ── MAIN ── */
-  .main {
-    margin-left: 240px;
-    flex: 1;
-    padding: 32px 40px;
-    min-height: 100vh;
-  }
-
-  .page { display: none; animation: fadeIn 0.2s ease; }
-  .page.active { display: block; }
-
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-
-  /* ── HEADER DE PÁGINA ── */
-  .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 32px;
-  }
-
-  .page-header h2 {
-    font-family: 'Playfair Display', serif;
-    font-size: 28px;
-    color: var(--crema);
-    line-height: 1.2;
-  }
-
-  .page-header p {
-    color: var(--gris);
-    font-size: 14px;
-    margin-top: 4px;
-  }
-
-  /* ── CARDS ── */
-  .card {
-    background: var(--verde-card);
-    border: 1px solid var(--verde-borde);
-    border-radius: var(--radio);
-    padding: 28px;
-    margin-bottom: 24px;
-    box-shadow: var(--sombra);
-  }
-
-  .card-title {
-    font-family: 'Playfair Display', serif;
-    font-size: 16px;
-    color: var(--oro);
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  /* ── GRID FORMS ── */
-  .form-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-  }
-
-  .form-grid.three { grid-template-columns: 1fr 1fr 1fr; }
-  .form-grid.full { grid-template-columns: 1fr; }
-
-  .field { display: flex; flex-direction: column; gap: 6px; }
-  .field.span2 { grid-column: span 2; }
-  .field.span3 { grid-column: span 3; }
-
-  label {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--oro-suave);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  input, select, textarea {
-    background: var(--verde-mid);
-    border: 1px solid var(--verde-borde);
-    border-radius: 7px;
-    padding: 10px 14px;
-    color: var(--crema);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
-    transition: border-color 0.15s;
-    outline: none;
-  }
-
-  input:focus, select:focus, textarea:focus {
-    border-color: var(--oro);
-    box-shadow: 0 0 0 3px rgba(201,168,76,0.12);
-  }
-
-  textarea { resize: vertical; min-height: 80px; }
-
-  select option { background: var(--verde-mid); }
-
-  /* ── BOTONES ── */
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 10px 20px;
-    border-radius: 7px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    border: none;
-    transition: all 0.18s;
-  }
-
-  .btn-primary { background: var(--oro); color: var(--verde); }
-  .btn-primary:hover { background: var(--oro-suave); transform: translateY(-1px); }
-
-  .btn-ghost {
-    background: transparent;
-    border: 1px solid var(--verde-borde);
-    color: var(--gris);
-  }
-  .btn-ghost:hover { border-color: var(--gris); color: var(--crema); }
-
-  .btn-danger { background: transparent; border: 1px solid #c0392b44; color: #e74c3c; }
-  .btn-danger:hover { background: #c0392b22; }
-
-  .btn-sm { padding: 6px 12px; font-size: 12px; }
-
-  /* ── TABLA ── */
-  .table-wrap { overflow-x: auto; }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
-  }
-
-  thead th {
-    text-align: left;
-    padding: 10px 14px;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--gris);
-    border-bottom: 1px solid var(--verde-borde);
-  }
-
-  tbody tr {
-    border-bottom: 1px solid #ffffff0a;
-    transition: background 0.12s;
-  }
-
-  tbody tr:hover { background: rgba(255,255,255,0.03); }
-
-  tbody td { padding: 13px 14px; color: var(--crema); vertical-align: middle; }
-
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-  }
-
-  .badge-green  { background: #059669222; color: #34d399; border: 1px solid #05966944; }
-  .badge-red    { background: #c0392b22;  color: #e74c3c; border: 1px solid #c0392b44; }
-  .badge-blue   { background: #2563EB22;  color: #60a5fa; border: 1px solid #2563EB44; }
-  .badge-purple { background: #7C3AED22;  color: #a78bfa; border: 1px solid #7C3AED44; }
-  .badge-amber  { background: #D9770622;  color: #fbbf24; border: 1px solid #D9770644; }
-
-  /* ── MODAL ── */
-  .modal-overlay {
-    display: none;
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.7);
-    z-index: 999;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .modal-overlay.open { display: flex; }
-
-  .modal {
-    background: var(--verde-card);
-    border: 1px solid var(--verde-borde);
-    border-radius: 12px;
-    padding: 32px;
-    width: 100%;
-    max-width: 560px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-    animation: modalIn 0.2s ease;
-    max-height: 90vh;
-    overflow-y: auto;
-  }
-
-  @keyframes modalIn {
-    from { opacity: 0; transform: scale(0.95) translateY(10px); }
-    to { opacity: 1; transform: none; }
-  }
-
-  .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-  }
-
-  .modal-header h3 {
-    font-family: 'Playfair Display', serif;
-    font-size: 20px;
-    color: var(--oro);
-  }
-
-  .modal-close {
-    background: none; border: none; color: var(--gris);
-    font-size: 20px; cursor: pointer; padding: 4px;
-    transition: color 0.15s;
-  }
-  .modal-close:hover { color: var(--crema); }
-
-  .modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 24px;
-  }
-
-  /* ── TOAST ── */
-  #toast {
-    position: fixed;
-    bottom: 28px; right: 28px;
-    background: var(--verde-card);
-    border: 1px solid var(--verde-borde);
-    border-radius: 9px;
-    padding: 14px 20px;
-    font-size: 14px;
-    color: var(--crema);
-    box-shadow: var(--sombra);
-    z-index: 9999;
-    transform: translateY(80px);
-    opacity: 0;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 260px;
-  }
-  #toast.show { transform: translateY(0); opacity: 1; }
-  #toast.ok  { border-left: 3px solid var(--esme); }
-  #toast.err { border-left: 3px solid var(--rojo); }
-
-  /* ── SÍMBOLO CATEGORÍA ── */
-  .cat-simbolo {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px; height: 28px;
-    border-radius: 50%;
-    font-size: 14px;
-    font-weight: bold;
-  }
-
-  /* ── DIVIDER ── */
-  .divider {
-    border: none;
-    border-top: 1px solid var(--verde-borde);
-    margin: 20px 0;
-  }
-
-  /* ── ESTADO VACÍO ── */
-  .empty-state {
-    text-align: center;
-    padding: 48px;
-    color: var(--gris);
-  }
-  .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
-  .empty-state p { font-size: 14px; }
-
-  /* ── SPINNER ── */
-  .spinner {
-    width: 20px; height: 20px;
-    border: 2px solid var(--verde-borde);
-    border-top-color: var(--oro);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    display: inline-block;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* ── SWITCH ── */
-  .switch-wrap { display: flex; align-items: center; gap: 10px; }
-  .switch {
-    position: relative;
-    width: 44px; height: 24px;
-  }
-  .switch input { opacity: 0; width: 0; height: 0; }
-  .slider {
-    position: absolute; inset: 0;
-    background: var(--verde-borde);
-    border-radius: 24px;
-    cursor: pointer;
-    transition: 0.2s;
-  }
-  .slider:before {
-    content: '';
-    position: absolute;
-    width: 18px; height: 18px;
-    left: 3px; top: 3px;
-    background: white;
-    border-radius: 50%;
-    transition: 0.2s;
-  }
-  .switch input:checked + .slider { background: var(--oro); }
-  .switch input:checked + .slider:before { transform: translateX(20px); }
-
-  /* ── COLOR INPUT ── */
-  .color-preview {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .color-dot {
-    width: 28px; height: 28px;
-    border-radius: 50%;
-    border: 2px solid var(--verde-borde);
-    flex-shrink: 0;
-  }
-
-  /* ── RESPONSIVE ── */
-  @media (max-width: 768px) {
-    .sidebar { width: 60px; }
-    .sidebar-logo h1, .sidebar-logo p, .nav-item span, .nav-section { display: none; }
-    .main { margin-left: 60px; padding: 20px; }
-    .form-grid { grid-template-columns: 1fr; }
-    .form-grid.three { grid-template-columns: 1fr; }
-    .field.span2, .field.span3 { grid-column: span 1; }
-  }
-</style>
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0; }
+      .topbar { padding: 16px; }
+      .content { padding: 16px; }
+      .hero { flex-direction: column; text-align: center; }
+    }
+    .menu-toggle { display: none; background: none; border: none; color: var(--text); font-size: 22px; cursor: pointer; }
+    @media (max-width: 768px) { .menu-toggle { display: block; } }
+  </style>
 </head>
 <body>
+<div id="toast-container"></div>
 
-<!-- SIDEBAR -->
-<aside class="sidebar">
-  <div class="sidebar-logo">
-    <h1>🏇 Sistema<br>Hípico</h1>
-    <p>Panel de control</p>
-  </div>
-  <nav>
-    <div class="nav-section">Configuración</div>
-    <a class="nav-item active" onclick="showPage('club')" href="#">
-      <span class="icon">🏛️</span><span>Club</span>
-    </a>
-    <a class="nav-item" onclick="showPage('hipodromos')" href="#">
-      <span class="icon">🏟️</span><span>Hipódromos</span>
-    </a>
-    <a class="nav-item" onclick="showPage('categorias')" href="#">
-      <span class="icon">🏷️</span><span>Categorías</span>
-    </a>
-    <div class="nav-section" style="margin-top:16px">Base de datos</div>
-    <a class="nav-item" href="#" onclick="showPage('profesionales')">
-      <span class="icon">👤</span><span>Profesionales</span>
-    </a>
-    <a class="nav-item" href="#" onclick="showPage('spcs')">
-      <span class="icon">🐎</span><span>Stud Book</span>
-    </a>
-    <a class="nav-item" href="#" onclick="showPage('propietarios')">
-      <span class="icon">👔</span><span>Propietarios</span>
-    </a>
-    <div class="nav-section" style="margin-top:16px">Operaciones</div>
-    <a class="nav-item" href="#">
-      <span class="icon">📅</span><span>Reuniones</span>
-    </a>
-    <a class="nav-item" href="#">
-      <span class="icon">📋</span><span>Inscripciones</span>
-    </a>
-    <a class="nav-item" href="#">
-      <span class="icon">🏆</span><span>Resultados</span>
-    </a>
-  </nav>
-</aside>
-
-<!-- MAIN -->
-<main class="main">
-
-  <!-- ══ PÁGINA: CLUB ══ -->
-  <div id="page-club" class="page active">
-    <div class="page-header">
-      <div>
-        <h2>Configuración del Club</h2>
-        <p>Datos institucionales y configuración general</p>
-      </div>
-      <button class="btn btn-primary" onclick="guardarClub()">
-        💾 Guardar cambios
-      </button>
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🐎</div>
+      <div class="logo-text"><h2>SGH</h2><p>Gestión Hípica</p></div>
     </div>
 
-    <div class="card">
-      <div class="card-title">🏛️ Datos institucionales</div>
-      <div class="form-grid" id="form-club">
-        <div class="field span2">
-          <label>Nombre del Club</label>
-          <input type="text" id="club-nombre" placeholder="Ej: Jockey Club de Buenos Aires">
-        </div>
-        <div class="field">
-          <label>Sigla</label>
-          <input type="text" id="club-sigla" placeholder="Ej: JCBA" maxlength="10">
-        </div>
-        <div class="field">
-          <label>CUIT</label>
-          <input type="text" id="club-cuit" placeholder="30-12345678-9">
-        </div>
-        <div class="field span2">
-          <label>Razón Social</label>
-          <input type="text" id="club-razon" placeholder="Denominación legal">
-        </div>
-        <div class="field span2">
-          <label>Domicilio</label>
-          <input type="text" id="club-domicilio" placeholder="Calle, número">
-        </div>
-        <div class="field">
-          <label>Localidad</label>
-          <input type="text" id="club-localidad" placeholder="Ciudad">
-        </div>
-        <div class="field">
-          <label>Provincia</label>
-          <input type="text" id="club-provincia" placeholder="Provincia">
-        </div>
-        <div class="field">
-          <label>Teléfono</label>
-          <input type="text" id="club-telefono" placeholder="+54 11 1234-5678">
-        </div>
-        <div class="field">
-          <label>Email</label>
-          <input type="email" id="club-email" placeholder="secretaria@club.com">
-        </div>
-      </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Dashboard</div>
+      <a href="index.html" class="nav-link active"><span class="nav-icon">🏠</span>Inicio</a>
     </div>
 
-    <div class="card">
-      <div class="card-title">⚙️ Parámetros del sistema</div>
-      <div id="config-list">
-        <div style="text-align:center; padding: 20px; color: var(--gris);">
-          <span class="spinner"></span>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Configuración</div>
+      <a href="hipodromos.html" class="nav-link"><span class="nav-icon">🏟️</span>Hipódromos</a>
+      <a href="categorias.html" class="nav-link"><span class="nav-icon">🏷️</span>Categorías</a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Personas & Animales</div>
+      <a href="propietarios.html" class="nav-link"><span class="nav-icon">👤</span>Propietarios</a>
+      <a href="caballerizas.html" class="nav-link"><span class="nav-icon">🏠</span>Caballerizas</a>
+      <a href="Profesionales.html" class="nav-link"><span class="nav-icon">🎽</span>Profesionales</a>
+      <a href="spcs.html" class="nav-link"><span class="nav-icon">🐴</span>SPCs</a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Operaciones</div>
+      <a href="reuniones.html" class="nav-link"><span class="nav-icon">📅</span>Reuniones</a>
+      <a href="inscripciones.html" class="nav-link"><span class="nav-icon">📋</span>Inscripciones</a>
+      <a href="ratificacion.html" class="nav-link"><span class="nav-icon">✅</span>Ratificación</a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Competencia</div>
+      <a href="programa.html" class="nav-link"><span class="nav-icon">📰</span>Programa</a>
+      <a href="resultados.html" class="nav-link"><span class="nav-icon">🏁</span>Resultados</a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Administración</div>
+      <a href="liquidaciones.html" class="nav-link"><span class="nav-icon">💰</span>Liquidaciones</a>
+      <a href="sanciones.html" class="nav-link"><span class="nav-icon">⚠️</span>Sanciones</a>
+      <a href="resoluciones.html" class="nav-link"><span class="nav-icon">📜</span>Resoluciones</a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+        <h1>Sistema de Gestión Hípica</h1>
+      </div>
+      <span class="club-badge" id="club-name">Cargando...</span>
+    </div>
+
+    <div class="content">
+      <div class="hero">
+        <div class="hero-icon">🏇</div>
+        <div>
+          <h2 id="hero-club">Bienvenido al SGH</h2>
+          <p id="hero-desc">Sistema de Gestión Hípica — Panel de control</p>
         </div>
       </div>
-      <hr class="divider">
-      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-        <input type="text" id="cfg-clave" placeholder="Clave (ej: moneda_principal)" style="flex:1; min-width:200px">
-        <input type="text" id="cfg-valor" placeholder="Valor (ej: ARS)" style="flex:1; min-width:140px">
-        <input type="text" id="cfg-desc" placeholder="Descripción" style="flex:2; min-width:200px">
-        <button class="btn btn-primary btn-sm" onclick="agregarConfig()">+ Agregar</button>
-      </div>
-    </div>
-  </div>
 
-  <!-- ══ PÁGINA: HIPÓDROMOS ══ -->
-  <div id="page-hipodromos" class="page">
-    <div class="page-header">
-      <div>
-        <h2>Hipódromos</h2>
-        <p>Gestión de hipódromos asociados al club</p>
+      <!-- STATS -->
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card"><div class="stat-value" id="stat-spcs">—</div><div class="stat-label">SPCs activos</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-propietarios">—</div><div class="stat-label">Propietarios</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-profesionales">—</div><div class="stat-label">Profesionales</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-caballerizas">—</div><div class="stat-label">Caballerizas</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-reuniones">—</div><div class="stat-label">Reuniones</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-sanciones">—</div><div class="stat-label">Sanciones activas</div></div>
       </div>
-      <button class="btn btn-primary" onclick="abrirModalHipodromo()">
-        + Nuevo Hipódromo
-      </button>
-    </div>
 
-    <div class="card">
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Sigla</th>
-              <th>Localidad</th>
-              <th>Provincia</th>
-              <th>Tipo de Pista</th>
-              <th>Estado</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="tabla-hipodromos">
-            <tr><td colspan="7" style="text-align:center; padding:32px; color:var(--gris)">
-              <span class="spinner"></span>
-            </td></tr>
-          </tbody>
-        </table>
+      <div class="section-title">Configuración del Sistema</div>
+      <div class="module-grid">
+        <a href="hipodromos.html" class="module-card">
+          <div class="module-card-icon">🏟️</div>
+          <div class="module-card-title">Hipódromos</div>
+          <div class="module-card-desc">Gestión de pistas y sedes de competencia</div>
+        </a>
+        <a href="categorias.html" class="module-card">
+          <div class="module-card-icon">🏷️</div>
+          <div class="module-card-title">Categorías</div>
+          <div class="module-card-desc">Categorías de carrera y sus atributos</div>
+        </a>
       </div>
-    </div>
-  </div>
 
-  <!-- ══ PÁGINA: CATEGORÍAS ══ -->
-  <div id="page-categorias" class="page">
-    <div class="page-header">
-      <div>
-        <h2>Categorías de Carrera</h2>
-        <p>Tipos de carrera con sus parámetros de computabilidad</p>
+      <div class="section-title">Personas & Animales</div>
+      <div class="module-grid">
+        <a href="propietarios.html" class="module-card">
+          <div class="module-card-icon">👤</div>
+          <div class="module-card-title">Propietarios</div>
+          <div class="module-card-desc">Alta, baja y modificación de propietarios y studs</div>
+        </a>
+        <a href="caballerizas.html" class="module-card">
+          <div class="module-card-icon">🏠</div>
+          <div class="module-card-title">Caballerizas</div>
+          <div class="module-card-desc">Studs, establecimientos y sus SPCs</div>
+        </a>
+        <a href="Profesionales.html" class="module-card">
+          <div class="module-card-icon">🎽</div>
+          <div class="module-card-title">Profesionales</div>
+          <div class="module-card-desc">Jockeys y entrenadores registrados</div>
+        </a>
+        <a href="spcs.html" class="module-card">
+          <div class="module-card-icon">🐴</div>
+          <div class="module-card-title">SPCs</div>
+          <div class="module-card-desc">Stud Book — registro completo de ejemplares</div>
+        </a>
       </div>
-      <button class="btn btn-primary" onclick="abrirModalCategoria()">
-        + Nueva Categoría
-      </button>
-    </div>
 
-    <div class="card">
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Símbolo</th>
-              <th>Nombre</th>
-              <th>Código</th>
-              <th>Oficial</th>
-              <th>Computable</th>
-              <th>Color</th>
-              <th>Orden</th>
-              <th>Estado</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="tabla-categorias">
-            <tr><td colspan="9" style="text-align:center; padding:32px; color:var(--gris)">
-              <span class="spinner"></span>
-            </td></tr>
-          </tbody>
-        </table>
+      <div class="section-title">Operaciones de Carrera</div>
+      <div class="module-grid">
+        <a href="reuniones.html" class="module-card">
+          <div class="module-card-icon">📅</div>
+          <div class="module-card-title">Reuniones</div>
+          <div class="module-card-desc">Programación y gestión de jornadas hípicas</div>
+        </a>
+        <a href="inscripciones.html" class="module-card">
+          <div class="module-card-icon">📋</div>
+          <div class="module-card-title">Inscripciones</div>
+          <div class="module-card-desc">Inscripción de SPCs a carreras</div>
+        </a>
+        <a href="ratificacion.html" class="module-card">
+          <div class="module-card-icon">✅</div>
+          <div class="module-card-title">Ratificación</div>
+          <div class="module-card-desc">Ratificación, forfaits y pesaje final</div>
+        </a>
       </div>
-    </div>
-  </div>
 
-  <!-- ══ PÁGINAS PRÓXIMAS ══ -->
-  <div id="page-profesionales" class="page">
-    <div class="page-header"><div><h2>Profesionales</h2><p>Módulo en construcción</p></div></div>
-    <div class="card"><div class="empty-state"><div class="icon">🚧</div><p>Este módulo se construye en la próxima etapa</p></div></div>
-  </div>
-  <div id="page-spcs" class="page">
-    <div class="page-header"><div><h2>Stud Book — SPCs</h2><p>Módulo en construcción</p></div></div>
-    <div class="card"><div class="empty-state"><div class="icon">🚧</div><p>Este módulo se construye en la próxima etapa</p></div></div>
-  </div>
-  <div id="page-propietarios" class="page">
-    <div class="page-header"><div><h2>Propietarios</h2><p>Módulo en construcción</p></div></div>
-    <div class="card"><div class="empty-state"><div class="icon">🚧</div><p>Este módulo se construye en la próxima etapa</p></div></div>
-  </div>
+      <div class="section-title">Competencia & Resultados</div>
+      <div class="module-grid">
+        <a href="programa.html" class="module-card">
+          <div class="module-card-icon">📰</div>
+          <div class="module-card-title">Programa Hípico</div>
+          <div class="module-card-desc">Programa oficial con performances históricas</div>
+        </a>
+        <a href="resultados.html" class="module-card">
+          <div class="module-card-icon">🏁</div>
+          <div class="module-card-title">Resultados</div>
+          <div class="module-card-desc">Carga de posiciones y oficialización</div>
+        </a>
+      </div>
 
-</main>
-
-<!-- ══ MODAL: HIPÓDROMO ══ -->
-<div class="modal-overlay" id="modal-hipodromo">
-  <div class="modal">
-    <div class="modal-header">
-      <h3 id="modal-hip-title">Nuevo Hipódromo</h3>
-      <button class="modal-close" onclick="cerrarModal('modal-hipodromo')">✕</button>
-    </div>
-    <div class="form-grid">
-      <div class="field span2">
-        <label>Nombre</label>
-        <input type="text" id="hip-nombre" placeholder="Hipódromo de Palermo">
-      </div>
-      <div class="field">
-        <label>Sigla</label>
-        <input type="text" id="hip-sigla" placeholder="PAL" maxlength="10">
-      </div>
-      <div class="field">
-        <label>Tipo de Pista</label>
-        <select id="hip-pista">
-          <option value="Césped">Césped</option>
-          <option value="Arena">Arena</option>
-          <option value="Mixta">Mixta</option>
-          <option value="Sintética">Sintética</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Localidad</label>
-        <input type="text" id="hip-localidad" placeholder="Ciudad">
-      </div>
-      <div class="field">
-        <label>Provincia</label>
-        <input type="text" id="hip-provincia" placeholder="Provincia">
-      </div>
-      <div class="field span2">
-        <label>Estado</label>
-        <div class="switch-wrap">
-          <label class="switch">
-            <input type="checkbox" id="hip-activo" checked>
-            <span class="slider"></span>
-          </label>
-          <span style="font-size:14px; color:var(--gris)">Activo</span>
-        </div>
+      <div class="section-title">Administración</div>
+      <div class="module-grid">
+        <a href="liquidaciones.html" class="module-card">
+          <div class="module-card-icon">💰</div>
+          <div class="module-card-title">Liquidaciones</div>
+          <div class="module-card-desc">Comisiones, pagos y recibos por reunión</div>
+        </a>
+        <a href="sanciones.html" class="module-card">
+          <div class="module-card-icon">⚠️</div>
+          <div class="module-card-title">Sanciones</div>
+          <div class="module-card-desc">Registro y seguimiento de sanciones</div>
+        </a>
+        <a href="resoluciones.html" class="module-card">
+          <div class="module-card-icon">📜</div>
+          <div class="module-card-title">Resoluciones</div>
+          <div class="module-card-desc">Resoluciones de comisión y su estado</div>
+        </a>
       </div>
     </div>
-    <input type="hidden" id="hip-id">
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="cerrarModal('modal-hipodromo')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarHipodromo()">💾 Guardar</button>
-    </div>
-  </div>
+  </main>
 </div>
 
-<!-- ══ MODAL: CATEGORÍA ══ -->
-<div class="modal-overlay" id="modal-categoria">
-  <div class="modal">
-    <div class="modal-header">
-      <h3 id="modal-cat-title">Nueva Categoría</h3>
-      <button class="modal-close" onclick="cerrarModal('modal-categoria')">✕</button>
-    </div>
-    <div class="form-grid">
-      <div class="field span2">
-        <label>Nombre</label>
-        <input type="text" id="cat-nombre" placeholder="Oficial Computable">
-      </div>
-      <div class="field">
-        <label>Código</label>
-        <input type="text" id="cat-codigo" placeholder="OC" maxlength="20">
-      </div>
-      <div class="field">
-        <label>Símbolo</label>
-        <input type="text" id="cat-simbolo" placeholder="○" maxlength="5">
-      </div>
-      <div class="field">
-        <label>Color</label>
-        <div class="color-preview">
-          <div class="color-dot" id="cat-color-preview" style="background:#2563EB"></div>
-          <input type="color" id="cat-color" value="#2563EB" style="width:100%"
-            oninput="document.getElementById('cat-color-preview').style.background=this.value">
-        </div>
-      </div>
-      <div class="field">
-        <label>Orden de Display</label>
-        <input type="number" id="cat-orden" value="1" min="1">
-      </div>
-      <div class="field span2">
-        <label>Descripción</label>
-        <textarea id="cat-descripcion" placeholder="Descripción opcional..."></textarea>
-      </div>
-      <div class="field">
-        <label>¿Es Oficial?</label>
-        <div class="switch-wrap">
-          <label class="switch">
-            <input type="checkbox" id="cat-oficial" checked>
-            <span class="slider"></span>
-          </label>
-          <span style="font-size:14px; color:var(--gris)">Oficial</span>
-        </div>
-      </div>
-      <div class="field">
-        <label>¿Es Computable?</label>
-        <div class="switch-wrap">
-          <label class="switch">
-            <input type="checkbox" id="cat-computable" checked>
-            <span class="slider"></span>
-          </label>
-          <span style="font-size:14px; color:var(--gris)">Computable</span>
-        </div>
-      </div>
-      <div class="field">
-        <label>Estado</label>
-        <div class="switch-wrap">
-          <label class="switch">
-            <input type="checkbox" id="cat-activo" checked>
-            <span class="slider"></span>
-          </label>
-          <span style="font-size:14px; color:var(--gris)">Activo</span>
-        </div>
-      </div>
-    </div>
-    <input type="hidden" id="cat-id">
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="cerrarModal('modal-categoria')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarCategoria()">💾 Guardar</button>
-    </div>
-  </div>
-</div>
-
-<!-- TOAST -->
-<div id="toast"></div>
-
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-// ══════════════════════════════════════════
-// CONFIGURACIÓN SUPABASE
-// ══════════════════════════════════════════
-const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK';
-const CLUB_ID      = 'a6da7e40-1515-45dc-8933-4eef33ce937a';
-
 const { createClient } = supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = createClient('https://unlhcuanfrtpatoipwve.supabase.co', 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
+const CLUB_ID = 'a6da7e40-1515-45dc-8933-4eef33ce937a';
 
-// ══════════════════════════════════════════
-// NAVEGACIÓN
-// ══════════════════════════════════════════
-function showPage(name) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + name).classList.add('active');
-  event.currentTarget.classList.add('active');
-
-  if (name === 'club')        cargarClub();
-  if (name === 'hipodromos')  cargarHipodromos();
-  if (name === 'categorias')  cargarCategorias();
+function toast(msg, type = 'success') {
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.textContent = msg;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(() => t.remove(), 3500);
 }
 
-// ══════════════════════════════════════════
-// TOAST
-// ══════════════════════════════════════════
-function toast(msg, tipo = 'ok') {
-  const t = document.getElementById('toast');
-  t.textContent = tipo === 'ok' ? '✅ ' + msg : '❌ ' + msg;
-  t.className = 'show ' + tipo;
-  setTimeout(() => t.className = '', 3500);
-}
+async function loadDashboard() {
+  try {
+    const [club, spcs, props, profs, cabs, reuns, sancs] = await Promise.all([
+      sb.from('clubs').select('nombre,sigla').eq('id', CLUB_ID).single(),
+      sb.from('spcs').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('estado', 'activo'),
+      sb.from('propietarios').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('activo', true),
+      sb.from('profesionales').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('activo', true),
+      sb.from('caballerizas').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('activo', true),
+      sb.from('reuniones').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID),
+      sb.from('sanciones').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('estado', 'activa'),
+    ]);
 
-// ══════════════════════════════════════════
-// MODALES
-// ══════════════════════════════════════════
-function cerrarModal(id) {
-  document.getElementById(id).classList.remove('open');
-}
-
-// ══════════════════════════════════════════
-// MÓDULO: CLUB
-// ══════════════════════════════════════════
-async function cargarClub() {
-  const { data, error } = await db
-    .from('clubs')
-    .select('*')
-    .eq('id', CLUB_ID)
-    .single();
-
-  if (error) return toast('Error al cargar el club: ' + error.message, 'err');
-
-  document.getElementById('club-nombre').value    = data.nombre || '';
-  document.getElementById('club-sigla').value     = data.sigla || '';
-  document.getElementById('club-cuit').value      = data.cuit || '';
-  document.getElementById('club-razon').value     = data.razon_social || '';
-  document.getElementById('club-domicilio').value = data.domicilio || '';
-  document.getElementById('club-localidad').value = data.localidad || '';
-  document.getElementById('club-provincia').value = data.provincia || '';
-  document.getElementById('club-telefono').value  = data.telefono || '';
-  document.getElementById('club-email').value     = data.email || '';
-
-  cargarConfiguraciones();
-}
-
-async function guardarClub() {
-  const updates = {
-    nombre:       document.getElementById('club-nombre').value.trim(),
-    sigla:        document.getElementById('club-sigla').value.trim().toUpperCase(),
-    cuit:         document.getElementById('club-cuit').value.trim(),
-    razon_social: document.getElementById('club-razon').value.trim(),
-    domicilio:    document.getElementById('club-domicilio').value.trim(),
-    localidad:    document.getElementById('club-localidad').value.trim(),
-    provincia:    document.getElementById('club-provincia').value.trim(),
-    telefono:     document.getElementById('club-telefono').value.trim(),
-    email:        document.getElementById('club-email').value.trim(),
-  };
-
-  if (!updates.nombre) return toast('El nombre del club es obligatorio', 'err');
-
-  const { error } = await db.from('clubs').update(updates).eq('id', CLUB_ID);
-  if (error) return toast('Error: ' + error.message, 'err');
-  toast('Club actualizado correctamente');
-}
-
-async function cargarConfiguraciones() {
-  const { data, error } = await db
-    .from('club_configuracion')
-    .select('*')
-    .eq('club_id', CLUB_ID)
-    .order('clave');
-
-  const cont = document.getElementById('config-list');
-
-  if (error || !data || data.length === 0) {
-    cont.innerHTML = '<p style="color:var(--gris); font-size:13px">Sin parámetros configurados aún.</p>';
-    return;
+    if (club.data) {
+      document.getElementById('club-name').textContent = club.data.sigla || club.data.nombre;
+      document.getElementById('hero-club').textContent = club.data.nombre;
+      document.getElementById('hero-desc').textContent = `Sistema de Gestión Hípica — ${club.data.sigla}`;
+    }
+    document.getElementById('stat-spcs').textContent = spcs.count ?? '—';
+    document.getElementById('stat-propietarios').textContent = props.count ?? '—';
+    document.getElementById('stat-profesionales').textContent = profs.count ?? '—';
+    document.getElementById('stat-caballerizas').textContent = cabs.count ?? '—';
+    document.getElementById('stat-reuniones').textContent = reuns.count ?? '—';
+    document.getElementById('stat-sanciones').textContent = sancs.count ?? '—';
+  } catch (e) {
+    toast('Error al cargar datos del dashboard', 'error');
   }
-
-  cont.innerHTML = `
-    <table style="width:100%">
-      <thead>
-        <tr>
-          <th>Clave</th>
-          <th>Valor</th>
-          <th>Descripción</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        ${data.map(c => `
-          <tr>
-            <td><code style="color:var(--oro-suave); font-size:12px">${c.clave}</code></td>
-            <td>${c.valor || '—'}</td>
-            <td style="color:var(--gris); font-size:13px">${c.descripcion || ''}</td>
-            <td>
-              <button class="btn btn-danger btn-sm" onclick="eliminarConfig('${c.id}')">✕</button>
-            </td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
-  `;
 }
 
-async function agregarConfig() {
-  const clave = document.getElementById('cfg-clave').value.trim();
-  const valor = document.getElementById('cfg-valor').value.trim();
-  const desc  = document.getElementById('cfg-desc').value.trim();
-
-  if (!clave || !valor) return toast('Clave y valor son obligatorios', 'err');
-
-  const { error } = await db.from('club_configuracion').upsert({
-    club_id: CLUB_ID, clave, valor, descripcion: desc
-  }, { onConflict: 'club_id,clave' });
-
-  if (error) return toast('Error: ' + error.message, 'err');
-
-  document.getElementById('cfg-clave').value = '';
-  document.getElementById('cfg-valor').value = '';
-  document.getElementById('cfg-desc').value  = '';
-  toast('Parámetro guardado');
-  cargarConfiguraciones();
-}
-
-async function eliminarConfig(id) {
-  if (!confirm('¿Eliminar este parámetro?')) return;
-  const { error } = await db.from('club_configuracion').delete().eq('id', id);
-  if (error) return toast('Error: ' + error.message, 'err');
-  toast('Parámetro eliminado');
-  cargarConfiguraciones();
-}
-
-// ══════════════════════════════════════════
-// MÓDULO: HIPÓDROMOS
-// ══════════════════════════════════════════
-async function cargarHipodromos() {
-  const { data, error } = await db
-    .from('hipodromos')
-    .select('*')
-    .eq('club_id', CLUB_ID)
-    .order('nombre');
-
-  const tbody = document.getElementById('tabla-hipodromos');
-
-  if (error) {
-    tbody.innerHTML = `<tr><td colspan="7" style="color:var(--rojo); padding:20px">${error.message}</td></tr>`;
-    return;
-  }
-
-  if (!data || data.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7">
-      <div class="empty-state"><div class="icon">🏟️</div><p>No hay hipódromos cargados</p></div>
-    </td></tr>`;
-    return;
-  }
-
-  tbody.innerHTML = data.map(h => `
-    <tr>
-      <td><strong>${h.nombre}</strong></td>
-      <td><span class="badge badge-blue">${h.sigla}</span></td>
-      <td>${h.localidad || '—'}</td>
-      <td>${h.provincia || '—'}</td>
-      <td>${h.tipo_pista || '—'}</td>
-      <td>
-        <span class="badge ${h.activo ? 'badge-green' : 'badge-red'}">
-          ${h.activo ? 'Activo' : 'Inactivo'}
-        </span>
-      </td>
-      <td>
-        <button class="btn btn-ghost btn-sm" onclick='editarHipodromo(${JSON.stringify(h)})'>✏️</button>
-        <button class="btn btn-danger btn-sm" onclick="eliminarHipodromo('${h.id}')">🗑️</button>
-      </td>
-    </tr>
-  `).join('');
-}
-
-function abrirModalHipodromo() {
-  document.getElementById('modal-hip-title').textContent = 'Nuevo Hipódromo';
-  document.getElementById('hip-id').value = '';
-  document.getElementById('hip-nombre').value = '';
-  document.getElementById('hip-sigla').value = '';
-  document.getElementById('hip-pista').value = 'Césped';
-  document.getElementById('hip-localidad').value = '';
-  document.getElementById('hip-provincia').value = '';
-  document.getElementById('hip-activo').checked = true;
-  document.getElementById('modal-hipodromo').classList.add('open');
-}
-
-function editarHipodromo(h) {
-  document.getElementById('modal-hip-title').textContent = 'Editar Hipódromo';
-  document.getElementById('hip-id').value = h.id;
-  document.getElementById('hip-nombre').value = h.nombre;
-  document.getElementById('hip-sigla').value = h.sigla;
-  document.getElementById('hip-pista').value = h.tipo_pista || 'Césped';
-  document.getElementById('hip-localidad').value = h.localidad || '';
-  document.getElementById('hip-provincia').value = h.provincia || '';
-  document.getElementById('hip-activo').checked = h.activo;
-  document.getElementById('modal-hipodromo').classList.add('open');
-}
-
-async function guardarHipodromo() {
-  const id = document.getElementById('hip-id').value;
-  const payload = {
-    club_id:    CLUB_ID,
-    nombre:     document.getElementById('hip-nombre').value.trim(),
-    sigla:      document.getElementById('hip-sigla').value.trim().toUpperCase(),
-    tipo_pista: document.getElementById('hip-pista').value,
-    localidad:  document.getElementById('hip-localidad').value.trim(),
-    provincia:  document.getElementById('hip-provincia').value.trim(),
-    activo:     document.getElementById('hip-activo').checked,
-  };
-
-  if (!payload.nombre || !payload.sigla) return toast('Nombre y sigla son obligatorios', 'err');
-
-  let error;
-  if (id) {
-    ({ error } = await db.from('hipodromos').update(payload).eq('id', id));
-  } else {
-    ({ error } = await db.from('hipodromos').insert(payload));
-  }
-
-  if (error) return toast('Error: ' + error.message, 'err');
-  toast(id ? 'Hipódromo actualizado' : 'Hipódromo creado');
-  cerrarModal('modal-hipodromo');
-  cargarHipodromos();
-}
-
-async function eliminarHipodromo(id) {
-  if (!confirm('¿Eliminar este hipódromo? Esta acción no se puede deshacer.')) return;
-  const { error } = await db.from('hipodromos').delete().eq('id', id);
-  if (error) return toast('Error: ' + error.message, 'err');
-  toast('Hipódromo eliminado');
-  cargarHipodromos();
-}
-
-// ══════════════════════════════════════════
-// MÓDULO: CATEGORÍAS DE CARRERA
-// ══════════════════════════════════════════
-async function cargarCategorias() {
-  const { data, error } = await db
-    .from('categorias_carrera')
-    .select('*')
-    .eq('club_id', CLUB_ID)
-    .order('orden_display');
-
-  const tbody = document.getElementById('tabla-categorias');
-
-  if (error) {
-    tbody.innerHTML = `<tr><td colspan="9" style="color:var(--rojo); padding:20px">${error.message}</td></tr>`;
-    return;
-  }
-
-  if (!data || data.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9">
-      <div class="empty-state"><div class="icon">🏷️</div><p>No hay categorías cargadas</p></div>
-    </td></tr>`;
-    return;
-  }
-
-  tbody.innerHTML = data.map(c => `
-    <tr>
-      <td>
-        <span class="cat-simbolo" style="background:${c.color_hex}22; color:${c.color_hex}; border:1.5px solid ${c.color_hex}55">
-          ${c.simbolo || '?'}
-        </span>
-      </td>
-      <td><strong>${c.nombre}</strong></td>
-      <td><code style="color:var(--oro-suave); font-size:12px">${c.codigo}</code></td>
-      <td><span class="badge ${c.es_oficial ? 'badge-green' : 'badge-amber'}">${c.es_oficial ? 'Sí' : 'No'}</span></td>
-      <td><span class="badge ${c.es_computable ? 'badge-green' : 'badge-amber'}">${c.es_computable ? 'Sí' : 'No'}</span></td>
-      <td>
-        <div style="display:flex; align-items:center; gap:8px">
-          <div style="width:18px; height:18px; border-radius:50%; background:${c.color_hex}"></div>
-          <code style="font-size:11px; color:var(--gris)">${c.color_hex}</code>
-        </div>
-      </td>
-      <td style="text-align:center">${c.orden_display}</td>
-      <td><span class="badge ${c.activo ? 'badge-green' : 'badge-red'}">${c.activo ? 'Activa' : 'Inactiva'}</span></td>
-      <td>
-        <button class="btn btn-ghost btn-sm" onclick='editarCategoria(${JSON.stringify(c)})'>✏️</button>
-        <button class="btn btn-danger btn-sm" onclick="eliminarCategoria('${c.id}')">🗑️</button>
-      </td>
-    </tr>
-  `).join('');
-}
-
-function abrirModalCategoria() {
-  document.getElementById('modal-cat-title').textContent = 'Nueva Categoría';
-  document.getElementById('cat-id').value = '';
-  document.getElementById('cat-nombre').value = '';
-  document.getElementById('cat-codigo').value = '';
-  document.getElementById('cat-simbolo').value = '';
-  document.getElementById('cat-color').value = '#2563EB';
-  document.getElementById('cat-color-preview').style.background = '#2563EB';
-  document.getElementById('cat-orden').value = 1;
-  document.getElementById('cat-descripcion').value = '';
-  document.getElementById('cat-oficial').checked = true;
-  document.getElementById('cat-computable').checked = true;
-  document.getElementById('cat-activo').checked = true;
-  document.getElementById('modal-categoria').classList.add('open');
-}
-
-function editarCategoria(c) {
-  document.getElementById('modal-cat-title').textContent = 'Editar Categoría';
-  document.getElementById('cat-id').value = c.id;
-  document.getElementById('cat-nombre').value = c.nombre;
-  document.getElementById('cat-codigo').value = c.codigo;
-  document.getElementById('cat-simbolo').value = c.simbolo || '';
-  document.getElementById('cat-color').value = c.color_hex || '#2563EB';
-  document.getElementById('cat-color-preview').style.background = c.color_hex || '#2563EB';
-  document.getElementById('cat-orden').value = c.orden_display || 1;
-  document.getElementById('cat-descripcion').value = c.descripcion || '';
-  document.getElementById('cat-oficial').checked = c.es_oficial;
-  document.getElementById('cat-computable').checked = c.es_computable;
-  document.getElementById('cat-activo').checked = c.activo;
-  document.getElementById('modal-categoria').classList.add('open');
-}
-
-async function guardarCategoria() {
-  const id = document.getElementById('cat-id').value;
-  const payload = {
-    club_id:       CLUB_ID,
-    nombre:        document.getElementById('cat-nombre').value.trim(),
-    codigo:        document.getElementById('cat-codigo').value.trim().toUpperCase(),
-    simbolo:       document.getElementById('cat-simbolo').value.trim(),
-    color_hex:     document.getElementById('cat-color').value,
-    orden_display: parseInt(document.getElementById('cat-orden').value) || 1,
-    descripcion:   document.getElementById('cat-descripcion').value.trim(),
-    es_oficial:    document.getElementById('cat-oficial').checked,
-    es_computable: document.getElementById('cat-computable').checked,
-    activo:        document.getElementById('cat-activo').checked,
-  };
-
-  if (!payload.nombre || !payload.codigo) return toast('Nombre y código son obligatorios', 'err');
-
-  let error;
-  if (id) {
-    ({ error } = await db.from('categorias_carrera').update(payload).eq('id', id));
-  } else {
-    ({ error } = await db.from('categorias_carrera').insert(payload));
-  }
-
-  if (error) return toast('Error: ' + error.message, 'err');
-  toast(id ? 'Categoría actualizada' : 'Categoría creada');
-  cerrarModal('modal-categoria');
-  cargarCategorias();
-}
-
-async function eliminarCategoria(id) {
-  if (!confirm('¿Eliminar esta categoría?')) return;
-  const { error } = await db.from('categorias_carrera').delete().eq('id', id);
-  if (error) return toast('Error: ' + error.message, 'err');
-  toast('Categoría eliminada');
-  cargarCategorias();
-}
-
-// ══════════════════════════════════════════
-// INIT
-// ══════════════════════════════════════════
-window.addEventListener('DOMContentLoaded', () => {
-  cargarClub();
-});
-
-// Cerrar modales con Escape
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
-  }
-});
-
-// Cerrar modal al hacer click fuera
-document.querySelectorAll('.modal-overlay').forEach(overlay => {
-  overlay.addEventListener('click', e => {
-    if (e.target === overlay) overlay.classList.remove('open');
-  });
-});
+loadDashboard();
 </script>
 </body>
 </html>

@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Carta de Llamados — SGH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e2318; --card: #1a3d26; --accent: #c9a84c;
+      --text: #f5f0e8; --muted: #a0b8a0; --danger: #e05252;
+      --success: #4caf82; --border: rgba(201,168,76,0.2); --input-bg: #0e2318;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    h1,h2,h3 { font-family: 'Playfair Display', serif; }
+    .topbar { background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .btn-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 7px 14px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s; }
+    .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+    .topbar h1 { font-size: 18px; color: var(--accent); flex: 1; min-width: 200px; }
+    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: opacity 0.2s; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    /* REUNION HEADER */
+    .reunion-header { background: var(--card); border-bottom: 1px solid var(--border); padding: 16px 24px; }
+    .reunion-info-grid { display: flex; gap: 24px; flex-wrap: wrap; font-size: 14px; }
+    .info-item { display: flex; flex-direction: column; gap: 2px; }
+    .info-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .info-val { color: var(--text); font-weight: 500; }
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .badge-en_curso { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-publicada { background: rgba(116,176,247,0.1); color: #74b0f7; border: 1px solid rgba(116,176,247,0.3); }
+    .badge-borrador { background: rgba(160,184,160,0.1); color: var(--muted); border: 1px solid rgba(160,184,160,0.3); }
+    .badge-finalizada { background: rgba(201,168,76,0.1); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    /* CONTENT */
+    .content { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .section-header h2 { font-size: 18px; color: var(--accent); }
+    /* CARRERAS */
+    .carrera-list { display: flex; flex-direction: column; gap: 12px; }
+    .carrera-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+    .carrera-card-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: rgba(0,0,0,0.15); border-bottom: 1px solid var(--border); gap: 12px; }
+    .carrera-num { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--accent); min-width: 36px; }
+    .carrera-title { font-size: 15px; font-weight: 600; flex: 1; }
+    .carrera-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .chip { font-size: 11px; background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.2); color: var(--muted); padding: 2px 8px; border-radius: 5px; }
+    .carrera-actions { display: flex; gap: 6px; }
+    .btn-sm { padding: 5px 11px; border-radius: 7px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; white-space: nowrap; }
+    .btn-edit { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    .btn-delete { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .btn-insc { background: rgba(116,176,247,0.1); color: #74b0f7; border: 1px solid rgba(116,176,247,0.3); }
+    .carrera-body { padding: 14px 18px; display: flex; gap: 24px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+    .carrera-body span { color: var(--text); font-weight: 500; }
+    .premios-list { padding: 0 18px 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .premio-chip { background: rgba(201,168,76,0.08); border: 1px solid rgba(201,168,76,0.2); border-radius: 8px; padding: 6px 12px; font-size: 12px; text-align: center; min-width: 70px; }
+    .premio-pos { color: var(--muted); font-size: 11px; }
+    .premio-pct { color: var(--accent); font-weight: 600; }
+    .premio-monto { font-size: 11px; color: var(--text); }
+    .empty-state { text-align: center; padding: 60px 20px; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 18px; color: var(--muted); }
+    .loading-state { display: flex; align-items: center; justify-content: center; padding: 60px; gap: 12px; color: var(--muted); }
+    .spinner { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* MODAL */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; display: none; align-items: flex-start; justify-content: center; padding: 20px; overflow-y: auto; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 720px; margin: auto; }
+    .modal-header { padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+    .modal-header h2 { font-size: 19px; color: var(--accent); }
+    .btn-close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; }
+    .modal-body { padding: 20px 24px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.half { grid-column: span 1; }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-group.two { grid-column: span 2; }
+    .section-lbl { grid-column: 1/-1; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; padding-top: 8px; border-top: 1px solid var(--border); }
+    label { font-size: 12px; font-weight: 500; color: var(--muted); }
+    input, select, textarea { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; width: 100%; transition: border 0.2s; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    select option { background: #1a3d26; }
+    /* DISTRIBUCIÓN PREMIOS */
+    .premios-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+    .premio-input { display: flex; flex-direction: column; gap: 4px; }
+    .premio-input label { font-size: 11px; color: var(--muted); text-align: center; }
+    .premio-input input { text-align: center; }
+    .total-premios { font-size: 12px; color: var(--muted); text-align: right; margin-top: 4px; }
+    .total-premios.ok { color: var(--success); }
+    .total-premios.bad { color: var(--danger); }
+    .modal-footer { padding: 16px 24px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
+    .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; }
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 320px; animation: slideIn 0.3s ease; }
+    .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
+    .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* PRINT */
+    @media print {
+      body { background: #fff !important; color: #000 !important; font-family: Arial, sans-serif; }
+      .topbar, .reunion-header .btn-primary, .btn-outline, .btn-back, .section-header .btn-primary, .carrera-actions, #toast-container { display: none !important; }
+      .reunion-header { background: #fff !important; border: none; padding: 12px 0; }
+      .info-val { color: #000 !important; }
+      .info-label { color: #666 !important; }
+      .content { padding: 0; max-width: 100%; }
+      .carrera-card { border: 1px solid #ccc !important; background: #fff !important; page-break-inside: avoid; margin-bottom: 10px; }
+      .carrera-card-header { background: #f5f5f5 !important; }
+      .carrera-num, .carrera-title { color: #000 !important; }
+      .chip, .badge { color: #333 !important; border-color: #999 !important; background: #eee !important; }
+      .carrera-body, .premios-list { background: #fff !important; }
+      .carrera-body span, .carrera-body { color: #000 !important; }
+      .premio-chip { border-color: #ccc !important; background: #f9f9f9 !important; }
+      .premio-pct { color: #333 !important; }
+      @page { size: A4 landscape; margin: 15mm; }
+    }
+  </style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<div class="topbar">
+  <a href="reuniones.html" class="btn-back">← Reuniones</a>
+  <h1 id="topbar-title">Carta de Llamados</h1>
+  <button class="btn-outline" onclick="window.print()">🖨️ Imprimir PDF</button>
+  <button class="btn-primary" onclick="openModal()">+ Nueva Carrera</button>
+</div>
+
+<div class="reunion-header" id="reunion-header">
+  <div class="reunion-info-grid" id="reunion-info">
+    <div class="loading-state"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<div class="content">
+  <div class="section-header">
+    <h2>Turnos de carrera</h2>
+    <span id="carreras-count" style="font-size:13px;color:var(--muted);">—</span>
+  </div>
+  <div id="list-container"></div>
+</div>
+
+<!-- MODAL CARRERA -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Nueva Carrera</h2>
+      <button class="btn-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="f-id">
+      <div class="form-grid">
+        <div class="form-group half">
+          <label>N° Turno *</label>
+          <input type="number" id="f-turno" min="1" required>
+        </div>
+        <div class="form-group two">
+          <label>Nombre de la carrera</label>
+          <input type="text" id="f-nombre" placeholder="Ej: Gran Premio Nacional">
+        </div>
+        <div class="form-group full">
+          <label>Categoría *</label>
+          <select id="f-categoria" required></select>
+        </div>
+        <div class="section-lbl">Condiciones</div>
+        <div class="form-group">
+          <label>Distancia (m) *</label>
+          <input type="number" id="f-distancia" min="400" max="5000" step="50" required placeholder="1000">
+        </div>
+        <div class="form-group">
+          <label>Tipo pista</label>
+          <select id="f-tipo-pista">
+            <option value="cesped">Césped</option>
+            <option value="arena">Arena</option>
+            <option value="mixta">Mixta</option>
+            <option value="sintetica">Sintética</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Hora estimada</label>
+          <input type="time" id="f-hora">
+        </div>
+        <div class="form-group">
+          <label>Edad mínima (años)</label>
+          <input type="number" id="f-edad-min" min="1" max="20" placeholder="2">
+        </div>
+        <div class="form-group">
+          <label>Edad máxima (años)</label>
+          <input type="number" id="f-edad-max" min="1" max="20" placeholder="5">
+        </div>
+        <div class="form-group">
+          <label>Condición sexo</label>
+          <select id="f-cond-sexo">
+            <option value="ambos">Ambos</option>
+            <option value="machos">Solo machos</option>
+            <option value="hembras">Solo hembras</option>
+            <option value="machos_castrados">Machos y castrados</option>
+          </select>
+        </div>
+        <div class="form-group two">
+          <label>Condición handicap</label>
+          <input type="text" id="f-handicap" placeholder="Ej: Para SPC no ganadores de 3 carreras">
+        </div>
+        <div class="form-group full">
+          <label>Condición adicional</label>
+          <input type="text" id="f-cond-adicional" placeholder="Condiciones especiales…">
+        </div>
+        <div class="section-lbl">Premio</div>
+        <div class="form-group">
+          <label>Bolsa total ($)</label>
+          <input type="number" id="f-bolsa" min="0" step="100" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Cupo máximo</label>
+          <input type="number" id="f-cupo" min="1" max="30" placeholder="12">
+        </div>
+        <div class="form-group full">
+          <label>Distribución de premios (%)</label>
+          <div class="premios-grid" id="premios-grid">
+            <div class="premio-input"><label>1°</label><input type="number" id="pr-1" min="0" max="100" step="0.1" value="60" oninput="updPct()"></div>
+            <div class="premio-input"><label>2°</label><input type="number" id="pr-2" min="0" max="100" step="0.1" value="20" oninput="updPct()"></div>
+            <div class="premio-input"><label>3°</label><input type="number" id="pr-3" min="0" max="100" step="0.1" value="10" oninput="updPct()"></div>
+            <div class="premio-input"><label>4°</label><input type="number" id="pr-4" min="0" max="100" step="0.1" value="6" oninput="updPct()"></div>
+            <div class="premio-input"><label>5°</label><input type="number" id="pr-5" min="0" max="100" step="0.1" value="4" oninput="updPct()"></div>
+          </div>
+          <div class="total-premios" id="total-pct">Total: 100%</div>
+        </div>
+        <div class="section-lbl">Inscripciones</div>
+        <div class="form-group">
+          <label>Apertura inscripción</label>
+          <input type="datetime-local" id="f-ap-insc">
+        </div>
+        <div class="form-group">
+          <label>Cierre inscripción</label>
+          <input type="datetime-local" id="f-ci-insc">
+        </div>
+        <div class="form-group">
+          <label>Apertura ratificación</label>
+          <input type="datetime-local" id="f-ap-rat">
+        </div>
+        <div class="form-group">
+          <label>Cierre ratificación</label>
+          <input type="datetime-local" id="f-ci-rat">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="saveRecord()" id="btn-save">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const { createClient } = supabase;
+const sb = createClient('https://unlhcuanfrtpatoipwve.supabase.co', 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
+const CLUB_ID = 'a6da7e40-1515-45dc-8933-4eef33ce937a';
+
+const params = new URLSearchParams(location.search);
+const reunionId = params.get('reunion_id');
+let reunion=null, carreras=[], categorias=[], hipodromos=[];
+
+function toast(msg, type='success') {
+  const t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
+  document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),3500);
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d+'T12:00:00').toLocaleDateString('es-AR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+}
+
+function updPct() {
+  const total = [1,2,3,4,5].reduce((s,i)=>s+(parseFloat(document.getElementById(`pr-${i}`).value)||0),0);
+  const el=document.getElementById('total-pct');
+  el.textContent=`Total: ${total.toFixed(1)}%`;
+  el.className='total-premios '+(Math.abs(total-100)<0.01?'ok':'bad');
+}
+
+async function load() {
+  if (!reunionId) { document.getElementById('reunion-info').innerHTML='<p style="color:var(--danger)">No se especificó reunion_id en la URL.</p>'; return; }
+  const [{ data: r, error: er }, { data: cars, error: ec }, { data: cats }, { data: hips }] = await Promise.all([
+    sb.from('reuniones').select('*, hipodromos(nombre,sigla,localidad)').eq('id', reunionId).single(),
+    sb.from('carreras').select('*').eq('reunion_id', reunionId).order('numero_turno'),
+    sb.from('categorias_carrera').select('id,nombre,codigo,simbolo,color_hex').eq('club_id', CLUB_ID).eq('activo', true).order('orden_display'),
+    sb.from('hipodromos').select('id,nombre,sigla').eq('club_id', CLUB_ID),
+  ]);
+  if (er) { toast(er.message,'error'); return; }
+  reunion = r; carreras = cars||[]; categorias = cats||[]; hipodromos = hips||[];
+  renderHeader();
+  populateCategorias();
+  renderCarreras();
+}
+
+function renderHeader() {
+  if (!reunion) return;
+  const hip = reunion.hipodromos;
+  document.getElementById('topbar-title').textContent = `Carta de Llamados — Reunión ${reunion.numero||''}`;
+  document.title = `Carta de Llamados — SGH`;
+  document.getElementById('reunion-info').innerHTML = `
+    <div class="info-item"><div class="info-label">Fecha</div><div class="info-val">${fmtDate(reunion.fecha)}</div></div>
+    <div class="info-item"><div class="info-label">Hipódromo</div><div class="info-val">${hip?.nombre||'—'} ${hip?.sigla?`(${hip.sigla})`:''}</div></div>
+    <div class="info-item"><div class="info-label">Localidad</div><div class="info-val">${hip?.localidad||'—'}</div></div>
+    <div class="info-item"><div class="info-label">Tipo</div><div class="info-val">${reunion.tipo}</div></div>
+    ${reunion.condicion_pista?`<div class="info-item"><div class="info-label">Pista</div><div class="info-val">${reunion.condicion_pista}</div></div>`:''}
+    ${reunion.tiempo_clima?`<div class="info-item"><div class="info-label">Clima</div><div class="info-val">${reunion.tiempo_clima}</div></div>`:''}
+    <div class="info-item"><div class="info-label">Estado</div><div class="info-val"><span class="badge badge-${reunion.estado}">${reunion.estado}</span></div></div>
+  `;
+}
+
+function populateCategorias() {
+  document.getElementById('f-categoria').innerHTML = '<option value="">— Seleccionar categoría —</option>' +
+    categorias.map(c=>`<option value="${c.id}">${c.nombre}${c.codigo?` (${c.codigo})`:''}</option>`).join('');
+}
+
+function renderCarreras() {
+  document.getElementById('carreras-count').textContent = `${carreras.length} turno${carreras.length!==1?'s':''}`;
+  if (!carreras.length) {
+    document.getElementById('list-container').innerHTML = `<div class="empty-state"><div class="icon">📋</div><h3>Sin turnos</h3><p>Esta reunión no tiene carreras cargadas aún. Agregá el primer turno con el botón +</p></div>`;
+    return;
+  }
+  document.getElementById('list-container').innerHTML = `<div class="carrera-list">${carreras.map(c => {
+    const cat = categorias.find(x=>x.id===c.categoria_id);
+    const dist = c.distribucion_premios || {"1":60,"2":20,"3":10,"4":6,"5":4};
+    const bolsa = c.bolsa_total || 0;
+    const premioHtml = Object.entries(dist).map(([pos,pct])=>`
+      <div class="premio-chip">
+        <div class="premio-pos">${pos}°</div>
+        <div class="premio-pct">${pct}%</div>
+        ${bolsa?`<div class="premio-monto">$${Math.round(bolsa*pct/100).toLocaleString('es-AR')}</div>`:''}
+      </div>`).join('');
+    return `<div class="carrera-card">
+      <div class="carrera-card-header">
+        <div class="carrera-num">${c.numero_turno}</div>
+        <div class="carrera-title">${c.nombre||`Carrera ${c.numero_turno}`}</div>
+        <div class="carrera-chips">
+          ${cat?`<span class="chip">${cat.nombre}</span>`:''}
+          <span class="chip">${c.distancia_metros}m</span>
+          <span class="chip">${c.tipo_pista||'—'}</span>
+          ${c.hora_estimada?`<span class="chip">🕐 ${c.hora_estimada}</span>`:''}
+          ${bolsa?`<span class="chip">💰 $${bolsa.toLocaleString('es-AR')}</span>`:''}
+        </div>
+        <div class="carrera-actions">
+          <button class="btn-sm btn-insc" onclick="window.location.href='inscripciones.html?carrera_id=${c.id}'">📋 Inscriptos</button>
+          <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(c)})'>✏️</button>
+          <button class="btn-sm btn-delete" onclick="deleteCarrera('${c.id}')">🗑️</button>
+        </div>
+      </div>
+      <div class="carrera-body">
+        ${c.condicion_sexo?`<div>Sexo: <span>${c.condicion_sexo}</span></div>`:''}
+        ${c.edad_minima_anos||c.edad_maxima_anos?`<div>Edad: <span>${c.edad_minima_anos||'?'}–${c.edad_maxima_anos||'?'} años</span></div>`:''}
+        ${c.condicion_handicap?`<div>Handicap: <span>${c.condicion_handicap}</span></div>`:''}
+        ${c.condicion_adicional?`<div>Condición: <span>${c.condicion_adicional}</span></div>`:''}
+        ${c.cupo_maximo?`<div>Cupo máx.: <span>${c.cupo_maximo}</span></div>`:''}
+      </div>
+      <div class="premios-list">${premioHtml}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function openModal(rec=null) {
+  document.getElementById('modal-title').textContent = rec ? `Editar Carrera ${rec.numero_turno}` : 'Nueva Carrera';
+  document.getElementById('f-id').value = rec?.id||'';
+  document.getElementById('f-turno').value = rec?.numero_turno || (carreras.length+1);
+  document.getElementById('f-nombre').value = rec?.nombre||'';
+  document.getElementById('f-categoria').value = rec?.categoria_id||'';
+  document.getElementById('f-distancia').value = rec?.distancia_metros||'';
+  document.getElementById('f-tipo-pista').value = rec?.tipo_pista||'cesped';
+  document.getElementById('f-hora').value = rec?.hora_estimada||'';
+  document.getElementById('f-edad-min').value = rec?.edad_minima_anos||'';
+  document.getElementById('f-edad-max').value = rec?.edad_maxima_anos||'';
+  document.getElementById('f-cond-sexo').value = rec?.condicion_sexo||'ambos';
+  document.getElementById('f-handicap').value = rec?.condicion_handicap||'';
+  document.getElementById('f-cond-adicional').value = rec?.condicion_adicional||'';
+  document.getElementById('f-bolsa').value = rec?.bolsa_total||'';
+  document.getElementById('f-cupo').value = rec?.cupo_maximo||'';
+  const dist = rec?.distribucion_premios || {"1":60,"2":20,"3":10,"4":6,"5":4};
+  [1,2,3,4,5].forEach(i=>{ document.getElementById(`pr-${i}`).value = dist[String(i)]||0; });
+  updPct();
+  document.getElementById('f-ap-insc').value = rec?.apertura_inscripcion ? rec.apertura_inscripcion.slice(0,16) : '';
+  document.getElementById('f-ci-insc').value = rec?.cierre_inscripcion ? rec.cierre_inscripcion.slice(0,16) : '';
+  document.getElementById('f-ap-rat').value = rec?.apertura_ratificacion ? rec.apertura_ratificacion.slice(0,16) : '';
+  document.getElementById('f-ci-rat').value = rec?.cierre_ratificacion ? rec.cierre_ratificacion.slice(0,16) : '';
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+async function saveRecord() {
+  const turno = parseInt(document.getElementById('f-turno').value);
+  const dist = document.getElementById('f-distancia').value;
+  if (!turno || !dist) { toast('Turno y distancia son requeridos','error'); return; }
+  const id = document.getElementById('f-id').value;
+  const btn = document.getElementById('btn-save');
+  btn.disabled=true; btn.textContent='Guardando…';
+  const distribucion = {};
+  [1,2,3,4,5].forEach(i=>{ const v=parseFloat(document.getElementById(`pr-${i}`).value); if(v) distribucion[String(i)]=v; });
+  const payload = {
+    reunion_id: reunionId,
+    numero_turno: turno,
+    nombre: document.getElementById('f-nombre').value.trim() || null,
+    categoria_id: document.getElementById('f-categoria').value || null,
+    distancia_metros: parseInt(dist),
+    tipo_pista: document.getElementById('f-tipo-pista').value,
+    hora_estimada: document.getElementById('f-hora').value || null,
+    edad_minima_anos: document.getElementById('f-edad-min').value ? parseInt(document.getElementById('f-edad-min').value) : null,
+    edad_maxima_anos: document.getElementById('f-edad-max').value ? parseInt(document.getElementById('f-edad-max').value) : null,
+    condicion_sexo: document.getElementById('f-cond-sexo').value,
+    condicion_handicap: document.getElementById('f-handicap').value.trim() || null,
+    condicion_adicional: document.getElementById('f-cond-adicional').value.trim() || null,
+    bolsa_total: document.getElementById('f-bolsa').value ? parseFloat(document.getElementById('f-bolsa').value) : null,
+    cupo_maximo: document.getElementById('f-cupo').value ? parseInt(document.getElementById('f-cupo').value) : null,
+    distribucion_premios: distribucion,
+    apertura_inscripcion: document.getElementById('f-ap-insc').value || null,
+    cierre_inscripcion: document.getElementById('f-ci-insc').value || null,
+    apertura_ratificacion: document.getElementById('f-ap-rat').value || null,
+    cierre_ratificacion: document.getElementById('f-ci-rat').value || null,
+    estado: 'abierta',
+  };
+  const { error } = id
+    ? await sb.from('carreras').update(payload).eq('id',id)
+    : await sb.from('carreras').insert(payload);
+  btn.disabled=false; btn.textContent='Guardar';
+  if (error) { toast(error.message,'error'); return; }
+  toast(id ? 'Carrera actualizada' : 'Carrera creada');
+  closeModal();
+  const { data } = await sb.from('carreras').select('*').eq('reunion_id', reunionId).order('numero_turno');
+  carreras = data || [];
+  renderCarreras();
+}
+
+async function deleteCarrera(id) {
+  if (!confirm('¿Eliminar este turno? Se perderán las inscripciones asociadas.')) return;
+  const { error } = await sb.from('carreras').delete().eq('id',id);
+  if (error) { toast(error.message,'error'); return; }
+  toast('Carrera eliminada');
+  carreras = carreras.filter(c=>c.id!==id);
+  renderCarreras();
+}
+
+document.getElementById('modal').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeModal(); });
+load();
+</script>
+</body>
+</html>

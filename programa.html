@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Programa Hípico — SGH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e2318; --card: #1a3d26; --accent: #c9a84c;
+      --text: #f5f0e8; --muted: #a0b8a0; --danger: #e05252;
+      --success: #4caf82; --border: rgba(201,168,76,0.2); --input-bg: #0e2318;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    h1,h2,h3 { font-family: 'Playfair Display', serif; }
+    .topbar { background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .btn-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 7px 14px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s; }
+    .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+    .topbar h1 { font-size: 18px; color: var(--accent); flex: 1; }
+    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .selector-bar { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .selector-bar label { font-size: 12px; color: var(--muted); }
+    select { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; }
+    select option { background: #1a3d26; }
+    .content { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    /* PROGRAMA HEADER */
+    .prog-header { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 24px; text-align: center; }
+    .prog-header h2 { font-size: 26px; color: var(--accent); margin-bottom: 6px; }
+    .prog-header .sub { font-size: 14px; color: var(--muted); }
+    .prog-meta { display: flex; justify-content: center; gap: 24px; margin-top: 14px; flex-wrap: wrap; font-size: 13px; }
+    .meta-item { text-align: center; }
+    .meta-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+    .meta-val { color: var(--text); font-weight: 500; margin-top: 2px; }
+    /* CARRERA BLOCK */
+    .carrera-block { background: var(--card); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 20px; overflow: hidden; page-break-inside: avoid; }
+    .carrera-block-header { background: rgba(201,168,76,0.1); border-bottom: 1px solid var(--border); padding: 14px 18px; }
+    .carrera-block-title { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+    .car-num { font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; color: var(--accent); }
+    .car-name { font-family: 'Playfair Display', serif; font-size: 18px; }
+    .car-cat { font-size: 13px; color: var(--muted); }
+    .car-conditions { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+    .car-conditions span { color: var(--text); }
+    .car-prize { font-size: 16px; font-weight: 600; color: var(--accent); margin-top: 6px; }
+    /* PARTICIPANTES TABLE */
+    .part-table { width: 100%; border-collapse: collapse; }
+    .part-table thead th { background: rgba(0,0,0,0.15); padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; white-space: nowrap; }
+    .part-table tbody tr { border-top: 1px solid var(--border); }
+    .part-table tbody tr:hover { background: rgba(201,168,76,0.03); }
+    .part-table tbody td { padding: 10px 12px; font-size: 12px; vertical-align: top; }
+    .part-num { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: var(--accent); text-align: center; min-width: 36px; }
+    .part-spc { font-weight: 600; font-size: 13px; color: var(--accent); }
+    .part-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .perfs { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+    .perf-chip { display: inline-flex; align-items: center; gap: 3px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 5px; padding: 2px 7px; font-size: 11px; }
+    .perf-pos { font-weight: 700; color: var(--accent); }
+    .perf-sym { font-size: 11px; }
+    .perf-hip { color: var(--muted); font-size: 10px; }
+    .forfait-row { opacity: 0.4; }
+    .forfait-row .part-spc { text-decoration: line-through; }
+    /* LOADING */
+    .loading-state { display: flex; align-items: center; justify-content: center; padding: 60px; gap: 12px; color: var(--muted); }
+    .spinner { width: 22px; height: 22px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty-state { text-align: center; padding: 60px 20px; }
+    .empty-state .icon { font-size: 44px; margin-bottom: 14px; }
+    .empty-state h3 { font-size: 17px; color: var(--muted); }
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 320px; animation: slideIn 0.3s ease; }
+    .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
+    .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* PRINT */
+    @media print {
+      body { background: #fff !important; color: #000 !important; font-family: Arial, sans-serif; font-size: 11px; }
+      .topbar, .selector-bar, #toast-container { display: none !important; }
+      .prog-header { background: #fff !important; border: 2px solid #000 !important; padding: 12px; text-align: center; }
+      .prog-header h2 { color: #000 !important; font-size: 20px; }
+      .prog-header .sub, .meta-lbl { color: #555 !important; }
+      .meta-val { color: #000 !important; }
+      .carrera-block { border: 1px solid #ccc !important; background: #fff !important; margin-bottom: 14px; page-break-inside: avoid; }
+      .carrera-block-header { background: #f0f0f0 !important; }
+      .car-num, .car-name, .car-cat, .car-prize { color: #000 !important; }
+      .car-conditions span { color: #000 !important; }
+      .part-spc { color: #000 !important; }
+      .part-table thead th { background: #e0e0e0 !important; color: #333 !important; }
+      .part-table td { color: #000 !important; }
+      .perf-chip { border: 1px solid #999 !important; background: #f5f5f5 !important; }
+      .perf-pos, .perf-sym { color: #333 !important; }
+      .content { max-width: 100%; padding: 0; }
+      @page { size: A4 landscape; margin: 10mm; }
+    }
+  </style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<div class="topbar">
+  <a href="reuniones.html" class="btn-back">← Reuniones</a>
+  <h1 id="topbar-title">Programa Hípico</h1>
+  <button class="btn-outline" onclick="window.print()">🖨️ Imprimir Programa</button>
+</div>
+
+<div class="selector-bar">
+  <label>Reunión:</label>
+  <select id="sel-reunion" onchange="loadPrograma()">
+    <option value="">— Seleccionar reunión —</option>
+  </select>
+</div>
+
+<div class="content" id="content">
+  <div class="empty-state"><div class="icon">📰</div><h3>Seleccionar una reunión para generar el programa</h3></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const { createClient } = supabase;
+const sb = createClient('https://unlhcuanfrtpatoipwve.supabase.co', 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
+const CLUB_ID = 'a6da7e40-1515-45dc-8933-4eef33ce937a';
+
+let spcs={}, profesionales={}, propietarios={}, categorias={}, performances={};
+
+function toast(msg,type='success') {
+  const t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
+  document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),3500);
+}
+
+async function init() {
+  const [{ data: reuns }, { data: profs }, { data: props }, { data: sprcs }, { data: cats }] = await Promise.all([
+    sb.from('reuniones').select('id,numero,fecha,tipo,condicion_pista,tiempo_clima,hipodromos(nombre,sigla,localidad)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
+    sb.from('profesionales').select('id,nombre,apellido').eq('club_id', CLUB_ID).order('apellido'),
+    sb.from('propietarios').select('id,nombre,colores_desc').eq('club_id', CLUB_ID).order('nombre'),
+    sb.from('spcs').select('id,nombre,sexo,color,fecha_nacimiento,padrillo_nombre,madre_nombre').eq('club_id', CLUB_ID).order('nombre'),
+    sb.from('categorias_carrera').select('id,nombre,codigo,simbolo').eq('club_id', CLUB_ID),
+  ]);
+  (profs||[]).forEach(p=>{ profesionales[p.id]=p; });
+  (props||[]).forEach(p=>{ propietarios[p.id]=p; });
+  (sprcs||[]).forEach(s=>{ spcs[s.id]=s; });
+  (cats||[]).forEach(c=>{ categorias[c.id]=c; });
+  const sel = document.getElementById('sel-reunion');
+  sel.innerHTML = '<option value="">— Seleccionar —</option>' + (reuns||[]).map(r=>`<option value="${r.id}">Reunión ${r.numero||''} — ${new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR')} — ${r.hipodromos?.nombre||''}</option>`).join('');
+  const params = new URLSearchParams(location.search);
+  const rid = params.get('reunion_id');
+  if (rid) { sel.value=rid; await loadPrograma(); }
+}
+
+async function loadPrograma() {
+  const rid = document.getElementById('sel-reunion').value;
+  if (!rid) { document.getElementById('content').innerHTML='<div class="empty-state"><div class="icon">📰</div><h3>Seleccionar una reunión</h3></div>'; return; }
+  document.getElementById('content').innerHTML='<div class="loading-state"><div class="spinner"></div> Generando programa…</div>';
+  const { data: reunion } = await sb.from('reuniones').select('*,hipodromos(nombre,sigla,localidad,provincia)').eq('id',rid).single();
+  const { data: carreras, error } = await sb.from('carreras').select('*').eq('reunion_id', rid).order('numero_turno');
+  if (error) { toast(error.message,'error'); return; }
+  const carIds = (carreras||[]).map(c=>c.id);
+  let inscripciones = [];
+  if (carIds.length) {
+    const { data } = await sb.from('inscripciones').select('*').in('carrera_id', carIds).neq('estado','forfait').order('numero_partidor');
+    inscripciones = data||[];
+  }
+  // Load performances for SPCs
+  const spcIds = [...new Set(inscripciones.map(i=>i.spc_id).filter(Boolean))];
+  if (spcIds.length) {
+    const { data: perfs } = await sb.from('performances').select('*').in('spc_id', spcIds).order('fecha_carrera', {ascending:false});
+    performances = {};
+    (perfs||[]).forEach(p => { if (!performances[p.spc_id]) performances[p.spc_id]=[]; if (performances[p.spc_id].length<5) performances[p.spc_id].push(p); });
+  }
+  renderPrograma(reunion, carreras||[], inscripciones);
+}
+
+function calcEdad(fecha) {
+  if (!fecha) return '';
+  const anos = Math.floor((new Date()-new Date(fecha))/(365.25*24*3600*1000));
+  return `, ${anos} años`;
+}
+
+function renderPerfs(spcId) {
+  const perfs = performances[spcId]||[];
+  if (!perfs.length) return '<span style="color:var(--muted);font-size:11px;">Sin historial</span>';
+  return perfs.map(p=>`<span class="perf-chip">
+    <span class="perf-pos">${p.posicion||'?'}°</span>
+    <span class="perf-sym">${p.categoria_simbolo||''}</span>
+    <span class="perf-hip">${p.hipodromo_sigla||''} ${p.distancia_metros||''}m</span>
+  </span>`).join('');
+}
+
+function renderPrograma(reunion, carreras, inscripciones) {
+  const hip = reunion.hipodromos;
+  const fecha = new Date(reunion.fecha+'T12:00:00').toLocaleDateString('es-AR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('topbar-title').textContent = `Programa — Reunión ${reunion.numero||''}`;
+  let html = `<div class="prog-header">
+    <h2>Programa Hípico Oficial</h2>
+    <div class="sub">Reunión N° ${reunion.numero||'—'} — ${hip?.nombre||'—'}</div>
+    <div class="prog-meta">
+      <div class="meta-item"><div class="meta-lbl">Fecha</div><div class="meta-val">${fecha}</div></div>
+      <div class="meta-item"><div class="meta-lbl">Hipódromo</div><div class="meta-val">${hip?.nombre||'—'} ${hip?.sigla?`(${hip.sigla})`:''}</div></div>
+      <div class="meta-item"><div class="meta-lbl">Localidad</div><div class="meta-val">${hip?.localidad||'—'}, ${hip?.provincia||'—'}</div></div>
+      ${reunion.condicion_pista?`<div class="meta-item"><div class="meta-lbl">Pista</div><div class="meta-val">${reunion.condicion_pista}</div></div>`:''}
+      ${reunion.tiempo_clima?`<div class="meta-item"><div class="meta-lbl">Clima</div><div class="meta-val">${reunion.tiempo_clima}</div></div>`:''}
+      <div class="meta-item"><div class="meta-lbl">Tipo</div><div class="meta-val">${reunion.tipo}</div></div>
+    </div>
+  </div>`;
+
+  if (!carreras.length) {
+    html += `<div class="empty-state"><div class="icon">📋</div><h3>Sin carreras programadas</h3></div>`;
+  } else {
+    carreras.forEach(car => {
+      const cat = categorias[car.categoria_id];
+      const inscs = inscripciones.filter(i=>i.carrera_id===car.id);
+      const dist = car.distribucion_premios || {};
+      const bolsa = car.bolsa_total || 0;
+      const premioStr = Object.entries(dist).map(([p,pct])=>`${p}°: ${pct}%${bolsa?` ($${Math.round(bolsa*pct/100).toLocaleString('es-AR')})`:''}`).join(' | ');
+      const rows = inscs.map(i => {
+        const spc = spcs[i.spc_id];
+        const prop = propietarios[i.propietario_id];
+        const jock = profesionales[i.jockey_titular_id];
+        const entr = profesionales[i.entrenador_id];
+        return `<tr>
+          <td class="part-num">${i.numero_partidor||'—'}</td>
+          <td>
+            <div class="part-spc">${spc?.nombre||i.spc_id}</div>
+            <div class="part-sub">${spc?`${spc.sexo||''}${calcEdad(spc.fecha_nacimiento)} | ${spc.color||''} | Por ${spc.padrillo_nombre||'?'} - ${spc.madre_nombre||'?'}`:''}</div>
+          </td>
+          <td>
+            <div>${prop?.nombre||'—'}</div>
+            ${prop?.colores_desc?`<div class="part-sub">🎨 ${prop.colores_desc}</div>`:''}
+          </td>
+          <td>${entr?`${entr.apellido}, ${entr.nombre}`:'—'}</td>
+          <td>${jock?`${jock.apellido}, ${jock.nombre}`:'—'}</td>
+          <td>${i.peso_final||i.peso_declarado||'—'} kg</td>
+          <td><div class="perfs">${renderPerfs(i.spc_id)}</div></td>
+        </tr>`;
+      }).join('');
+      html += `<div class="carrera-block">
+        <div class="carrera-block-header">
+          <div class="carrera-block-title">
+            <div class="car-num">${car.numero_turno}</div>
+            <div>
+              <div class="car-name">${car.nombre||`Carrera ${car.numero_turno}`}</div>
+              <div class="car-cat">${cat?`${cat.nombre}${cat.codigo?` (${cat.codigo})`:''}`:'—'}</div>
+            </div>
+          </div>
+          <div class="car-conditions">
+            <div>Distancia <span>${car.distancia_metros}m</span></div>
+            <div>Pista <span>${car.tipo_pista||'—'}</span></div>
+            ${car.condicion_sexo?`<div>Sexo <span>${car.condicion_sexo}</span></div>`:''}
+            ${car.edad_minima_anos||car.edad_maxima_anos?`<div>Edad <span>${car.edad_minima_anos||'?'}–${car.edad_maxima_anos||'?'} años</span></div>`:''}
+            ${car.condicion_handicap?`<div>Handicap <span>${car.condicion_handicap}</span></div>`:''}
+            ${car.hora_estimada?`<div>Hora <span>${car.hora_estimada}</span></div>`:''}
+          </div>
+          ${bolsa?`<div class="car-prize">💰 Bolsa: $${bolsa.toLocaleString('es-AR')} — ${premioStr}</div>`:''}
+        </div>
+        <table class="part-table">
+          <thead><tr><th>#</th><th>SPC</th><th>Propietario</th><th>Entrenador</th><th>Jockey</th><th>Peso</th><th>Últimas 5 performances</th></tr></thead>
+          <tbody>${rows||'<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--muted)">Sin inscriptos ratificados</td></tr>'}</tbody>
+        </table>
+      </div>`;
+    });
+  }
+  document.getElementById('content').innerHTML = html;
+}
+
+init();
+</script>
+</body>
+</html>

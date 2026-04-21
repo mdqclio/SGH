@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resultados — SGH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e2318; --card: #1a3d26; --accent: #c9a84c;
+      --text: #f5f0e8; --muted: #a0b8a0; --danger: #e05252;
+      --success: #4caf82; --border: rgba(201,168,76,0.2); --input-bg: #0e2318;
+      --info: #74b0f7;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    h1,h2,h3 { font-family: 'Playfair Display', serif; }
+    .topbar { background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .btn-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 7px 14px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s; }
+    .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+    .topbar h1 { font-size: 18px; color: var(--accent); flex: 1; }
+    .selector-bar { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .selector-bar label { font-size: 12px; color: var(--muted); }
+    select, input { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; }
+    select:focus, input:focus { border-color: var(--accent); }
+    select option { background: #1a3d26; }
+    .content { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    /* CARRERA TABS */
+    .car-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 20px; }
+    .car-tab { padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; border: 1px solid var(--border); background: var(--card); color: var(--muted); transition: all 0.2s; font-family: 'DM Sans', sans-serif; }
+    .car-tab:hover { border-color: var(--accent); color: var(--accent); }
+    .car-tab.active { background: var(--accent); color: #1a1a0a; border-color: var(--accent); }
+    .car-tab.finalizada { border-color: rgba(76,175,130,0.4); color: var(--success); }
+    /* RESULTADO BLOCK */
+    .resultado-block { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+    .res-header { padding: 14px 18px; background: rgba(201,168,76,0.07); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    .res-title { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--accent); }
+    .res-meta { font-size: 13px; color: var(--muted); }
+    .estado-badges { display: flex; gap: 8px; align-items: center; }
+    .badge { display: inline-block; padding: 3px 11px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .badge-provisional { background: rgba(116,176,247,0.1); color: var(--info); border: 1px solid rgba(116,176,247,0.3); }
+    .badge-oficial { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-en_protesta { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    /* TIEMPO GANADOR */
+    .tiempo-row { padding: 16px 18px; border-bottom: 1px solid var(--border); display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+    .tiempo-row label { font-size: 12px; color: var(--muted); }
+    .tiempo-row input { width: 120px; }
+    .tiempo-row textarea { flex: 1; min-width: 200px; min-height: 60px; resize: vertical; }
+    /* POSICIONES TABLE */
+    .pos-table { width: 100%; border-collapse: collapse; }
+    .pos-table thead th { background: rgba(0,0,0,0.15); padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; }
+    .pos-table tbody tr { border-top: 1px solid var(--border); transition: background 0.15s; }
+    .pos-table tbody tr.no-result { opacity: 0.5; }
+    .pos-table tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
+    .pos-select { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 5px 8px; border-radius: 7px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; width: 60px; }
+    .pos-select:focus { border-color: var(--accent); }
+    .dif-input { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 5px 8px; border-radius: 7px; font-family: 'DM Sans', sans-serif; font-size: 13px; width: 90px; outline: none; }
+    .desc-check { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+    .desc-check input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--danger); }
+    .spc-name { font-weight: 600; color: var(--accent); }
+    .spc-sub { font-size: 11px; color: var(--muted); }
+    /* FOOTER ACCIONES */
+    .res-footer { padding: 14px 18px; border-top: 1px solid var(--border); display: flex; gap: 10px; flex-wrap: wrap; justify-content: space-between; align-items: center; }
+    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-oficializar { background: var(--success); color: #0e2318; border: none; padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-protesta { background: rgba(201,168,76,0.2); border: 1px solid var(--accent); color: var(--accent); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; }
+    .loading-state { display: flex; align-items: center; justify-content: center; padding: 50px; gap: 12px; color: var(--muted); }
+    .spinner { width: 22px; height: 22px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty-state { text-align: center; padding: 50px 20px; }
+    .empty-state .icon { font-size: 44px; margin-bottom: 14px; }
+    .empty-state h3 { font-size: 17px; color: var(--muted); }
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 320px; animation: slideIn 0.3s ease; }
+    .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
+    .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  </style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<div class="topbar">
+  <a href="reuniones.html" class="btn-back">← Reuniones</a>
+  <h1>Carga de Resultados</h1>
+</div>
+
+<div class="selector-bar">
+  <label>Reunión:</label>
+  <select id="sel-reunion" onchange="loadReunion()">
+    <option value="">— Seleccionar —</option>
+  </select>
+</div>
+
+<div class="content">
+  <div id="car-tabs-container" style="display:none">
+    <div class="car-tabs" id="car-tabs"></div>
+  </div>
+  <div id="resultado-container">
+    <div class="empty-state"><div class="icon">🏁</div><h3>Seleccionar una reunión para cargar resultados</h3></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const { createClient } = supabase;
+const sb = createClient('https://unlhcuanfrtpatoipwve.supabase.co', 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
+const CLUB_ID = 'a6da7e40-1515-45dc-8933-4eef33ce937a';
+
+let carreras=[], inscripciones=[], resultados={}, posicionesMap={};
+let spcs={}, profesionales={}, propietarios={};
+let currentCarreraIdx = 0;
+
+function toast(msg,type='success') {
+  const t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
+  document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),3500);
+}
+
+async function init() {
+  const [{ data: reuns }, { data: profs }, { data: props }, { data: sprcs }] = await Promise.all([
+    sb.from('reuniones').select('id,numero,fecha,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
+    sb.from('profesionales').select('id,nombre,apellido').eq('club_id', CLUB_ID),
+    sb.from('propietarios').select('id,nombre').eq('club_id', CLUB_ID),
+    sb.from('spcs').select('id,nombre').eq('club_id', CLUB_ID),
+  ]);
+  (profs||[]).forEach(p=>{ profesionales[p.id]=p; });
+  (props||[]).forEach(p=>{ propietarios[p.id]=p; });
+  (sprcs||[]).forEach(s=>{ spcs[s.id]=s; });
+  const sel = document.getElementById('sel-reunion');
+  sel.innerHTML = '<option value="">— Seleccionar —</option>' + (reuns||[]).map(r=>`<option value="${r.id}">Reunión ${r.numero||''} — ${new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR')} — ${r.hipodromos?.nombre||''}</option>`).join('');
+  const params = new URLSearchParams(location.search);
+  const rid = params.get('reunion_id');
+  if (rid) { sel.value=rid; await loadReunion(); }
+}
+
+async function loadReunion() {
+  const rid = document.getElementById('sel-reunion').value;
+  if (!rid) { document.getElementById('car-tabs-container').style.display='none'; document.getElementById('resultado-container').innerHTML='<div class="empty-state"><div class="icon">🏁</div><h3>Seleccionar una reunión</h3></div>'; return; }
+  document.getElementById('resultado-container').innerHTML='<div class="loading-state"><div class="spinner"></div> Cargando carreras…</div>';
+  const { data: cars, error } = await sb.from('carreras').select('*').eq('reunion_id', rid).order('numero_turno');
+  if (error) { toast(error.message,'error'); return; }
+  carreras = cars||[];
+  if (!carreras.length) {
+    document.getElementById('car-tabs-container').style.display='none';
+    document.getElementById('resultado-container').innerHTML='<div class="empty-state"><div class="icon">📋</div><h3>Esta reunión no tiene carreras</h3></div>';
+    return;
+  }
+  const carIds = carreras.map(c=>c.id);
+  const [{ data: inscData }, { data: resData }] = await Promise.all([
+    sb.from('inscripciones').select('*').in('carrera_id', carIds).order('numero_partidor'),
+    sb.from('resultados').select('*').in('carrera_id', carIds),
+  ]);
+  inscripciones = inscData||[];
+  resultados = {};
+  (resData||[]).forEach(r=>{ resultados[r.carrera_id]=r; });
+  // Load posiciones
+  const resIds = (resData||[]).map(r=>r.id);
+  if (resIds.length) {
+    const { data: posData } = await sb.from('resultado_posiciones').select('*').in('resultado_id', resIds);
+    posicionesMap = {};
+    (posData||[]).forEach(p=>{ if (!posicionesMap[p.resultado_id]) posicionesMap[p.resultado_id]=[]; posicionesMap[p.resultado_id].push(p); });
+  }
+  document.getElementById('car-tabs-container').style.display='block';
+  renderTabs();
+  selectCarrera(0);
+}
+
+function renderTabs() {
+  document.getElementById('car-tabs').innerHTML = carreras.map((c,i)=>`<button class="car-tab ${i===currentCarreraIdx?'active':''} ${resultados[c.id]?.estado==='oficial'?'finalizada':''}" onclick="selectCarrera(${i})">Turno ${c.numero_turno}</button>`).join('');
+}
+
+function selectCarrera(idx) {
+  currentCarreraIdx = idx;
+  renderTabs();
+  renderResultado(carreras[idx]);
+}
+
+function renderResultado(carrera) {
+  const insc = inscripciones.filter(i=>i.carrera_id===carrera.id);
+  const res = resultados[carrera.id];
+  const posiciones = res ? (posicionesMap[res.id]||[]) : [];
+  const estadoBadge = res ? `<span class="badge badge-${res.estado}">${res.estado.replace('_',' ')}</span>` : `<span class="badge badge-provisional">Sin resultado</span>`;
+  const getPosicion = (inscId) => posiciones.find(p=>p.inscripcion_id===inscId);
+
+  const rows = insc.map(i => {
+    const spc = spcs[i.spc_id];
+    const jock = profesionales[i.jockey_titular_id];
+    const pos = getPosicion(i.id);
+    const isForfait = i.estado==='forfait';
+    return `<tr class="${isForfait?'no-result':''}">
+      <td class="spc-name">${spc?.nombre||i.spc_id}</td>
+      <td>${i.numero_partidor||'—'}</td>
+      <td>${jock?`${jock.apellido}`:'-'}</td>
+      <td>${i.peso_final||i.peso_declarado||'—'} kg</td>
+      <td>
+        ${isForfait ? '<span style="color:var(--danger);font-size:12px;">FORFAIT</span>' : `
+        <select class="pos-select" id="pos-${i.id}" ${res?.estado==='oficial'?'disabled':''}>
+          <option value="">—</option>
+          ${[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>`<option value="${n}" ${pos?.posicion===n?'selected':''}>${n}°</option>`).join('')}
+        </select>`}
+      </td>
+      <td>
+        ${isForfait ? '' : `<input class="dif-input" type="text" id="dif-${i.id}" value="${pos?.diferencia||''}" placeholder="ej: 1/2" ${res?.estado==='oficial'?'disabled':''}>`}
+      </td>
+      <td>
+        ${isForfait ? '' : `<div class="desc-check"><input type="checkbox" id="desc-${i.id}" ${pos?.descalificado?'checked':''} ${res?.estado==='oficial'?'disabled':''}><label for="desc-${i.id}" style="color:var(--danger)">DESC</label></div>`}
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('resultado-container').innerHTML = `<div class="resultado-block">
+    <div class="res-header">
+      <div>
+        <div class="res-title">Turno ${carrera.numero_turno} — ${carrera.nombre||''}</div>
+        <div class="res-meta">${carrera.distancia_metros}m | ${carrera.tipo_pista||'—'}</div>
+      </div>
+      <div class="estado-badges">
+        ${estadoBadge}
+      </div>
+    </div>
+    <div class="tiempo-row">
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <label>Tiempo del ganador</label>
+        <input type="text" id="tiempo-ganador" value="${res?.tiempo_ganador||''}" placeholder="1:02.3" style="width:120px;" ${res?.estado==='oficial'?'disabled':''}>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;flex:1;">
+        <label>Incidentes / Observaciones</label>
+        <textarea id="incidentes" placeholder="Notas sobre la carrera, incidentes…" ${res?.estado==='oficial'?'disabled':''}>${res?.incidentes||''}</textarea>
+      </div>
+    </div>
+    <table class="pos-table">
+      <thead><tr><th>SPC</th><th>#</th><th>Jockey</th><th>Peso</th><th>Posición</th><th>Diferencia</th><th>Desc.</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--muted)">Sin inscriptos</td></tr>'}</tbody>
+    </table>
+    <div class="res-footer">
+      <div style="font-size:12px;color:var(--muted);">${res ? `Última modificación: ${new Date(res.updated_at||res.created_at||Date.now()).toLocaleString('es-AR')}` : 'Sin resultado registrado'}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${res?.estado!=='oficial' ? `
+          <button class="btn-primary" onclick="guardarResultado('${carrera.id}','provisional')">💾 Guardar Provisional</button>
+          <button class="btn-protesta" onclick="guardarResultado('${carrera.id}','en_protesta')">⚠️ En Protesta</button>
+          <button class="btn-oficializar" onclick="oficializar('${carrera.id}')">✅ Oficializar</button>
+        ` : '<span style="color:var(--success);font-size:13px;font-weight:600;">✅ Resultado oficial</span>'}
+      </div>
+    </div>
+  </div>`;
+}
+
+async function guardarResultado(carreraId, estado) {
+  const tiempo = document.getElementById('tiempo-ganador').value.trim();
+  const incidentes = document.getElementById('incidentes').value.trim();
+  const insc = inscripciones.filter(i=>i.carrera_id===carreraId&&i.estado!=='forfait');
+  const res = resultados[carreraId];
+  let resId = res?.id;
+  if (!resId) {
+    const { data, error } = await sb.from('resultados').insert({ carrera_id: carreraId, estado, tiempo_ganador: tiempo||null, incidentes: incidentes||null }).select().single();
+    if (error) { toast(error.message,'error'); return; }
+    resId = data.id;
+    resultados[carreraId] = data;
+  } else {
+    const { error } = await sb.from('resultados').update({ estado, tiempo_ganador: tiempo||null, incidentes: incidentes||null }).eq('id', resId);
+    if (error) { toast(error.message,'error'); return; }
+    resultados[carreraId].estado = estado;
+    resultados[carreraId].tiempo_ganador = tiempo;
+  }
+  // Upsert posiciones
+  const posData = insc.map(i => {
+    const posEl = document.getElementById(`pos-${i.id}`);
+    const difEl = document.getElementById(`dif-${i.id}`);
+    const descEl = document.getElementById(`desc-${i.id}`);
+    return { resultado_id: resId, inscripcion_id: i.id, posicion: posEl?.value ? parseInt(posEl.value) : null, diferencia: difEl?.value||null, descalificado: descEl?.checked||false };
+  }).filter(p=>p.posicion);
+  if (posData.length) {
+    await sb.from('resultado_posiciones').delete().eq('resultado_id', resId);
+    const { error } = await sb.from('resultado_posiciones').insert(posData);
+    if (error) { toast(error.message,'error'); return; }
+    posicionesMap[resId] = posData;
+  }
+  toast(estado==='provisional'?'Resultado provisional guardado':'Resultado guardado');
+  renderTabs();
+}
+
+async function oficializar(carreraId) {
+  if (!confirm('¿Oficializar el resultado? Esta acción actualizará automáticamente el historial de performances. No se puede deshacer.')) return;
+  await guardarResultado(carreraId, 'oficial');
+  const res = resultados[carreraId];
+  if (!res) return;
+  // Update performances
+  const posiciones = posicionesMap[res.id]||[];
+  const inscs = inscripciones.filter(i=>i.carrera_id===carreraId);
+  const carrera = carreras.find(c=>c.id===carreraId);
+  const reunion = await sb.from('reuniones').select('fecha,hipodromos(nombre,sigla)').eq('id', carreras[0].reunion_id).single();
+  const perfInserts = [];
+  for (const pos of posiciones) {
+    const insc = inscs.find(i=>i.id===pos.inscripcion_id);
+    if (!insc) continue;
+    perfInserts.push({
+      spc_id: insc.spc_id,
+      carrera_id: carreraId,
+      fecha_carrera: reunion.data?.fecha,
+      hipodromo_sigla: reunion.data?.hipodromos?.sigla||'',
+      hipodromo_nombre: reunion.data?.hipodromos?.nombre||'',
+      numero_carrera: carrera?.numero_turno,
+      distancia_metros: carrera?.distancia_metros,
+      tipo_pista: carrera?.tipo_pista,
+      posicion: pos.posicion,
+      tiempo_ganador: res.tiempo_ganador,
+      diferencia: pos.diferencia,
+      peso_llevado: insc.peso_final||insc.peso_declarado,
+      jockey_id: insc.jockey_titular_id,
+      descalificado: pos.descalificado,
+      fuente: 'local',
+    });
+  }
+  if (perfInserts.length) {
+    // Remove existing local performances for this carrera
+    await sb.from('performances').delete().eq('carrera_id', carreraId);
+    const { error } = await sb.from('performances').insert(perfInserts);
+    if (error) { toast('Resultado oficial pero error actualizando performances: '+error.message,'error'); return; }
+  }
+  toast('✅ Resultado oficializado y performances actualizadas');
+  selectCarrera(currentCarreraIdx);
+}
+
+init();
+</script>
+</body>
+</html>

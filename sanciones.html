@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sanciones — SGH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e2318; --card: #1a3d26; --accent: #c9a84c;
+      --text: #f5f0e8; --muted: #a0b8a0; --danger: #e05252;
+      --success: #4caf82; --border: rgba(201,168,76,0.2); --input-bg: #0e2318;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    h1,h2,h3 { font-family: 'Playfair Display', serif; }
+    .topbar { background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+    .btn-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; }
+    .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+    .topbar h1 { font-size: 22px; color: var(--accent); flex: 1; }
+    .content { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .toolbar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+    .search-box { flex: 1; min-width: 200px; position: relative; }
+    .search-box input { width: 100%; background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 10px 16px 10px 40px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; transition: border 0.2s; }
+    .search-box input:focus { border-color: var(--accent); }
+    .search-box::before { content: '🔍'; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 14px; }
+    .filter-select { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 10px 14px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; outline: none; }
+    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: opacity 0.2s; }
+    .btn-primary:hover { opacity: 0.9; }
+    .stats-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .stat-chip { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 18px; text-align: center; min-width: 110px; }
+    .stat-chip-val { font-size: 20px; font-weight: 700; color: var(--accent); }
+    .stat-chip-val.danger { color: var(--danger); }
+    .stat-chip-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+    /* CARDS */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; transition: border-color 0.2s; }
+    .card.activa { border-left: 4px solid var(--danger); }
+    .card.cumplida { border-left: 4px solid var(--success); }
+    .card.apelada { border-left: 4px solid var(--accent); }
+    .card.revocada { border-left: 4px solid var(--muted); }
+    .card:hover { border-color: rgba(201,168,76,0.4); }
+    .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+    .entity-name { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--accent); }
+    .entity-tipo { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .badge-activa { background: rgba(224,82,82,0.15); color: var(--danger); border: 1px solid rgba(224,82,82,0.4); }
+    .badge-cumplida { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-apelada { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    .badge-revocada { background: rgba(180,180,180,0.1); color: var(--muted); border: 1px solid rgba(180,180,180,0.3); }
+    .sancion-tipo { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .sancion-motivo { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 10px; }
+    .dates-row { display: flex; gap: 16px; font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+    .dates-row span { color: var(--text); }
+    .countdown { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px; display: inline-block; margin-bottom: 10px; }
+    .countdown.activa { background: rgba(224,82,82,0.15); color: var(--danger); }
+    .countdown.vencida { background: rgba(76,175,130,0.1); color: var(--success); }
+    .card-actions { display: flex; gap: 8px; }
+    .btn-sm { padding: 6px 12px; border-radius: 7px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; }
+    .btn-edit { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    .btn-delete { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .empty-state { text-align: center; padding: 60px 20px; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 18px; color: var(--muted); }
+    .loading-state { display: flex; align-items: center; justify-content: center; padding: 60px; gap: 12px; color: var(--muted); }
+    .spinner { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* MODAL */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; margin: auto; }
+    .modal-header { padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--card); z-index: 1; }
+    .modal-header h2 { font-size: 20px; color: var(--accent); }
+    .btn-close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; }
+    .modal-body { padding: 20px 24px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { font-size: 13px; font-weight: 500; color: var(--muted); }
+    input, select, textarea { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 9px 13px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; width: 100%; transition: border 0.2s; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 80px; }
+    select option { background: #1a3d26; }
+    .modal-footer { padding: 16px 24px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
+    .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; }
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 320px; animation: slideIn 0.3s ease; }
+    .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
+    .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .form-group.full { grid-column: 1; } }
+  </style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<div class="topbar">
+  <a href="index.html" class="btn-back">← Volver</a>
+  <h1>Sanciones</h1>
+</div>
+
+<div class="content">
+  <div class="stats-row">
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-total">—</div><div class="stat-chip-lbl">Total</div></div>
+    <div class="stat-chip"><div class="stat-chip-val danger" id="cnt-activas">—</div><div class="stat-chip-lbl">Activas</div></div>
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-cumplidas">—</div><div class="stat-chip-lbl">Cumplidas</div></div>
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-apeladas">—</div><div class="stat-chip-lbl">Apeladas</div></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-box">
+      <input type="text" id="search" placeholder="Buscar por motivo o tipo…" oninput="filterRender()">
+    </div>
+    <select class="filter-select" id="f-entidad" onchange="filterRender()">
+      <option value="">Todas las entidades</option>
+      <option value="profesional">Profesional</option>
+      <option value="spc">SPC</option>
+      <option value="propietario">Propietario</option>
+      <option value="caballeriza">Caballeriza</option>
+    </select>
+    <select class="filter-select" id="f-estado-f" onchange="filterRender()">
+      <option value="">Todos los estados</option>
+      <option value="activa">Activa</option>
+      <option value="cumplida">Cumplida</option>
+      <option value="apelada">Apelada</option>
+      <option value="revocada">Revocada</option>
+    </select>
+    <button class="btn-primary" onclick="openModal()">+ Nueva Sanción</button>
+  </div>
+
+  <div id="list-container"></div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Nueva Sanción</h2>
+      <button class="btn-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <input type="hidden" id="f-id">
+        <div class="form-group">
+          <label>Tipo de entidad *</label>
+          <select id="f-entidad-tipo" required onchange="loadEntidadOptions()">
+            <option value="">— Seleccionar —</option>
+            <option value="profesional">Profesional</option>
+            <option value="spc">SPC</option>
+            <option value="propietario">Propietario</option>
+            <option value="caballeriza">Caballeriza</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Entidad sancionada *</label>
+          <select id="f-entidad-id" required>
+            <option value="">— Primero seleccionar tipo —</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label>Tipo de sanción *</label>
+          <input type="text" id="f-tipo-sancion" required placeholder="Ej: Suspensión, Multa, Inhabilitación…">
+        </div>
+        <div class="form-group full">
+          <label>Motivo *</label>
+          <textarea id="f-motivo" required placeholder="Descripción detallada del motivo de la sanción…"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Fecha inicio *</label>
+          <input type="date" id="f-fecha-inicio" required>
+        </div>
+        <div class="form-group">
+          <label>Fecha fin (vacío = indefinida)</label>
+          <input type="date" id="f-fecha-fin">
+        </div>
+        <div class="form-group">
+          <label>Estado *</label>
+          <select id="f-estado-s" required>
+            <option value="activa">Activa</option>
+            <option value="cumplida">Cumplida</option>
+            <option value="apelada">Apelada</option>
+            <option value="revocada">Revocada</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label>Notas</label>
+          <textarea id="f-notas" placeholder="Observaciones, resolución relacionada…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="saveRecord()" id="btn-save">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const { createClient } = supabase;
+const sb = createClient('https://unlhcuanfrtpatoipwve.supabase.co', 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
+const CLUB_ID = 'a6da7e40-1515-45dc-8933-4eef33ce937a';
+
+let allData=[], entityCache={profesional:[],spc:[],propietario:[],caballeriza:[]};
+
+function toast(msg, type='success') {
+  const t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
+  document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),3500);
+}
+
+function fmtDate(d) { return d ? new Date(d).toLocaleDateString('es-AR') : '—'; }
+function calcCountdown(inicio, fin, estado) {
+  if (estado !== 'activa') return null;
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const iniDate = new Date(inicio);
+  if (!fin) return { text: 'Indefinida', cls: 'activa' };
+  const finDate = new Date(fin);
+  if (hoy > finDate) return { text: 'Vencida', cls: 'vencida' };
+  const dias = Math.ceil((finDate - hoy) / (1000*60*60*24));
+  return { text: `${dias} días restantes`, cls: 'activa' };
+}
+
+async function load() {
+  document.getElementById('list-container').innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando sanciones…</div>';
+  const [{ data: sancs, error }, { data: profs }, { data: spcs }, { data: props }, { data: cabs }] = await Promise.all([
+    sb.from('sanciones').select('*').eq('club_id', CLUB_ID).order('fecha_inicio', {ascending: false}),
+    sb.from('profesionales').select('id,nombre,apellido').eq('club_id', CLUB_ID).order('apellido'),
+    sb.from('spcs').select('id,nombre').eq('club_id', CLUB_ID).order('nombre'),
+    sb.from('propietarios').select('id,nombre').eq('club_id', CLUB_ID).order('nombre'),
+    sb.from('caballerizas').select('id,nombre').eq('club_id', CLUB_ID).order('nombre'),
+  ]);
+  if (error) { toast(error.message,'error'); return; }
+  allData = sancs || [];
+  entityCache.profesional = (profs||[]).map(p=>({id:p.id,nombre:`${p.apellido}, ${p.nombre}`}));
+  entityCache.spc = spcs || [];
+  entityCache.propietario = props || [];
+  entityCache.caballeriza = cabs || [];
+  updateStats();
+  filterRender();
+}
+
+function updateStats() {
+  document.getElementById('cnt-total').textContent = allData.length;
+  document.getElementById('cnt-activas').textContent = allData.filter(r=>r.estado==='activa').length;
+  document.getElementById('cnt-cumplidas').textContent = allData.filter(r=>r.estado==='cumplida').length;
+  document.getElementById('cnt-apeladas').textContent = allData.filter(r=>r.estado==='apelada').length;
+}
+
+function getEntityName(tipo, id) {
+  const list = entityCache[tipo] || [];
+  return list.find(e=>e.id===id)?.nombre || id;
+}
+
+function filterRender() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const entidad = document.getElementById('f-entidad').value;
+  const estado = document.getElementById('f-estado-f').value;
+  const data = allData.filter(r =>
+    (!q || r.tipo_sancion?.toLowerCase().includes(q) || r.motivo?.toLowerCase().includes(q))
+    && (!entidad || r.entidad_tipo === entidad)
+    && (!estado || r.estado === estado)
+  );
+  renderList(data);
+}
+
+const estadoBadgeMap = { activa:'badge-activa', cumplida:'badge-cumplida', apelada:'badge-apelada', revocada:'badge-revocada' };
+const entidadIcon = { profesional:'🎽', spc:'🐴', propietario:'👤', caballeriza:'🏠' };
+
+function renderList(data) {
+  if (!data.length) {
+    document.getElementById('list-container').innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><h3>Sin resultados</h3><p>No se encontraron sanciones con los filtros aplicados.</p></div>`;
+    return;
+  }
+  document.getElementById('list-container').innerHTML = `<div class="grid">${data.map(r => {
+    const entityName = getEntityName(r.entidad_tipo, r.entidad_id);
+    const cd = calcCountdown(r.fecha_inicio, r.fecha_fin, r.estado);
+    return `<div class="card ${r.estado}">
+      <div class="card-top">
+        <div>
+          <div class="entity-name">${entityName}</div>
+          <div class="entity-tipo">${entidadIcon[r.entidad_tipo]||''} ${r.entidad_tipo?.toUpperCase()}</div>
+        </div>
+        <span class="badge ${estadoBadgeMap[r.estado]||''}">${r.estado}</span>
+      </div>
+      <div class="sancion-tipo">⚠️ ${r.tipo_sancion || '—'}</div>
+      <div class="sancion-motivo">${r.motivo || '—'}</div>
+      ${cd ? `<div class="countdown ${cd.cls}">${cd.text}</div>` : ''}
+      <div class="dates-row">
+        <div>Desde <span>${fmtDate(r.fecha_inicio)}</span></div>
+        <div>Hasta <span>${r.fecha_fin ? fmtDate(r.fecha_fin) : 'Indefinida'}</span></div>
+      </div>
+      <div class="card-actions">
+        <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(r)})'>✏️ Editar</button>
+        <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}')">🗑️ Eliminar</button>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+async function loadEntidadOptions(selectedId='') {
+  const tipo = document.getElementById('f-entidad-tipo').value;
+  const sel = document.getElementById('f-entidad-id');
+  if (!tipo) { sel.innerHTML = '<option value="">— Primero seleccionar tipo —</option>'; return; }
+  const list = entityCache[tipo] || [];
+  sel.innerHTML = `<option value="">— Seleccionar ${tipo} —</option>` +
+    list.map(e=>`<option value="${e.id}" ${e.id===selectedId?'selected':''}>${e.nombre}</option>`).join('');
+}
+
+function openModal(rec=null) {
+  document.getElementById('modal-title').textContent = rec ? 'Editar Sanción' : 'Nueva Sanción';
+  document.getElementById('f-id').value = rec?.id || '';
+  document.getElementById('f-entidad-tipo').value = rec?.entidad_tipo || '';
+  document.getElementById('f-tipo-sancion').value = rec?.tipo_sancion || '';
+  document.getElementById('f-motivo').value = rec?.motivo || '';
+  document.getElementById('f-fecha-inicio').value = rec?.fecha_inicio || new Date().toISOString().slice(0,10);
+  document.getElementById('f-fecha-fin').value = rec?.fecha_fin || '';
+  document.getElementById('f-estado-s').value = rec?.estado || 'activa';
+  document.getElementById('f-notas').value = rec?.notas || '';
+  loadEntidadOptions(rec?.entidad_id || '');
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+async function saveRecord() {
+  const id = document.getElementById('f-id').value;
+  const tipo = document.getElementById('f-entidad-tipo').value;
+  const entidadId = document.getElementById('f-entidad-id').value;
+  const tipoSancion = document.getElementById('f-tipo-sancion').value.trim();
+  const motivo = document.getElementById('f-motivo').value.trim();
+  const fechaInicio = document.getElementById('f-fecha-inicio').value;
+  if (!tipo || !entidadId || !tipoSancion || !motivo || !fechaInicio) { toast('Complete los campos requeridos','error'); return; }
+  const btn = document.getElementById('btn-save');
+  btn.disabled=true; btn.textContent='Guardando…';
+  const payload = {
+    club_id: CLUB_ID,
+    entidad_tipo: tipo,
+    entidad_id: entidadId,
+    tipo_sancion: tipoSancion,
+    motivo,
+    fecha_inicio: fechaInicio,
+    fecha_fin: document.getElementById('f-fecha-fin').value || null,
+    estado: document.getElementById('f-estado-s').value,
+    notas: document.getElementById('f-notas').value.trim() || null,
+  };
+  const { error } = id
+    ? await sb.from('sanciones').update(payload).eq('id',id)
+    : await sb.from('sanciones').insert(payload);
+  btn.disabled=false; btn.textContent='Guardar';
+  if (error) { toast(error.message,'error'); return; }
+  toast(id ? 'Sanción actualizada' : 'Sanción creada');
+  closeModal();
+  load();
+}
+
+async function deleteRecord(id) {
+  if (!confirm('¿Eliminar esta sanción?')) return;
+  const { error } = await sb.from('sanciones').delete().eq('id',id);
+  if (error) { toast(error.message,'error'); return; }
+  toast('Sanción eliminada');
+  load();
+}
+
+document.getElementById('modal').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeModal(); });
+load();
+</script>
+</body>
+</html>

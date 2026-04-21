@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ratificación — SGH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e2318; --card: #1a3d26; --accent: #c9a84c;
+      --text: #f5f0e8; --muted: #a0b8a0; --danger: #e05252;
+      --success: #4caf82; --border: rgba(201,168,76,0.2); --input-bg: #0e2318;
+      --info: #74b0f7;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    h1,h2,h3 { font-family: 'Playfair Display', serif; }
+    .topbar { background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .btn-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 7px 14px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s; }
+    .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+    .topbar h1 { font-size: 18px; color: var(--accent); flex: 1; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .selector-bar { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .selector-bar label { font-size: 12px; color: var(--muted); }
+    select { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; }
+    select:focus { border-color: var(--accent); }
+    select option { background: #1a3d26; }
+    .content { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    /* CARRERAS ACORDEON */
+    .carrera-section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 16px; overflow: hidden; }
+    .carrera-header { padding: 14px 18px; display: flex; align-items: center; gap: 14px; cursor: pointer; background: rgba(0,0,0,0.15); }
+    .carrera-header:hover { background: rgba(0,0,0,0.25); }
+    .carrera-num { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: var(--accent); min-width: 36px; }
+    .carrera-title { font-size: 15px; font-weight: 600; flex: 1; }
+    .carrera-stats { display: flex; gap: 8px; }
+    .cstat { font-size: 12px; padding: 3px 9px; border-radius: 6px; font-weight: 600; }
+    .cstat-rat { background: rgba(201,168,76,0.15); color: var(--accent); }
+    .cstat-conf { background: rgba(76,175,130,0.15); color: var(--success); }
+    .cstat-fort { background: rgba(224,82,82,0.1); color: var(--danger); }
+    .cstat-pre { background: rgba(116,176,247,0.1); color: var(--info); }
+    .expand-icon { color: var(--muted); font-size: 12px; transition: transform 0.2s; }
+    .carrera-section.open .expand-icon { transform: rotate(180deg); }
+    /* TABLE */
+    .inscr-table { width: 100%; border-collapse: collapse; }
+    .inscr-table thead th { background: rgba(0,0,0,0.1); padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; }
+    .inscr-table tbody tr { border-top: 1px solid var(--border); }
+    .inscr-table tbody tr:hover { background: rgba(201,168,76,0.03); }
+    .inscr-table tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
+    .num-part { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--accent); font-weight: 700; }
+    .spc-name { font-weight: 600; color: var(--accent); }
+    .spc-sub { font-size: 11px; color: var(--muted); }
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .badge-confirmado { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-ratificado { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    .badge-pre_inscripto { background: rgba(116,176,247,0.1); color: var(--info); border: 1px solid rgba(116,176,247,0.3); }
+    .badge-forfait { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .peso-input { width: 80px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 7px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; text-align: center; }
+    .peso-input:focus { border-color: var(--accent); }
+    .action-btns { display: flex; gap: 5px; flex-wrap: wrap; }
+    .btn-sm { padding: 5px 11px; border-radius: 7px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; white-space: nowrap; transition: all 0.15s; }
+    .btn-rat { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    .btn-rat:hover { background: rgba(201,168,76,0.3); }
+    .btn-fort { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .btn-fort:hover { background: rgba(224,82,82,0.2); }
+    .btn-jock { background: rgba(116,176,247,0.1); color: var(--info); border: 1px solid rgba(116,176,247,0.3); }
+    .btn-jock:hover { background: rgba(116,176,247,0.2); }
+    .empty-state { text-align: center; padding: 40px 20px; }
+    .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+    .empty-state h3 { font-size: 16px; color: var(--muted); }
+    .loading-state { display: flex; align-items: center; justify-content: center; padding: 50px; gap: 12px; color: var(--muted); }
+    .spinner { width: 22px; height: 22px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* MINI MODAL */
+    .mini-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 16px; }
+    .mini-modal.open { display: flex; }
+    .mini-box { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; width: 100%; max-width: 400px; }
+    .mini-box h3 { font-size: 17px; color: var(--accent); margin-bottom: 16px; }
+    .mini-form { display: flex; flex-direction: column; gap: 12px; }
+    .mini-form label { font-size: 12px; color: var(--muted); }
+    input, select { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 9px 13px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; width: 100%; transition: border 0.2s; }
+    input:focus, select:focus { border-color: var(--accent); }
+    .mini-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; }
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 320px; animation: slideIn 0.3s ease; }
+    .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
+    .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    @media print {
+      body { background:#fff!important; color:#000!important; }
+      .topbar, .selector-bar, #toast-container, .action-btns, .peso-input { display:none!important; }
+      .carrera-section { border:1px solid #ccc!important; background:#fff!important; page-break-inside:avoid; margin-bottom:12px; }
+      .carrera-header { background:#f0f0f0!important; }
+      .carrera-num, .carrera-title { color:#000!important; }
+      .inscr-table td, .inscr-table th { color:#000!important; border-color:#ddd!important; }
+      .spc-name { color:#000!important; }
+      .badge { border:1px solid #999!important; color:#333!important; background:#eee!important; }
+      @page { size: A4 landscape; margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<div class="topbar">
+  <a href="reuniones.html" class="btn-back">← Reuniones</a>
+  <h1>Ratificación</h1>
+  <button class="btn-outline" onclick="window.print()">🖨️ Imprimir PDF</button>
+</div>
+
+<div class="selector-bar">
+  <label>Reunión:</label>
+  <select id="sel-reunion" onchange="loadReunion()">
+    <option value="">— Seleccionar —</option>
+  </select>
+</div>
+
+<div class="content" id="content">
+  <div class="empty-state"><div class="icon">✅</div><h3>Seleccionar una reunión para comenzar la ratificación</h3></div>
+</div>
+
+<!-- MINI MODAL FORFAIT -->
+<div class="mini-modal" id="modal-forfait">
+  <div class="mini-box">
+    <h3>Dar Forfait</h3>
+    <div class="mini-form">
+      <div><label>Motivo del forfait *</label><input type="text" id="forfait-motivo" placeholder="Ej: Lesión, decisión del propietario…"></div>
+    </div>
+    <div class="mini-footer">
+      <button class="btn-secondary" onclick="closeMini('modal-forfait')">Cancelar</button>
+      <button class="btn-primary" onclick="confirmForfait()">Confirmar Forfait</button>
+    </div>
+  </div>
+</div>
+
+<!-- MINI MODAL CAMBIO JOCKEY -->
+<div class="mini-modal" id="modal-jockey">
+  <div class="mini-box">
+    <h3>Cambiar Jockey</h3>
+    <div class="mini-form">
+      <div><label>Nuevo jockey titular</label><select id="nuevo-jockey"></select></div>
+    </div>
+    <div class="mini-footer">
+      <button class="btn-secondary" onclick="closeMini('modal-jockey')">Cancelar</button>
+      <button class="btn-primary" onclick="confirmJockeyChange()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const { createClient } = supabase;
+const sb = createClient('https://unlhcuanfrtpatoipwve.supabase.co', 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
+const CLUB_ID = 'a6da7e40-1515-45dc-8933-4eef33ce937a';
+
+let spcs=[], profesionales=[], propietarios=[], jockeys=[];
+let pendingInscId=null;
+
+function toast(msg,type='success') {
+  const t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
+  document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),3500);
+}
+
+function closeMini(id) { document.getElementById(id).classList.remove('open'); pendingInscId=null; }
+
+async function init() {
+  const [{ data: reuns }, { data: profs }, { data: props }, { data: sprcs }] = await Promise.all([
+    sb.from('reuniones').select('id,numero,fecha,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
+    sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID).eq('activo', true).order('apellido'),
+    sb.from('propietarios').select('id,nombre').eq('club_id', CLUB_ID).order('nombre'),
+    sb.from('spcs').select('id,nombre').eq('club_id', CLUB_ID).order('nombre'),
+  ]);
+  profesionales = profs||[]; propietarios = props||[]; spcs = sprcs||[];
+  jockeys = profesionales.filter(p=>p.tipo==='jockey'||p.tipo==='ambos');
+  document.getElementById('nuevo-jockey').innerHTML = '<option value="">— Sin jockey —</option>' + jockeys.map(p=>`<option value="${p.id}">${p.apellido}, ${p.nombre}</option>`).join('');
+  const sel = document.getElementById('sel-reunion');
+  sel.innerHTML = '<option value="">— Seleccionar —</option>' + (reuns||[]).map(r=>`<option value="${r.id}">Reunión ${r.numero||''} — ${new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR')} — ${r.hipodromos?.nombre||''}</option>`).join('');
+  const params = new URLSearchParams(location.search);
+  const rid = params.get('reunion_id');
+  if (rid) { sel.value=rid; await loadReunion(); }
+}
+
+async function loadReunion() {
+  const rid = document.getElementById('sel-reunion').value;
+  if (!rid) { document.getElementById('content').innerHTML='<div class="empty-state"><div class="icon">✅</div><h3>Seleccionar una reunión</h3></div>'; return; }
+  document.getElementById('content').innerHTML='<div class="loading-state"><div class="spinner"></div> Cargando datos de ratificación…</div>';
+  const [{ data: cars, error }, { data: inscData }] = await Promise.all([
+    sb.from('carreras').select('*').eq('reunion_id', rid).order('numero_turno'),
+    sb.from('inscripciones').select('*').eq('carrera_id', sb.from('carreras').select('id').eq('reunion_id', rid)),
+  ]);
+  // Proper query for inscripciones
+  const { data: carIds } = await sb.from('carreras').select('id').eq('reunion_id', rid);
+  const ids = (carIds||[]).map(c=>c.id);
+  let inscripciones = [];
+  if (ids.length) {
+    const { data } = await sb.from('inscripciones').select('*').in('carrera_id', ids).order('numero_partidor');
+    inscripciones = data||[];
+  }
+  if (error) { toast(error.message,'error'); return; }
+  renderAll(cars||[], inscripciones);
+}
+
+function getSpc(id) { return spcs.find(s=>s.id===id); }
+function getProf(id) { return profesionales.find(p=>p.id===id); }
+function getProp(id) { return propietarios.find(p=>p.id===id); }
+
+function renderAll(carreras, inscripciones) {
+  if (!carreras.length) {
+    document.getElementById('content').innerHTML='<div class="empty-state"><div class="icon">📋</div><h3>Esta reunión no tiene carreras</h3></div>';
+    return;
+  }
+  const html = carreras.map(car => {
+    const insc = inscripciones.filter(i=>i.carrera_id===car.id);
+    const rat = insc.filter(i=>i.estado==='ratificado').length;
+    const conf = insc.filter(i=>i.estado==='confirmado').length;
+    const fort = insc.filter(i=>i.estado==='forfait').length;
+    const pre = insc.filter(i=>i.estado==='pre_inscripto').length;
+    const rows = insc.map(i => {
+      const spc = getSpc(i.spc_id);
+      const jock = getProf(i.jockey_titular_id);
+      const prop = getProp(i.propietario_id);
+      const entr = getProf(i.entrenador_id);
+      return `<tr id="row-${i.id}">
+        <td class="num-part">${i.numero_partidor||'—'}</td>
+        <td><div class="spc-name">${spc?.nombre||i.spc_id}</div><div class="spc-sub">${prop?.nombre||''}</div></td>
+        <td>${entr?entr.apellido:'-'}</td>
+        <td>${jock?`${jock.apellido}, ${jock.nombre}`:'-'}</td>
+        <td><input class="peso-input" type="number" id="peso-${i.id}" value="${i.peso_final||i.peso_declarado||''}" min="40" max="80" step="0.1" placeholder="kg"></td>
+        <td><span class="badge badge-${i.estado}" id="badge-${i.id}">${i.estado?.replace('_',' ')||'—'}</span></td>
+        <td class="action-btns">
+          ${i.estado!=='ratificado'&&i.estado!=='forfait'?`<button class="btn-sm btn-rat" onclick="ratificar('${i.id}')">✅ Ratificar</button>`:''}
+          ${i.estado!=='forfait'?`<button class="btn-sm btn-fort" onclick="openForfait('${i.id}')">❌ Forfait</button>`:''}
+          <button class="btn-sm btn-jock" onclick="openJockeyChange('${i.id}','${i.jockey_titular_id||''}')">🔄 Jockey</button>
+        </td>
+      </tr>`;
+    }).join('');
+    return `<div class="carrera-section open" id="csec-${car.id}">
+      <div class="carrera-header" onclick="toggleSection('${car.id}')">
+        <div class="carrera-num">${car.numero_turno}</div>
+        <div class="carrera-title">${car.nombre||`Carrera ${car.numero_turno}`} — ${car.distancia_metros}m</div>
+        <div class="carrera-stats">
+          <span class="cstat cstat-rat">${rat} rat.</span>
+          <span class="cstat cstat-conf">${conf} conf.</span>
+          ${fort?`<span class="cstat cstat-fort">${fort} forfait</span>`:''}
+          ${pre?`<span class="cstat cstat-pre">${pre} pre</span>`:''}
+        </div>
+        <span class="expand-icon">▼</span>
+      </div>
+      <table class="inscr-table">
+        <thead><tr><th>#</th><th>SPC / Propietario</th><th>Entrenador</th><th>Jockey</th><th>Peso final</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody>${rows||`<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">Sin inscriptos</td></tr>`}</tbody>
+      </table>
+    </div>`;
+  }).join('');
+  document.getElementById('content').innerHTML = html;
+}
+
+function toggleSection(id) {
+  document.getElementById(`csec-${id}`).classList.toggle('open');
+}
+
+async function ratificar(inscId) {
+  const pesoEl = document.getElementById(`peso-${inscId}`);
+  const peso = parseFloat(pesoEl?.value) || null;
+  const { error } = await sb.from('inscripciones').update({ estado:'ratificado', peso_final: peso }).eq('id', inscId);
+  if (error) { toast(error.message,'error'); return; }
+  toast('Ratificado ✅');
+  const badge = document.getElementById(`badge-${inscId}`);
+  if (badge) { badge.className='badge badge-ratificado'; badge.textContent='ratificado'; }
+  // Hide ratificar btn
+  const row = document.getElementById(`row-${inscId}`);
+  if (row) { const ratBtn = row.querySelector('.btn-rat'); if (ratBtn) ratBtn.remove(); }
+}
+
+function openForfait(inscId) {
+  pendingInscId = inscId;
+  document.getElementById('forfait-motivo').value = '';
+  document.getElementById('modal-forfait').classList.add('open');
+}
+
+async function confirmForfait() {
+  const motivo = document.getElementById('forfait-motivo').value.trim();
+  if (!motivo) { toast('Ingresar motivo del forfait','error'); return; }
+  const { error } = await sb.from('inscripciones').update({ estado:'forfait', motivo_forfait: motivo }).eq('id', pendingInscId);
+  if (error) { toast(error.message,'error'); return; }
+  toast('Forfait registrado');
+  const badge = document.getElementById(`badge-${pendingInscId}`);
+  if (badge) { badge.className='badge badge-forfait'; badge.textContent='forfait'; }
+  const row = document.getElementById(`row-${pendingInscId}`);
+  if (row) { row.querySelectorAll('.btn-rat,.btn-fort').forEach(b=>b.remove()); }
+  closeMini('modal-forfait');
+}
+
+function openJockeyChange(inscId, currentJockeyId) {
+  pendingInscId = inscId;
+  document.getElementById('nuevo-jockey').value = currentJockeyId || '';
+  document.getElementById('modal-jockey').classList.add('open');
+}
+
+async function confirmJockeyChange() {
+  const nuevoJockeyId = document.getElementById('nuevo-jockey').value;
+  const { error } = await sb.from('inscripciones').update({ jockey_titular_id: nuevoJockeyId||null }).eq('id', pendingInscId);
+  if (error) { toast(error.message,'error'); return; }
+  toast('Jockey actualizado');
+  closeMini('modal-jockey');
+  loadReunion();
+}
+
+document.getElementById('modal-forfait').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeMini('modal-forfait'); });
+document.getElementById('modal-jockey').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeMini('modal-jockey'); });
+init();
+</script>
+</body>
+</html>
