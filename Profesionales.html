@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SGH — Profesionales</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--verde:#0e2318;--verde-mid:#163520;--verde-card:#1a3d26;--verde-borde:#245033;--oro:#c9a84c;--oro-suave:#e8d5a3;--crema:#f5f0e8;--gris:#8a9e90;--rojo:#c0392b;--esme:#059669;--sombra:0 4px 24px rgba(0,0,0,0.4);--radio:10px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--verde);color:var(--crema);min-height:100vh;padding:28px 20px}
+h2{font-family:'Playfair Display',serif;font-size:24px;color:var(--crema);margin-bottom:4px}
+.sub{color:var(--gris);font-size:13px;margin-bottom:24px}
+.topbar{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:24px}
+.card{background:var(--verde-card);border:1px solid var(--verde-borde);border-radius:var(--radio);padding:20px;margin-bottom:16px;box-shadow:var(--sombra)}
+.search-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.search-bar input{flex:1;min-width:180px}
+.search-bar select{min-width:140px}
+input,select,textarea{background:var(--verde-mid);border:1px solid var(--verde-borde);border-radius:7px;padding:9px 13px;color:var(--crema);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:100%;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--oro);box-shadow:0 0 0 3px rgba(201,168,76,.1)}
+select option{background:var(--verde-mid)}
+textarea{resize:vertical;min-height:70px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;white-space:nowrap}
+.btn-primary{background:var(--oro);color:var(--verde)}
+.btn-primary:hover{background:var(--oro-suave);transform:translateY(-1px)}
+.btn-ghost{background:transparent;border:1px solid var(--verde-borde);color:var(--gris)}
+.btn-ghost:hover{border-color:var(--gris);color:var(--crema)}
+.btn-danger{background:transparent;border:1px solid #c0392b44;color:#e74c3c}
+.btn-danger:hover{background:#c0392b22}
+.btn-sm{padding:5px 11px;font-size:12px}
+.btn-back{background:transparent;border:1px solid var(--verde-borde);color:var(--gris);margin-bottom:20px}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{text-align:left;padding:9px 13px;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--gris);border-bottom:1px solid var(--verde-borde);white-space:nowrap}
+tbody tr{border-bottom:1px solid #ffffff0a;transition:background .12s}
+tbody tr:hover{background:rgba(255,255,255,.03)}
+tbody td{padding:12px 13px;vertical-align:middle}
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.03em}
+.badge-green{background:#05966922;color:#34d399;border:1px solid #05966944}
+.badge-red{background:#c0392b22;color:#e74c3c;border:1px solid #c0392b44}
+.badge-blue{background:#2563EB22;color:#60a5fa;border:1px solid #2563EB44}
+.badge-purple{background:#7C3AED22;color:#a78bfa;border:1px solid #7C3AED44}
+.badge-amber{background:#D9770622;color:#fbbf24;border:1px solid #D9770644}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--verde-borde);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--oro);flex-shrink:0}
+.pro-info{display:flex;align-items:center;gap:10px}
+.pro-nombre{font-weight:500}
+.pro-mat{font-size:11px;color:var(--gris)}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--verde-card);border:1px solid var(--verde-borde);border-radius:12px;padding:24px;width:100%;max-width:580px;box-shadow:0 20px 60px rgba(0,0,0,.6);animation:modalIn .2s ease;max-height:90vh;overflow-y:auto}
+@keyframes modalIn{from{opacity:0;transform:scale(.95) translateY(10px)}to{opacity:1;transform:none}}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.modal-header h3{font-family:'Playfair Display',serif;font-size:19px;color:var(--oro)}
+.modal-close{background:none;border:none;color:var(--gris);font-size:20px;cursor:pointer;padding:4px}
+.modal-close:hover{color:var(--crema)}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.form-grid.three{grid-template-columns:1fr 1fr 1fr}
+.field{display:flex;flex-direction:column;gap:5px}
+.field.span2{grid-column:span 2}
+.field.span3{grid-column:span 3}
+label{font-size:11px;font-weight:500;color:var(--oro-suave);letter-spacing:.04em;text-transform:uppercase}
+.switch-wrap{display:flex;align-items:center;gap:10px}
+.switch{position:relative;width:40px;height:22px}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;inset:0;background:var(--verde-borde);border-radius:22px;cursor:pointer;transition:.2s}
+.slider:before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:white;border-radius:50%;transition:.2s}
+.switch input:checked+.slider{background:var(--oro)}
+.switch input:checked+.slider:before{transform:translateX(18px)}
+.divider{border:none;border-top:1px solid var(--verde-borde);margin:16px 0}
+.section-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--gris);margin:16px 0 10px}
+.empty-state{text-align:center;padding:40px;color:var(--gris)}
+.empty-state .icon{font-size:36px;margin-bottom:10px}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--verde-card);border:1px solid var(--verde-borde);border-radius:9px;padding:13px 18px;font-size:13px;color:var(--crema);box-shadow:var(--sombra);z-index:9999;transform:translateY(80px);opacity:0;transition:all .3s ease;min-width:240px}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.ok{border-left:3px solid var(--esme)}
+.toast.err{border-left:3px solid var(--rojo)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.stat-card{background:var(--verde-card);border:1px solid var(--verde-borde);border-radius:var(--radio);padding:16px;text-align:center}
+.stat-num{font-family:'Playfair Display',serif;font-size:28px;color:var(--oro)}
+.stat-label{font-size:11px;color:var(--gris);margin-top:3px;text-transform:uppercase;letter-spacing:.06em}
+@media(max-width:600px){.form-grid,.form-grid.three{grid-template-columns:1fr}.field.span2,.field.span3{grid-column:span 1}.stats{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<button class="btn btn-back" onclick="window.location.href='index.html'">← Volver</button>
+
+<div class="topbar">
+  <div>
+    <h2>👤 Profesionales</h2>
+    <p class="sub">Jockeys y entrenadores habilitados</p>
+  </div>
+  <button class="btn btn-primary" onclick="abrirModal()">+ Nuevo</button>
+</div>
+
+<div class="stats">
+  <div class="stat-card">
+    <div class="stat-num" id="stat-total">—</div>
+    <div class="stat-label">Total</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" id="stat-jockeys">—</div>
+    <div class="stat-label">Jockeys</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" id="stat-entrenadores">—</div>
+    <div class="stat-label">Entrenadores</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="search-bar">
+    <input type="text" id="buscar" placeholder="🔍 Buscar por nombre o matrícula..." oninput="filtrar()">
+    <select id="filtro-tipo" onchange="filtrar()">
+      <option value="">Todos los tipos</option>
+      <option value="jockey">Jockeys</option>
+      <option value="entrenador">Entrenadores</option>
+      <option value="ambos">Ambos</option>
+    </select>
+    <select id="filtro-estado" onchange="filtrar()">
+      <option value="">Todos</option>
+      <option value="true">Activos</option>
+      <option value="false">Inactivos</option>
+    </select>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Profesional</th>
+          <th>Tipo</th>
+          <th>Categoría</th>
+          <th>Matrícula</th>
+          <th>Peso min/max</th>
+          <th>Teléfono</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tabla-body">
+        <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--gris)">
+          Cargando...
+        </td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Nuevo Profesional</h3>
+      <button class="modal-close" onclick="cerrarModal('modal')">✕</button>
+    </div>
+
+    <div class="section-label">Datos personales</div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Nombre</label>
+        <input type="text" id="p-nombre" placeholder="Nombre">
+      </div>
+      <div class="field">
+        <label>Apellido</label>
+        <input type="text" id="p-apellido" placeholder="Apellido">
+      </div>
+      <div class="field">
+        <label>Tipo documento</label>
+        <select id="p-doc-tipo">
+          <option value="DNI">DNI</option>
+          <option value="CUIT">CUIT</option>
+          <option value="Pasaporte">Pasaporte</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Nº documento</label>
+        <input type="text" id="p-doc-nro" placeholder="12.345.678">
+      </div>
+      <div class="field">
+        <label>Fecha de nacimiento</label>
+        <input type="date" id="p-nacimiento">
+      </div>
+      <div class="field">
+        <label>Teléfono</label>
+        <input type="text" id="p-telefono" placeholder="+54 9 223 000-0000">
+      </div>
+      <div class="field span2">
+        <label>Email</label>
+        <input type="email" id="p-email" placeholder="email@ejemplo.com">
+      </div>
+    </div>
+
+    <div class="section-label">Datos profesionales</div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Tipo</label>
+        <select id="p-tipo" onchange="toggleJockey()">
+          <option value="jockey">Jockey</option>
+          <option value="entrenador">Entrenador</option>
+          <option value="ambos">Ambos</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Nº Matrícula</label>
+        <input type="text" id="p-matricula" placeholder="MAT-0001">
+      </div>
+    </div>
+
+    <div id="campos-jockey">
+      <div class="section-label">Datos de jockey</div>
+      <div class="form-grid three">
+        <div class="field">
+          <label>Categoría</label>
+          <select id="p-categoria">
+            <option value="aprendiz">Aprendiz</option>
+            <option value="clasico">Clásico</option>
+            <option value="senior">Senior</option>
+            <option value="amateur">Amateur</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Peso mínimo (kg)</label>
+          <input type="number" id="p-peso-min" placeholder="52" step="0.5">
+        </div>
+        <div class="field">
+          <label>Peso máximo (kg)</label>
+          <input type="number" id="p-peso-max" placeholder="60" step="0.5">
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Observaciones</div>
+    <div class="field">
+      <textarea id="p-notas" placeholder="Notas adicionales..."></textarea>
+    </div>
+
+    <hr class="divider">
+    <div class="switch-wrap">
+      <label class="switch">
+        <input type="checkbox" id="p-activo" checked>
+        <span class="slider"></span>
+      </label>
+      <span style="font-size:13px;color:var(--gris)">Habilitado</span>
+    </div>
+
+    <input type="hidden" id="p-id">
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="cerrarModal('modal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardar()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK';
+const CLUB_ID      = 'a6da7e40-1515-45dc-8933-4eef33ce937a';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let todos = [];
+
+function toast(msg, tipo='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = tipo==='ok' ? '✅ '+msg : '❌ '+msg;
+  t.className = 'toast show '+tipo;
+  setTimeout(()=>t.className='toast', 3500);
+}
+
+function cerrarModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+function toggleJockey() {
+  const tipo = document.getElementById('p-tipo').value;
+  document.getElementById('campos-jockey').style.display =
+    (tipo === 'entrenador') ? 'none' : 'block';
+}
+
+function iniciales(nombre, apellido) {
+  return ((nombre||'')[0]||
