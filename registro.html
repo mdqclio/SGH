@@ -108,10 +108,6 @@
         <label>Provincia</label>
         <input type="text" id="f-club-provincia" placeholder="Ej: Buenos Aires">
       </div>
-      <div class="form-group">
-        <label>País</label>
-        <input type="text" id="f-club-pais" value="Argentina">
-      </div>
     </div>
 
     <div class="section-title">Usuario Administrador</div>
@@ -194,7 +190,6 @@ function resetForm(){
   ['f-club-nombre','f-club-sigla','f-club-localidad','f-club-provincia','f-admin-nombre','f-admin-email','f-admin-pass','f-admin-pass2'].forEach(id=>{
     document.getElementById(id).value='';
   });
-  document.getElementById('f-club-pais').value='Argentina';
   hideError();
   document.getElementById('success-banner').classList.remove('show');
 }
@@ -206,7 +201,6 @@ async function crearCliente(){
   const clubSigla  = document.getElementById('f-club-sigla').value.trim() || null;
   const localidad  = document.getElementById('f-club-localidad').value.trim() || null;
   const provincia  = document.getElementById('f-club-provincia').value.trim() || null;
-  const pais       = document.getElementById('f-club-pais').value.trim() || 'Argentina';
   const adminNombre= document.getElementById('f-admin-nombre').value.trim();
   const adminEmail = document.getElementById('f-admin-email').value.trim();
   const pass       = document.getElementById('f-admin-pass').value;
@@ -223,7 +217,7 @@ async function crearCliente(){
   try {
     // 1. Crear el club
     const{data:clubData,error:clubErr}=await sb.from('clubs').insert({
-      nombre:clubNombre, sigla:clubSigla, localidad, provincia, pais, activo:true
+      nombre:clubNombre, sigla:clubSigla, localidad, provincia, activo:true
     }).select('id').single();
     if(clubErr) throw new Error('Error al crear hipódromo: '+clubErr.message);
     const newClubId=clubData.id;
@@ -239,7 +233,7 @@ async function crearCliente(){
 
     // 3. Insertar en tabla usuarios
     const{error:usrErr}=await sb.from('usuarios').insert({
-      email:adminEmail, nombre:adminNombre,
+      email:adminEmail, nombre_completo:adminNombre,
       club_id:newClubId, rol:'admin', activo:true
     });
     if(usrErr) throw new Error('Error al crear registro de usuario: '+usrErr.message);
