@@ -259,7 +259,7 @@ async function doLogin(e) {
   if (usrErr || !usr) {
     await sb.auth.signOut();
     setLoading(false);
-    showError('Tu usuario no tiene un club asignado. Contactá al administrador.');
+    showError('Tu usuario no tiene un hipódromo asignado. Contactá al administrador.');
     return;
   }
 
@@ -273,7 +273,7 @@ async function doLogin(e) {
   if (!usr.club_id) {
     await sb.auth.signOut();
     setLoading(false);
-    showError('Tu usuario no tiene un club asignado. Contactá al administrador.');
+    showError('Tu usuario no tiene un hipódromo asignado. Contactá al administrador.');
     return;
   }
 

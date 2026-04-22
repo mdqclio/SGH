@@ -78,18 +78,18 @@
 
 <div class="content">
   <div class="stats-row" id="stats-row">
-    <div class="stat-chip"><div class="stat-chip-val" id="stat-clubs">—</div><div class="stat-chip-lbl">Clubs totales</div></div>
+    <div class="stat-chip"><div class="stat-chip-val" id="stat-clubs">—</div><div class="stat-chip-lbl">Hipódromos totales</div></div>
     <div class="stat-chip"><div class="stat-chip-val" id="stat-activos">—</div><div class="stat-chip-lbl">Activos</div></div>
     <div class="stat-chip"><div class="stat-chip-val" id="stat-inactivos">—</div><div class="stat-chip-lbl">Inactivos</div></div>
   </div>
 
   <div class="toolbar">
-    <div class="toolbar-title">Clubs registrados</div>
+    <div class="toolbar-title">Hipódromos registrados</div>
     <a href="registro.html" class="btn-primary">+ Nuevo Cliente</a>
   </div>
 
   <div id="list-container">
-    <div class="loading-state"><div class="spinner"></div> Cargando clubs…</div>
+    <div class="loading-state"><div class="spinner"></div> Cargando hipódromos…</div>
   </div>
 </div>
 
@@ -119,7 +119,7 @@ function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html
 function toast(msg,type='success'){const t=document.createElement('div');t.className=`toast toast-${type}`;t.textContent=msg;document.getElementById('toast-container').appendChild(t);setTimeout(()=>t.remove(),3500);}
 
 async function load() {
-  document.getElementById('list-container').innerHTML='<div class="loading-state"><div class="spinner"></div> Cargando clubs…</div>';
+  document.getElementById('list-container').innerHTML='<div class="loading-state"><div class="spinner"></div> Cargando hipódromos…</div>';
 
   // Load all clubs
   const{data:clubs,error}=await sb.from('clubs').select('*').order('nombre');
@@ -150,7 +150,7 @@ function updateStats(){
 
 function renderTable(){
   if(!allClubs.length){
-    document.getElementById('list-container').innerHTML='<div class="empty-state"><div class="icon">🏟️</div><h3>Sin clubs registrados</h3></div>';
+    document.getElementById('list-container').innerHTML='<div class="empty-state"><div class="icon">🏟️</div><h3>Sin hipódromos registrados</h3></div>';
     return;
   }
   const rows=allClubs.map(c=>{
@@ -181,7 +181,7 @@ function renderTable(){
       <table>
         <thead>
           <tr>
-            <th>Club</th>
+            <th>Hipódromo</th>
             <th>Ubicación</th>
             <th>Estado</th>
             <th class="count-cell">Usuarios</th>
@@ -198,10 +198,10 @@ function renderTable(){
 async function toggleActivo(id, activo){
   const club=allClubs.find(c=>c.id===id);
   const action=activo?'activar':'desactivar';
-  if(!confirm(`¿Deseas ${action} el club "${club?.nombre}"?`))return;
+  if(!confirm(`¿Deseas ${action} el hipódromo "${club?.nombre}"?`))return;
   const{error}=await sb.from('clubs').update({activo}).eq('id',id);
   if(error){toast(error.message,'error');return;}
-  toast(`Club ${activo?'activado':'desactivado'}`);
+  toast(`Hipódromo ${activo?'activado':'desactivado'}`);
   load();
 }
 

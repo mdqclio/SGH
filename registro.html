@@ -75,7 +75,7 @@
 
 <div class="content">
   <div class="page-header">
-    <h2>Nuevo Hipódromo / Club</h2>
+    <h2>Nuevo Hipódromo</h2>
     <p>Completa el formulario para crear una cuenta completa con usuario administrador y categorías estándar.</p>
   </div>
 
@@ -90,10 +90,10 @@
   <div class="error-banner" id="error-banner"></div>
 
   <div class="form-card">
-    <div class="section-title">Datos del Club</div>
+    <div class="section-title">Datos del Hipódromo</div>
     <div class="form-grid">
       <div class="form-group full">
-        <label>Nombre del hipódromo / club *</label>
+        <label>Nombre del hipódromo *</label>
         <input type="text" id="f-club-nombre" placeholder="Ej: Hipódromo de La Plata" required>
       </div>
       <div class="form-group">
@@ -212,7 +212,7 @@ async function crearCliente(){
   const pass       = document.getElementById('f-admin-pass').value;
   const pass2      = document.getElementById('f-admin-pass2').value;
 
-  if(!clubNombre)  {showError('El nombre del club es requerido.');return;}
+  if(!clubNombre)  {showError('El nombre del hipódromo es requerido.');return;}
   if(!adminNombre) {showError('El nombre del administrador es requerido.');return;}
   if(!adminEmail)  {showError('El email del administrador es requerido.');return;}
   if(!pass || pass.length<6){showError('La contraseña debe tener al menos 6 caracteres.');return;}
@@ -225,7 +225,7 @@ async function crearCliente(){
     const{data:clubData,error:clubErr}=await sb.from('clubs').insert({
       nombre:clubNombre, sigla:clubSigla, localidad, provincia, pais, activo:true
     }).select('id').single();
-    if(clubErr) throw new Error('Error al crear club: '+clubErr.message);
+    if(clubErr) throw new Error('Error al crear hipódromo: '+clubErr.message);
     const newClubId=clubData.id;
 
     // 2. Crear usuario en Supabase Auth usando la Admin API (requiere service key)
@@ -252,16 +252,16 @@ async function crearCliente(){
       {nombre:'Clásico Confirmado',codigo:'CC',simbolo:'⭐',color_hex:'#e8b84b',es_computable:true,es_oficial:true,orden_display:4},
     ].map(c=>({...c,club_id:newClubId,activo:true}));
     const{error:catErr}=await sb.from('categorias').insert(cats);
-    if(catErr) throw new Error('Club y usuario creados, pero error en categorías: '+catErr.message);
+    if(catErr) throw new Error('Hipódromo y usuario creados, pero error en categorías: '+catErr.message);
 
     // Todo OK
     setLoading(false);
     document.getElementById('success-title').textContent='¡Cliente creado exitosamente!';
     document.getElementById('success-detail').textContent=
-      `Club "${clubNombre}" registrado. Usuario admin: ${adminEmail}. Se crearon 4 categorías estándar.`;
+      `Hipódromo "${clubNombre}" registrado. Usuario admin: ${adminEmail}. Se crearon 4 categorías estándar.`;
     document.getElementById('success-banner').classList.add('show');
     resetForm();
-    toast('Cliente creado: '+clubNombre);
+    toast('Hipódromo creado: '+clubNombre);
 
   } catch(err) {
     setLoading(false);
