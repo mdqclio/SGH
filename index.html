@@ -103,53 +103,10 @@
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
       <div class="logo-icon">🐎</div>
-      <div class="logo-text"><h2>SGH</h2><p>Gestión Hípica</p></div>
+      <div class="logo-text"><h2>SGH</h2><p id="sidebar-club">Gestión Hípica</p></div>
     </div>
 
-    <div class="sidebar-section">
-      <div class="sidebar-section-title">Dashboard</div>
-      <a href="index.html" class="nav-link active"><span class="nav-icon">🏠</span>Inicio</a>
-    </div>
-
-    <div class="sidebar-section">
-      <div class="sidebar-section-title">Configuración</div>
-      <a href="hipodromos.html" class="nav-link"><span class="nav-icon">🏟️</span>Hipódromos</a>
-      <a href="categorias.html" class="nav-link"><span class="nav-icon">🏷️</span>Categorías</a>
-    </div>
-
-    <div class="sidebar-section">
-      <div class="sidebar-section-title">Personas & Animales</div>
-      <a href="propietarios.html" class="nav-link"><span class="nav-icon">👤</span>Propietarios</a>
-      <a href="caballerizas.html" class="nav-link"><span class="nav-icon">🏠</span>Caballerizas</a>
-      <a href="Profesionales.html" class="nav-link"><span class="nav-icon">🎽</span>Profesionales</a>
-      <a href="spcs.html" class="nav-link"><span class="nav-icon">🐴</span>SPCs</a>
-    </div>
-
-    <div class="sidebar-section">
-      <div class="sidebar-section-title">Operaciones</div>
-      <a href="reuniones.html" class="nav-link"><span class="nav-icon">📅</span>Reuniones</a>
-      <a href="inscripciones.html" class="nav-link"><span class="nav-icon">📋</span>Inscripciones</a>
-      <a href="ratificacion.html" class="nav-link"><span class="nav-icon">✅</span>Ratificación</a>
-    </div>
-
-    <div class="sidebar-section">
-      <div class="sidebar-section-title">Competencia</div>
-      <a href="programa.html" class="nav-link"><span class="nav-icon">📰</span>Programa</a>
-      <a href="resultados.html" class="nav-link"><span class="nav-icon">🏁</span>Resultados</a>
-    </div>
-
-    <div class="sidebar-section">
-      <div class="sidebar-section-title">Administración</div>
-      <a href="liquidaciones.html" class="nav-link"><span class="nav-icon">💰</span>Liquidaciones</a>
-      <a href="sanciones.html" class="nav-link"><span class="nav-icon">⚠️</span>Sanciones</a>
-      <a href="resoluciones.html" class="nav-link"><span class="nav-icon">📜</span>Resoluciones</a>
-    </div>
-
-    <div class="sidebar-section" id="section-superadmin" style="display:none;">
-      <div class="sidebar-section-title">Super Admin</div>
-      <a href="admin.html" class="nav-link"><span class="nav-icon">⚙️</span>Panel Admin</a>
-      <a href="registro.html" class="nav-link"><span class="nav-icon">➕</span>Nuevo Cliente</a>
-    </div>
+    <div id="sidebar-nav"></div>
   </aside>
 
   <!-- MAIN -->
@@ -185,95 +142,7 @@
         <div class="stat-card"><div class="stat-value" id="stat-sanciones">—</div><div class="stat-label">Sanciones activas</div></div>
       </div>
 
-      <div class="section-title">Configuración del Sistema</div>
-      <div class="module-grid">
-        <a href="hipodromos.html" class="module-card">
-          <div class="module-card-icon">🏟️</div>
-          <div class="module-card-title">Hipódromos</div>
-          <div class="module-card-desc">Gestión de pistas y sedes de competencia</div>
-        </a>
-        <a href="categorias.html" class="module-card">
-          <div class="module-card-icon">🏷️</div>
-          <div class="module-card-title">Categorías</div>
-          <div class="module-card-desc">Categorías de carrera y sus atributos</div>
-        </a>
-      </div>
-
-      <div class="section-title">Personas & Animales</div>
-      <div class="module-grid">
-        <a href="propietarios.html" class="module-card">
-          <div class="module-card-icon">👤</div>
-          <div class="module-card-title">Propietarios</div>
-          <div class="module-card-desc">Alta, baja y modificación de propietarios y studs</div>
-        </a>
-        <a href="caballerizas.html" class="module-card">
-          <div class="module-card-icon">🏠</div>
-          <div class="module-card-title">Caballerizas</div>
-          <div class="module-card-desc">Studs, establecimientos y sus SPCs</div>
-        </a>
-        <a href="Profesionales.html" class="module-card">
-          <div class="module-card-icon">🎽</div>
-          <div class="module-card-title">Profesionales</div>
-          <div class="module-card-desc">Jockeys y entrenadores registrados</div>
-        </a>
-        <a href="spcs.html" class="module-card">
-          <div class="module-card-icon">🐴</div>
-          <div class="module-card-title">SPCs</div>
-          <div class="module-card-desc">Stud Book — registro completo de ejemplares</div>
-        </a>
-      </div>
-
-      <div class="section-title">Operaciones de Carrera</div>
-      <div class="module-grid">
-        <a href="reuniones.html" class="module-card">
-          <div class="module-card-icon">📅</div>
-          <div class="module-card-title">Reuniones</div>
-          <div class="module-card-desc">Programación y gestión de jornadas hípicas</div>
-        </a>
-        <a href="inscripciones.html" class="module-card">
-          <div class="module-card-icon">📋</div>
-          <div class="module-card-title">Inscripciones</div>
-          <div class="module-card-desc">Inscripción de SPCs a carreras</div>
-        </a>
-        <a href="ratificacion.html" class="module-card">
-          <div class="module-card-icon">✅</div>
-          <div class="module-card-title">Ratificación</div>
-          <div class="module-card-desc">Ratificación, forfaits y pesaje final</div>
-        </a>
-      </div>
-
-      <div class="section-title">Competencia & Resultados</div>
-      <div class="module-grid">
-        <a href="programa.html" class="module-card">
-          <div class="module-card-icon">📰</div>
-          <div class="module-card-title">Programa Hípico</div>
-          <div class="module-card-desc">Programa oficial con performances históricas</div>
-        </a>
-        <a href="resultados.html" class="module-card">
-          <div class="module-card-icon">🏁</div>
-          <div class="module-card-title">Resultados</div>
-          <div class="module-card-desc">Carga de posiciones y oficialización</div>
-        </a>
-      </div>
-
-      <div class="section-title">Administración</div>
-      <div class="module-grid">
-        <a href="liquidaciones.html" class="module-card">
-          <div class="module-card-icon">💰</div>
-          <div class="module-card-title">Liquidaciones</div>
-          <div class="module-card-desc">Comisiones, pagos y recibos por reunión</div>
-        </a>
-        <a href="sanciones.html" class="module-card">
-          <div class="module-card-icon">⚠️</div>
-          <div class="module-card-title">Sanciones</div>
-          <div class="module-card-desc">Registro y seguimiento de sanciones</div>
-        </a>
-        <a href="resoluciones.html" class="module-card">
-          <div class="module-card-icon">📜</div>
-          <div class="module-card-title">Resoluciones</div>
-          <div class="module-card-desc">Resoluciones de comisión y su estado</div>
-        </a>
-      </div>
+      <div id="content-modules"></div>
     </div>
   </main>
 </div>
@@ -306,6 +175,7 @@ async function loadDashboard() {
 
     if (club.data) {
       document.getElementById('club-name').textContent = club.data.sigla || club.data.nombre;
+      document.getElementById('sidebar-club').textContent = club.data.sigla || club.data.nombre;
       document.getElementById('hero-club').textContent = club.data.nombre;
       document.getElementById('hero-desc').textContent = `Sistema de Gestión Hípica — ${club.data.sigla}`;
     }
@@ -320,11 +190,109 @@ async function loadDashboard() {
   }
 }
 
+function navSection(title, links) {
+  const items = links.map(([href, icon, label]) =>
+    `<a href="${href}" class="nav-link"><span class="nav-icon">${icon}</span>${label}</a>`
+  ).join('');
+  return `<div class="sidebar-section">
+    <div class="sidebar-section-title">${title}</div>
+    ${items}
+  </div>`;
+}
+
+function moduleCard(href, icon, title, desc) {
+  return `<a href="${href}" class="module-card">
+    <div class="module-card-icon">${icon}</div>
+    <div class="module-card-title">${title}</div>
+    <div class="module-card-desc">${desc}</div>
+  </a>`;
+}
+
+function moduleSection(title, cards) {
+  return `<div class="section-title">${title}</div>
+  <div class="module-grid">${cards.join('')}</div>`;
+}
+
+function buildUI(rol) {
+  const sidenav = document.getElementById('sidebar-nav');
+  const content = document.getElementById('content-modules');
+
+  const dashSection = navSection('Dashboard', [['index.html', '🏠', 'Inicio']]);
+
+  if (rol === 'super_admin') {
+    sidenav.innerHTML =
+      dashSection +
+      navSection('Administración', [
+        ['admin.html',         '🏛️', 'Clubs'],
+        ['club.html',          '⚙️', 'Configuración'],
+        ['hipodromos.html',    '🏟️', 'Hipódromos'],
+        ['categorias.html',    '🏷️', 'Categorías'],
+        ['Profesionales.html', '👤', 'Profesionales'],
+        ['spcs.html',          '🐎', 'Stud Book'],
+        ['propietarios.html',  '👔', 'Propietarios'],
+        ['caballerizas.html',  '🏠', 'Caballerizas'],
+        ['sanciones.html',     '⚖️', 'Sanciones'],
+        ['reuniones.html',     '📅', 'Reuniones'],
+        ['inscripciones.html', '📋', 'Inscripciones'],
+        ['resultados.html',    '🏆', 'Resultados'],
+        ['liquidaciones.html', '💰', 'Liquidaciones'],
+      ]);
+
+    content.innerHTML =
+      moduleSection('Administración', [
+        moduleCard('admin.html',         '🏛️', 'Clubs',          'Gestión global de clubs clientes'),
+        moduleCard('club.html',          '⚙️', 'Configuración',  'Configuración del club actual'),
+        moduleCard('hipodromos.html',    '🏟️', 'Hipódromos',     'Gestión de pistas y sedes de competencia'),
+        moduleCard('categorias.html',    '🏷️', 'Categorías',     'Categorías de carrera y sus atributos'),
+        moduleCard('Profesionales.html', '👤', 'Profesionales',  'Jockeys y entrenadores registrados'),
+        moduleCard('spcs.html',          '🐎', 'Stud Book',      'Registro completo de ejemplares (SPCs)'),
+        moduleCard('propietarios.html',  '👔', 'Propietarios',   'Alta, baja y modificación de propietarios'),
+        moduleCard('caballerizas.html',  '🏠', 'Caballerizas',   'Studs, establecimientos y sus SPCs'),
+        moduleCard('sanciones.html',     '⚖️', 'Sanciones',      'Registro y seguimiento de sanciones'),
+        moduleCard('reuniones.html',     '📅', 'Reuniones',      'Programación y gestión de jornadas hípicas'),
+        moduleCard('inscripciones.html', '📋', 'Inscripciones',  'Inscripción de ejemplares a carreras'),
+        moduleCard('resultados.html',    '🏆', 'Resultados',     'Carga y consulta de resultados oficiales'),
+        moduleCard('liquidaciones.html', '💰', 'Liquidaciones',  'Liquidación de premios y retenciones'),
+      ]);
+
+  } else {
+    // secretario_carreras, operador y cualquier otro rol con club
+    sidenav.innerHTML =
+      dashSection +
+      navSection('Operaciones', [
+        ['reuniones.html',     '📅', 'Reuniones'],
+        ['inscripciones.html', '📋', 'Inscripciones'],
+        ['ratificacion.html',  '✅', 'Ratificación'],
+        ['resultados.html',    '🏆', 'Resultados'],
+        ['programa.html',      '🖨️', 'Programa'],
+        ['liquidaciones.html', '💰', 'Liquidaciones'],
+        ['Profesionales.html', '👤', 'Profesionales'],
+        ['spcs.html',          '🐎', 'Stud Book'],
+        ['propietarios.html',  '👔', 'Propietarios'],
+        ['caballerizas.html',  '🏠', 'Caballerizas'],
+        ['sanciones.html',     '⚖️', 'Sanciones'],
+      ]);
+
+    content.innerHTML =
+      moduleSection('Operaciones', [
+        moduleCard('reuniones.html',     '📅', 'Reuniones',      'Programación y gestión de jornadas hípicas'),
+        moduleCard('inscripciones.html', '📋', 'Inscripciones',  'Inscripción de ejemplares a carreras'),
+        moduleCard('ratificacion.html',  '✅', 'Ratificación',   'Ratificación de inscripciones'),
+        moduleCard('resultados.html',    '🏆', 'Resultados',     'Carga y consulta de resultados oficiales'),
+        moduleCard('programa.html',      '🖨️', 'Programa',       'Generación e impresión del programa oficial'),
+        moduleCard('liquidaciones.html', '💰', 'Liquidaciones',  'Liquidación de premios y retenciones'),
+        moduleCard('Profesionales.html', '👤', 'Profesionales',  'Jockeys y entrenadores registrados'),
+        moduleCard('spcs.html',          '🐎', 'Stud Book',      'Registro completo de ejemplares (SPCs)'),
+        moduleCard('propietarios.html',  '👔', 'Propietarios',   'Alta, baja y modificación de propietarios'),
+        moduleCard('caballerizas.html',  '🏠', 'Caballerizas',   'Studs, establecimientos y sus SPCs'),
+        moduleCard('sanciones.html',     '⚖️', 'Sanciones',      'Registro y seguimiento de sanciones'),
+      ]);
+  }
+}
+
 (async()=>{
   if(await initAuth()){
-    if(currentUser?.rol==='super_admin'){
-      document.getElementById('section-superadmin').style.display='';
-    }
+    buildUI(currentUser.rol);
     loadDashboard();
   }
 })();
