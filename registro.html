@@ -157,9 +157,9 @@ async function initAuth(){
   const{data:{session}}=await sb.auth.getSession();
   if(!session){window.location.replace('login.html');return false;}
   const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();
-  if(!usr?.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}
+  if(!usr){await sb.auth.signOut();window.location.replace('login.html');return false;}
   if(usr.rol!=='super_admin'){window.location.replace('index.html');return false;}
-  CLUB_ID=usr.club_id;
+  CLUB_ID=usr.club_id||null;
   currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};
   const uEl=document.getElementById('user-name');
   if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;
