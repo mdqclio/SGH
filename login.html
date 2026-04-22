@@ -252,7 +252,8 @@ async function doLogin(e) {
   // 2. Verificar que el usuario tiene un club asignado
   const { data: usr, error: usrErr } = await sb
     .from('usuarios')
-    .select('club_id, nombre, rol')
+    .select('club_id, nombre_completo, rol')
+
     .eq('email', email)
     .single();
 
