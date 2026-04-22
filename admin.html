@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Panel Super Admin — SGH</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="logo 32x32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="logo 180x180.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0e2318">
+  <title>Administración — SGH</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -22,69 +26,74 @@
     .btn-logout { background: none; border: 1px solid var(--border); color: var(--muted); padding: 6px 14px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; transition: all 0.2s; }
     .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
     .content { max-width: 1200px; margin: 0 auto; padding: 28px 24px; }
-    .toolbar { display: flex; gap: 12px; margin-bottom: 24px; align-items: center; flex-wrap: wrap; }
-    .toolbar-title { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--text); flex: 1; }
-    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: opacity 0.2s; white-space: nowrap; }
-    .btn-primary:hover { opacity: 0.9; }
-    /* STATS */
     .stats-row { display: flex; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
     .stat-chip { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 24px; text-align: center; min-width: 130px; }
     .stat-chip-val { font-size: 28px; font-weight: 700; color: var(--accent); font-family: 'Playfair Display', serif; }
     .stat-chip-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+    .toolbar { display: flex; gap: 12px; margin-bottom: 24px; align-items: center; flex-wrap: wrap; }
+    .toolbar-title { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--text); flex: 1; }
+    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: opacity 0.2s; white-space: nowrap; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
     /* TABLE */
-    .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
-    table { width: 100%; border-collapse: collapse; }
-    thead th { background: rgba(0,0,0,0.25); padding: 12px 18px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+    .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 700px; }
+    thead th { background: rgba(0,0,0,0.25); padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
     tbody tr { border-top: 1px solid var(--border); transition: background 0.15s; }
     tbody tr:hover { background: rgba(201,168,76,0.04); }
-    tbody td { padding: 14px 18px; font-size: 14px; vertical-align: middle; }
-    .club-name { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--accent); }
-    .club-sigla { font-size: 11px; color: var(--muted); }
-    .club-loc { font-size: 13px; color: var(--muted); }
+    tbody td { padding: 12px 16px; font-size: 14px; vertical-align: middle; }
+    .cell-name { font-family: 'Playfair Display', serif; font-size: 15px; color: var(--accent); }
+    .cell-sub  { font-size: 11px; color: var(--muted); margin-top: 2px; }
     .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
-    .badge-activo { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-activo   { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
     .badge-inactivo { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
     .count-cell { text-align: center; }
-    .count-val { font-size: 16px; font-weight: 600; color: var(--text); }
-    .count-lbl { font-size: 11px; color: var(--muted); }
-    .actions-cell { display: flex; gap: 8px; }
-    .btn-sm { padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; transition: all 0.2s; white-space: nowrap; }
+    .count-val { font-size: 15px; font-weight: 600; }
+    .count-lbl { font-size: 10px; color: var(--muted); }
+    .actions-cell { display: flex; gap: 6px; flex-wrap: wrap; }
+    .btn-sm { padding: 5px 12px; border-radius: 7px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; transition: all 0.2s; white-space: nowrap; }
+    .btn-edit       { background: rgba(116,176,247,0.1); color: #74b0f7; border: 1px solid rgba(116,176,247,0.3); }
+    .btn-edit:hover { background: rgba(116,176,247,0.2); }
     .btn-toggle-on  { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
     .btn-toggle-on:hover  { background: rgba(224,82,82,0.2); }
     .btn-toggle-off { background: rgba(76,175,130,0.1); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
     .btn-toggle-off:hover { background: rgba(76,175,130,0.2); }
-    .btn-edit   { background: rgba(116,176,247,0.1); color: #74b0f7; border: 1px solid rgba(116,176,247,0.3); }
-    .btn-edit:hover   { background: rgba(116,176,247,0.2); }
-    .btn-delete { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .btn-delete       { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
     .btn-delete:hover { background: rgba(224,82,82,0.2); }
-    /* MODAL */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 16px; }
-    .modal-overlay.open { display: flex; }
-    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 480px; }
-    .modal-header { padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
-    .modal-header h2 { font-size: 20px; color: var(--accent); }
-    .btn-close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; }
-    .modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
-    .form-group { display: flex; flex-direction: column; gap: 5px; }
-    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    label { font-size: 13px; font-weight: 500; color: var(--muted); }
-    input { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 9px 13px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; width: 100%; transition: border 0.2s; }
-    input:focus { border-color: var(--accent); }
-    .modal-footer { padding: 16px 24px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
-    .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; }
+    /* STATES */
     .empty-state { text-align: center; padding: 60px 20px; }
     .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
     .empty-state h3 { font-size: 18px; color: var(--muted); }
     .loading-state { display: flex; align-items: center; justify-content: center; padding: 60px; gap: 12px; color: var(--muted); }
     .spinner { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    /* MODAL */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 600px; max-height: 92vh; overflow-y: auto; margin: auto; }
+    .modal-header { padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--card); z-index: 1; }
+    .modal-header h2 { font-size: 20px; color: var(--accent); }
+    .btn-close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; }
+    .modal-body { padding: 20px 24px; }
+    .section-divider { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { font-size: 13px; font-weight: 500; color: var(--muted); }
+    input, select { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 9px 13px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; width: 100%; transition: border 0.2s; }
+    input:focus, select:focus { border-color: var(--accent); }
+    select option { background: #1a3d26; }
+    .hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .modal-footer { padding: 16px 24px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); position: sticky; bottom: 0; background: var(--card); }
+    .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; }
+    /* TOAST */
     #auth-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; align-items: center; justify-content: center; }
     #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
     .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 320px; animation: slideIn 0.3s ease; }
     .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
-    .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
+    .toast-error   { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-    @media (max-width: 700px) { .count-cell { display: none; } }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .form-group.full { grid-column: 1; } }
   </style>
 </head>
 <body>
@@ -93,25 +102,106 @@
 
 <div class="topbar">
   <a href="index.html" class="btn-back">← Volver</a>
-  <h1>⚙️ Panel Super Admin</h1>
+  <h1>🏛️ Hipódromos Clientes</h1>
   <span class="user-name" id="user-name"></span>
   <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
 </div>
 
 <div class="content">
-  <div class="stats-row" id="stats-row">
-    <div class="stat-chip"><div class="stat-chip-val" id="stat-clubs">—</div><div class="stat-chip-lbl">Hipódromos totales</div></div>
+  <div class="stats-row">
+    <div class="stat-chip"><div class="stat-chip-val" id="stat-total">—</div><div class="stat-chip-lbl">Total</div></div>
     <div class="stat-chip"><div class="stat-chip-val" id="stat-activos">—</div><div class="stat-chip-lbl">Activos</div></div>
     <div class="stat-chip"><div class="stat-chip-val" id="stat-inactivos">—</div><div class="stat-chip-lbl">Inactivos</div></div>
   </div>
 
   <div class="toolbar">
     <div class="toolbar-title">Hipódromos registrados</div>
-    <a href="registro.html" class="btn-primary">+ Nuevo Cliente</a>
+    <button class="btn-primary" onclick="openCreate()">+ Nuevo Hipódromo</button>
   </div>
 
   <div id="list-container">
-    <div class="loading-state"><div class="spinner"></div> Cargando hipódromos…</div>
+    <div class="loading-state"><div class="spinner"></div> Cargando…</div>
+  </div>
+</div>
+
+<!-- MODAL CREAR -->
+<div class="modal-overlay" id="modal-create">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Nuevo Hipódromo Cliente</h2>
+      <button class="btn-close" onclick="closeCreate()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="section-divider">Datos del Hipódromo</div>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Nombre *</label>
+          <input type="text" id="c-nombre" placeholder="Ej: Hipódromo de La Plata">
+        </div>
+        <div class="form-group">
+          <label>Sigla</label>
+          <input type="text" id="c-sigla" placeholder="Ej: HLP" maxlength="10">
+        </div>
+        <div class="form-group">
+          <label>Localidad</label>
+          <input type="text" id="c-localidad">
+        </div>
+        <div class="form-group">
+          <label>Provincia</label>
+          <input type="text" id="c-provincia">
+        </div>
+        <div class="form-group full">
+          <label>Dirección</label>
+          <input type="text" id="c-direccion" placeholder="Ej: Av. 44 N° 500">
+        </div>
+      </div>
+
+      <div class="section-divider">Contacto Institucional</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Teléfono institucional</label>
+          <input type="text" id="c-telefono" placeholder="Ej: (0221) 450-0000">
+        </div>
+        <div class="form-group">
+          <label>Email institucional</label>
+          <input type="email" id="c-email-inst" placeholder="info@hipodromo.com.ar">
+        </div>
+        <div class="form-group">
+          <label>Nombre de contacto</label>
+          <input type="text" id="c-nombre-contacto" placeholder="Nombre y apellido">
+        </div>
+        <div class="form-group">
+          <label>Teléfono de contacto</label>
+          <input type="text" id="c-tel-contacto" placeholder="Ej: 221 15-000-0000">
+        </div>
+      </div>
+
+      <div class="section-divider">Usuario Administrador</div>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Nombre completo *</label>
+          <input type="text" id="c-admin-nombre" placeholder="Nombre y apellido">
+        </div>
+        <div class="form-group full">
+          <label>Email *</label>
+          <input type="email" id="c-admin-email" placeholder="admin@hipodromo.com.ar">
+          <span class="hint">Se usará para iniciar sesión.</span>
+        </div>
+        <div class="form-group">
+          <label>Contraseña inicial *</label>
+          <input type="password" id="c-admin-pass" placeholder="Mínimo 6 caracteres" minlength="6">
+        </div>
+        <div class="form-group">
+          <label>Confirmar contraseña *</label>
+          <input type="password" id="c-admin-pass2" placeholder="Repetir contraseña">
+        </div>
+      </div>
+      <div id="c-error" style="color:var(--danger);font-size:13px;margin-top:8px;display:none;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeCreate()">Cancelar</button>
+      <button class="btn-primary" id="btn-create" onclick="saveCreate()">Crear Hipódromo</button>
+    </div>
   </div>
 </div>
 
@@ -120,32 +210,57 @@
   <div class="modal">
     <div class="modal-header">
       <h2>Editar Hipódromo</h2>
-      <button class="btn-close" onclick="closeEditModal()">✕</button>
+      <button class="btn-close" onclick="closeEdit()">✕</button>
     </div>
     <div class="modal-body">
-      <input type="hidden" id="edit-id">
-      <div class="form-group">
-        <label>Nombre *</label>
-        <input type="text" id="edit-nombre" placeholder="Nombre del hipódromo">
-      </div>
-      <div class="form-row">
+      <input type="hidden" id="e-id">
+      <div class="section-divider">Datos del Hipódromo</div>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Nombre *</label>
+          <input type="text" id="e-nombre">
+        </div>
         <div class="form-group">
           <label>Sigla</label>
-          <input type="text" id="edit-sigla" placeholder="Ej: HLP" maxlength="10">
+          <input type="text" id="e-sigla" maxlength="10">
         </div>
         <div class="form-group">
           <label>Localidad</label>
-          <input type="text" id="edit-localidad" placeholder="Ej: La Plata">
+          <input type="text" id="e-localidad">
+        </div>
+        <div class="form-group">
+          <label>Provincia</label>
+          <input type="text" id="e-provincia">
+        </div>
+        <div class="form-group full">
+          <label>Dirección</label>
+          <input type="text" id="e-direccion">
         </div>
       </div>
-      <div class="form-group">
-        <label>Provincia</label>
-        <input type="text" id="edit-provincia" placeholder="Ej: Buenos Aires">
+
+      <div class="section-divider">Contacto Institucional</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Teléfono institucional</label>
+          <input type="text" id="e-telefono">
+        </div>
+        <div class="form-group">
+          <label>Email institucional</label>
+          <input type="email" id="e-email-inst">
+        </div>
+        <div class="form-group">
+          <label>Nombre de contacto</label>
+          <input type="text" id="e-nombre-contacto">
+        </div>
+        <div class="form-group">
+          <label>Teléfono de contacto</label>
+          <input type="text" id="e-tel-contacto">
+        </div>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn-secondary" onclick="closeEditModal()">Cancelar</button>
-      <button class="btn-primary" onclick="saveEdit()" id="btn-edit-save">Guardar cambios</button>
+      <button class="btn-secondary" onclick="closeEdit()">Cancelar</button>
+      <button class="btn-primary" id="btn-edit-save" onclick="saveEdit()">Guardar cambios</button>
     </div>
   </div>
 </div>
@@ -153,59 +268,36 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 let sb, CLUB_ID, currentUser;
-let allClubs = [];
-let clubStats = {};
-
-async function initAuth(){
-  const{createClient}=supabase;
-  sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');
-  const{data:{session}}=await sb.auth.getSession();
-  if(!session){window.location.replace('login.html');return false;}
-  const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();
-  if(!usr?.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}
-  if(usr.rol!=='super_admin'){window.location.replace('index.html');return false;}
-  CLUB_ID=usr.club_id;
-  currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};
-  const uEl=document.getElementById('user-name');
-  if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;
-  document.getElementById('auth-overlay').style.display='none';
-  return true;
-}
+async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(!usr){await sb.auth.signOut();window.location.replace('login.html');return false;}if(usr.rol!=='super_admin'){window.location.replace('index.html');return false;}CLUB_ID=usr.club_id||null;currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
-function toast(msg,type='success'){const t=document.createElement('div');t.className=`toast toast-${type}`;t.textContent=msg;document.getElementById('toast-container').appendChild(t);setTimeout(()=>t.remove(),3500);}
+function toast(msg,type='success'){const t=document.createElement('div');t.className=`toast toast-${type}`;t.textContent=msg;document.getElementById('toast-container').appendChild(t);setTimeout(()=>t.remove(),4000);}
+
+let allClubs=[], clubStats={};
 
 async function load() {
   document.getElementById('list-container').innerHTML='<div class="loading-state"><div class="spinner"></div> Cargando hipódromos…</div>';
-
-  // Load all clubs
-  const{data:clubs,error}=await sb.from('clubs').select('*').order('nombre');
+  const {data:clubs,error}=await sb.from('clubs').select('*').order('nombre');
   if(error){toast(error.message,'error');return;}
   allClubs=clubs||[];
 
-  // Load aggregate stats per club
-  const[{data:usuarios},{data:reuniones},{data:spcs}]=await Promise.all([
+  const [{data:usuarios},{data:reuniones},{data:spcs}]=await Promise.all([
     sb.from('usuarios').select('club_id').eq('activo',true),
     sb.from('reuniones').select('club_id'),
     sb.from('spcs').select('club_id').eq('estado','activo'),
   ]);
-
   clubStats={};
   (usuarios||[]).forEach(r=>{clubStats[r.club_id]=clubStats[r.club_id]||{u:0,r:0,s:0};clubStats[r.club_id].u++;});
   (reuniones||[]).forEach(r=>{clubStats[r.club_id]=clubStats[r.club_id]||{u:0,r:0,s:0};clubStats[r.club_id].r++;});
   (spcs||[]).forEach(r=>{clubStats[r.club_id]=clubStats[r.club_id]||{u:0,r:0,s:0};clubStats[r.club_id].s++;});
 
-  updateStats();
+  document.getElementById('stat-total').textContent=allClubs.length;
+  document.getElementById('stat-activos').textContent=allClubs.filter(c=>c.activo!==false).length;
+  document.getElementById('stat-inactivos').textContent=allClubs.filter(c=>c.activo===false).length;
   renderTable();
 }
 
-function updateStats(){
-  document.getElementById('stat-clubs').textContent=allClubs.length;
-  document.getElementById('stat-activos').textContent=allClubs.filter(c=>c.activo!==false).length;
-  document.getElementById('stat-inactivos').textContent=allClubs.filter(c=>c.activo===false).length;
-}
-
-function renderTable(){
+function renderTable() {
   if(!allClubs.length){
     document.getElementById('list-container').innerHTML='<div class="empty-state"><div class="icon">🏟️</div><h3>Sin hipódromos registrados</h3></div>';
     return;
@@ -216,21 +308,30 @@ function renderTable(){
     const toggleBtn=activo
       ?`<button class="btn-sm btn-toggle-on" onclick="toggleActivo('${c.id}',false)">Desactivar</button>`
       :`<button class="btn-sm btn-toggle-off" onclick="toggleActivo('${c.id}',true)">Activar</button>`;
+    const loc=[c.localidad,c.provincia].filter(Boolean).join(', ')||'—';
+    const contacto=c.nombre_contacto||c.email_contacto||'—';
     return `<tr>
       <td>
-        <div class="club-name">${c.nombre}</div>
-        <div class="club-sigla">${c.sigla||''}</div>
+        <div class="cell-name">${c.nombre}</div>
+        ${c.sigla?`<div class="cell-sub">${c.sigla}</div>`:''}
       </td>
-      <td class="club-loc">${[c.localidad,c.provincia].filter(Boolean).join(', ')||'—'}</td>
+      <td>
+        <div style="font-size:13px">${loc}</div>
+        ${c.direccion?`<div class="cell-sub">${c.direccion}</div>`:''}
+      </td>
+      <td>
+        <div style="font-size:13px">${contacto}</div>
+        ${c.telefono_contacto?`<div class="cell-sub">${c.telefono_contacto}</div>`:''}
+      </td>
       <td><span class="badge badge-${activo?'activo':'inactivo'}">${activo?'Activo':'Inactivo'}</span></td>
       <td class="count-cell"><div class="count-val">${st.u}</div><div class="count-lbl">Usuarios</div></td>
       <td class="count-cell"><div class="count-val">${st.r}</div><div class="count-lbl">Reuniones</div></td>
       <td class="count-cell"><div class="count-val">${st.s}</div><div class="count-lbl">SPCs</div></td>
       <td>
         <div class="actions-cell">
-          <button class="btn-sm btn-edit" onclick="openEditModal('${c.id}')">✏️ Editar</button>
+          <button class="btn-sm btn-edit" onclick="openEdit('${c.id}')">✏️ Editar</button>
           ${toggleBtn}
-          <button class="btn-sm btn-delete" onclick="deleteClub('${c.id}')">🗑️ Eliminar</button>
+          <button class="btn-sm btn-delete" onclick="deleteClub('${c.id}')">🗑️</button>
         </div>
       </td>
     </tr>`;
@@ -238,76 +339,153 @@ function renderTable(){
   document.getElementById('list-container').innerHTML=`
     <div class="table-wrap">
       <table>
-        <thead>
-          <tr>
-            <th>Hipódromo</th>
-            <th>Ubicación</th>
-            <th>Estado</th>
-            <th class="count-cell">Usuarios</th>
-            <th class="count-cell">Reuniones</th>
-            <th class="count-cell">SPCs</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
+        <thead><tr>
+          <th>Hipódromo</th><th>Ubicación</th><th>Contacto</th><th>Estado</th>
+          <th class="count-cell">Usuarios</th><th class="count-cell">Reuniones</th><th class="count-cell">SPCs</th>
+          <th>Acciones</th>
+        </tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
 }
 
-function openEditModal(id) {
-  const c = allClubs.find(c => c.id === id);
-  if (!c) return;
-  document.getElementById('edit-id').value = c.id;
-  document.getElementById('edit-nombre').value = c.nombre || '';
-  document.getElementById('edit-sigla').value = c.sigla || '';
-  document.getElementById('edit-localidad').value = c.localidad || '';
-  document.getElementById('edit-provincia').value = c.provincia || '';
+/* ---- CREAR ---- */
+function openCreate() {
+  ['c-nombre','c-sigla','c-localidad','c-provincia','c-direccion',
+   'c-telefono','c-email-inst','c-nombre-contacto','c-tel-contacto',
+   'c-admin-nombre','c-admin-email','c-admin-pass','c-admin-pass2'].forEach(id=>{
+    document.getElementById(id).value='';
+  });
+  showCError('');
+  document.getElementById('modal-create').classList.add('open');
+}
+function closeCreate(){ document.getElementById('modal-create').classList.remove('open'); }
+function showCError(msg){ const el=document.getElementById('c-error'); el.textContent=msg; el.style.display=msg?'block':'none'; }
+
+async function saveCreate(){
+  const nombre=document.getElementById('c-nombre').value.trim();
+  const adminNombre=document.getElementById('c-admin-nombre').value.trim();
+  const adminEmail=document.getElementById('c-admin-email').value.trim();
+  const pass=document.getElementById('c-admin-pass').value;
+  const pass2=document.getElementById('c-admin-pass2').value;
+  if(!nombre){showCError('El nombre del hipódromo es requerido.');return;}
+  if(!adminNombre){showCError('El nombre del administrador es requerido.');return;}
+  if(!adminEmail){showCError('El email del administrador es requerido.');return;}
+  if(!pass||pass.length<6){showCError('La contraseña debe tener al menos 6 caracteres.');return;}
+  if(pass!==pass2){showCError('Las contraseñas no coinciden.');return;}
+
+  const btn=document.getElementById('btn-create');
+  btn.disabled=true; btn.textContent='Creando…';
+  try {
+    const {data:clubData,error:clubErr}=await sb.from('clubs').insert({
+      nombre,
+      sigla:     document.getElementById('c-sigla').value.trim()||null,
+      localidad: document.getElementById('c-localidad').value.trim()||null,
+      provincia: document.getElementById('c-provincia').value.trim()||null,
+      direccion: document.getElementById('c-direccion').value.trim()||null,
+      telefono_contacto: document.getElementById('c-telefono').value.trim()||null,
+      email_contacto:    document.getElementById('c-email-inst').value.trim()||null,
+      nombre_contacto:   document.getElementById('c-nombre-contacto').value.trim()||null,
+      activo: true,
+    }).select('id').single();
+    if(clubErr) throw new Error('Error al crear hipódromo: '+clubErr.message);
+    const newClubId=clubData.id;
+
+    const {data:authData,error:authErr}=await sb.auth.signUp({
+      email:adminEmail, password:pass,
+      options:{ data:{ nombre_completo:adminNombre } }
+    });
+    if(authErr) throw new Error('Error al crear usuario auth: '+authErr.message);
+    if(!authData.user) throw new Error('No se pudo crear el usuario en Auth.');
+
+    const {error:usrErr}=await sb.from('usuarios').insert({
+      email:adminEmail, nombre_completo:adminNombre,
+      club_id:newClubId, rol:'secretario_carreras', activo:true
+    });
+    if(usrErr) throw new Error('Error al insertar usuario: '+usrErr.message);
+
+    const cats=[
+      {nombre:'Oficial Clásico',    codigo:'OC',  simbolo:'★', color_hex:'#c9a84c',es_computable:true, es_oficial:true, orden_display:1},
+      {nombre:'Oficial No Clásico', codigo:'ONC', simbolo:'◆', color_hex:'#4caf82',es_computable:true, es_oficial:true, orden_display:2},
+      {nombre:'No Oficial',         codigo:'NO',  simbolo:'▲', color_hex:'#a0b8a0',es_computable:false,es_oficial:false,orden_display:3},
+      {nombre:'Clásico Confirmado', codigo:'CC',  simbolo:'⭐',color_hex:'#e8b84b',es_computable:true, es_oficial:true, orden_display:4},
+    ].map(c=>({...c,club_id:newClubId,activo:true}));
+    const {error:catErr}=await sb.from('categorias').insert(cats);
+    if(catErr) throw new Error('Hipódromo y usuario creados, pero error en categorías: '+catErr.message);
+
+    toast(`Hipódromo "${nombre}" creado correctamente`);
+    closeCreate();
+    load();
+  } catch(err){
+    showCError(err.message);
+  } finally {
+    btn.disabled=false; btn.textContent='Crear Hipódromo';
+  }
+}
+
+/* ---- EDITAR ---- */
+function openEdit(id){
+  const c=allClubs.find(x=>x.id===id);
+  if(!c) return;
+  document.getElementById('e-id').value=c.id;
+  document.getElementById('e-nombre').value=c.nombre||'';
+  document.getElementById('e-sigla').value=c.sigla||'';
+  document.getElementById('e-localidad').value=c.localidad||'';
+  document.getElementById('e-provincia').value=c.provincia||'';
+  document.getElementById('e-direccion').value=c.direccion||'';
+  document.getElementById('e-telefono').value=c.telefono_contacto||'';
+  document.getElementById('e-email-inst').value=c.email_contacto||'';
+  document.getElementById('e-nombre-contacto').value=c.nombre_contacto||'';
+  document.getElementById('e-tel-contacto').value=c.tel_contacto||'';
   document.getElementById('modal-edit').classList.add('open');
 }
+function closeEdit(){ document.getElementById('modal-edit').classList.remove('open'); }
 
-function closeEditModal() {
-  document.getElementById('modal-edit').classList.remove('open');
-}
-
-async function saveEdit() {
-  const id = document.getElementById('edit-id').value;
-  const nombre = document.getElementById('edit-nombre').value.trim();
-  if (!nombre) { toast('El nombre es requerido', 'error'); return; }
-  const btn = document.getElementById('btn-edit-save');
-  btn.disabled = true; btn.textContent = 'Guardando…';
-  const { error } = await sb.from('clubs').update({
+async function saveEdit(){
+  const id=document.getElementById('e-id').value;
+  const nombre=document.getElementById('e-nombre').value.trim();
+  if(!nombre){toast('El nombre es requerido','error');return;}
+  const btn=document.getElementById('btn-edit-save');
+  btn.disabled=true; btn.textContent='Guardando…';
+  const {error}=await sb.from('clubs').update({
     nombre,
-    sigla:     document.getElementById('edit-sigla').value.trim() || null,
-    localidad: document.getElementById('edit-localidad').value.trim() || null,
-    provincia: document.getElementById('edit-provincia').value.trim() || null,
-  }).eq('id', id);
-  btn.disabled = false; btn.textContent = 'Guardar cambios';
-  if (error) { toast(error.message, 'error'); return; }
+    sigla:             document.getElementById('e-sigla').value.trim()||null,
+    localidad:         document.getElementById('e-localidad').value.trim()||null,
+    provincia:         document.getElementById('e-provincia').value.trim()||null,
+    direccion:         document.getElementById('e-direccion').value.trim()||null,
+    telefono_contacto: document.getElementById('e-telefono').value.trim()||null,
+    email_contacto:    document.getElementById('e-email-inst').value.trim()||null,
+    nombre_contacto:   document.getElementById('e-nombre-contacto').value.trim()||null,
+    tel_contacto:      document.getElementById('e-tel-contacto').value.trim()||null,
+  }).eq('id',id);
+  btn.disabled=false; btn.textContent='Guardar cambios';
+  if(error){toast(error.message,'error');return;}
   toast('Hipódromo actualizado');
-  closeEditModal();
+  closeEdit();
   load();
 }
 
-async function deleteClub(id) {
-  const c = allClubs.find(c => c.id === id);
-  if (!confirm(`¿Eliminar el hipódromo "${c?.nombre}" y todos sus datos? Esta acción no se puede deshacer.`)) return;
-  const { error } = await sb.from('clubs').delete().eq('id', id);
-  if (error) { toast(error.message, 'error'); return; }
-  toast('Hipódromo eliminado');
-  load();
-}
-
-async function toggleActivo(id, activo){
-  const club=allClubs.find(c=>c.id===id);
-  const action=activo?'activar':'desactivar';
-  if(!confirm(`¿Deseas ${action} el hipódromo "${club?.nombre}"?`))return;
-  const{error}=await sb.from('clubs').update({activo}).eq('id',id);
+/* ---- TOGGLE / DELETE ---- */
+async function toggleActivo(id,activo){
+  const c=allClubs.find(x=>x.id===id);
+  if(!confirm(`¿Deseas ${activo?'activar':'desactivar'} el hipódromo "${c?.nombre}"?`))return;
+  const {error}=await sb.from('clubs').update({activo}).eq('id',id);
   if(error){toast(error.message,'error');return;}
   toast(`Hipódromo ${activo?'activado':'desactivado'}`);
   load();
 }
 
-document.getElementById('modal-edit').addEventListener('click', e => { if (e.target === e.currentTarget) closeEditModal(); });
+async function deleteClub(id){
+  const c=allClubs.find(x=>x.id===id);
+  if(!confirm(`¿Eliminar el hipódromo "${c?.nombre}" y todos sus datos? Esta acción no se puede deshacer.`))return;
+  const {error}=await sb.from('clubs').delete().eq('id',id);
+  if(error){toast(error.message,'error');return;}
+  toast('Hipódromo eliminado');
+  load();
+}
+
+document.getElementById('modal-create').addEventListener('click',e=>{if(e.target===e.currentTarget)closeCreate();});
+document.getElementById('modal-edit').addEventListener('click',e=>{if(e.target===e.currentTarget)closeEdit();});
 (async()=>{if(await initAuth())load();})();
 </script>
 </body>

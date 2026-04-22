@@ -1,0 +1,21 @@
+{
+  "name": "SGH - Sistema de Gestión de Hipódromos",
+  "short_name": "SGH",
+  "description": "Sistema de Gestión de Hipódromos",
+  "start_url": "/SGH/login.html",
+  "display": "standalone",
+  "background_color": "#0e2318",
+  "theme_color": "#0e2318",
+  "icons": [
+    {
+      "src": "logo 192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "logo 512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
