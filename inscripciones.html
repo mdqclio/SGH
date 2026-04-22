@@ -264,7 +264,7 @@ async function loadAll() {
     sb.from('reuniones').select('id,numero,fecha,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
     sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID).eq('activo', true).order('apellido'),
     sb.from('propietarios').select('id,nombre').eq('club_id', CLUB_ID).eq('activo', true).order('nombre'),
-    sb.from('spcs').select('id,nombre,caballeriza_id,entrenador_id,jockey_habitual_id,estado').eq('club_id', CLUB_ID).order('nombre'),
+    sb.from('spcs').select('id,nombre,caballeriza_id,entrenador_id,estado').eq('club_id', CLUB_ID).order('nombre'),
   ]);
   reuniones = reuns||[];
   profesionales = sprofs||[];
