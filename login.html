@@ -199,7 +199,7 @@ document.getElementById('year').textContent = new Date().getFullYear();
 const { createClient } = supabase;
 const sb = createClient(
   'https://unlhcuanfrtpatoipwve.supabase.co',
-  'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK'
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM'
 );
 
 // Si ya hay sesión activa, ir directo al dashboard
@@ -249,7 +249,7 @@ async function doLogin(e) {
     return;
   }
 
-   // 2. Verificar usuario en tabla
+  // 2. Verificar que el usuario tiene un club asignado
   const { data: usr, error: usrErr } = await sb
     .from('usuarios')
     .select('club_id, nombre, rol')
@@ -263,11 +263,13 @@ async function doLogin(e) {
     return;
   }
 
+  // 3. Si es super_admin → panel de administración
   if (usr.rol === 'super_admin') {
     window.location.replace('admin.html');
     return;
   }
 
+  // 4. Si tiene club → dashboard
   if (!usr.club_id) {
     await sb.auth.signOut();
     setLoading(false);
@@ -275,8 +277,6 @@ async function doLogin(e) {
     return;
   }
 
-
-  // 3. Login exitoso → ir al dashboard
   window.location.replace('index.html');
 }
 </script>
