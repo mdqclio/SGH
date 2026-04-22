@@ -108,9 +108,9 @@ async function initAuth(){
   if(!usr?.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}
   if(usr.rol!=='super_admin'){window.location.replace('index.html');return false;}
   CLUB_ID=usr.club_id;
-  currentUser={...session.user,nombre:usr.nombre,rol:usr.rol};
+  currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};
   const uEl=document.getElementById('user-name');
-  if(uEl)uEl.textContent=usr.nombre||session.user.email;
+  if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;
   document.getElementById('auth-overlay').style.display='none';
   return true;
 }

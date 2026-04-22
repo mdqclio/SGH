@@ -253,7 +253,6 @@ async function doLogin(e) {
   const { data: usr, error: usrErr } = await sb
     .from('usuarios')
     .select('club_id, nombre_completo, rol')
-
     .eq('email', email)
     .single();
 
