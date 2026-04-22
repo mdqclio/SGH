@@ -51,6 +51,25 @@
     .btn-toggle-on:hover  { background: rgba(224,82,82,0.2); }
     .btn-toggle-off { background: rgba(76,175,130,0.1); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
     .btn-toggle-off:hover { background: rgba(76,175,130,0.2); }
+    .btn-edit   { background: rgba(116,176,247,0.1); color: #74b0f7; border: 1px solid rgba(116,176,247,0.3); }
+    .btn-edit:hover   { background: rgba(116,176,247,0.2); }
+    .btn-delete { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .btn-delete:hover { background: rgba(224,82,82,0.2); }
+    /* MODAL */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 16px; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 480px; }
+    .modal-header { padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+    .modal-header h2 { font-size: 20px; color: var(--accent); }
+    .btn-close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; }
+    .modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    label { font-size: 13px; font-weight: 500; color: var(--muted); }
+    input { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 9px 13px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; width: 100%; transition: border 0.2s; }
+    input:focus { border-color: var(--accent); }
+    .modal-footer { padding: 16px 24px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
+    .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; }
     .empty-state { text-align: center; padding: 60px 20px; }
     .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
     .empty-state h3 { font-size: 18px; color: var(--muted); }
@@ -90,6 +109,41 @@
 
   <div id="list-container">
     <div class="loading-state"><div class="spinner"></div> Cargando hipódromos…</div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR -->
+<div class="modal-overlay" id="modal-edit">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Editar Hipódromo</h2>
+      <button class="btn-close" onclick="closeEditModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id">
+      <div class="form-group">
+        <label>Nombre *</label>
+        <input type="text" id="edit-nombre" placeholder="Nombre del hipódromo">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Sigla</label>
+          <input type="text" id="edit-sigla" placeholder="Ej: HLP" maxlength="10">
+        </div>
+        <div class="form-group">
+          <label>Localidad</label>
+          <input type="text" id="edit-localidad" placeholder="Ej: La Plata">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Provincia</label>
+        <input type="text" id="edit-provincia" placeholder="Ej: Buenos Aires">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeEditModal()">Cancelar</button>
+      <button class="btn-primary" onclick="saveEdit()" id="btn-edit-save">Guardar cambios</button>
+    </div>
   </div>
 </div>
 
@@ -171,7 +225,9 @@ function renderTable(){
       <td class="count-cell"><div class="count-val">${st.s}</div><div class="count-lbl">SPCs</div></td>
       <td>
         <div class="actions-cell">
+          <button class="btn-sm btn-edit" onclick="openEditModal('${c.id}')">✏️ Editar</button>
           ${toggleBtn}
+          <button class="btn-sm btn-delete" onclick="deleteClub('${c.id}')">🗑️ Eliminar</button>
         </div>
       </td>
     </tr>`;
@@ -195,6 +251,49 @@ function renderTable(){
     </div>`;
 }
 
+function openEditModal(id) {
+  const c = allClubs.find(c => c.id === id);
+  if (!c) return;
+  document.getElementById('edit-id').value = c.id;
+  document.getElementById('edit-nombre').value = c.nombre || '';
+  document.getElementById('edit-sigla').value = c.sigla || '';
+  document.getElementById('edit-localidad').value = c.localidad || '';
+  document.getElementById('edit-provincia').value = c.provincia || '';
+  document.getElementById('modal-edit').classList.add('open');
+}
+
+function closeEditModal() {
+  document.getElementById('modal-edit').classList.remove('open');
+}
+
+async function saveEdit() {
+  const id = document.getElementById('edit-id').value;
+  const nombre = document.getElementById('edit-nombre').value.trim();
+  if (!nombre) { toast('El nombre es requerido', 'error'); return; }
+  const btn = document.getElementById('btn-edit-save');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  const { error } = await sb.from('clubs').update({
+    nombre,
+    sigla:     document.getElementById('edit-sigla').value.trim() || null,
+    localidad: document.getElementById('edit-localidad').value.trim() || null,
+    provincia: document.getElementById('edit-provincia').value.trim() || null,
+  }).eq('id', id);
+  btn.disabled = false; btn.textContent = 'Guardar cambios';
+  if (error) { toast(error.message, 'error'); return; }
+  toast('Hipódromo actualizado');
+  closeEditModal();
+  load();
+}
+
+async function deleteClub(id) {
+  const c = allClubs.find(c => c.id === id);
+  if (!confirm(`¿Eliminar el hipódromo "${c?.nombre}" y todos sus datos? Esta acción no se puede deshacer.`)) return;
+  const { error } = await sb.from('clubs').delete().eq('id', id);
+  if (error) { toast(error.message, 'error'); return; }
+  toast('Hipódromo eliminado');
+  load();
+}
+
 async function toggleActivo(id, activo){
   const club=allClubs.find(c=>c.id===id);
   const action=activo?'activar':'desactivar';
@@ -205,6 +304,7 @@ async function toggleActivo(id, activo){
   load();
 }
 
+document.getElementById('modal-edit').addEventListener('click', e => { if (e.target === e.currentTarget) closeEditModal(); });
 (async()=>{if(await initAuth())load();})();
 </script>
 </body>

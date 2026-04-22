@@ -234,7 +234,7 @@ async function crearCliente(){
     // 3. Insertar en tabla usuarios
     const{error:usrErr}=await sb.from('usuarios').insert({
       email:adminEmail, nombre_completo:adminNombre,
-      club_id:newClubId, rol:'admin', activo:true
+      club_id:newClubId, rol:'secretario_carreras', activo:true
     });
     if(usrErr) throw new Error('Error al crear registro de usuario: '+usrErr.message);
 
