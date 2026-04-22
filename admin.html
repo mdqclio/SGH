@@ -15,6 +15,8 @@
     body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
     h1,h2,h3 { font-family: 'Playfair Display', serif; }
     .topbar { background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+    .btn-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; white-space: nowrap; }
+    .btn-back:hover { border-color: var(--accent); color: var(--accent); }
     .topbar h1 { font-size: 22px; color: var(--accent); flex: 1; }
     .user-name { font-size: 13px; color: var(--muted); }
     .btn-logout { background: none; border: 1px solid var(--border); color: var(--muted); padding: 6px 14px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; transition: all 0.2s; }
@@ -90,6 +92,7 @@
 <div id="toast-container"></div>
 
 <div class="topbar">
+  <a href="index.html" class="btn-back">← Volver</a>
   <h1>⚙️ Panel Super Admin</h1>
   <span class="user-name" id="user-name"></span>
   <button class="btn-logout" onclick="logout()">Cerrar sesión</button>

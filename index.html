@@ -224,7 +224,6 @@ function buildUI(rol) {
       dashSection +
       navSection('Administración', [
         ['admin.html',         '🔧', 'Administración'],
-        ['club.html',          '⚙️', 'Configuración'],
         ['hipodromos.html',    '🏟️', 'Hipódromos'],
         ['categorias.html',    '🏷️', 'Categorías'],
         ['Profesionales.html', '👤', 'Profesionales'],
@@ -241,7 +240,6 @@ function buildUI(rol) {
     content.innerHTML =
       moduleSection('Administración', [
         moduleCard('admin.html',         '🔧', 'Administración',  'Panel de gestión global de hipódromos y clientes'),
-        moduleCard('club.html',          '⚙️', 'Configuración',  'Configuración del hipódromo actual'),
         moduleCard('hipodromos.html',    '🏟️', 'Hipódromos',     'Gestión de pistas y sedes de competencia'),
         moduleCard('categorias.html',    '🏷️', 'Categorías',     'Categorías de carrera y sus atributos'),
         moduleCard('Profesionales.html', '👤', 'Profesionales',  'Jockeys y entrenadores registrados'),
