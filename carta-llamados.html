@@ -82,13 +82,18 @@
     input:focus, select:focus, textarea:focus { border-color: var(--accent); }
     select option { background: #1a3d26; }
     /* DISTRIBUCIÓN PREMIOS */
-    .premios-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+    .premios-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
     .premio-input { display: flex; flex-direction: column; gap: 4px; }
     .premio-input label { font-size: 11px; color: var(--muted); text-align: center; }
     .premio-input input { text-align: center; }
     .total-premios { font-size: 12px; color: var(--muted); text-align: right; margin-top: 4px; }
     .total-premios.ok { color: var(--success); }
     .total-premios.bad { color: var(--danger); }
+    .bonos-section { margin-top: 12px; }
+    .bonos-toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); cursor: pointer; user-select: none; }
+    .bonos-toggle input[type=checkbox] { width: auto; cursor: pointer; accent-color: var(--accent); }
+    .bonos-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+    .bonos-display { padding: 0 18px 10px; font-size: 12px; color: var(--muted); }
     .modal-footer { padding: 16px 24px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
     .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; }
     #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
@@ -106,6 +111,7 @@
       .info-label { color: #666 !important; }
       .content { padding: 0; max-width: 100%; }
       .carrera-card { border: 1px solid #ccc !important; background: #fff !important; page-break-inside: avoid; margin-bottom: 10px; }
+      .turno, .carrera { page-break-inside: avoid; }
       .carrera-card-header { background: #f5f5f5 !important; }
       .carrera-num, .carrera-title { color: #000 !important; }
       .chip, .badge { color: #333 !important; border-color: #999 !important; background: #eee !important; }
@@ -113,7 +119,8 @@
       .carrera-body span, .carrera-body { color: #000 !important; }
       .premio-chip { border-color: #ccc !important; background: #f9f9f9 !important; }
       .premio-pct { color: #333 !important; }
-      @page { size: A4 landscape; margin: 15mm; }
+      .bonos-display { color: #333 !important; }
+      @page { size: A4 portrait; margin: 15mm; }
     }
     #auth-overlay { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center; }
     .btn-logout { background:none;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;transition:all 0.2s; }
@@ -229,8 +236,20 @@
             <div class="premio-input"><label>3°</label><input type="number" id="pr-3" min="0" max="100" step="0.1" value="10" oninput="updPct()"></div>
             <div class="premio-input"><label>4°</label><input type="number" id="pr-4" min="0" max="100" step="0.1" value="6" oninput="updPct()"></div>
             <div class="premio-input"><label>5°</label><input type="number" id="pr-5" min="0" max="100" step="0.1" value="4" oninput="updPct()"></div>
+            <div class="premio-input"><label>6°</label><input type="number" id="pr-6" min="0" max="100" step="0.1" value="0" oninput="updPct()"></div>
           </div>
           <div class="total-premios" id="total-pct">Total: 100%</div>
+          <div class="bonos-section">
+            <label class="bonos-toggle">
+              <input type="checkbox" id="bonos-activo" onchange="toggleBonos()"> Activar bonos del 7° al 10° puesto (monto fijo $)
+            </label>
+            <div class="bonos-grid" id="bonos-grid" style="display:none;">
+              <div class="premio-input"><label>7°</label><input type="number" id="bono-7" min="0" step="100" value="0"></div>
+              <div class="premio-input"><label>8°</label><input type="number" id="bono-8" min="0" step="100" value="0"></div>
+              <div class="premio-input"><label>9°</label><input type="number" id="bono-9" min="0" step="100" value="0"></div>
+              <div class="premio-input"><label>10°</label><input type="number" id="bono-10" min="0" step="100" value="0"></div>
+            </div>
+          </div>
         </div>
         <div class="section-lbl">Inscripciones</div>
         <div class="form-group">
@@ -261,7 +280,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 let sb, CLUB_ID, currentUser;
-async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(!usr?.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
+async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
 const params = new URLSearchParams(location.search);
@@ -279,10 +298,14 @@ function fmtDate(d) {
 }
 
 function updPct() {
-  const total = [1,2,3,4,5].reduce((s,i)=>s+(parseFloat(document.getElementById(`pr-${i}`).value)||0),0);
+  const total = [1,2,3,4,5,6].reduce((s,i)=>s+(parseFloat(document.getElementById(`pr-${i}`).value)||0),0);
   const el=document.getElementById('total-pct');
   el.textContent=`Total: ${total.toFixed(1)}%`;
   el.className='total-premios '+(Math.abs(total-100)<0.01?'ok':'bad');
+}
+
+function toggleBonos() {
+  document.getElementById('bonos-grid').style.display = document.getElementById('bonos-activo').checked ? '' : 'none';
 }
 
 async function load() {
@@ -331,12 +354,14 @@ function renderCarreras() {
     const cat = categorias.find(x=>x.id===c.categoria_id);
     const dist = c.distribucion_premios || {"1":60,"2":20,"3":10,"4":6,"5":4};
     const bolsa = c.bolsa_total || 0;
-    const premioHtml = Object.entries(dist).map(([pos,pct])=>`
+    const bonos = dist.bonos || {};
+    const premioHtml = Object.entries(dist).filter(([pos])=>pos!=='bonos').map(([pos,pct])=>`
       <div class="premio-chip">
         <div class="premio-pos">${pos}°</div>
         <div class="premio-pct">${pct}%</div>
         ${bolsa?`<div class="premio-monto">$${Math.round(bolsa*pct/100).toLocaleString('es-AR')}</div>`:''}
       </div>`).join('');
+    const bonosHtml = Object.keys(bonos).length ? `<div class="bonos-display">Bonos: ${Object.entries(bonos).map(([p,m])=>`${p}° $${Number(m).toLocaleString('es-AR')}`).join(' | ')}</div>` : '';
     return `<div class="carrera-card">
       <div class="carrera-card-header">
         <div class="carrera-num">${c.numero_turno}</div>
@@ -362,6 +387,7 @@ function renderCarreras() {
         ${c.cupo_maximo?`<div>Cupo máx.: <span>${c.cupo_maximo}</span></div>`:''}
       </div>
       <div class="premios-list">${premioHtml}</div>
+      ${bonosHtml}
     </div>`;
   }).join('')}</div>`;
 }
@@ -383,7 +409,12 @@ function openModal(rec=null) {
   document.getElementById('f-bolsa').value = rec?.bolsa_total||'';
   document.getElementById('f-cupo').value = rec?.cupo_maximo||'';
   const dist = rec?.distribucion_premios || {"1":60,"2":20,"3":10,"4":6,"5":4};
-  [1,2,3,4,5].forEach(i=>{ document.getElementById(`pr-${i}`).value = dist[String(i)]||0; });
+  [1,2,3,4,5,6].forEach(i=>{ document.getElementById(`pr-${i}`).value = dist[String(i)]||0; });
+  const bonos = dist.bonos || {};
+  const hasBonos = Object.keys(bonos).length > 0;
+  document.getElementById('bonos-activo').checked = hasBonos;
+  document.getElementById('bonos-grid').style.display = hasBonos ? '' : 'none';
+  [7,8,9,10].forEach(i=>{ document.getElementById(`bono-${i}`).value = bonos[String(i)]||0; });
   updPct();
   document.getElementById('f-ap-insc').value = rec?.apertura_inscripcion ? rec.apertura_inscripcion.slice(0,16) : '';
   document.getElementById('f-ci-insc').value = rec?.cierre_inscripcion ? rec.cierre_inscripcion.slice(0,16) : '';
@@ -402,7 +433,12 @@ async function saveRecord() {
   const btn = document.getElementById('btn-save');
   btn.disabled=true; btn.textContent='Guardando…';
   const distribucion = {};
-  [1,2,3,4,5].forEach(i=>{ const v=parseFloat(document.getElementById(`pr-${i}`).value); if(v) distribucion[String(i)]=v; });
+  [1,2,3,4,5,6].forEach(i=>{ const v=parseFloat(document.getElementById(`pr-${i}`).value); if(v) distribucion[String(i)]=v; });
+  if (document.getElementById('bonos-activo').checked) {
+    const bonos = {};
+    [7,8,9,10].forEach(i=>{ const v=parseFloat(document.getElementById(`bono-${i}`).value)||0; if(v) bonos[String(i)]=v; });
+    if (Object.keys(bonos).length) distribucion.bonos = bonos;
+  }
   const payload = {
     reunion_id: reunionId,
     numero_turno: turno,
