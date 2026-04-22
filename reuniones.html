@@ -162,7 +162,7 @@
     <div class="modal-body">
       <input type="hidden" id="f-id">
       <div class="form-grid">
-        <div class="form-group">
+        <div class="form-group" id="fg-hipodromo">
           <label>Hipódromo *</label>
           <select id="f-hipodromo" required></select>
         </div>
@@ -232,7 +232,7 @@ let sb, CLUB_ID, currentUser;
 async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(!usr?.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
-let allData=[], hipodromos=[];
+let allData=[], hipodromos=[], autoHipId=null;
 const ESTADOS = ['borrador','publicada','en_curso','finalizada','cancelada','suspendida'];
 const ESTADO_LABELS = { borrador:'📝 Borrador', publicada:'📢 Publicada', en_curso:'🏁 En curso', finalizada:'✅ Finalizada', cancelada:'❌ Cancelada', suspendida:'⏸️ Suspendida' };
 const MESES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
@@ -251,9 +251,18 @@ async function load() {
   if (error) { toast(error.message,'error'); return; }
   allData = reuns || [];
   hipodromos = hips || [];
-  // populate filter & form select
-  const hipOpts = hipodromos.map(h=>`<option value="${h.id}">${h.nombre}</option>`).join('');
-  document.getElementById('f-hipodromo').innerHTML = '<option value="">— Seleccionar —</option>' + hipOpts;
+  // Si hay un solo hipódromo → asignación automática, sin mostrar selector en el modal
+  const fgHip = document.getElementById('fg-hipodromo');
+  if (hipodromos.length === 1) {
+    autoHipId = hipodromos[0].id;
+    fgHip.style.display = 'none';
+  } else {
+    autoHipId = null;
+    fgHip.style.display = '';
+    const hipOpts = hipodromos.map(h=>`<option value="${h.id}">${h.nombre}</option>`).join('');
+    document.getElementById('f-hipodromo').innerHTML = '<option value="">— Seleccionar —</option>' + hipOpts;
+  }
+  // populate filter select (siempre visible)
   document.getElementById('f-hip').innerHTML = '<option value="">Todos los hipódromos</option>' +
     hipodromos.map(h=>`<option value="${h.id}">${h.nombre}</option>`).join('');
   updateStats();
@@ -345,7 +354,7 @@ function openModal(rec=null) {
 function closeModal() { document.getElementById('modal').classList.remove('open'); }
 
 async function saveRecord() {
-  const hipId = document.getElementById('f-hipodromo').value;
+  const hipId = autoHipId || document.getElementById('f-hipodromo').value;
   const fecha = document.getElementById('f-fecha').value;
   if (!hipId || !fecha) { toast('Hipódromo y fecha son requeridos','error'); return; }
   const id = document.getElementById('f-id').value;
