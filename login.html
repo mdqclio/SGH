@@ -227,6 +227,7 @@ VALUES (
 
   <div class="login-footer">
     <p>SGH © <span id="year"></span> — Uso exclusivo del personal autorizado</p>
+    <p style="margin-top:10px;">¿Sos propietario o entrenador? <a href="registro-profesional.html">Registrate acá</a></p>
   </div>
 
 </div>
@@ -241,10 +242,16 @@ const sb = createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM'
 );
 
-// Si ya hay sesión activa, ir directo al dashboard
+// Si ya hay sesión activa, redirigir según rol
 (async () => {
   const { data: { session } } = await sb.auth.getSession();
-  if (session) window.location.replace('index.html');
+  if (!session) return;
+  const { data: usr } = await sb.from('usuarios').select('rol').eq('email', session.user.email).single();
+  if (usr?.rol === 'propietario' || usr?.rol === 'profesional') {
+    window.location.replace('portal.html');
+  } else {
+    window.location.replace('index.html');
+  }
 })();
 
 function showError(msg) {
@@ -288,27 +295,45 @@ async function doLogin(e) {
     return;
   }
 
-  // 2. Verificar que el usuario tiene un club asignado
+  // 2. Verificar usuario en la tabla
   const { data: usr, error: usrErr } = await sb
     .from('usuarios')
-    .select('club_id, nombre_completo, rol')
+    .select('club_id, nombre_completo, rol, estado')
     .eq('email', email)
     .single();
 
   if (usrErr || !usr) {
     await sb.auth.signOut();
     setLoading(false);
-    showError('Tu usuario no tiene un hipódromo asignado. Contactá al administrador.');
+    showError('Tu usuario no está registrado en el sistema. Contactá al administrador.');
     return;
   }
 
-  // 3. Si es super_admin → panel de administración
+  // 3. Propietarios y entrenadores van a portal.html
+  if (usr.rol === 'propietario' || usr.rol === 'profesional') {
+    if (usr.estado === 'pendiente') {
+      await sb.auth.signOut();
+      setLoading(false);
+      showError('Tu registro está pendiente de aprobación. Recibirás confirmación por email.');
+      return;
+    }
+    if (usr.estado === 'rechazado') {
+      await sb.auth.signOut();
+      setLoading(false);
+      showError('Tu registro fue rechazado. Contactá al administrador.');
+      return;
+    }
+    window.location.replace('portal.html');
+    return;
+  }
+
+  // 4. Super admin → dashboard
   if (usr.rol === 'super_admin') {
     window.location.replace('index.html');
     return;
   }
 
-  // 4. Si tiene club → dashboard
+  // 5. Otros roles necesitan club_id
   if (!usr.club_id) {
     await sb.auth.signOut();
     setLoading(false);

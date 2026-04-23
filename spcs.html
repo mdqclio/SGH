@@ -298,17 +298,18 @@ async function load() {
   const params = new URLSearchParams(location.search);
   const cabFilter = params.get('caballeriza');
 
-  const [{ data: spcs, error }, { data: cabs }, { data: profs }, { data: props }] = await Promise.all([
+  const [{ data: spcs, error }, { data: cabs }, { data: jocksData }, { data: props }, { data: entrData }] = await Promise.all([
     sb.from('spcs').select('*').eq('club_id', CLUB_ID).order('nombre'),
     sb.from('caballerizas').select('id,nombre').eq('club_id', CLUB_ID).eq('activo', true).order('nombre'),
-    sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID).eq('activo', true).order('apellido'),
-    sb.from('propietarios').select('id,nombre,tipo').eq('club_id', CLUB_ID).eq('activo', true).order('nombre'),
+    sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID).eq('tipo', 'jockey').eq('activo', true).order('apellido'),
+    sb.from('propietarios').select('id,nombre,tipo').eq('activo', true).order('nombre'),
+    sb.from('profesionales').select('id,nombre,apellido,tipo').eq('tipo', 'entrenador').eq('activo', true).order('apellido'),
   ]);
   if (error) { toast(error.message, 'error'); return; }
   allData = spcs || [];
   caballerizas = cabs || [];
-  entrenadores = (profs||[]).filter(p => p.tipo==='entrenador'||p.tipo==='ambos');
-  jockeys = (profs||[]).filter(p => p.tipo==='jockey'||p.tipo==='ambos');
+  entrenadores = entrData || [];
+  jockeys = jocksData || [];
   propietarios = props || [];
 
   // Load spc_propietarios

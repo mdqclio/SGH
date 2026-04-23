@@ -226,6 +226,12 @@ function buildUI(rol) {
   const sidenav = document.getElementById('sidebar-nav');
   const content = document.getElementById('content-modules');
 
+  // Propietarios y entrenadores van a su portal
+  if (rol === 'propietario' || rol === 'profesional') {
+    window.location.replace('portal.html');
+    return;
+  }
+
   const dashSection = navSection('Dashboard', [['index.html', '🏠', 'Inicio']]);
 
   if (rol === 'super_admin') {
@@ -236,7 +242,8 @@ function buildUI(rol) {
         ['inscripciones.html', '📋', 'Inscripciones'],
         ['resultados.html',    '🏆', 'Resultados'],
         ['liquidaciones.html', '💰', 'Liquidaciones'],
-        ['profesionales.html', '👤', 'Profesionales'],
+        ['profesionales.html', '🧢', 'Entrenadores'],
+        ['jockeys.html',       '🎽', 'Jockeys'],
         ['spcs.html',          '🐎', 'Stud Book'],
         ['propietarios.html',  '👔', 'Propietarios'],
         ['caballerizas.html',  '🏠', 'Caballerizas'],
@@ -253,9 +260,10 @@ function buildUI(rol) {
         moduleCard('inscripciones.html', '📋', 'Inscripciones',  'Inscripción de ejemplares a carreras'),
         moduleCard('resultados.html',    '🏆', 'Resultados',     'Carga y consulta de resultados oficiales'),
         moduleCard('liquidaciones.html', '💰', 'Liquidaciones',  'Liquidación de premios y retenciones'),
-        moduleCard('profesionales.html', '👤', 'Profesionales',  'Jockeys y entrenadores registrados'),
+        moduleCard('profesionales.html', '🧢', 'Entrenadores',   'Entrenadores globales del sistema'),
+        moduleCard('jockeys.html',       '🎽', 'Jockeys',        'Jockeys del hipódromo'),
         moduleCard('spcs.html',          '🐎', 'Stud Book',      'Registro completo de ejemplares (SPCs)'),
-        moduleCard('propietarios.html',  '👔', 'Propietarios',   'Alta, baja y modificación de propietarios'),
+        moduleCard('propietarios.html',  '👔', 'Propietarios',   'Propietarios globales del sistema'),
         moduleCard('caballerizas.html',  '🏠', 'Caballerizas',   'Studs, establecimientos y sus SPCs'),
         moduleCard('sanciones.html',     '⚖️', 'Sanciones',      'Registro y seguimiento de sanciones'),
         moduleCard('categorias.html',    '🏷️', 'Categorías',     'Categorías de carrera y sus atributos'),
@@ -275,7 +283,8 @@ function buildUI(rol) {
         ['resultados.html',    '🏆', 'Resultados'],
         ['programa.html',      '🖨️', 'Programa'],
         ['liquidaciones.html', '💰', 'Liquidaciones'],
-        ['profesionales.html', '👤', 'Profesionales'],
+        ['profesionales.html', '🧢', 'Entrenadores'],
+        ['jockeys.html',       '🎽', 'Jockeys'],
         ['spcs.html',          '🐎', 'Stud Book'],
         ['propietarios.html',  '👔', 'Propietarios'],
         ['caballerizas.html',  '🏠', 'Caballerizas'],
@@ -291,9 +300,10 @@ function buildUI(rol) {
         moduleCard('resultados.html',    '🏆', 'Resultados',     'Carga y consulta de resultados oficiales'),
         moduleCard('programa.html',      '🖨️', 'Programa',       'Generación e impresión del programa oficial'),
         moduleCard('liquidaciones.html', '💰', 'Liquidaciones',  'Liquidación de premios y retenciones'),
-        moduleCard('profesionales.html', '👤', 'Profesionales',  'Jockeys y entrenadores registrados'),
+        moduleCard('profesionales.html', '🧢', 'Entrenadores',   'Entrenadores globales del sistema'),
+        moduleCard('jockeys.html',       '🎽', 'Jockeys',        'Jockeys del hipódromo'),
         moduleCard('spcs.html',          '🐎', 'Stud Book',      'Registro completo de ejemplares (SPCs)'),
-        moduleCard('propietarios.html',  '👔', 'Propietarios',   'Alta, baja y modificación de propietarios'),
+        moduleCard('propietarios.html',  '👔', 'Propietarios',   'Propietarios globales del sistema'),
         moduleCard('caballerizas.html',  '🏠', 'Caballerizas',   'Studs, establecimientos y sus SPCs'),
         moduleCard('sanciones.html',     '⚖️', 'Sanciones',      'Registro y seguimiento de sanciones'),
         moduleCard('usuarios.html',      '👥', 'Usuarios',        'Gestión de usuarios del hipódromo'),

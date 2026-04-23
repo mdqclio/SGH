@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="logo32x32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="logo180x180.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0e2318">
+  <title>Registro — SGH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e2318; --card: #1a3d26; --accent: #c9a84c;
+      --text: #f5f0e8; --muted: #a0b8a0; --danger: #e05252;
+      --success: #4caf82; --border: rgba(201,168,76,0.2);
+    }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'DM Sans', sans-serif; min-height: 100vh;
+      display: flex; align-items: flex-start; justify-content: center;
+      padding: 24px 16px;
+      background-image:
+        radial-gradient(ellipse at 20% 50%, rgba(201,168,76,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 20%, rgba(26,61,38,0.8) 0%, transparent 50%);
+    }
+    h1,h2,h3 { font-family: 'Playfair Display', serif; }
+
+    .wrapper { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 28px; }
+
+    .brand { text-align: center; }
+    .brand-icon { width: 64px; height: 64px; background: rgba(201,168,76,0.12); border: 2px solid rgba(201,168,76,0.3); border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 30px; margin: 0 auto 14px; }
+    .brand-title { font-size: 28px; color: var(--accent); margin-bottom: 4px; }
+    .brand-sub { font-size: 13px; color: var(--muted); }
+
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 32px 28px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
+    .card-title { font-size: 19px; color: var(--text); margin-bottom: 4px; }
+    .card-sub { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+
+    /* TIPO TOGGLE */
+    .tipo-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 24px; }
+    .tipo-tab { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 10px; border: 2px solid var(--border); border-radius: 12px; cursor: pointer; transition: all 0.2s; }
+    .tipo-tab input { display: none; }
+    .tipo-tab.selected { border-color: var(--accent); background: rgba(201,168,76,0.08); }
+    .tipo-tab-icon { font-size: 22px; }
+    .tipo-tab-label { font-size: 13px; font-weight: 600; color: var(--muted); }
+    .tipo-tab.selected .tipo-tab-label { color: var(--accent); }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { font-size: 12px; font-weight: 500; color: var(--muted); }
+    input, select { background: rgba(0,0,0,0.25); border: 1px solid var(--border); color: var(--text); padding: 11px 14px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; width: 100%; transition: border 0.2s; }
+    input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(201,168,76,0.1); }
+    input::placeholder { color: rgba(160,184,160,0.5); }
+    select option { background: #1a3d26; }
+
+    .section-divider { grid-column: 1/-1; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; padding-top: 6px; border-top: 1px solid var(--border); margin-top: 4px; }
+
+    .error-box { background: rgba(224,82,82,0.1); border: 1px solid rgba(224,82,82,0.3); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: var(--danger); display: none; }
+    .error-box.show { display: block; }
+    .success-box { background: rgba(76,175,130,0.1); border: 1px solid rgba(76,175,130,0.3); border-radius: 12px; padding: 24px 20px; text-align: center; display: none; }
+    .success-box.show { display: block; }
+    .success-icon { font-size: 40px; margin-bottom: 12px; }
+    .success-title { font-size: 20px; color: var(--success); font-family: 'Playfair Display', serif; margin-bottom: 8px; }
+    .success-msg { font-size: 14px; color: var(--muted); line-height: 1.5; }
+
+    .btn-submit { width: 100%; background: var(--accent); color: #1a1a0a; border: none; padding: 14px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-submit:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+    .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .spin { width: 18px; height: 18px; border: 2px solid rgba(26,26,10,0.3); border-top-color: #1a1a0a; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .footer-link { text-align: center; font-size: 13px; color: var(--muted); }
+    .footer-link a { color: var(--accent); text-decoration: none; }
+    .footer-link a:hover { text-decoration: underline; }
+
+    .cond-fields { display: contents; }
+
+    @media (max-width: 480px) { .form-grid { grid-template-columns: 1fr; } .form-group.full { grid-column: 1; } }
+  </style>
+</head>
+<body>
+
+<div class="wrapper">
+  <div class="brand">
+    <div class="brand-icon"><img src="logo192x192.png" alt="SGH" style="width:44px;height:44px;object-fit:contain;"></div>
+    <h1 class="brand-title">SGH</h1>
+    <p class="brand-sub">Sistema de Gestión Hípica</p>
+  </div>
+
+  <div class="card">
+    <h2 class="card-title">Registro de profesionales</h2>
+    <p class="card-sub">Propietarios y entrenadores del circuito hípico</p>
+
+    <div id="success-box" class="success-box">
+      <div class="success-icon">✅</div>
+      <div class="success-title">Registro enviado</div>
+      <p class="success-msg">Tu registro fue enviado correctamente. Un administrador revisará tus datos y recibirás confirmación por email.</p>
+      <a href="login.html" style="display:inline-block;margin-top:16px;color:var(--accent);font-size:14px;text-decoration:none;">← Volver al login</a>
+    </div>
+
+    <div id="form-section">
+      <!-- SELECTOR DE TIPO -->
+      <div class="tipo-tabs">
+        <label class="tipo-tab selected" id="tab-propietario" onclick="setTipo('propietario')">
+          <div class="tipo-tab-icon">👔</div>
+          <div class="tipo-tab-label">Propietario</div>
+        </label>
+        <label class="tipo-tab" id="tab-entrenador" onclick="setTipo('entrenador')">
+          <div class="tipo-tab-icon">🧢</div>
+          <div class="tipo-tab-label">Entrenador</div>
+        </label>
+      </div>
+
+      <div class="error-box" id="error-box"></div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nombre *</label>
+          <input type="text" id="f-nombre" placeholder="Nombre(s)" required>
+        </div>
+        <div class="form-group">
+          <label>Apellido *</label>
+          <input type="text" id="f-apellido" placeholder="Apellido(s)" required>
+        </div>
+        <div class="form-group full">
+          <label>Email *</label>
+          <input type="email" id="f-email" placeholder="tu@email.com" required>
+        </div>
+        <div class="form-group">
+          <label>Contraseña *</label>
+          <input type="password" id="f-pass" placeholder="Mínimo 6 caracteres" required minlength="6">
+        </div>
+        <div class="form-group">
+          <label>Confirmar contraseña *</label>
+          <input type="password" id="f-pass2" placeholder="Repetir contraseña" required>
+        </div>
+        <div class="form-group">
+          <label>Teléfono</label>
+          <input type="tel" id="f-telefono" placeholder="Ej: 11 1234-5678">
+        </div>
+        <div class="form-group">
+          <label>Tipo documento</label>
+          <select id="f-doc-tipo">
+            <option value="DNI">DNI</option>
+            <option value="CUIT">CUIT</option>
+            <option value="Pasaporte">Pasaporte</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>N° documento</label>
+          <input type="text" id="f-doc-nro" placeholder="Ej: 30123456">
+        </div>
+
+        <!-- CAMPOS PROPIETARIO -->
+        <div class="section-divider cond-fields" id="div-propietario">Datos de propietario</div>
+        <div class="form-group full cond-fields" id="fg-stud">
+          <label>Nombre del Stud</label>
+          <input type="text" id="f-stud" placeholder="Ej: Stud La Pampa">
+        </div>
+
+        <!-- CAMPOS ENTRENADOR -->
+        <div class="section-divider cond-fields" id="div-entrenador" style="display:none;">Licencia de entrenador</div>
+        <div class="form-group cond-fields" id="fg-patente" style="display:none;">
+          <label>Patente (N° licencia)</label>
+          <input type="text" id="f-patente" placeholder="Ej: ENT-00123">
+        </div>
+        <div class="form-group cond-fields" id="fg-hip-patente" style="display:none;">
+          <label>Hipódromo que otorgó la patente</label>
+          <input type="text" id="f-hip-patente" placeholder="Ej: Hipódromo de Palermo">
+        </div>
+      </div>
+
+      <button class="btn-submit" id="btn-submit" onclick="doRegistro()">
+        <span id="btn-text">Enviar registro</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="footer-link">
+    <p>¿Ya tenés cuenta? <a href="login.html">Iniciar sesión</a></p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const { createClient } = supabase;
+const sb = createClient(
+  'https://unlhcuanfrtpatoipwve.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM'
+);
+
+let tipoSeleccionado = 'propietario';
+
+function setTipo(tipo) {
+  tipoSeleccionado = tipo;
+  document.getElementById('tab-propietario').classList.toggle('selected', tipo === 'propietario');
+  document.getElementById('tab-entrenador').classList.toggle('selected', tipo === 'entrenador');
+  // Mostrar/ocultar campos condicionales
+  const esProp = tipo === 'propietario';
+  document.getElementById('div-propietario').style.display = esProp ? '' : 'none';
+  document.getElementById('fg-stud').style.display = esProp ? '' : 'none';
+  document.getElementById('div-entrenador').style.display = esProp ? 'none' : '';
+  document.getElementById('fg-patente').style.display = esProp ? 'none' : '';
+  document.getElementById('fg-hip-patente').style.display = esProp ? 'none' : '';
+}
+
+function showError(msg) {
+  const box = document.getElementById('error-box');
+  box.textContent = msg;
+  box.classList.add('show');
+}
+function hideError() { document.getElementById('error-box').classList.remove('show'); }
+
+function setLoading(on) {
+  const btn = document.getElementById('btn-submit');
+  const txt = document.getElementById('btn-text');
+  btn.disabled = on;
+  txt.innerHTML = on ? '<span class="spin"></span> Enviando…' : 'Enviar registro';
+}
+
+async function doRegistro() {
+  hideError();
+  const nombre = document.getElementById('f-nombre').value.trim();
+  const apellido = document.getElementById('f-apellido').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const pass = document.getElementById('f-pass').value;
+  const pass2 = document.getElementById('f-pass2').value;
+
+  if (!nombre || !apellido) { showError('Nombre y apellido son requeridos.'); return; }
+  if (!email) { showError('El email es requerido.'); return; }
+  if (!pass || pass.length < 6) { showError('La contraseña debe tener al menos 6 caracteres.'); return; }
+  if (pass !== pass2) { showError('Las contraseñas no coinciden.'); return; }
+
+  setLoading(true);
+
+  try {
+    // 1. Crear usuario en Supabase Auth
+    const { data: authData, error: authErr } = await sb.auth.signUp({ email, password: pass });
+    if (authErr) throw new Error(authErr.message);
+    if (!authData.user) throw new Error('No se pudo crear el usuario.');
+
+    const nombre_completo = `${nombre} ${apellido}`;
+    const rolValue = tipoSeleccionado === 'propietario' ? 'propietario' : 'profesional';
+
+    // 2. Insertar en tabla usuarios con estado pendiente
+    const { error: usrErr } = await sb.from('usuarios').insert({
+      email,
+      nombre_completo,
+      club_id: null,
+      rol: rolValue,
+      estado: 'pendiente',
+      activo: false,
+      telefono: document.getElementById('f-telefono').value.trim() || null,
+    });
+    if (usrErr) throw new Error('Error al registrar usuario: ' + usrErr.message);
+
+    // 3. Insertar en tabla específica
+    if (tipoSeleccionado === 'propietario') {
+      const { error: propErr } = await sb.from('propietarios').insert({
+        nombre: nombre_completo,
+        nombre_stud: document.getElementById('f-stud').value.trim() || null,
+        documento_tipo: document.getElementById('f-doc-tipo').value,
+        documento_nro: document.getElementById('f-doc-nro').value.trim() || null,
+        telefono: document.getElementById('f-telefono').value.trim() || null,
+        email,
+        activo: false,
+        tipo: 'persona',
+      });
+      if (propErr) console.warn('Propietario insert warning:', propErr.message);
+    } else {
+      const { error: profErr } = await sb.from('profesionales').insert({
+        nombre,
+        apellido,
+        tipo: 'entrenador',
+        documento_tipo: document.getElementById('f-doc-tipo').value,
+        documento_nro: document.getElementById('f-doc-nro').value.trim() || null,
+        telefono: document.getElementById('f-telefono').value.trim() || null,
+        email,
+        activo: false,
+        patente: document.getElementById('f-patente').value.trim() || null,
+        hipodromo_patente: document.getElementById('f-hip-patente').value.trim() || null,
+      });
+      if (profErr) console.warn('Profesional insert warning:', profErr.message);
+    }
+
+    // 4. Cerrar sesión (queda pendiente hasta aprobación)
+    await sb.auth.signOut();
+
+    // 5. Mostrar éxito
+    document.getElementById('form-section').style.display = 'none';
+    document.getElementById('success-box').classList.add('show');
+
+  } catch (err) {
+    showError(err.message || 'Error al procesar el registro. Intentá nuevamente.');
+  } finally {
+    setLoading(false);
+  }
+}
+</script>
+</body>
+</html>

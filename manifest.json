@@ -6,6 +6,12 @@
   "display": "standalone",
   "background_color": "#0e2318",
   "theme_color": "#0e2318",
+  "scope": "/SGH/",
+  "categories": ["productivity", "utilities"],
+  "display_override": ["standalone", "browser"],
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "target_sdk_version": 34,
   "icons": [
     {
       "src": "logo192x192.png",

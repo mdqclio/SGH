@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="logo32x32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="logo180x180.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0e2318">
+  <title>Portal — SGH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e2318; --card: #1a3d26; --accent: #c9a84c;
+      --text: #f5f0e8; --muted: #a0b8a0; --danger: #e05252;
+      --success: #4caf82; --border: rgba(201,168,76,0.2); --input-bg: #0e2318;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    h1,h2,h3 { font-family: 'Playfair Display', serif; }
+
+    /* LAYOUT */
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar { width: 240px; background: rgba(0,0,0,0.3); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; z-index: 100; }
+    .sidebar-logo { padding: 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .logo-icon { width: 36px; height: 36px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .logo-text h2 { font-size: 16px; color: var(--accent); }
+    .logo-text p { font-size: 11px; color: var(--muted); }
+    .sidebar-section { padding: 8px 0; }
+    .sidebar-section-title { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; padding: 8px 20px 4px; }
+    .nav-link { display: flex; align-items: center; gap: 10px; padding: 10px 20px; color: var(--text); text-decoration: none; font-size: 14px; font-weight: 500; border-left: 3px solid transparent; transition: all 0.2s; cursor: pointer; background: none; border-bottom: none; border-top: none; border-right: none; width: 100%; font-family: 'DM Sans', sans-serif; }
+    .nav-link:hover, .nav-link.active { background: rgba(201,168,76,0.1); border-left-color: var(--accent); color: var(--accent); }
+    .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+    .main { margin-left: 240px; flex: 1; }
+    .topbar { background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    .topbar h1 { font-size: 20px; color: var(--accent); }
+    .user-bar { display: flex; align-items: center; gap: 10px; }
+    .user-name { font-size: 13px; color: var(--muted); }
+    .btn-logout { background: none; border: 1px solid var(--border); color: var(--muted); padding: 6px 14px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; transition: all 0.2s; }
+    .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
+    .content { padding: 28px; max-width: 1100px; }
+
+    /* SECCIONES */
+    .section { display: none; }
+    .section.active { display: block; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+    .section-header h2 { font-size: 22px; color: var(--accent); }
+
+    /* CARDS SPC */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; transition: border-color 0.2s; }
+    .card:hover { border-color: rgba(201,168,76,0.4); }
+    .card-name { font-family: 'Playfair Display', serif; font-size: 17px; color: var(--accent); margin-bottom: 6px; }
+    .card-detail { font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 12px; }
+    .card-detail span { color: var(--text); }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .badge-activo { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-macho { background: rgba(74,144,226,0.1); color: #74b0f7; border: 1px solid rgba(74,144,226,0.3); }
+    .badge-hembra { background: rgba(230,100,180,0.1); color: #f07cca; border: 1px solid rgba(230,100,180,0.3); }
+    .badge-castrado { background: rgba(150,200,150,0.1); color: #90c890; border: 1px solid rgba(150,200,150,0.3); }
+    .badge-confirmado { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-pre_inscripto { background: rgba(116,176,247,0.1); color: #74b0f7; border: 1px solid rgba(116,176,247,0.3); }
+    .badge-forfait { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-sm { padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; transition: all 0.2s; white-space: nowrap; }
+    .btn-edit { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    .btn-edit:hover { background: rgba(201,168,76,0.25); }
+    .btn-delete { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .btn-danger { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .btn-success { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; white-space: nowrap; }
+    .btn-primary:hover { opacity: 0.9; }
+
+    /* CARTA DE LLAMADOS */
+    .reunion-block { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 16px; }
+    .reunion-header { background: rgba(0,0,0,0.2); padding: 14px 20px; display: flex; align-items: center; gap: 12px; }
+    .reunion-header h3 { font-size: 16px; color: var(--accent); flex: 1; }
+    .reunion-fecha { font-size: 13px; color: var(--muted); }
+    .carrera-row { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .carrera-num { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--accent); width: 36px; text-align: center; flex-shrink: 0; }
+    .carrera-info { flex: 1; min-width: 180px; }
+    .carrera-name { font-size: 14px; font-weight: 600; color: var(--text); }
+    .carrera-chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+    .chip { font-size: 11px; background: rgba(201,168,76,0.08); border: 1px solid rgba(201,168,76,0.2); color: var(--muted); padding: 2px 8px; border-radius: 4px; }
+    .btn-inscribir { background: var(--accent); color: #1a1a0a; border: none; padding: 8px 16px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; white-space: nowrap; }
+    .btn-inscribir:hover { opacity: 0.85; }
+
+    /* INSCRIPCIONES TABLE */
+    .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { background: rgba(0,0,0,0.2); padding: 11px 16px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+    tbody tr { border-top: 1px solid var(--border); transition: background 0.15s; }
+    tbody tr:hover { background: rgba(201,168,76,0.04); }
+    tbody td { padding: 12px 16px; font-size: 14px; vertical-align: middle; }
+
+    /* MODAL */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; display: none; align-items: flex-start; justify-content: center; padding: 20px; overflow-y: auto; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 640px; margin: auto; }
+    .modal-header { padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--card); z-index: 1; border-radius: 16px 16px 0 0; }
+    .modal-header h2 { font-size: 18px; color: var(--accent); }
+    .btn-close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; }
+    .modal-body { padding: 20px 24px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.full { grid-column: 1 / -1; }
+    .section-lbl { grid-column: 1/-1; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; padding-top: 4px; border-top: 1px solid var(--border); }
+    label { font-size: 12px; font-weight: 500; color: var(--muted); }
+    input, select, textarea { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; width: 100%; transition: border 0.2s; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 70px; }
+    select option { background: #1a3d26; }
+    .modal-footer { padding: 14px 24px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
+    .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; }
+
+    /* MISC */
+    .empty-state { text-align: center; padding: 50px 20px; }
+    .empty-state .icon { font-size: 44px; margin-bottom: 14px; }
+    .empty-state h3 { font-size: 18px; color: var(--muted); margin-bottom: 6px; }
+    .empty-state p { font-size: 13px; color: var(--muted); opacity: 0.7; }
+    .loading-state { display: flex; align-items: center; justify-content: center; padding: 50px; gap: 12px; color: var(--muted); }
+    .spinner { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 320px; animation: slideIn 0.3s ease; }
+    .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
+    .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    #auth-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+
+    /* Modal inscripcion select-spc */
+    .spc-search-wrap { position: relative; }
+    .spc-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: #1a3d26; border: 1px solid var(--border); border-radius: 8px; max-height: 180px; overflow-y: auto; z-index: 20; display: none; }
+    .spc-option { padding: 9px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid var(--border); }
+    .spc-option:last-child { border-bottom: none; }
+    .spc-option:hover { background: rgba(201,168,76,0.1); color: var(--accent); }
+
+    .validation-msg { padding: 12px 16px; border-radius: 10px; font-size: 13px; margin-top: 12px; display: none; }
+    .validation-ok { background: rgba(76,175,130,0.1); border: 1px solid rgba(76,175,130,0.3); color: var(--success); }
+    .validation-err { background: rgba(224,82,82,0.1); border: 1px solid rgba(224,82,82,0.3); color: var(--danger); }
+
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0; }
+      .content { padding: 16px; }
+    }
+    .menu-toggle { display: none; background: none; border: none; color: var(--text); font-size: 22px; cursor: pointer; }
+    @media (max-width: 768px) { .menu-toggle { display: block; } }
+    @media (max-width: 500px) { .form-grid { grid-template-columns: 1fr; } .form-group.full { grid-column: 1; } }
+  </style>
+</head>
+<body>
+<div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;"></div></div>
+<div id="toast-container"></div>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon"><img src="logo192x192.png" alt="SGH" style="width:28px;height:28px;object-fit:contain;"></div>
+      <div class="logo-text"><h2>SGH</h2><p>Portal</p></div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Mi portal</div>
+      <button class="nav-link active" id="nav-spcs" onclick="showSection('spcs')"><span class="nav-icon">🐎</span>Mis SPCs</button>
+      <button class="nav-link" id="nav-carta" onclick="showSection('carta')"><span class="nav-icon">📋</span>Carta de llamados</button>
+      <button class="nav-link" id="nav-inscripciones" onclick="showSection('inscripciones')"><span class="nav-icon">✅</span>Mis inscripciones</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+        <h1>Portal Hípico</h1>
+      </div>
+      <div class="user-bar">
+        <span class="user-name" id="user-name"></span>
+        <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- SECCIÓN MIS SPCs -->
+      <div class="section active" id="section-spcs">
+        <div class="section-header">
+          <h2>🐎 Mis SPCs</h2>
+          <button class="btn-primary" onclick="openModalSpc()">+ Nuevo SPC</button>
+        </div>
+        <div id="spcs-container"><div class="loading-state"><div class="spinner"></div> Cargando…</div></div>
+      </div>
+
+      <!-- SECCIÓN CARTA DE LLAMADOS -->
+      <div class="section" id="section-carta">
+        <div class="section-header">
+          <h2>📋 Carta de llamados</h2>
+        </div>
+        <div id="carta-container"><div class="loading-state"><div class="spinner"></div> Cargando reuniones…</div></div>
+      </div>
+
+      <!-- SECCIÓN MIS INSCRIPCIONES -->
+      <div class="section" id="section-inscripciones">
+        <div class="section-header">
+          <h2>✅ Mis inscripciones</h2>
+        </div>
+        <div id="inscripciones-container"><div class="loading-state"><div class="spinner"></div> Cargando…</div></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL SPC -->
+<div class="modal-overlay" id="modal-spc">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="mspc-title">Nuevo SPC</h2>
+      <button class="btn-close" onclick="closeModalSpc()">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="form-spc" onsubmit="saveSpc(event)">
+        <input type="hidden" id="mspc-id">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Nombre del SPC *</label>
+            <input type="text" id="mspc-nombre" required placeholder="En mayúsculas">
+          </div>
+          <div class="form-group">
+            <label>N° Registro Stud Book</label>
+            <input type="text" id="mspc-registro" placeholder="SB-XXXX">
+          </div>
+          <div class="form-group">
+            <label>Fecha nacimiento</label>
+            <input type="date" id="mspc-nacimiento">
+          </div>
+          <div class="form-group">
+            <label>Sexo *</label>
+            <select id="mspc-sexo" required>
+              <option value="macho">Macho</option>
+              <option value="hembra">Hembra</option>
+              <option value="castrado">Castrado</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Color</label>
+            <input type="text" id="mspc-color" placeholder="Ej: Alazán tostado">
+          </div>
+          <div class="section-lbl">Pedigree</div>
+          <div class="form-group">
+            <label>Padrillo (padre)</label>
+            <input type="text" id="mspc-padrillo">
+          </div>
+          <div class="form-group">
+            <label>Madre</label>
+            <input type="text" id="mspc-madre">
+          </div>
+          <div class="form-group full">
+            <label>Abuela materna</label>
+            <input type="text" id="mspc-abuela">
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModalSpc()">Cancelar</button>
+      <button class="btn-primary" onclick="document.getElementById('form-spc').requestSubmit()" id="mspc-btn">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL INSCRIBIR -->
+<div class="modal-overlay" id="modal-inscribir">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="minsc-title">Inscribir SPC</h2>
+      <button class="btn-close" onclick="closeModalInscribir()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="minsc-carrera-info" style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;color:var(--muted);"></div>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Seleccionar SPC *</label>
+          <div class="spc-search-wrap">
+            <input type="text" id="minsc-spc-search" placeholder="Escribir nombre del SPC…" oninput="searchMiSpc()" autocomplete="off">
+            <input type="hidden" id="minsc-spc-id">
+            <div class="spc-dropdown" id="minsc-spc-dropdown"></div>
+          </div>
+        </div>
+      </div>
+      <div id="validation-msg" class="validation-msg"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModalInscribir()">Cancelar</button>
+      <button class="btn-primary" id="minsc-btn" onclick="confirmarInscripcion()">Inscribir</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+let sb, currentUser, propietarioId, profesionalId;
+const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM';
+
+async function initAuth() {
+  const { createClient } = supabase;
+  sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.replace('login.html'); return false; }
+  const { data: usr } = await sb.from('usuarios').select('club_id,nombre_completo,rol,estado').eq('email', session.user.email).single();
+  if (!usr) { await sb.auth.signOut(); window.location.replace('login.html'); return false; }
+  if (usr.rol !== 'propietario' && usr.rol !== 'profesional') { window.location.replace('index.html'); return false; }
+  if (usr.estado === 'pendiente') {
+    document.getElementById('auth-overlay').innerHTML = '<div style="text-align:center;padding:40px;"><p style="color:#c9a84c;font-size:16px;font-family:\'Playfair Display\',serif;">Registro pendiente</p><p style="color:#a0b8a0;margin-top:8px;font-size:13px;">Tu cuenta está siendo revisada por un administrador.</p><button onclick="sb.auth.signOut().then(()=>location.replace(\'login.html\'))" style="margin-top:20px;background:#c9a84c;color:#1a1a0a;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-family:\'DM Sans\',sans-serif;font-weight:600;">Cerrar sesión</button></div>';
+    return false;
+  }
+  currentUser = { ...session.user, nombre_completo: usr.nombre_completo, rol: usr.rol };
+  document.getElementById('user-name').textContent = usr.nombre_completo || session.user.email;
+  document.getElementById('auth-overlay').style.display = 'none';
+
+  // Obtener ID de propietario o profesional vinculado
+  if (usr.rol === 'propietario') {
+    const { data: prop } = await sb.from('propietarios').select('id').eq('email', session.user.email).single();
+    propietarioId = prop?.id || null;
+  } else {
+    const { data: prof } = await sb.from('profesionales').select('id').eq('email', session.user.email).eq('tipo', 'entrenador').single();
+    profesionalId = prof?.id || null;
+  }
+  return true;
+}
+
+function logout() { sb.auth.signOut().then(() => window.location.replace('login.html')); }
+
+function toast(msg, type = 'success') {
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`; t.textContent = msg;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+/* ========== NAVEGACIÓN ========== */
+let cartaLoaded = false, inscLoaded = false;
+
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
+  document.getElementById(`section-${name}`).classList.add('active');
+  document.getElementById(`nav-${name}`).classList.add('active');
+  if (name === 'spcs') loadSpcs();
+  if (name === 'carta' && !cartaLoaded) { cartaLoaded = true; loadCarta(); }
+  if (name === 'inscripciones') loadMisInscripciones();
+}
+
+/* ========== MIS SPCs ========== */
+let misSPCs = [];
+
+async function loadSpcs() {
+  const cont = document.getElementById('spcs-container');
+  cont.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando…</div>';
+  let query = sb.from('spcs').select('*').order('nombre');
+  if (currentUser.rol === 'propietario' && propietarioId) {
+    const { data: links } = await sb.from('spc_propietarios').select('spc_id').eq('propietario_id', propietarioId).eq('activo', true);
+    const ids = (links || []).map(l => l.spc_id);
+    if (!ids.length) { misSPCs = []; renderSpcs(); return; }
+    query = query.in('id', ids);
+  } else if (currentUser.rol === 'profesional' && profesionalId) {
+    query = query.eq('entrenador_id', profesionalId);
+  } else {
+    misSPCs = []; renderSpcs(); return;
+  }
+  const { data, error } = await query;
+  if (error) { toast(error.message, 'error'); return; }
+  misSPCs = data || [];
+  renderSpcs();
+}
+
+function renderSpcs() {
+  const cont = document.getElementById('spcs-container');
+  if (!misSPCs.length) {
+    cont.innerHTML = `<div class="empty-state"><div class="icon">🐎</div><h3>Sin SPCs registrados</h3><p>Agregá tu primer SPC con el botón "Nuevo SPC".</p></div>`;
+    return;
+  }
+  const sexoBadge = { macho: 'badge-macho', hembra: 'badge-hembra', castrado: 'badge-castrado' };
+  cont.innerHTML = `<div class="grid">${misSPCs.map(r => `
+    <div class="card">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;">
+        <div class="card-name">${r.nombre}</div>
+        <span class="badge ${sexoBadge[r.sexo]||''}">${r.sexo||'—'}</span>
+      </div>
+      <div class="card-detail">
+        ${r.registro_stud_book ? `<div>📖 <span>${r.registro_stud_book}</span></div>` : ''}
+        ${r.fecha_nacimiento ? `<div>🎂 <span>${new Date(r.fecha_nacimiento).toLocaleDateString('es-AR')}</span></div>` : ''}
+        ${r.color ? `<div>🎨 <span>${r.color}</span></div>` : ''}
+        ${r.padrillo_nombre ? `<div>♂ <span>${r.padrillo_nombre} × ${r.madre_nombre||'—'}</span></div>` : ''}
+      </div>
+      <div class="card-actions">
+        <button class="btn-sm btn-edit" onclick='openModalSpc(${JSON.stringify(r)})'>✏️ Editar</button>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+function openModalSpc(rec = null) {
+  document.getElementById('mspc-title').textContent = rec ? `Editar: ${rec.nombre}` : 'Nuevo SPC';
+  document.getElementById('mspc-id').value = rec?.id || '';
+  document.getElementById('mspc-nombre').value = rec?.nombre || '';
+  document.getElementById('mspc-registro').value = rec?.registro_stud_book || '';
+  document.getElementById('mspc-nacimiento').value = rec?.fecha_nacimiento || '';
+  document.getElementById('mspc-sexo').value = rec?.sexo || 'macho';
+  document.getElementById('mspc-color').value = rec?.color || '';
+  document.getElementById('mspc-padrillo').value = rec?.padrillo_nombre || '';
+  document.getElementById('mspc-madre').value = rec?.madre_nombre || '';
+  document.getElementById('mspc-abuela').value = rec?.abuela_materna || '';
+  document.getElementById('modal-spc').classList.add('open');
+}
+
+function closeModalSpc() { document.getElementById('modal-spc').classList.remove('open'); }
+
+async function saveSpc(e) {
+  e.preventDefault();
+  const btn = document.getElementById('mspc-btn');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  const id = document.getElementById('mspc-id').value;
+  const payload = {
+    nombre: document.getElementById('mspc-nombre').value.trim().toUpperCase(),
+    registro_stud_book: document.getElementById('mspc-registro').value.trim() || null,
+    fecha_nacimiento: document.getElementById('mspc-nacimiento').value || null,
+    sexo: document.getElementById('mspc-sexo').value,
+    color: document.getElementById('mspc-color').value.trim() || null,
+    padrillo_nombre: document.getElementById('mspc-padrillo').value.trim() || null,
+    madre_nombre: document.getElementById('mspc-madre').value.trim() || null,
+    abuela_materna: document.getElementById('mspc-abuela').value.trim() || null,
+    estado: 'activo',
+  };
+  let spcId = id;
+  if (id) {
+    const { error } = await sb.from('spcs').update(payload).eq('id', id);
+    if (error) { toast(error.message, 'error'); btn.disabled = false; btn.textContent = 'Guardar'; return; }
+  } else {
+    const { data, error } = await sb.from('spcs').insert(payload).select().single();
+    if (error) { toast(error.message, 'error'); btn.disabled = false; btn.textContent = 'Guardar'; return; }
+    spcId = data.id;
+    // Vincular con propietario
+    if (currentUser.rol === 'propietario' && propietarioId) {
+      await sb.from('spc_propietarios').insert({ spc_id: spcId, propietario_id: propietarioId, porcentaje: 100, fecha_desde: new Date().toISOString().slice(0,10), activo: true });
+    }
+  }
+  btn.disabled = false; btn.textContent = 'Guardar';
+  toast(id ? 'SPC actualizado' : 'SPC creado');
+  closeModalSpc();
+  loadSpcs();
+}
+
+/* ========== CARTA DE LLAMADOS ========== */
+let reunionesAbiertas = [], carrerasMap = {};
+let carreraSeleccionada = null;
+
+async function loadCarta() {
+  const cont = document.getElementById('carta-container');
+  cont.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando reuniones…</div>';
+  const { data: reuns, error } = await sb.from('reuniones')
+    .select('id,numero,fecha,estado,hipodromos(nombre),carreras(id,numero_turno,nombre,distancia_metros,condicion_sexo,condicion_edad,bolsa_total,cupo_maximo,tipo_pista)')
+    .in('estado', ['publicada', 'abierta'])
+    .order('fecha', { ascending: true });
+  if (error) { toast(error.message, 'error'); return; }
+  reunionesAbiertas = reuns || [];
+  if (!reunionesAbiertas.length) {
+    cont.innerHTML = `<div class="empty-state"><div class="icon">📋</div><h3>Sin reuniones abiertas</h3><p>No hay reuniones con inscripción abierta en este momento.</p></div>`;
+    return;
+  }
+  const html = reunionesAbiertas.map(r => {
+    const fecha = new Date(r.fecha + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const carreras = (r.carreras || []).sort((a, b) => a.numero_turno - b.numero_turno);
+    const carrerasHtml = carreras.map(c => `
+      <div class="carrera-row">
+        <div class="carrera-num">${c.numero_turno}</div>
+        <div class="carrera-info">
+          <div class="carrera-name">${c.nombre || `Carrera ${c.numero_turno}`}</div>
+          <div class="carrera-chips">
+            <span class="chip">${c.distancia_metros}m</span>
+            ${c.tipo_pista ? `<span class="chip">${c.tipo_pista}</span>` : ''}
+            ${c.condicion_sexo ? `<span class="chip">${c.condicion_sexo}</span>` : ''}
+            ${c.condicion_edad ? `<span class="chip">${c.condicion_edad}</span>` : ''}
+            ${c.bolsa_total ? `<span class="chip">💰 $${Number(c.bolsa_total).toLocaleString('es-AR')}</span>` : ''}
+            ${c.cupo_maximo ? `<span class="chip">Cupo ${c.cupo_maximo}</span>` : ''}
+          </div>
+        </div>
+        <button class="btn-inscribir" onclick="abrirInscripcion('${c.id}','${r.hipodromos?.nombre||''}',${c.numero_turno},'${(c.nombre||'Carrera '+c.numero_turno).replace(/'/g,"\\'")}')">Inscribir</button>
+      </div>`).join('');
+    return `<div class="reunion-block">
+      <div class="reunion-header">
+        <h3>Reunión ${r.numero||''} — ${r.hipodromos?.nombre||'—'}</h3>
+        <span class="reunion-fecha">${fecha}</span>
+      </div>
+      ${carrerasHtml}
+    </div>`;
+  }).join('');
+  cont.innerHTML = html;
+}
+
+function abrirInscripcion(carreraId, hipNombre, num, nombreCarrera) {
+  carreraSeleccionada = { id: carreraId };
+  document.getElementById('minsc-title').textContent = `Inscribir en Carrera ${num}`;
+  document.getElementById('minsc-carrera-info').innerHTML = `<strong style="color:var(--text)">${nombreCarrera}</strong> — ${hipNombre}`;
+  document.getElementById('minsc-spc-search').value = '';
+  document.getElementById('minsc-spc-id').value = '';
+  document.getElementById('minsc-spc-dropdown').style.display = 'none';
+  const vm = document.getElementById('validation-msg');
+  vm.style.display = 'none'; vm.className = 'validation-msg';
+  document.getElementById('minsc-btn').disabled = false;
+  document.getElementById('modal-inscribir').classList.add('open');
+}
+
+function closeModalInscribir() { document.getElementById('modal-inscribir').classList.remove('open'); carreraSeleccionada = null; }
+
+let spcTimer;
+function searchMiSpc() {
+  clearTimeout(spcTimer);
+  const q = document.getElementById('minsc-spc-search').value.toLowerCase();
+  const dd = document.getElementById('minsc-spc-dropdown');
+  if (!q) { dd.style.display = 'none'; return; }
+  spcTimer = setTimeout(() => {
+    const matches = misSPCs.filter(s => s.nombre.toLowerCase().includes(q) && s.estado === 'activo').slice(0, 8);
+    if (!matches.length) { dd.style.display = 'none'; return; }
+    dd.innerHTML = matches.map(s => `<div class="spc-option" onclick="selectInscSpc('${s.id}','${s.nombre.replace(/'/g,"\\'")}')"> ${s.nombre}</div>`).join('');
+    dd.style.display = 'block';
+  }, 200);
+}
+
+function selectInscSpc(id, nombre) {
+  document.getElementById('minsc-spc-id').value = id;
+  document.getElementById('minsc-spc-search').value = nombre;
+  document.getElementById('minsc-spc-dropdown').style.display = 'none';
+}
+
+async function confirmarInscripcion() {
+  const spcId = document.getElementById('minsc-spc-id').value;
+  if (!spcId) { toast('Seleccioná un SPC', 'error'); return; }
+  if (!carreraSeleccionada) return;
+  const btn = document.getElementById('minsc-btn');
+  btn.disabled = true;
+  const vm = document.getElementById('validation-msg');
+  vm.style.display = 'none';
+
+  // Llamar a validar_inscripcion si existe, o insertar directamente
+  const { data: carrera } = await sb.from('carreras').select('*').eq('id', carreraSeleccionada.id).single();
+  if (!carrera) { toast('No se pudo obtener la carrera', 'error'); btn.disabled = false; return; }
+
+  // Intentar RPC de validación
+  const { data: valResult } = await sb.rpc('validar_inscripcion', { p_spc_id: spcId, p_carrera_id: carreraSeleccionada.id }).maybeSingle();
+  if (valResult && valResult.valido === false) {
+    vm.textContent = '❌ ' + (valResult.motivo || 'El SPC no cumple las condiciones de esta carrera.');
+    vm.className = 'validation-msg validation-err';
+    vm.style.display = 'block';
+    btn.disabled = false;
+    return;
+  }
+
+  // Insertar inscripción
+  const payload = {
+    carrera_id: carreraSeleccionada.id,
+    spc_id: spcId,
+    estado: 'pre_inscripto',
+    canal: 'web',
+  };
+  if (currentUser.rol === 'propietario' && propietarioId) payload.propietario_id = propietarioId;
+  if (currentUser.rol === 'profesional' && profesionalId) payload.entrenador_id = profesionalId;
+
+  const { error } = await sb.from('inscripciones').insert(payload);
+  btn.disabled = false;
+  if (error) { toast(error.message, 'error'); return; }
+  toast('SPC inscripto correctamente');
+  closeModalInscribir();
+  cartaLoaded = false;
+  inscLoaded = false;
+}
+
+/* ========== MIS INSCRIPCIONES ========== */
+async function loadMisInscripciones() {
+  const cont = document.getElementById('inscripciones-container');
+  cont.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando…</div>';
+  const spcIds = misSPCs.map(s => s.id);
+  if (!spcIds.length) {
+    cont.innerHTML = `<div class="empty-state"><div class="icon">✅</div><h3>Sin inscripciones</h3><p>Aún no tenés SPCs inscriptos.</p></div>`;
+    return;
+  }
+  const { data, error } = await sb.from('inscripciones')
+    .select('id,estado,spc_id,carrera_id,carreras(numero_turno,nombre,distancia_metros,reunion_id,reuniones(numero,fecha,hipodromos(nombre)))')
+    .in('spc_id', spcIds)
+    .not('estado', 'eq', 'no_presentado')
+    .order('created_at', { ascending: false });
+  if (error) { toast(error.message, 'error'); return; }
+  const lista = data || [];
+  if (!lista.length) {
+    cont.innerHTML = `<div class="empty-state"><div class="icon">✅</div><h3>Sin inscripciones activas</h3><p>Inscribí tus SPCs desde la Carta de llamados.</p></div>`;
+    return;
+  }
+  const spcMap = {};
+  misSPCs.forEach(s => spcMap[s.id] = s);
+  const estadoBadge = { pre_inscripto: 'badge-pre_inscripto', confirmado: 'badge-confirmado', ratificado: 'badge-confirmado', forfait: 'badge-forfait' };
+  const rows = lista.map(i => {
+    const spc = spcMap[i.spc_id];
+    const car = i.carreras;
+    const reun = car?.reuniones;
+    const fecha = reun?.fecha ? new Date(reun.fecha + 'T12:00:00').toLocaleDateString('es-AR') : '—';
+    return `<tr>
+      <td style="font-weight:600;color:var(--accent);font-family:'Playfair Display',serif;">${spc?.nombre || i.spc_id}</td>
+      <td>${reun?.hipodromos?.nombre || '—'}</td>
+      <td>Reunión ${reun?.numero || ''} — ${fecha}</td>
+      <td>Carrera ${car?.numero_turno || '—'}</td>
+      <td><span class="badge ${estadoBadge[i.estado] || ''}">${i.estado?.replace('_', ' ') || '—'}</span></td>
+      <td>${i.estado !== 'forfait' && i.estado !== 'ratificado' ? `<button class="btn-sm btn-danger" onclick="darForfait('${i.id}')">Forfait</button>` : '—'}</td>
+    </tr>`;
+  }).join('');
+  cont.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>SPC</th><th>Hipódromo</th><th>Reunión</th><th>Carrera</th><th>Estado</th><th>Acción</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+
+async function darForfait(inscId) {
+  if (!confirm('¿Confirmar forfait para este SPC?')) return;
+  const { error } = await sb.from('inscripciones').update({ estado: 'forfait', motivo_forfait: 'Forfait solicitado por el propietario/entrenador' }).eq('id', inscId);
+  if (error) { toast(error.message, 'error'); return; }
+  toast('Forfait registrado');
+  loadMisInscripciones();
+}
+
+/* ========== INIT ========== */
+document.getElementById('modal-spc').addEventListener('click', e => { if (e.target === e.currentTarget) closeModalSpc(); });
+document.getElementById('modal-inscribir').addEventListener('click', e => { if (e.target === e.currentTarget) closeModalInscribir(); });
+document.addEventListener('click', e => {
+  if (!e.target.closest('.spc-search-wrap')) document.getElementById('minsc-spc-dropdown').style.display = 'none';
+});
+
+(async () => {
+  if (await initAuth()) {
+    await loadSpcs();
+  }
+})();
+</script>
+</body>
+</html>
