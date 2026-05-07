@@ -110,7 +110,7 @@
   <div class="stats-row">
     <div class="stat-chip"><div class="stat-chip-val" id="cnt-total">—</div><div class="stat-chip-lbl">Total</div></div>
     <div class="stat-chip"><div class="stat-chip-val" id="cnt-activas">—</div><div class="stat-chip-lbl">Activas</div></div>
-    <div class="stat-chip"><div class="stat-chip-val" id="cnt-spcs">—</div><div class="stat-chip-lbl">SPCs alojados</div></div>
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-spcs">—</div><div class="stat-chip-lbl">SPC alojados</div></div>
   </div>
 
   <div class="toolbar">
@@ -250,9 +250,9 @@ function cardHTML(r) {
     <div class="spc-count">
       <div>
         <div class="spc-count-num">${cnt}</div>
-        <div class="spc-count-label">SPCs activos</div>
+        <div class="spc-count-label">SPC activos</div>
       </div>
-      ${cnt > 0 ? `<a href="spcs.html?caballeriza=${r.id}" class="spc-link">Ver SPCs →</a>` : ''}
+      ${cnt > 0 ? `<a href="spcs.html?caballeriza=${r.id}" class="spc-link">Ver SPC →</a>` : ''}
     </div>
     <div class="card-detail">
       ${r.domicilio ? `<div>📍 <span>${r.domicilio}</span></div>` : ''}
@@ -308,7 +308,7 @@ async function saveRecord(e) {
 }
 
 async function deleteRecord(id, nombre) {
-  if (!confirm(`¿Eliminar "${nombre}"? Los SPCs asociados perderán la referencia.`)) return;
+  if (!confirm(`¿Eliminar "${nombre}"? Los SPC asociados perderán la referencia.`)) return;
   const { error } = await sb.from('caballerizas').delete().eq('id', id);
   if (error) { toast(error.message, 'error'); return; }
   toast('Caballeriza eliminada');

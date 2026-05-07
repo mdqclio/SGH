@@ -339,7 +339,7 @@ function renderTable() {
       <td><span class="badge badge-${activo?'activo':'inactivo'}">${activo?'Activo':'Inactivo'}</span></td>
       <td class="count-cell"><div class="count-val">${st.u}</div><div class="count-lbl">Usuarios</div></td>
       <td class="count-cell"><div class="count-val">${st.r}</div><div class="count-lbl">Reuniones</div></td>
-      <td class="count-cell"><div class="count-val">${st.s}</div><div class="count-lbl">SPCs</div></td>
+      <td class="count-cell"><div class="count-val">${st.s}</div><div class="count-lbl">SPC</div></td>
       <td>
         <div class="actions-cell">
           <button class="btn-sm btn-edit" onclick="openEdit('${c.id}')">✏️ Editar</button>
@@ -354,7 +354,7 @@ function renderTable() {
       <table>
         <thead><tr>
           <th>Hipódromo</th><th>Ubicación</th><th>Contacto</th><th>Estado</th>
-          <th class="count-cell">Usuarios</th><th class="count-cell">Reuniones</th><th class="count-cell">SPCs</th>
+          <th class="count-cell">Usuarios</th><th class="count-cell">Reuniones</th><th class="count-cell">SPC</th>
           <th>Acciones</th>
         </tr></thead>
         <tbody>${rows}</tbody>

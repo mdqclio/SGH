@@ -163,7 +163,7 @@
     </div>
     <div class="sidebar-section">
       <div class="sidebar-section-title">Mi portal</div>
-      <button class="nav-link active" id="nav-spcs" onclick="showSection('spcs')"><span class="nav-icon">🐎</span>Mis SPCs</button>
+      <button class="nav-link active" id="nav-spcs" onclick="showSection('spcs')"><span class="nav-icon">🐎</span>Mis SPC</button>
       <button class="nav-link" id="nav-carta" onclick="showSection('carta')"><span class="nav-icon">📋</span>Carta de llamados</button>
       <button class="nav-link" id="nav-inscripciones" onclick="showSection('inscripciones')"><span class="nav-icon">✅</span>Mis inscripciones</button>
     </div>
@@ -183,10 +183,10 @@
     </div>
 
     <div class="content">
-      <!-- SECCIÓN MIS SPCs -->
+      <!-- SECCIÓN MIS SPC -->
       <div class="section active" id="section-spcs">
         <div class="section-header">
-          <h2>🐎 Mis SPCs</h2>
+          <h2>🐎 Mis SPC</h2>
           <button class="btn-primary" onclick="openModalSpc()">+ Nuevo SPC</button>
         </div>
         <div id="spcs-container"><div class="loading-state"><div class="spinner"></div> Cargando…</div></div>
@@ -352,7 +352,7 @@ function showSection(name) {
   if (name === 'inscripciones') loadMisInscripciones();
 }
 
-/* ========== MIS SPCs ========== */
+/* ========== MIS SPC ========== */
 let misSPCs = [];
 
 async function loadSpcs() {
@@ -378,7 +378,7 @@ async function loadSpcs() {
 function renderSpcs() {
   const cont = document.getElementById('spcs-container');
   if (!misSPCs.length) {
-    cont.innerHTML = `<div class="empty-state"><div class="icon">🐎</div><h3>Sin SPCs registrados</h3><p>Agregá tu primer SPC con el botón "Nuevo SPC".</p></div>`;
+    cont.innerHTML = `<div class="empty-state"><div class="icon">🐎</div><h3>Sin SPC registrados</h3><p>Agregá tu primer SPC con el botón "Nuevo SPC".</p></div>`;
     return;
   }
   const sexoBadge = { macho: 'badge-macho', hembra: 'badge-hembra', castrado: 'badge-castrado' };
@@ -581,7 +581,7 @@ async function loadMisInscripciones() {
   cont.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando…</div>';
   const spcIds = misSPCs.map(s => s.id);
   if (!spcIds.length) {
-    cont.innerHTML = `<div class="empty-state"><div class="icon">✅</div><h3>Sin inscripciones</h3><p>Aún no tenés SPCs inscriptos.</p></div>`;
+    cont.innerHTML = `<div class="empty-state"><div class="icon">✅</div><h3>Sin inscripciones</h3><p>Aún no tenés SPC inscriptos.</p></div>`;
     return;
   }
   const { data, error } = await sb.from('inscripciones')
@@ -592,7 +592,7 @@ async function loadMisInscripciones() {
   if (error) { toast(error.message, 'error'); return; }
   const lista = data || [];
   if (!lista.length) {
-    cont.innerHTML = `<div class="empty-state"><div class="icon">✅</div><h3>Sin inscripciones activas</h3><p>Inscribí tus SPCs desde la Carta de llamados.</p></div>`;
+    cont.innerHTML = `<div class="empty-state"><div class="icon">✅</div><h3>Sin inscripciones activas</h3><p>Inscribí tus SPC desde la Carta de llamados.</p></div>`;
     return;
   }
   const spcMap = {};
