@@ -259,7 +259,7 @@ function renderPrograma(reunion, carreras, inscripciones) {
             <div>Pista <span>${car.tipo_pista||'—'}</span></div>
             ${car.condicion_sexo?`<div>Sexo <span>${car.condicion_sexo}</span></div>`:''}
             ${car.edad_minima_anos||car.edad_maxima_anos?`<div>Edad <span>${car.edad_minima_anos||'?'}–${car.edad_maxima_anos||'?'} años</span></div>`:''}
-            ${car.condicion_handicap?`<div>Handicap <span>${car.condicion_handicap}</span></div>`:''}
+            ${car.condicion_handicap?`<div>Condición <span>${car.condicion_handicap}</span></div>`:''}
             ${car.hora_estimada?`<div>Hora <span>${car.hora_estimada}</span></div>`:''}
           </div>
           ${bolsa?`<div class="car-prize">💰 Bolsa: $${bolsa.toLocaleString('es-AR')} — ${premioStr}</div>`:''}

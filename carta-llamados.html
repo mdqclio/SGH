@@ -92,12 +92,11 @@
     .total-premios { font-size: 12px; color: var(--muted); text-align: right; margin-top: 4px; }
     .total-premios.ok { color: var(--success); }
     .total-premios.bad { color: var(--danger); }
-    .bonos-section { margin-top: 12px; }
-    .bonos-toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); cursor: pointer; user-select: none; }
-    .bonos-toggle input[type=checkbox] { width: auto; cursor: pointer; accent-color: var(--accent); }
-    .bonos-grid { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
-    .bono-row { display: grid; grid-template-columns: auto 1fr 1fr 1fr; gap: 8px; align-items: center; background: rgba(201,168,76,0.05); border: 1px solid rgba(201,168,76,0.15); border-radius: 8px; padding: 8px 10px; }
-    .bono-row .bono-label { font-size: 12px; font-weight: 600; color: var(--accent); white-space: nowrap; }
+    .pr-auto { background: rgba(201,168,76,0.08) !important; border-color: rgba(201,168,76,0.3) !important; color: var(--accent) !important; }
+    .premio-sublabel { font-size: 10px; color: var(--muted); text-align: center; margin-top: 2px; }
+    .bono-block { background: rgba(201,168,76,0.05); border: 1px solid rgba(201,168,76,0.15); border-radius: 8px; padding: 10px 12px; margin-top: 10px; }
+    .bono-block-title { font-size: 11px; font-weight: 600; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .bono-pos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .bonos-display { padding: 0 18px 10px; font-size: 12px; color: var(--muted); }
     .modal-footer { padding: 16px 24px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
     .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; }
@@ -191,8 +190,7 @@
           <select id="f-tipo-pista">
             <option value="cesped">Césped</option>
             <option value="arena">Arena</option>
-            <option value="mixta">Mixta</option>
-            <option value="sintetica">Sintética</option>
+            <option value="tierra">Tierra</option>
           </select>
         </div>
         <div class="form-group">
@@ -225,53 +223,48 @@
           <input type="text" id="f-cond-adicional" placeholder="Condiciones especiales…">
         </div>
         <div class="section-lbl">Premio</div>
-        <div class="form-group">
+        <div class="form-group two">
           <label>Bolsa total ($)</label>
           <input type="number" id="f-bolsa" min="0" step="100" placeholder="0" oninput="updPct()">
         </div>
-        <div class="form-group">
-          <label>Bolsa de bonos ($) — separada</label>
-          <input type="number" id="f-bolsa-bonos" min="0" step="100" placeholder="0">
+        <div class="form-group full">
+          <label>Distribución por puesto (%)</label>
+          <div class="premios-grid" id="premios-grid">
+            <div class="premio-input"><label>1°</label><input type="number" id="pr-1" min="0" max="100" step="0.1" value="60" oninput="updPct()"></div>
+            <div class="premio-input"><label>2°</label><input type="number" id="pr-2" min="0" max="100" step="0.1" value="19" oninput="updPct()"></div>
+            <div class="premio-input"><label>3°</label><input type="number" id="pr-3" min="0" max="100" step="0.1" value="12" oninput="updPct()"></div>
+            <div class="premio-input"><label>4°</label><input type="number" id="pr-4" min="0" max="100" step="0.1" value="6" oninput="updPct()"></div>
+            <div class="premio-input"><label>5°</label><input type="number" id="pr-5" min="0" max="100" step="0.1" value="3" oninput="updPct()"></div>
+            <div class="premio-input"><label>6°</label><input type="number" id="pr-6" readonly class="pr-auto" tabindex="-1"><div class="premio-sublabel">auto</div></div>
+          </div>
+          <div class="total-premios" id="total-pct">Total: 100%</div>
         </div>
         <div class="form-group">
-          <label>Premio mínimo por puesto ($)</label>
-          <input type="number" id="f-premio-minimo" min="0" step="100" placeholder="0">
+          <label>Ganancia mínima por puesto ($)</label>
+          <input type="number" id="f-ganancia-minima" min="0" step="100" placeholder="0">
         </div>
         <div class="form-group">
           <label>Cupo máximo</label>
           <input type="number" id="f-cupo" min="1" max="30" placeholder="12">
         </div>
         <div class="form-group full">
-          <label>Distribución de premios (%) — 6 puestos configurables</label>
-          <div class="premios-grid" id="premios-grid">
-            <div class="premio-input"><label>1°</label><input type="number" id="pr-1" min="0" max="100" step="0.1" value="60" oninput="updPct()"></div>
-            <div class="premio-input"><label>2°</label><input type="number" id="pr-2" min="0" max="100" step="0.1" value="20" oninput="updPct()"></div>
-            <div class="premio-input"><label>3°</label><input type="number" id="pr-3" min="0" max="100" step="0.1" value="10" oninput="updPct()"></div>
-            <div class="premio-input"><label>4°</label><input type="number" id="pr-4" min="0" max="100" step="0.1" value="6" oninput="updPct()"></div>
-            <div class="premio-input"><label>5°</label><input type="number" id="pr-5" min="0" max="100" step="0.1" value="4" oninput="updPct()"></div>
-            <div class="premio-input"><label>6°</label><input type="number" id="pr-6" min="0" max="100" step="0.1" value="0" oninput="updPct()"></div>
-          </div>
-          <div class="total-premios" id="total-pct">Total: 100%</div>
-          <div class="bonos-section">
-            <div class="form-group" style="margin-top:10px;">
-              <label>🏆 Bono especial al ganador (1°) $</label>
+          <div class="bono-block">
+            <div class="bono-block-title">🏆 Bono al ganador (1°)</div>
+            <div class="premio-input" style="max-width:200px;">
+              <label>Monto adicional ($)</label>
               <input type="number" id="bono-ganador" min="0" step="100" value="0" placeholder="0 = sin bono">
             </div>
-            <label class="bonos-toggle" style="margin-top:10px;">
-              <input type="checkbox" id="bonos-activo" onchange="toggleBonos()"> Activar bonos adicionales desde el 6° puesto (monto fijo $)
-            </label>
-            <div class="bonos-grid" id="bonos-grid" style="display:none;">
-              <div class="bono-row">
-                <span class="bono-label">Bono 1</span>
-                <div class="premio-input"><label>Desde</label><input type="number" id="bono1-desde" min="1" max="30" step="1" value="6"></div>
-                <div class="premio-input"><label>Hasta</label><input type="number" id="bono1-hasta" min="1" max="30" step="1" value="8"></div>
-                <div class="premio-input"><label>Monto $</label><input type="number" id="bono1-monto" min="0" step="100" value="0"></div>
+          </div>
+          <div class="bono-block">
+            <div class="bono-block-title">🎁 Bono por posición (del 6° en adelante)</div>
+            <div class="bono-pos-grid">
+              <div class="premio-input">
+                <label>Hasta el puesto N° (máx. 10)</label>
+                <input type="number" id="f-bono-pos-hasta" min="6" max="10" step="1" placeholder="ej: 8">
               </div>
-              <div class="bono-row">
-                <span class="bono-label">Bono 2</span>
-                <div class="premio-input"><label>Desde</label><input type="number" id="bono2-desde" min="1" max="30" step="1" value="9"></div>
-                <div class="premio-input"><label>Hasta</label><input type="number" id="bono2-hasta" min="1" max="30" step="1" value="12"></div>
-                <div class="premio-input"><label>Monto $</label><input type="number" id="bono2-monto" min="0" step="100" value="0"></div>
+              <div class="premio-input">
+                <label>Monto por puesto ($)</label>
+                <input type="number" id="f-bono-pos-monto" min="0" step="100" placeholder="0 = sin bono">
               </div>
             </div>
           </div>
@@ -323,14 +316,13 @@ function fmtDate(d) {
 }
 
 function updPct() {
-  const total = [1,2,3,4,5,6].reduce((s,i)=>s+(parseFloat(document.getElementById(`pr-${i}`).value)||0),0);
-  const el=document.getElementById('total-pct');
-  el.textContent=`Total: ${total.toFixed(1)}%`;
-  el.className='total-premios '+(Math.abs(total-100)<0.01?'ok':'bad');
-}
-
-function toggleBonos() {
-  document.getElementById('bonos-grid').style.display = document.getElementById('bonos-activo').checked ? '' : 'none';
+  const sum15 = [1,2,3,4,5].reduce((s,i)=>s+(parseFloat(document.getElementById(`pr-${i}`).value)||0),0);
+  const auto6 = Math.max(0, Math.round((100 - sum15) * 10) / 10);
+  document.getElementById('pr-6').value = auto6;
+  const total = sum15 + auto6;
+  const el = document.getElementById('total-pct');
+  el.textContent = `Total: ${total.toFixed(1)}%`;
+  el.className = 'total-premios ' + (Math.abs(total-100)<0.01 ? 'ok' : 'bad');
 }
 
 async function load() {
@@ -379,18 +371,16 @@ function renderCarreras() {
     const cat = categorias.find(x=>x.id===c.categoria_id);
     const dist = c.distribucion_premios || {"1":60,"2":20,"3":10,"4":6,"5":4};
     const bolsa = c.bolsa_total || 0;
-    const rawBonos = dist.bonos || [];
-    const bonosArr = Array.isArray(rawBonos)
-      ? rawBonos
-      : Object.entries(rawBonos).map(([p,m])=>({ desde: parseInt(p), hasta: parseInt(p), monto: m }));
-    const premioHtml = Object.entries(dist).filter(([pos])=>!['bonos','bono_ganador'].includes(pos)).map(([pos,pct])=>`
+    const EXCLUIR = ['bonos','bono_ganador','bono_posicion_desde','bono_posicion_hasta','bono_posicion_monto','ganancia_minima'];
+    const premioHtml = Object.entries(dist).filter(([pos])=>!EXCLUIR.includes(pos)).map(([pos,pct])=>`
       <div class="premio-chip">
         <div class="premio-pos">${pos}°</div>
         <div class="premio-pct">${pct}%</div>
         ${bolsa?`<div class="premio-monto">$${Math.round(bolsa*pct/100).toLocaleString('es-AR')}</div>`:''}
       </div>`).join('');
-    const bonoGanadorHtml = dist.bono_ganador ? `<div class="bonos-display">🏆 Bono especial al ganador: $${Number(dist.bono_ganador).toLocaleString('es-AR')}</div>` : '';
-    const bonosHtml = bonosArr.length ? `<div class="bonos-display">Bonos: ${bonosArr.map(b=>b.hasta>b.desde?`${b.desde}°–${b.hasta}° $${Number(b.monto).toLocaleString('es-AR')}`:`${b.desde}° $${Number(b.monto).toLocaleString('es-AR')}`).join(' | ')}</div>` : '';
+    const ganMinHtml = dist.ganancia_minima ? `<div class="bonos-display">Ganancia mínima: $${Number(dist.ganancia_minima).toLocaleString('es-AR')}/puesto</div>` : '';
+    const bonoGanadorHtml = dist.bono_ganador ? `<div class="bonos-display">🏆 Bono al ganador: $${Number(dist.bono_ganador).toLocaleString('es-AR')}</div>` : '';
+    const bonosHtml = dist.bono_posicion_hasta && dist.bono_posicion_monto ? `<div class="bonos-display">🎁 Bono 6°–${dist.bono_posicion_hasta}°: $${Number(dist.bono_posicion_monto).toLocaleString('es-AR')}/puesto</div>` : '';
     return `<div class="carrera-card">
       <div class="carrera-card-header">
         <div class="carrera-num">${c.numero_turno}</div>
@@ -412,10 +402,11 @@ function renderCarreras() {
       <div class="carrera-body">
         ${c.condicion_sexo?`<div>Sexo: <span>${c.condicion_sexo}</span></div>`:''}
         ${c.edad_minima_anos||c.edad_maxima_anos?`<div>Edad: <span>${c.edad_minima_anos||'?'}–${c.edad_maxima_anos||'?'} años</span></div>`:''}
-        ${c.condicion_handicap?`<div>Handicap: <span>${c.condicion_handicap}</span></div>`:''}
+        ${c.condicion_handicap?`<div>Condición: <span>${c.condicion_handicap}</span></div>`:''}
         ${c.condicion_adicional?`<div>Condición: <span>${c.condicion_adicional}</span></div>`:''}
       </div>
       <div class="premios-list">${premioHtml}</div>
+      ${ganMinHtml}
       ${bonoGanadorHtml}
       ${bonosHtml}
     </div>`;
@@ -437,28 +428,13 @@ function openModal(rec=null) {
   document.getElementById('f-handicap').value = rec?.condicion_handicap||'';
   document.getElementById('f-cond-adicional').value = rec?.condicion_adicional||'';
   document.getElementById('f-bolsa').value = rec?.bolsa_total||'';
-  document.getElementById('f-bolsa-bonos').value = rec?.bolsa_bonos||'';
-  document.getElementById('f-premio-minimo').value = rec?.premio_minimo||'';
   document.getElementById('f-cupo').value = rec?.cupo_maximo||'';
-  const dist = rec?.distribucion_premios || {"1":60,"2":20,"3":10,"4":6,"5":4};
-  [1,2,3,4,5,6].forEach(i=>{ document.getElementById(`pr-${i}`).value = dist[String(i)]||0; });
+  const dist = rec?.distribucion_premios || {"1":60,"2":19,"3":12,"4":6,"5":3};
+  [1,2,3,4,5].forEach(i=>{ document.getElementById(`pr-${i}`).value = dist[String(i)]||0; });
+  document.getElementById('f-ganancia-minima').value = dist.ganancia_minima || 0;
   document.getElementById('bono-ganador').value = dist.bono_ganador || 0;
-  const rawBonos = dist.bonos || [];
-  // Compatibilidad con formato viejo { "7": monto, ... }
-  const bonosArr = Array.isArray(rawBonos)
-    ? rawBonos
-    : Object.entries(rawBonos).map(([p,m])=>({ desde: parseInt(p), hasta: parseInt(p), monto: m }));
-  const hasBonos = bonosArr.length > 0;
-  document.getElementById('bonos-activo').checked = hasBonos;
-  document.getElementById('bonos-grid').style.display = hasBonos ? '' : 'none';
-  const b1 = bonosArr[0] || {};
-  document.getElementById('bono1-desde').value = b1.desde || 6;
-  document.getElementById('bono1-hasta').value = b1.hasta || 8;
-  document.getElementById('bono1-monto').value = b1.monto || 0;
-  const b2 = bonosArr[1] || {};
-  document.getElementById('bono2-desde').value = b2.desde || 9;
-  document.getElementById('bono2-hasta').value = b2.hasta || 12;
-  document.getElementById('bono2-monto').value = b2.monto || 0;
+  document.getElementById('f-bono-pos-hasta').value = dist.bono_posicion_hasta || '';
+  document.getElementById('f-bono-pos-monto').value = dist.bono_posicion_monto || '';
   updPct();
   document.getElementById('f-ap-insc').value = rec?.apertura_inscripcion ? rec.apertura_inscripcion.slice(0,16) : '';
   document.getElementById('f-ci-insc').value = rec?.cierre_inscripcion ? rec.cierre_inscripcion.slice(0,16) : '';
@@ -478,19 +454,16 @@ async function saveRecord() {
   btn.disabled=true; btn.textContent='Guardando…';
   const distribucion = {};
   [1,2,3,4,5,6].forEach(i=>{ const v=parseFloat(document.getElementById(`pr-${i}`).value); if(v) distribucion[String(i)]=v; });
+  const gananciaMinima = parseFloat(document.getElementById('f-ganancia-minima').value)||0;
+  if (gananciaMinima) distribucion.ganancia_minima = gananciaMinima;
   const bonoGanador = parseFloat(document.getElementById('bono-ganador').value)||0;
   if (bonoGanador) distribucion.bono_ganador = bonoGanador;
-  if (document.getElementById('bonos-activo').checked) {
-    const bonos = [];
-    const b1desde = parseInt(document.getElementById('bono1-desde').value)||0;
-    const b1hasta = parseInt(document.getElementById('bono1-hasta').value)||0;
-    const b1monto = parseFloat(document.getElementById('bono1-monto').value)||0;
-    if (b1desde && b1monto) bonos.push({ desde: b1desde, hasta: Math.max(b1hasta, b1desde), monto: b1monto });
-    const b2desde = parseInt(document.getElementById('bono2-desde').value)||0;
-    const b2hasta = parseInt(document.getElementById('bono2-hasta').value)||0;
-    const b2monto = parseFloat(document.getElementById('bono2-monto').value)||0;
-    if (b2desde && b2monto) bonos.push({ desde: b2desde, hasta: Math.max(b2hasta, b2desde), monto: b2monto });
-    if (bonos.length) distribucion.bonos = bonos;
+  const bonoPosHasta = parseInt(document.getElementById('f-bono-pos-hasta').value)||0;
+  const bonoPosMontoVal = parseFloat(document.getElementById('f-bono-pos-monto').value)||0;
+  if (bonoPosHasta && bonoPosMontoVal) {
+    distribucion.bono_posicion_desde = 6;
+    distribucion.bono_posicion_hasta = bonoPosHasta;
+    distribucion.bono_posicion_monto = bonoPosMontoVal;
   }
   const payload = {
     reunion_id: reunionId,
@@ -506,8 +479,6 @@ async function saveRecord() {
     condicion_handicap: document.getElementById('f-handicap').value.trim() || null,
     condicion_adicional: document.getElementById('f-cond-adicional').value.trim() || null,
     bolsa_total: document.getElementById('f-bolsa').value ? parseFloat(document.getElementById('f-bolsa').value) : null,
-    bolsa_bonos: document.getElementById('f-bolsa-bonos').value ? parseFloat(document.getElementById('f-bolsa-bonos').value) : null,
-    premio_minimo: document.getElementById('f-premio-minimo').value ? parseFloat(document.getElementById('f-premio-minimo').value) : null,
     cupo_maximo: document.getElementById('f-cupo').value ? parseInt(document.getElementById('f-cupo').value) : null,
     distribucion_premios: distribucion,
     apertura_inscripcion: document.getElementById('f-ap-insc').value || null,
