@@ -226,14 +226,22 @@
         <div class="section-lbl">Premio</div>
         <div class="form-group">
           <label>Bolsa total ($)</label>
-          <input type="number" id="f-bolsa" min="0" step="100" placeholder="0">
+          <input type="number" id="f-bolsa" min="0" step="100" placeholder="0" oninput="updPct()">
+        </div>
+        <div class="form-group">
+          <label>Bolsa de bonos ($) — separada</label>
+          <input type="number" id="f-bolsa-bonos" min="0" step="100" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Premio mínimo por puesto ($)</label>
+          <input type="number" id="f-premio-minimo" min="0" step="100" placeholder="0">
         </div>
         <div class="form-group">
           <label>Cupo máximo</label>
           <input type="number" id="f-cupo" min="1" max="30" placeholder="12">
         </div>
         <div class="form-group full">
-          <label>Distribución de premios (%)</label>
+          <label>Distribución de premios (%) — 6 puestos configurables</label>
           <div class="premios-grid" id="premios-grid">
             <div class="premio-input"><label>1°</label><input type="number" id="pr-1" min="0" max="100" step="0.1" value="60" oninput="updPct()"></div>
             <div class="premio-input"><label>2°</label><input type="number" id="pr-2" min="0" max="100" step="0.1" value="20" oninput="updPct()"></div>
@@ -376,6 +384,8 @@ function renderCarreras() {
           <span class="chip">${c.tipo_pista||'—'}</span>
           ${c.hora_estimada?`<span class="chip">🕐 ${c.hora_estimada}</span>`:''}
           ${bolsa?`<span class="chip">💰 $${bolsa.toLocaleString('es-AR')}</span>`:''}
+          ${c.bolsa_bonos?`<span class="chip">🎁 Bonos $${Number(c.bolsa_bonos).toLocaleString('es-AR')}</span>`:''}
+          ${c.premio_minimo?`<span class="chip">Min $${Number(c.premio_minimo).toLocaleString('es-AR')}</span>`:''}
         </div>
         <div class="carrera-actions">
           <button class="btn-sm btn-insc" onclick="window.location.href='inscripciones.html?carrera_id=${c.id}'">📋 Inscriptos</button>
@@ -411,6 +421,8 @@ function openModal(rec=null) {
   document.getElementById('f-handicap').value = rec?.condicion_handicap||'';
   document.getElementById('f-cond-adicional').value = rec?.condicion_adicional||'';
   document.getElementById('f-bolsa').value = rec?.bolsa_total||'';
+  document.getElementById('f-bolsa-bonos').value = rec?.bolsa_bonos||'';
+  document.getElementById('f-premio-minimo').value = rec?.premio_minimo||'';
   document.getElementById('f-cupo').value = rec?.cupo_maximo||'';
   const dist = rec?.distribucion_premios || {"1":60,"2":20,"3":10,"4":6,"5":4};
   [1,2,3,4,5,6].forEach(i=>{ document.getElementById(`pr-${i}`).value = dist[String(i)]||0; });
@@ -457,6 +469,8 @@ async function saveRecord() {
     condicion_handicap: document.getElementById('f-handicap').value.trim() || null,
     condicion_adicional: document.getElementById('f-cond-adicional').value.trim() || null,
     bolsa_total: document.getElementById('f-bolsa').value ? parseFloat(document.getElementById('f-bolsa').value) : null,
+    bolsa_bonos: document.getElementById('f-bolsa-bonos').value ? parseFloat(document.getElementById('f-bolsa-bonos').value) : null,
+    premio_minimo: document.getElementById('f-premio-minimo').value ? parseFloat(document.getElementById('f-premio-minimo').value) : null,
     cupo_maximo: document.getElementById('f-cupo').value ? parseInt(document.getElementById('f-cupo').value) : null,
     distribucion_premios: distribucion,
     apertura_inscripcion: document.getElementById('f-ap-insc').value || null,

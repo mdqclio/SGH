@@ -237,76 +237,96 @@ function buildUI(rol) {
   if (rol === 'super_admin') {
     sidenav.innerHTML =
       dashSection +
-      navSection('Operaciones', [
-        ['reuniones.html',     '📅', 'Reuniones'],
-        ['inscripciones.html', '📋', 'Inscripciones'],
-        ['resultados.html',    '🏆', 'Resultados'],
-        ['liquidaciones.html', '💰', 'Liquidaciones'],
-        ['profesionales.html', '🧢', 'Entrenadores'],
-        ['jockeys.html',       '🎽', 'Jockeys'],
-        ['spcs.html',          '🐎', 'Stud Book'],
-        ['propietarios.html',  '👔', 'Propietarios'],
-        ['caballerizas.html',  '🏠', 'Caballerizas'],
-        ['sanciones.html',     '⚖️', 'Sanciones'],
-        ['categorias.html',    '🏷️', 'Categorías'],
-        ['hipodromos.html',    '🏟️', 'Hipódromos'],
-        ['usuarios.html',       '👥', 'Usuarios'],
-        ['admin.html',         '🔧', 'Administración'],
+      navSection('Operaciones del día', [
+        ['reuniones.html',                '📅', 'Reuniones'],
+        ['carta-llamados.html',           '📄', 'Carta de llamados'],
+        ['inscripciones.html',            '📋', 'Inscripciones'],
+        ['ratificacion.html',             '✅', 'Ratificación'],
+        ['programa.html',                 '🖨️', 'Programa'],
+        ['resultados.html',               '🏆', 'Resultados'],
+        ['liquidaciones.html',            '💰', 'Liquidaciones'],
+      ]) +
+      navSection('Registros', [
+        ['spcs.html',                     '🐎', 'Stud Book (SPCs)'],
+        ['caballerizas-propietarios.html','🏠', 'Caballerizas/Propietarios'],
+        ['jockeys.html',                  '🎽', 'Jockeys'],
+        ['profesionales.html',            '🧢', 'Entrenadores'],
+        ['sanciones.html',                '⚖️', 'Sanciones'],
+        ['resoluciones.html',             '📜', 'Resoluciones'],
+      ]) +
+      navSection('Administración', [
+        ['usuarios.html',                 '👥', 'Usuarios'],
+        ['admin.html',                    '🔧', 'Configuración'],
       ]);
 
     content.innerHTML =
-      moduleSection('Operaciones', [
-        moduleCard('reuniones.html',     '📅', 'Reuniones',      'Programación y gestión de jornadas hípicas'),
-        moduleCard('inscripciones.html', '📋', 'Inscripciones',  'Inscripción de ejemplares a carreras'),
-        moduleCard('resultados.html',    '🏆', 'Resultados',     'Carga y consulta de resultados oficiales'),
-        moduleCard('liquidaciones.html', '💰', 'Liquidaciones',  'Liquidación de premios y retenciones'),
-        moduleCard('profesionales.html', '🧢', 'Entrenadores',   'Entrenadores globales del sistema'),
-        moduleCard('jockeys.html',       '🎽', 'Jockeys',        'Jockeys del hipódromo'),
-        moduleCard('spcs.html',          '🐎', 'Stud Book',      'Registro completo de ejemplares (SPCs)'),
-        moduleCard('propietarios.html',  '👔', 'Propietarios',   'Propietarios globales del sistema'),
-        moduleCard('caballerizas.html',  '🏠', 'Caballerizas',   'Studs, establecimientos y sus SPCs'),
-        moduleCard('sanciones.html',     '⚖️', 'Sanciones',      'Registro y seguimiento de sanciones'),
-        moduleCard('categorias.html',    '🏷️', 'Categorías',     'Categorías de carrera y sus atributos'),
-        moduleCard('hipodromos.html',    '🏟️', 'Hipódromos',     'Pistas y sedes del hipódromo'),
-        moduleCard('usuarios.html',       '👥', 'Usuarios',        'Gestión de usuarios del hipódromo'),
-        moduleCard('admin.html',         '🔧', 'Administración',  'Gestión global de hipódromos clientes'),
+      moduleSection('Operaciones del día', [
+        moduleCard('reuniones.html',                '📅', 'Reuniones',             'Programación y gestión de jornadas hípicas'),
+        moduleCard('carta-llamados.html',           '📄', 'Carta de llamados',     'Programación de carreras y distribución de premios'),
+        moduleCard('inscripciones.html',            '📋', 'Inscripciones',         'Inscripción de ejemplares a carreras'),
+        moduleCard('ratificacion.html',             '✅', 'Ratificación',          'Ratificación de inscripciones'),
+        moduleCard('programa.html',                 '🖨️', 'Programa',              'Generación e impresión del programa oficial'),
+        moduleCard('resultados.html',               '🏆', 'Resultados',            'Carga y consulta de resultados oficiales'),
+        moduleCard('liquidaciones.html',            '💰', 'Liquidaciones',         'Liquidación de premios y retenciones'),
+      ]) +
+      moduleSection('Registros', [
+        moduleCard('spcs.html',                     '🐎', 'Stud Book',             'Registro completo de ejemplares (SPCs)'),
+        moduleCard('caballerizas-propietarios.html','🏠', 'Caballerizas/Propietarios','Studs, caballerizas y sus propietarios'),
+        moduleCard('jockeys.html',                  '🎽', 'Jockeys',               'Jockeys del hipódromo'),
+        moduleCard('profesionales.html',            '🧢', 'Entrenadores',          'Entrenadores del sistema'),
+        moduleCard('sanciones.html',                '⚖️', 'Sanciones',             'Registro y seguimiento de sanciones globales'),
+        moduleCard('resoluciones.html',             '📜', 'Resoluciones',          'Resoluciones y actas oficiales'),
+      ]) +
+      moduleSection('Administración', [
+        moduleCard('usuarios.html',                 '👥', 'Usuarios',              'Gestión de usuarios del hipódromo'),
+        moduleCard('admin.html',                    '🔧', 'Configuración',         'Gestión global de hipódromos clientes'),
       ]);
 
   } else {
     // secretario_carreras, operador y cualquier otro rol con club
     sidenav.innerHTML =
       dashSection +
-      navSection('Operaciones', [
-        ['reuniones.html',     '📅', 'Reuniones'],
-        ['inscripciones.html', '📋', 'Inscripciones'],
-        ['ratificacion.html',  '✅', 'Ratificación'],
-        ['resultados.html',    '🏆', 'Resultados'],
-        ['programa.html',      '🖨️', 'Programa'],
-        ['liquidaciones.html', '💰', 'Liquidaciones'],
-        ['profesionales.html', '🧢', 'Entrenadores'],
-        ['jockeys.html',       '🎽', 'Jockeys'],
-        ['spcs.html',          '🐎', 'Stud Book'],
-        ['propietarios.html',  '👔', 'Propietarios'],
-        ['caballerizas.html',  '🏠', 'Caballerizas'],
-        ['sanciones.html',     '⚖️', 'Sanciones'],
-        ['usuarios.html',      '👥', 'Usuarios'],
+      navSection('Operaciones del día', [
+        ['reuniones.html',                '📅', 'Reuniones'],
+        ['carta-llamados.html',           '📄', 'Carta de llamados'],
+        ['inscripciones.html',            '📋', 'Inscripciones'],
+        ['ratificacion.html',             '✅', 'Ratificación'],
+        ['programa.html',                 '🖨️', 'Programa'],
+        ['resultados.html',               '🏆', 'Resultados'],
+        ['liquidaciones.html',            '💰', 'Liquidaciones'],
+      ]) +
+      navSection('Registros', [
+        ['spcs.html',                     '🐎', 'Stud Book (SPCs)'],
+        ['caballerizas-propietarios.html','🏠', 'Caballerizas/Propietarios'],
+        ['jockeys.html',                  '🎽', 'Jockeys'],
+        ['profesionales.html',            '🧢', 'Entrenadores'],
+        ['sanciones.html',                '⚖️', 'Sanciones'],
+        ['resoluciones.html',             '📜', 'Resoluciones'],
+      ]) +
+      navSection('Administración', [
+        ['usuarios.html',                 '👥', 'Usuarios'],
       ]);
 
     content.innerHTML =
-      moduleSection('Operaciones', [
-        moduleCard('reuniones.html',     '📅', 'Reuniones',      'Programación y gestión de jornadas hípicas'),
-        moduleCard('inscripciones.html', '📋', 'Inscripciones',  'Inscripción de ejemplares a carreras'),
-        moduleCard('ratificacion.html',  '✅', 'Ratificación',   'Ratificación de inscripciones'),
-        moduleCard('resultados.html',    '🏆', 'Resultados',     'Carga y consulta de resultados oficiales'),
-        moduleCard('programa.html',      '🖨️', 'Programa',       'Generación e impresión del programa oficial'),
-        moduleCard('liquidaciones.html', '💰', 'Liquidaciones',  'Liquidación de premios y retenciones'),
-        moduleCard('profesionales.html', '🧢', 'Entrenadores',   'Entrenadores globales del sistema'),
-        moduleCard('jockeys.html',       '🎽', 'Jockeys',        'Jockeys del hipódromo'),
-        moduleCard('spcs.html',          '🐎', 'Stud Book',      'Registro completo de ejemplares (SPCs)'),
-        moduleCard('propietarios.html',  '👔', 'Propietarios',   'Propietarios globales del sistema'),
-        moduleCard('caballerizas.html',  '🏠', 'Caballerizas',   'Studs, establecimientos y sus SPCs'),
-        moduleCard('sanciones.html',     '⚖️', 'Sanciones',      'Registro y seguimiento de sanciones'),
-        moduleCard('usuarios.html',      '👥', 'Usuarios',        'Gestión de usuarios del hipódromo'),
+      moduleSection('Operaciones del día', [
+        moduleCard('reuniones.html',                '📅', 'Reuniones',             'Programación y gestión de jornadas hípicas'),
+        moduleCard('carta-llamados.html',           '📄', 'Carta de llamados',     'Programación de carreras y distribución de premios'),
+        moduleCard('inscripciones.html',            '📋', 'Inscripciones',         'Inscripción de ejemplares a carreras'),
+        moduleCard('ratificacion.html',             '✅', 'Ratificación',          'Ratificación de inscripciones'),
+        moduleCard('programa.html',                 '🖨️', 'Programa',              'Generación e impresión del programa oficial'),
+        moduleCard('resultados.html',               '🏆', 'Resultados',            'Carga y consulta de resultados oficiales'),
+        moduleCard('liquidaciones.html',            '💰', 'Liquidaciones',         'Liquidación de premios y retenciones'),
+      ]) +
+      moduleSection('Registros', [
+        moduleCard('spcs.html',                     '🐎', 'Stud Book',             'Registro completo de ejemplares (SPCs)'),
+        moduleCard('caballerizas-propietarios.html','🏠', 'Caballerizas/Propietarios','Studs, caballerizas y sus propietarios'),
+        moduleCard('jockeys.html',                  '🎽', 'Jockeys',               'Jockeys del hipódromo'),
+        moduleCard('profesionales.html',            '🧢', 'Entrenadores',          'Entrenadores del sistema'),
+        moduleCard('sanciones.html',                '⚖️', 'Sanciones',             'Registro y seguimiento de sanciones globales'),
+        moduleCard('resoluciones.html',             '📜', 'Resoluciones',          'Resoluciones y actas oficiales'),
+      ]) +
+      moduleSection('Administración', [
+        moduleCard('usuarios.html',                 '👥', 'Usuarios',              'Gestión de usuarios del hipódromo'),
       ]);
   }
 }

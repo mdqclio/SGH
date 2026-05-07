@@ -8,6 +8,26 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0e2318">
   <title>Resultados — SGH</title>
+  <!--
+  SQL REQUERIDO EN SUPABASE:
+  ALTER TABLE resultados
+    ADD COLUMN IF NOT EXISTS estado_pista VARCHAR(20)
+      CHECK (estado_pista IN ('seca','humeda','fangosa','pesada')),
+    ADD COLUMN IF NOT EXISTS tiempo_ganador VARCHAR(20),
+    ADD COLUMN IF NOT EXISTS apuestas JSONB;
+
+  CREATE TABLE IF NOT EXISTS resultado_log (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    resultado_id UUID REFERENCES resultados(id),
+    usuario_id UUID REFERENCES usuarios(id),
+    accion VARCHAR(100),
+    datos_antes JSONB,
+    datos_despues JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+  ALTER TABLE resultado_log ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY "allow_all_log" ON resultado_log FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+  -->
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -25,50 +45,78 @@
     .topbar h1 { font-size: 18px; color: var(--accent); flex: 1; }
     .selector-bar { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
     .selector-bar label { font-size: 12px; color: var(--muted); }
-    select, input { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; }
+    select, input[type=text], input[type=number] { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; }
     select:focus, input:focus { border-color: var(--accent); }
     select option { background: #1a3d26; }
     .content { max-width: 1100px; margin: 0 auto; padding: 24px; }
-    /* CARRERA TABS */
-    .car-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 20px; }
-    .car-tab { padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; border: 1px solid var(--border); background: var(--card); color: var(--muted); transition: all 0.2s; font-family: 'DM Sans', sans-serif; }
-    .car-tab:hover { border-color: var(--accent); color: var(--accent); }
-    .car-tab.active { background: var(--accent); color: #1a1a0a; border-color: var(--accent); }
-    .car-tab.finalizada { border-color: rgba(76,175,130,0.4); color: var(--success); }
-    /* RESULTADO BLOCK */
-    .resultado-block { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
-    .res-header { padding: 14px 18px; background: rgba(201,168,76,0.07); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-    .res-title { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--accent); }
-    .res-meta { font-size: 13px; color: var(--muted); }
-    .estado-badges { display: flex; gap: 8px; align-items: center; }
-    .badge { display: inline-block; padding: 3px 11px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+
+    /* LISTA DE CARRERAS */
+    .carreras-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-bottom: 24px; }
+    .carrera-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; transition: border-color 0.2s; }
+    .carrera-card:hover { border-color: rgba(201,168,76,0.4); }
+    .carrera-card.oficial { border-left: 4px solid var(--success); }
+    .carrera-card.provisional { border-left: 4px solid var(--info); }
+    .cc-num { font-family: 'Playfair Display', serif; font-size: 26px; color: var(--accent); font-weight: 700; margin-bottom: 4px; }
+    .cc-name { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .cc-meta { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+    .cc-status { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .badge-sin_resultado { background: rgba(160,184,160,0.1); color: var(--muted); border: 1px solid var(--border); }
     .badge-provisional { background: rgba(116,176,247,0.1); color: var(--info); border: 1px solid rgba(116,176,247,0.3); }
     .badge-oficial { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
     .badge-en_protesta { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
-    /* TIEMPO GANADOR */
-    .tiempo-row { padding: 16px 18px; border-bottom: 1px solid var(--border); display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
-    .tiempo-row label { font-size: 12px; color: var(--muted); }
-    .tiempo-row input { width: 120px; }
-    .tiempo-row textarea { flex: 1; min-width: 200px; min-height: 60px; resize: vertical; }
-    /* POSICIONES TABLE */
+    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: opacity 0.2s; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; }
+    .btn-success { background: var(--success); color: #0e2318; border: none; padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-danger { background: rgba(224,82,82,0.15); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; }
+
+    /* FORMULARIO RESULTADO */
+    .res-panel { background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+    .res-panel-header { padding: 16px 20px; background: rgba(201,168,76,0.07); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    .res-panel-title { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--accent); }
+    .res-meta { font-size: 13px; color: var(--muted); }
+    .res-section { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+    .res-section-title { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .res-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    label { font-size: 12px; font-weight: 500; color: var(--muted); }
+
+    /* TABLA POSICIONES */
     .pos-table { width: 100%; border-collapse: collapse; }
-    .pos-table thead th { background: rgba(0,0,0,0.15); padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; }
+    .pos-table thead th { background: rgba(0,0,0,0.15); padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; }
     .pos-table tbody tr { border-top: 1px solid var(--border); transition: background 0.15s; }
-    .pos-table tbody tr.no-result { opacity: 0.5; }
-    .pos-table tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
-    .pos-select { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 5px 8px; border-radius: 7px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; width: 60px; }
-    .pos-select:focus { border-color: var(--accent); }
-    .dif-input { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 5px 8px; border-radius: 7px; font-family: 'DM Sans', sans-serif; font-size: 13px; width: 90px; outline: none; }
-    .desc-check { display: flex; align-items: center; gap: 6px; font-size: 12px; }
-    .desc-check input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--danger); }
+    .pos-table tbody tr.forfait-row { opacity: 0.5; }
+    .pos-table tbody td { padding: 10px 12px; font-size: 13px; vertical-align: middle; }
+    .pos-input { width: 60px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 5px 8px; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; text-align: center; }
+    .pos-input:focus { border-color: var(--accent); }
+    .cuerpos-input { width: 80px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 5px 8px; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; }
+    .cuerpos-input:focus { border-color: var(--accent); }
+    .check-small { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); }
+    .check-small input[type=checkbox] { width: 14px; height: 14px; accent-color: var(--danger); }
     .spc-name { font-weight: 600; color: var(--accent); }
     .spc-sub { font-size: 11px; color: var(--muted); }
-    /* FOOTER ACCIONES */
-    .res-footer { padding: 14px 18px; border-top: 1px solid var(--border); display: flex; gap: 10px; flex-wrap: wrap; justify-content: space-between; align-items: center; }
-    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
-    .btn-primary:hover { opacity: 0.9; }
-    .btn-oficializar { background: var(--success); color: #0e2318; border: none; padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
-    .btn-protesta { background: rgba(201,168,76,0.2); border: 1px solid var(--accent); color: var(--accent); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; }
+
+    /* APUESTAS */
+    .apuestas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+    .apuesta-item { background: rgba(0,0,0,0.15); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+    .apuesta-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .apuesta-fields { display: flex; gap: 6px; }
+    .apuesta-fields input { flex: 1; min-width: 60px; padding: 6px 8px; font-size: 12px; border-radius: 6px; }
+
+    /* RESUMEN OFICIAL */
+    .oficial-summary { padding: 20px; }
+    .oficial-summary h3 { color: var(--success); margin-bottom: 16px; font-size: 18px; }
+    .pos-result-list { list-style: none; }
+    .pos-result-list li { display: flex; gap: 14px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .pos-num { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--accent); min-width: 36px; }
+    .pos-spc { font-weight: 600; }
+    .pos-cuerpos { font-size: 12px; color: var(--muted); }
+
+    .warning-box { background: rgba(224,82,82,0.1); border: 1px solid rgba(224,82,82,0.3); border-radius: 10px; padding: 14px 16px; font-size: 13px; color: var(--danger); margin-bottom: 12px; }
     .loading-state { display: flex; align-items: center; justify-content: center; padding: 50px; gap: 12px; color: var(--muted); }
     .spinner { width: 22px; height: 22px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -81,9 +129,18 @@
     .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     #auth-overlay { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center; }
-    .btn-logout { background:none;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;transition:all 0.2s;margin-left:auto; }
+    .btn-logout { background:none;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;transition:all 0.2s; }
     .btn-logout:hover { border-color:var(--danger);color:var(--danger); }
     .user-name { font-size:13px;color:var(--muted); }
+
+    @media print {
+      body { background:#fff!important; color:#000!important; }
+      .topbar, .selector-bar, #toast-container, .no-print { display:none!important; }
+      .res-panel { border:1px solid #ccc!important; background:#fff!important; }
+      .pos-table td, .pos-table th { color:#000!important; border-color:#ddd!important; }
+      .spc-name { color:#000!important; }
+      @page { size: A4 portrait; margin: 15mm; }
+    }
   </style>
 </head>
 <body>
@@ -91,8 +148,8 @@
 <div id="toast-container"></div>
 
 <div class="topbar">
-  <a href="reuniones.html" class="btn-back">← Reuniones</a>
-  <h1>Carga de Resultados</h1>
+  <a href="index.html" class="btn-back">← Inicio</a>
+  <h1>Resultados</h1>
   <span class="user-name" id="user-name"></span>
   <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
 </div>
@@ -100,16 +157,13 @@
 <div class="selector-bar">
   <label>Reunión:</label>
   <select id="sel-reunion" onchange="loadReunion()">
-    <option value="">— Seleccionar —</option>
+    <option value="">Cargando…</option>
   </select>
 </div>
 
 <div class="content">
-  <div id="car-tabs-container" style="display:none">
-    <div class="car-tabs" id="car-tabs"></div>
-  </div>
-  <div id="resultado-container">
-    <div class="empty-state"><div class="icon">🏁</div><h3>Seleccionar una reunión para cargar resultados</h3></div>
+  <div id="main-container">
+    <div class="empty-state"><div class="icon">🏁</div><h3>Seleccionar una reunión para ver resultados</h3></div>
   </div>
 </div>
 
@@ -119,9 +173,25 @@ let sb, CLUB_ID, currentUser;
 async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
-let carreras=[], inscripciones=[], resultados={}, posicionesMap={};
-let spcs={}, profesionales={}, propietarios={};
-let currentCarreraIdx = 0;
+let reuniones=[], carreras=[], inscripciones=[], resultados={}, posicionesMap={};
+let spcsMap={}, profsMap={}, cabsMap={};
+let currentCarreraId=null;
+
+const TIPOS_APUESTA = [
+  {key:'ganador', label:'Ganador'},
+  {key:'primero', label:'1° Puesto'},
+  {key:'segundo', label:'2° Puesto'},
+  {key:'tercero', label:'3° Puesto'},
+  {key:'exacta', label:'Exacta'},
+  {key:'imperfecta', label:'Imperfecta'},
+  {key:'doble', label:'Doble'},
+  {key:'trifecta', label:'Trifecta'},
+  {key:'cuatrifecta', label:'Cuatrifecta'},
+  {key:'triplo', label:'Triplo'},
+  {key:'cuaterna', label:'Cuaterna'},
+  {key:'quintuplo', label:'Quíntuplo'},
+  {key:'cadena', label:'Cadena'},
+];
 
 function toast(msg,type='success') {
   const t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
@@ -129,208 +199,318 @@ function toast(msg,type='success') {
 }
 
 async function init() {
-  const [{ data: reuns }, { data: profs }, { data: props }, { data: sprcs }] = await Promise.all([
-    sb.from('reuniones').select('id,numero,fecha,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
+  const [{ data: reuns }, { data: profs }, { data: sprcs }, { data: cabs }] = await Promise.all([
+    sb.from('reuniones').select('id,numero,fecha,estado,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
     sb.from('profesionales').select('id,nombre,apellido').eq('club_id', CLUB_ID),
-    sb.from('propietarios').select('id,nombre').eq('club_id', CLUB_ID),
     sb.from('spcs').select('id,nombre').eq('club_id', CLUB_ID),
+    sb.from('caballerizas').select('id,nombre').eq('club_id', CLUB_ID),
   ]);
-  (profs||[]).forEach(p=>{ profesionales[p.id]=p; });
-  (props||[]).forEach(p=>{ propietarios[p.id]=p; });
-  (sprcs||[]).forEach(s=>{ spcs[s.id]=s; });
+  reuniones = reuns||[];
+  (profs||[]).forEach(p=>{ profsMap[p.id]=p; });
+  (sprcs||[]).forEach(s=>{ spcsMap[s.id]=s; });
+  (cabs||[]).forEach(c=>{ cabsMap[c.id]=c; });
+
   const sel = document.getElementById('sel-reunion');
-  sel.innerHTML = '<option value="">— Seleccionar —</option>' + (reuns||[]).map(r=>`<option value="${r.id}">Reunión ${r.numero||''} — ${new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR')} — ${r.hipodromos?.nombre||''}</option>`).join('');
+  sel.innerHTML = '<option value="">— Seleccionar —</option>' + reuniones.map(r=>`<option value="${r.id}">Reunión ${r.numero||''} — ${new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR')} — ${r.hipodromos?.nombre||''}</option>`).join('');
+
   const params = new URLSearchParams(location.search);
   const rid = params.get('reunion_id');
   if (rid) { sel.value=rid; await loadReunion(); }
+  else {
+    const ultima = reuniones.find(r=>['programada','publicada','en_curso','borrador'].includes(r.estado)) || reuniones[0];
+    if (ultima) { sel.value=ultima.id; await loadReunion(); }
+  }
 }
 
 async function loadReunion() {
   const rid = document.getElementById('sel-reunion').value;
-  if (!rid) { document.getElementById('car-tabs-container').style.display='none'; document.getElementById('resultado-container').innerHTML='<div class="empty-state"><div class="icon">🏁</div><h3>Seleccionar una reunión</h3></div>'; return; }
-  document.getElementById('resultado-container').innerHTML='<div class="loading-state"><div class="spinner"></div> Cargando carreras…</div>';
-  const { data: cars, error } = await sb.from('carreras').select('*').eq('reunion_id', rid).order('numero_turno');
-  if (error) { toast(error.message,'error'); return; }
+  if (!rid) { document.getElementById('main-container').innerHTML='<div class="empty-state"><div class="icon">🏁</div><h3>Seleccionar una reunión</h3></div>'; return; }
+  document.getElementById('main-container').innerHTML='<div class="loading-state"><div class="spinner"></div> Cargando carreras…</div>';
+  const { data: cars } = await sb.from('carreras').select('*').eq('reunion_id', rid).order('numero_turno');
   carreras = cars||[];
   if (!carreras.length) {
-    document.getElementById('car-tabs-container').style.display='none';
-    document.getElementById('resultado-container').innerHTML='<div class="empty-state"><div class="icon">📋</div><h3>Esta reunión no tiene carreras</h3></div>';
+    document.getElementById('main-container').innerHTML='<div class="empty-state"><div class="icon">📋</div><h3>Esta reunión no tiene carreras</h3></div>';
     return;
   }
   const carIds = carreras.map(c=>c.id);
   const [{ data: inscData }, { data: resData }] = await Promise.all([
-    sb.from('inscripciones').select('*').in('carrera_id', carIds).order('numero_partidor'),
+    sb.from('inscripciones').select('*').in('carrera_id', carIds).order('created_at'),
     sb.from('resultados').select('*').in('carrera_id', carIds),
   ]);
   inscripciones = inscData||[];
   resultados = {};
   (resData||[]).forEach(r=>{ resultados[r.carrera_id]=r; });
-  // Load posiciones
   const resIds = (resData||[]).map(r=>r.id);
+  posicionesMap = {};
   if (resIds.length) {
     const { data: posData } = await sb.from('resultado_posiciones').select('*').in('resultado_id', resIds);
-    posicionesMap = {};
-    (posData||[]).forEach(p=>{ if (!posicionesMap[p.resultado_id]) posicionesMap[p.resultado_id]=[]; posicionesMap[p.resultado_id].push(p); });
+    (posData||[]).forEach(p=>{ if(!posicionesMap[p.resultado_id]) posicionesMap[p.resultado_id]=[]; posicionesMap[p.resultado_id].push(p); });
   }
-  document.getElementById('car-tabs-container').style.display='block';
-  renderTabs();
-  selectCarrera(0);
+  renderCarrerasList();
 }
 
-function renderTabs() {
-  document.getElementById('car-tabs').innerHTML = carreras.map((c,i)=>`<button class="car-tab ${i===currentCarreraIdx?'active':''} ${resultados[c.id]?.estado==='oficial'?'finalizada':''}" onclick="selectCarrera(${i})">Turno ${c.numero_turno}</button>`).join('');
+function renderCarrerasList() {
+  const html = `<div class="carreras-grid">
+    ${carreras.map(c => {
+      const res = resultados[c.carrera_id] || resultados[c.id];
+      const estado = res?.estado || 'sin_resultado';
+      return `<div class="carrera-card ${estado==='oficial'?'oficial':estado!=='sin_resultado'?'provisional':''}">
+        <div class="cc-num">${c.numero_turno}</div>
+        <div class="cc-name">${c.nombre||`Carrera ${c.numero_turno}`}</div>
+        <div class="cc-meta">${c.distancia_metros}m | ${c.tipo_pista||'—'}</div>
+        <div class="cc-status">
+          <span class="badge badge-${estado}">${estado.replace('_',' ')}</span>
+        </div>
+        <button class="btn-primary" style="width:100%" onclick="abrirResultado('${c.id}')">
+          ${estado==='oficial'?'👁 Ver resultado':'📝 Cargar resultado'}
+        </button>
+      </div>`;
+    }).join('')}
+  </div>`;
+  document.getElementById('main-container').innerHTML = html;
+  currentCarreraId = null;
 }
 
-function selectCarrera(idx) {
-  currentCarreraIdx = idx;
-  renderTabs();
-  renderResultado(carreras[idx]);
+function abrirResultado(carreraId) {
+  currentCarreraId = carreraId;
+  const carrera = carreras.find(c=>c.id===carreraId);
+  const res = resultados[carreraId];
+  const pos = res ? (posicionesMap[res.id]||[]) : [];
+  const insc = inscripciones.filter(i=>i.carrera_id===carreraId);
+  const bloqueado = res?.estado==='oficial';
+
+  if (bloqueado) {
+    renderResumenOficial(carrera, res, pos, insc);
+  } else {
+    renderFormulario(carrera, res, pos, insc);
+  }
 }
 
-function renderResultado(carrera) {
-  const insc = inscripciones.filter(i=>i.carrera_id===carrera.id);
-  const res = resultados[carrera.id];
-  const posiciones = res ? (posicionesMap[res.id]||[]) : [];
-  const estadoBadge = res ? `<span class="badge badge-${res.estado}">${res.estado.replace('_',' ')}</span>` : `<span class="badge badge-provisional">Sin resultado</span>`;
+function renderResumenOficial(carrera, res, posiciones, insc) {
+  const posOrdenadas = [...posiciones].sort((a,b)=>(a.posicion||99)-(b.posicion||99));
+  const apuestas = res.apuestas || {};
+  document.getElementById('main-container').innerHTML = `
+    <button class="btn-outline no-print" onclick="renderCarrerasList()" style="margin-bottom:16px;">← Volver a carreras</button>
+    <div class="res-panel">
+      <div class="res-panel-header">
+        <div>
+          <div class="res-panel-title">Turno ${carrera.numero_turno} — ${carrera.nombre||''}</div>
+          <div class="res-meta">${carrera.distancia_metros}m | ${carrera.tipo_pista||'—'} | Pista: ${res.estado_pista||'—'} | Tiempo: ${res.tiempo_ganador||'—'}</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="badge badge-oficial">✅ Oficial</span>
+          <button class="btn-outline no-print" onclick="window.print()">🖨️ Imprimir</button>
+          <button class="btn-danger no-print" onclick="modificarOficial('${res.id}','${carrera.id}')">⚠️ Modificar</button>
+        </div>
+      </div>
+      <div class="res-section">
+        <div class="res-section-title">Posiciones finales</div>
+        <ul class="pos-result-list">
+          ${posOrdenadas.map(p=>{
+            const i = insc.find(x=>x.id===p.inscripcion_id);
+            const spc = i ? spcsMap[i.spc_id] : null;
+            return `<li>
+              <div class="pos-num">${p.posicion||'—'}°</div>
+              <div>
+                <div class="pos-spc">${spc?.nombre||'—'}${p.descalificado?' <span style="color:var(--danger);font-size:11px">(DESC)</span>':''}</div>
+                ${p.diferencia?`<div class="pos-cuerpos">Dif: ${p.diferencia}</div>`:''}
+                ${p.empate?`<div class="pos-cuerpos" style="color:var(--accent)">Empate</div>`:''}
+              </div>
+            </li>`;
+          }).join('')}
+        </ul>
+      </div>
+      ${Object.keys(apuestas).length ? `
+      <div class="res-section">
+        <div class="res-section-title">Apuestas</div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;">
+          ${Object.entries(apuestas).map(([tipo,dat])=>`
+            <div style="background:rgba(0,0,0,0.15);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;">
+              <div style="font-size:11px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">${tipo}</div>
+              ${dat.combinacion?`<div style="color:var(--accent);font-weight:600;">${dat.combinacion}</div>`:''}
+              ${dat.dividendo?`<div>$ ${Number(dat.dividendo).toLocaleString('es-AR')}</div>`:''}
+            </div>
+          `).join('')}
+        </div>
+      </div>` : ''}
+    </div>`;
+}
+
+function renderFormulario(carrera, res, posiciones, insc) {
+  const apuestas = res?.apuestas || {};
   const getPosicion = (inscId) => posiciones.find(p=>p.inscripcion_id===inscId);
 
-  const rows = insc.map(i => {
-    const spc = spcs[i.spc_id];
-    const jock = profesionales[i.jockey_titular_id];
+  const inscRows = insc.map(i => {
+    const spc = spcsMap[i.spc_id];
+    const jock = profsMap[i.jockey_titular_id];
     const pos = getPosicion(i.id);
-    const isForfait = i.estado==='forfait';
-    return `<tr class="${isForfait?'no-result':''}">
-      <td class="spc-name">${spc?.nombre||i.spc_id}</td>
-      <td>${i.numero_partidor||'—'}</td>
-      <td>${jock?`${jock.apellido}`:'-'}</td>
-      <td>${i.peso_final||i.peso_declarado||'—'} kg</td>
-      <td>
-        ${isForfait ? '<span style="color:var(--danger);font-size:12px;">FORFAIT</span>' : `
-        <select class="pos-select" id="pos-${i.id}" ${res?.estado==='oficial'?'disabled':''}>
-          <option value="">—</option>
-          ${[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>`<option value="${n}" ${pos?.posicion===n?'selected':''}>${n}°</option>`).join('')}
-        </select>`}
-      </td>
-      <td>
-        ${isForfait ? '' : `<input class="dif-input" type="text" id="dif-${i.id}" value="${pos?.diferencia||''}" placeholder="ej: 1/2" ${res?.estado==='oficial'?'disabled':''}>`}
-      </td>
-      <td>
-        ${isForfait ? '' : `<div class="desc-check"><input type="checkbox" id="desc-${i.id}" ${pos?.descalificado?'checked':''} ${res?.estado==='oficial'?'disabled':''}><label for="desc-${i.id}" style="color:var(--danger)">DESC</label></div>`}
-      </td>
+    const isForfait = i.estado==='forfait'||i.estado==='mal_anotado';
+    return `<tr class="${isForfait?'forfait-row':''}">
+      <td><div class="spc-name">${spc?.nombre||i.spc_id}</div>${jock?`<div class="spc-sub">${jock.apellido}</div>`:''}</td>
+      <td>${i.peso_final||i.peso_declarado||'—'}</td>
+      <td>${isForfait?'<span style="color:var(--danger);font-size:11px">FORFAIT</span>':`<input class="pos-input" type="number" id="pos-${i.id}" min="1" max="20" value="${pos?.posicion||''}" placeholder="—">`}</td>
+      <td>${isForfait?'':`<input class="cuerpos-input" type="text" id="cuerpos-${i.id}" value="${pos?.diferencia||''}" placeholder="1/2 cpo">`}</td>
+      <td>${isForfait?'':`<div class="check-small"><input type="checkbox" id="emp-${i.id}" ${pos?.empate?'checked':''}><label for="emp-${i.id}">Empate</label></div>`}</td>
+      <td>${isForfait?'':`<div class="check-small"><input type="checkbox" id="desc-${i.id}" ${pos?.descalificado?'checked':''}><label for="desc-${i.id}" style="color:var(--danger)">DESC</label></div>`}</td>
     </tr>`;
   }).join('');
 
-  document.getElementById('resultado-container').innerHTML = `<div class="resultado-block">
-    <div class="res-header">
-      <div>
-        <div class="res-title">Turno ${carrera.numero_turno} — ${carrera.nombre||''}</div>
-        <div class="res-meta">${carrera.distancia_metros}m | ${carrera.tipo_pista||'—'}</div>
+  const apuestasHtml = TIPOS_APUESTA.map(a => {
+    const dat = apuestas[a.key]||{};
+    return `<div class="apuesta-item">
+      <div class="apuesta-label">${a.label}</div>
+      <div class="apuesta-fields">
+        <input type="text" id="ap-comb-${a.key}" value="${dat.combinacion||''}" placeholder="ej: 5-2" style="flex:1;">
+        <input type="number" id="ap-div-${a.key}" value="${dat.dividendo||''}" placeholder="$" style="width:80px;" step="0.01">
       </div>
-      <div class="estado-badges">
-        ${estadoBadge}
+    </div>`;
+  }).join('');
+
+  document.getElementById('main-container').innerHTML = `
+    <button class="btn-outline" onclick="renderCarrerasList()" style="margin-bottom:16px;">← Volver a carreras</button>
+    <div class="res-panel">
+      <div class="res-panel-header">
+        <div>
+          <div class="res-panel-title">Turno ${carrera.numero_turno} — ${carrera.nombre||''}</div>
+          <div class="res-meta">${carrera.distancia_metros}m | ${carrera.tipo_pista||'—'}</div>
+        </div>
+        <span class="badge badge-${res?.estado||'sin_resultado'}">${(res?.estado||'sin resultado').replace('_',' ')}</span>
       </div>
-    </div>
-    <div class="tiempo-row">
-      <div style="display:flex;flex-direction:column;gap:4px;">
-        <label>Tiempo del ganador</label>
-        <input type="text" id="tiempo-ganador" value="${res?.tiempo_ganador||''}" placeholder="1:02.3" style="width:120px;" ${res?.estado==='oficial'?'disabled':''}>
+
+      <div class="res-section">
+        <div class="res-section-title">Condiciones de carrera</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Estado de pista</label>
+            <select id="estado-pista" style="min-width:140px;">
+              <option value="">— Seleccionar —</option>
+              <option value="seca" ${res?.estado_pista==='seca'?'selected':''}>Seca</option>
+              <option value="humeda" ${res?.estado_pista==='humeda'?'selected':''}>Húmeda</option>
+              <option value="fangosa" ${res?.estado_pista==='fangosa'?'selected':''}>Fangosa</option>
+              <option value="pesada" ${res?.estado_pista==='pesada'?'selected':''}>Pesada</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Tiempo del ganador</label>
+            <input type="text" id="tiempo-ganador" value="${res?.tiempo_ganador||''}" placeholder="1:02.3" style="width:120px;">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Incidentes / Observaciones</label>
+            <input type="text" id="incidentes" value="${res?.incidentes||''}" placeholder="Notas sobre la carrera…">
+          </div>
+        </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:4px;flex:1;">
-        <label>Incidentes / Observaciones</label>
-        <textarea id="incidentes" placeholder="Notas sobre la carrera, incidentes…" ${res?.estado==='oficial'?'disabled':''}>${res?.incidentes||''}</textarea>
+
+      <div class="res-section">
+        <div class="res-section-title">Posiciones</div>
+        <table class="pos-table">
+          <thead><tr><th>SPC / Jockey</th><th>Peso</th><th>Posición</th><th>Cuerpos</th><th>Empate</th><th>Descalificado</th></tr></thead>
+          <tbody>${inscRows||'<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--muted)">Sin inscriptos</td></tr>'}</tbody>
+        </table>
       </div>
-    </div>
-    <table class="pos-table">
-      <thead><tr><th>SPC</th><th>#</th><th>Jockey</th><th>Peso</th><th>Posición</th><th>Diferencia</th><th>Desc.</th></tr></thead>
-      <tbody>${rows||'<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--muted)">Sin inscriptos</td></tr>'}</tbody>
-    </table>
-    <div class="res-footer">
-      <div style="font-size:12px;color:var(--muted);">${res ? `Última modificación: ${new Date(res.updated_at||res.created_at||Date.now()).toLocaleString('es-AR')}` : 'Sin resultado registrado'}</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        ${res?.estado!=='oficial' ? `
-          <button class="btn-primary" onclick="guardarResultado('${carrera.id}','provisional')">💾 Guardar Provisional</button>
-          <button class="btn-protesta" onclick="guardarResultado('${carrera.id}','en_protesta')">⚠️ En Protesta</button>
-          <button class="btn-oficializar" onclick="oficializar('${carrera.id}')">✅ Oficializar</button>
-        ` : '<span style="color:var(--success);font-size:13px;font-weight:600;">✅ Resultado oficial</span>'}
+
+      <div class="res-section">
+        <div class="res-section-title">Apuestas (dividendos)</div>
+        <div class="apuestas-grid">${apuestasHtml}</div>
       </div>
-    </div>
-  </div>`;
+
+      <div class="res-section" style="border:none;">
+        <div class="warning-box">⚠️ <strong>Hacer oficial</strong> bloqueará el resultado permanentemente. Los cambios posteriores quedarán registrados en el log.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn-primary" onclick="guardarResultado('${carrera.id}','provisional')">💾 Guardar provisional</button>
+          <button class="btn-success" onclick="oficializar('${carrera.id}')">✅ Hacer oficial</button>
+        </div>
+      </div>
+    </div>`;
 }
 
 async function guardarResultado(carreraId, estado) {
-  const tiempo = document.getElementById('tiempo-ganador').value.trim();
-  const incidentes = document.getElementById('incidentes').value.trim();
-  const insc = inscripciones.filter(i=>i.carrera_id===carreraId&&i.estado!=='forfait');
+  const tiempo = document.getElementById('tiempo-ganador')?.value.trim();
+  const incidentes = document.getElementById('incidentes')?.value.trim();
+  const estadoPista = document.getElementById('estado-pista')?.value;
+  const insc = inscripciones.filter(i=>i.carrera_id===carreraId&&i.estado!=='forfait'&&i.estado!=='mal_anotado');
   const res = resultados[carreraId];
+
+  // Recopilar apuestas
+  const apuestas = {};
+  TIPOS_APUESTA.forEach(a => {
+    const comb = document.getElementById(`ap-comb-${a.key}`)?.value.trim();
+    const div = document.getElementById(`ap-div-${a.key}`)?.value;
+    if (comb || div) apuestas[a.key] = { combinacion: comb||null, dividendo: div?parseFloat(div):null };
+  });
+
   let resId = res?.id;
+  const resPayload = { carrera_id: carreraId, estado, tiempo_ganador: tiempo||null, incidentes: incidentes||null, estado_pista: estadoPista||null, apuestas: Object.keys(apuestas).length?apuestas:null };
+
   if (!resId) {
-    const { data, error } = await sb.from('resultados').insert({ carrera_id: carreraId, estado, tiempo_ganador: tiempo||null, incidentes: incidentes||null }).select().single();
-    if (error) { toast(error.message,'error'); return; }
+    const { data, error } = await sb.from('resultados').insert(resPayload).select().single();
+    if (error) { toast(error.message,'error'); return null; }
     resId = data.id;
     resultados[carreraId] = data;
   } else {
-    const { error } = await sb.from('resultados').update({ estado, tiempo_ganador: tiempo||null, incidentes: incidentes||null }).eq('id', resId);
-    if (error) { toast(error.message,'error'); return; }
-    resultados[carreraId].estado = estado;
-    resultados[carreraId].tiempo_ganador = tiempo;
+    const { error } = await sb.from('resultados').update(resPayload).eq('id', resId);
+    if (error) { toast(error.message,'error'); return null; }
+    resultados[carreraId] = { ...resultados[carreraId], ...resPayload };
   }
+
   // Upsert posiciones
   const posData = insc.map(i => {
-    const posEl = document.getElementById(`pos-${i.id}`);
-    const difEl = document.getElementById(`dif-${i.id}`);
-    const descEl = document.getElementById(`desc-${i.id}`);
-    return { resultado_id: resId, inscripcion_id: i.id, posicion: posEl?.value ? parseInt(posEl.value) : null, diferencia: difEl?.value||null, descalificado: descEl?.checked||false };
+    const posVal = document.getElementById(`pos-${i.id}`)?.value;
+    const cuerpVal = document.getElementById(`cuerpos-${i.id}`)?.value;
+    const empate = document.getElementById(`emp-${i.id}`)?.checked||false;
+    const desc = document.getElementById(`desc-${i.id}`)?.checked||false;
+    const motDesc = desc ? (prompt(`Motivo de descalificación para ${spcsMap[i.spc_id]?.nombre||'SPC'}:`)||null) : null;
+    return { resultado_id: resId, inscripcion_id: i.id, posicion: posVal?parseInt(posVal):null, diferencia: cuerpVal||null, empate, descalificado: desc, motivo_descalificacion: motDesc };
   }).filter(p=>p.posicion);
+
   if (posData.length) {
     await sb.from('resultado_posiciones').delete().eq('resultado_id', resId);
     const { error } = await sb.from('resultado_posiciones').insert(posData);
-    if (error) { toast(error.message,'error'); return; }
+    if (error) { toast(error.message,'error'); return null; }
     posicionesMap[resId] = posData;
   }
-  toast(estado==='provisional'?'Resultado provisional guardado':'Resultado guardado');
-  renderTabs();
+  toast(estado==='provisional'?'Resultado provisional guardado':'Guardado');
+  return resId;
 }
 
 async function oficializar(carreraId) {
-  if (!confirm('¿Oficializar el resultado? Esta acción actualizará automáticamente el historial de performances. No se puede deshacer.')) return;
-  await guardarResultado(carreraId, 'oficial');
+  if (!confirm('⚠️ Esta acción es irreversible. Los datos quedarán bloqueados y cualquier cambio posterior quedará registrado en el log.\n\n¿Confirmar resultado oficial?')) return;
+  const resId = await guardarResultado(carreraId, 'oficial');
+  if (!resId) return;
+  // Actualizar performances
   const res = resultados[carreraId];
-  if (!res) return;
-  // Update performances
-  const posiciones = posicionesMap[res.id]||[];
+  const posiciones = posicionesMap[resId]||[];
   const inscs = inscripciones.filter(i=>i.carrera_id===carreraId);
   const carrera = carreras.find(c=>c.id===carreraId);
-  const reunion = await sb.from('reuniones').select('fecha,hipodromos(nombre,sigla)').eq('id', carreras[0].reunion_id).single();
-  const perfInserts = [];
-  for (const pos of posiciones) {
+  const { data: reunionData } = await sb.from('reuniones').select('fecha,hipodromos(nombre,sigla)').eq('id', document.getElementById('sel-reunion').value).single();
+  const perfInserts = posiciones.map(pos => {
     const insc = inscs.find(i=>i.id===pos.inscripcion_id);
-    if (!insc) continue;
-    perfInserts.push({
-      spc_id: insc.spc_id,
-      carrera_id: carreraId,
-      fecha_carrera: reunion.data?.fecha,
-      hipodromo_sigla: reunion.data?.hipodromos?.sigla||'',
-      hipodromo_nombre: reunion.data?.hipodromos?.nombre||'',
-      numero_carrera: carrera?.numero_turno,
-      distancia_metros: carrera?.distancia_metros,
-      tipo_pista: carrera?.tipo_pista,
-      posicion: pos.posicion,
-      tiempo_ganador: res.tiempo_ganador,
-      diferencia: pos.diferencia,
-      peso_llevado: insc.peso_final||insc.peso_declarado,
-      jockey_id: insc.jockey_titular_id,
-      descalificado: pos.descalificado,
-      fuente: 'local',
-    });
-  }
+    if (!insc) return null;
+    return { spc_id: insc.spc_id, carrera_id: carreraId, fecha_carrera: reunionData?.fecha, hipodromo_sigla: reunionData?.hipodromos?.sigla||'', hipodromo_nombre: reunionData?.hipodromos?.nombre||'', numero_carrera: carrera?.numero_turno, distancia_metros: carrera?.distancia_metros, tipo_pista: carrera?.tipo_pista, posicion: pos.posicion, tiempo_ganador: res?.tiempo_ganador, diferencia: pos.diferencia, peso_llevado: insc.peso_final||insc.peso_declarado, jockey_id: insc.jockey_titular_id, descalificado: pos.descalificado, fuente: 'local' };
+  }).filter(Boolean);
+
   if (perfInserts.length) {
-    // Remove existing local performances for this carrera
     await sb.from('performances').delete().eq('carrera_id', carreraId);
-    const { error } = await sb.from('performances').insert(perfInserts);
-    if (error) { toast('Resultado oficial pero error actualizando performances: '+error.message,'error'); return; }
+    await sb.from('performances').insert(perfInserts);
   }
-  toast('✅ Resultado oficializado y performances actualizadas');
-  selectCarrera(currentCarreraIdx);
+
+  // Log
+  await sb.from('resultado_log').insert({ resultado_id: resId, usuario_id: currentUser?.id, accion: 'oficializar', datos_despues: { estado: 'oficial', fecha: new Date().toISOString() } }).catch(()=>{});
+
+  toast('✅ Resultado oficializado');
+  abrirResultado(carreraId);
+}
+
+async function modificarOficial(resId, carreraId) {
+  const motivo = prompt('Ingrese el motivo de la modificación (quedará registrado en el log):');
+  if (!motivo) return;
+  const resBefore = resultados[carreraId];
+  await sb.from('resultado_log').insert({ resultado_id: resId, usuario_id: currentUser?.id, accion: 'modificar_despues_oficial', datos_antes: resBefore, datos_despues: { motivo, fecha: new Date().toISOString() } }).catch(()=>{});
+  const { error } = await sb.from('resultados').update({ estado: 'provisional' }).eq('id', resId);
+  if (error) { toast(error.message,'error'); return; }
+  resultados[carreraId].estado = 'provisional';
+  toast('Resultado desbloqueado para edición');
+  abrirResultado(carreraId);
 }
 
 (async()=>{if(await initAuth())init();})();
