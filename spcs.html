@@ -7,7 +7,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="logo180x180.png">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0e2318">
-  <title>SPCs — Stud Book — SGH</title>
+  <title>SPC — Stud Book — SGH</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -115,7 +115,7 @@
 
 <div class="topbar">
   <a href="index.html" class="btn-back">← Volver</a>
-  <h1>SPCs — Stud Book</h1>
+  <h1>SPC — Stud Book</h1>
   <span class="user-name" id="user-name"></span>
   <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
 </div>
@@ -294,7 +294,7 @@ function switchTab(name) {
 }
 
 async function load() {
-  document.getElementById('list-container').innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando SPCs…</div>';
+  document.getElementById('list-container').innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando SPC…</div>';
   const params = new URLSearchParams(location.search);
   const cabFilter = params.get('caballeriza');
 
@@ -364,7 +364,7 @@ const sexoBadge = { macho:'badge-macho', hembra:'badge-hembra', castrado:'badge-
 
 function renderList(data) {
   if (!data.length) {
-    document.getElementById('list-container').innerHTML = `<div class="empty-state"><div class="icon">🐴</div><h3>Sin resultados</h3><p>No se encontraron SPCs con los filtros aplicados.</p></div>`;
+    document.getElementById('list-container').innerHTML = `<div class="empty-state"><div class="icon">🐴</div><h3>Sin resultados</h3><p>No se encontraron SPC con los filtros aplicados.</p></div>`;
     return;
   }
   const rows = data.map(r => {

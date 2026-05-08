@@ -399,7 +399,7 @@ function getProf(id) { return profesionales.find(p=>p.id===id); }
 
 function renderInscripciones() {
   if (!inscripciones.length) {
-    document.getElementById('list-container').innerHTML=`<div class="empty-state"><div class="icon">📋</div><h3>Sin inscriptos</h3><p>No hay SPCs inscriptos en esta carrera.</p></div>`;
+    document.getElementById('list-container').innerHTML=`<div class="empty-state"><div class="icon">📋</div><h3>Sin inscriptos</h3><p>No hay SPC inscriptos en esta carrera.</p></div>`;
     return;
   }
   const rows = inscripciones.map(i => {
