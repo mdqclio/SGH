@@ -305,7 +305,7 @@ async function initAuth(){const{createClient}=supabase;sb=createClient('https://
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
 const params = new URLSearchParams(location.search);
-const reunionId = params.get('reunion_id');
+let reunionId = params.get('reunion_id');
 let reunion=null, carreras=[], categorias=[], hipodromos=[];
 
 function toast(msg, type='success') {
@@ -340,7 +340,27 @@ function updPct() {
 }
 
 async function load() {
-  if (!reunionId) { document.getElementById('reunion-info').innerHTML='<p style="color:var(--danger)">No se especificó reunion_id en la URL.</p>'; return; }
+  if (!reunionId) {
+    const { data: ultima } = await sb.from('reuniones')
+      .select('id')
+      .eq('club_id', CLUB_ID)
+      .order('fecha', { ascending: false })
+      .limit(1)
+      .single();
+    if (!ultima) {
+      document.getElementById('reunion-info').innerHTML = '';
+      document.getElementById('list-container').innerHTML = `
+        <div class="empty-state">
+          <div class="icon">📋</div>
+          <h3>No hay reuniones creadas</h3>
+          <p style="color:var(--muted);margin-top:8px;">Creá una desde el módulo de Reuniones.</p>
+          <a href="reuniones.html" class="btn-primary" style="display:inline-block;margin-top:20px;text-decoration:none;padding:10px 22px;">Ir a Reuniones</a>
+        </div>`;
+      return;
+    }
+    reunionId = ultima.id;
+    history.replaceState(null, '', `?reunion_id=${reunionId}`);
+  }
   const [{ data: r, error: er }, { data: cars, error: ec }, { data: cats }, { data: hips }] = await Promise.all([
     sb.from('reuniones').select('*, hipodromos(nombre,sigla,localidad)').eq('id', reunionId).single(),
     sb.from('carreras').select('*').eq('reunion_id', reunionId).order('numero_turno'),
