@@ -98,6 +98,7 @@
     .bono-block-title { font-size: 11px; font-weight: 600; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
     .bono-pos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .bonos-display { padding: 0 18px 10px; font-size: 12px; color: var(--muted); }
+    .premio-total-bar { padding: 7px 18px; font-size: 13px; font-weight: 700; color: var(--accent); background: rgba(201,168,76,0.07); border-top: 1px solid var(--border); letter-spacing: 0.2px; }
     .modal-footer { padding: 16px 24px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
     .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; }
     #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
@@ -119,10 +120,12 @@
       .carrera-card-header { background: #f5f5f5 !important; }
       .carrera-num, .carrera-title { color: #000 !important; }
       .chip, .badge { color: #333 !important; border-color: #999 !important; background: #eee !important; }
-      .carrera-body, .premios-list { background: #fff !important; }
+      .carrera-body { background: #fff !important; }
       .carrera-body span, .carrera-body { color: #000 !important; }
-      .premio-chip { border-color: #ccc !important; background: #f9f9f9 !important; }
-      .premio-pct { color: #333 !important; }
+      /* Ocultar distribución porcentual en impresión */
+      .premios-list { display: none !important; }
+      /* Resumen financiero en impresión */
+      .premio-total-bar { color: #000 !important; background: #f0f0f0 !important; border-top: 1px solid #ccc !important; font-size: 12px; }
       .bonos-display { color: #333 !important; }
       @page { size: A4 portrait; margin: 15mm; }
     }
@@ -382,6 +385,15 @@ function renderCarreras() {
     const cat = categorias.find(x=>x.id===c.categoria_id);
     const dist = c.distribucion_premios || {"1":60,"2":20,"3":10,"4":6,"5":4};
     const bolsa = c.bolsa_total || 0;
+
+    // Cálculo del premio total
+    const bonoGan = dist.bono_ganador || 0;
+    const bonoPosH = dist.bono_posicion_hasta || 0;
+    const bonoPosD = dist.bono_posicion_desde || 6;
+    const bonoPosMonto = dist.bono_posicion_monto || 0;
+    const cantPuestos = bonoPosH >= bonoPosD ? bonoPosH - bonoPosD + 1 : 0;
+    const montoTotal = bolsa + bonoGan + (bonoPosMonto * cantPuestos);
+
     const EXCLUIR = ['bonos','bono_ganador','bono_posicion_desde','bono_posicion_hasta','bono_posicion_monto','ganancia_minima'];
     const premioHtml = Object.entries(dist).filter(([pos])=>!EXCLUIR.includes(pos)).map(([pos,pct])=>`
       <div class="premio-chip">
@@ -401,9 +413,7 @@ function renderCarreras() {
           <span class="chip">${c.distancia_metros}m</span>
           <span class="chip">${c.tipo_pista||'—'}</span>
           ${c.hora_estimada?`<span class="chip">🕐 ${c.hora_estimada}</span>`:''}
-          ${bolsa?`<span class="chip">💰 $${formatMonto(bolsa)}</span>`:''}
-          ${c.bolsa_bonos?`<span class="chip">🎁 Bonos $${formatMonto(Number(c.bolsa_bonos))}</span>`:''}
-          ${c.premio_minimo?`<span class="chip">Min $${formatMonto(Number(c.premio_minimo))}</span>`:''}
+          ${bolsa?`<span class="chip">💰 Bolsa: $${formatMonto(bolsa)}</span>`:''}
         </div>
         <div class="carrera-actions">
           <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(c)})'>✏️</button>
@@ -416,6 +426,7 @@ function renderCarreras() {
         ${c.condicion_handicap?`<div>Condición: <span>${c.condicion_handicap}</span></div>`:''}
         ${c.condicion_adicional?`<div>Condición: <span>${c.condicion_adicional}</span></div>`:''}
       </div>
+      ${montoTotal > 0 ? `<div class="premio-total-bar">💵 Premio total: $${formatMonto(montoTotal)}</div>` : ''}
       <div class="premios-list">${premioHtml}</div>
       ${ganMinHtml}
       ${bonoGanadorHtml}
