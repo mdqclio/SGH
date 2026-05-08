@@ -135,6 +135,10 @@ function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html
 
 let spcs={}, profesionales={}, propietarios={}, categorias={}, performances={};
 
+function formatMonto(num) {
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
 function toast(msg,type='success') {
   const t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
   document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),3500);
@@ -223,7 +227,7 @@ function renderPrograma(reunion, carreras, inscripciones) {
       const inscs = inscripciones.filter(i=>i.carrera_id===car.id);
       const dist = car.distribucion_premios || {};
       const bolsa = car.bolsa_total || 0;
-      const premioStr = Object.entries(dist).map(([p,pct])=>`${p}°: ${pct}%${bolsa?` ($${Math.round(bolsa*pct/100).toLocaleString('es-AR')})`:''}`).join(' | ');
+      const premioStr = Object.entries(dist).map(([p,pct])=>`${p}°: ${pct}%${bolsa?` ($${formatMonto(Math.round(bolsa*pct/100))})`:''}`).join(' | ');
       const rows = inscs.map(i => {
         const spc = spcs[i.spc_id];
         const prop = propietarios[i.propietario_id];
@@ -262,7 +266,7 @@ function renderPrograma(reunion, carreras, inscripciones) {
             ${car.condicion_handicap?`<div>Handicap <span>${car.condicion_handicap}</span></div>`:''}
             ${car.hora_estimada?`<div>Hora <span>${car.hora_estimada}</span></div>`:''}
           </div>
-          ${bolsa?`<div class="car-prize">💰 Bolsa: $${bolsa.toLocaleString('es-AR')} — ${premioStr}</div>`:''}
+          ${bolsa?`<div class="car-prize">💰 Bolsa: $${formatMonto(bolsa)} — ${premioStr}</div>`:''}
         </div>
         <table class="part-table">
           <thead><tr><th>#</th><th>SPC</th><th>Propietario</th><th>Entrenador</th><th>Jockey</th><th>Peso</th><th>Últimas 5 performances</th></tr></thead>

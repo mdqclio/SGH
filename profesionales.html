@@ -55,6 +55,10 @@
     .btn-edit:hover { background: rgba(201,168,76,0.25); }
     .btn-delete { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
     .btn-delete:hover { background: rgba(224,82,82,0.2); }
+    .btn-activar { background: rgba(76,175,130,0.1); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .btn-activar:hover { background: rgba(76,175,130,0.2); }
+    .btn-desactivar { background: rgba(224,82,82,0.08); color: var(--danger); border: 1px solid rgba(224,82,82,0.25); }
+    .btn-desactivar:hover { background: rgba(224,82,82,0.18); }
     .empty-state { text-align: center; padding: 60px 20px; }
     .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
     .empty-state h3 { font-size: 18px; color: var(--muted); margin-bottom: 8px; }
@@ -220,6 +224,9 @@ function toast(msg, type = 'success') {
 }
 
 async function load() {
+  if (currentUser.rol !== 'super_admin') {
+    document.getElementById('btn-nuevo').style.display = 'none';
+  }
   document.getElementById('list-container').innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando entrenadores…</div>';
   const { data, error } = await sb.from('profesionales')
     .select('*')
@@ -230,6 +237,15 @@ async function load() {
   allData = data || [];
   updateStats();
   filterRender();
+}
+
+async function toggleActivo(id, activo, nombre) {
+  const nuevoEstado = !activo;
+  if (!confirm(`¿${nuevoEstado ? 'Activar' : 'Desactivar'} a "${nombre}"?`)) return;
+  const { error } = await sb.from('profesionales').update({ activo: nuevoEstado }).eq('id', id);
+  if (error) { toast(error.message, 'error'); return; }
+  toast(`Entrenador ${nuevoEstado ? 'activado' : 'desactivado'}`);
+  load();
 }
 
 function updateStats() {
@@ -280,8 +296,14 @@ function cardHTML(r) {
       ${r.email ? `<div>✉️ <span>${r.email}</span></div>` : ''}
     </div>
     <div class="card-actions">
-      <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(r)})'>✏️ Editar</button>
-      <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}','${r.apellido} ${r.nombre}')">🗑️ Eliminar</button>
+      ${currentUser.rol === 'super_admin'
+        ? `<button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(r)})'>✏️ Editar</button>
+           <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}','${r.apellido} ${r.nombre}')">🗑️ Eliminar</button>`
+        : `<button class="btn-sm ${r.activo ? 'btn-desactivar' : 'btn-activar'}"
+               onclick="toggleActivo('${r.id}', ${r.activo}, '${r.apellido} ${r.nombre}')">
+             ${r.activo ? '🔴 Desactivar' : '🟢 Activar'}
+           </button>`
+      }
     </div>
   </div>`;
 }

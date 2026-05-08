@@ -137,14 +137,7 @@
       </div>
 
       <!-- STATS -->
-      <div class="stats-grid" id="stats-grid">
-        <div class="stat-card"><div class="stat-value" id="stat-spcs">—</div><div class="stat-label">SPCs activos</div></div>
-        <div class="stat-card"><div class="stat-value" id="stat-propietarios">—</div><div class="stat-label">Propietarios</div></div>
-        <div class="stat-card"><div class="stat-value" id="stat-profesionales">—</div><div class="stat-label">Profesionales</div></div>
-        <div class="stat-card"><div class="stat-value" id="stat-caballerizas">—</div><div class="stat-label">Caballerizas</div></div>
-        <div class="stat-card"><div class="stat-value" id="stat-reuniones">—</div><div class="stat-label">Reuniones</div></div>
-        <div class="stat-card"><div class="stat-value" id="stat-sanciones">—</div><div class="stat-label">Sanciones activas</div></div>
-      </div>
+      <div class="stats-grid" id="stats-grid"></div>
 
       <div id="content-modules"></div>
     </div>
@@ -165,35 +158,59 @@ function toast(msg, type = 'success') {
   setTimeout(() => t.remove(), 3500);
 }
 
+function statCard(id, value, label) {
+  return `<div class="stat-card"><div class="stat-value" id="${id}">${value}</div><div class="stat-label">${label}</div></div>`;
+}
+
 async function loadDashboard() {
   try {
-    const [club, spcs, props, profs, cabs, reuns, sancs] = await Promise.all([
-      sb.from('clubs').select('nombre,sigla').eq('id', CLUB_ID).single(),
-      sb.from('spcs').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('estado', 'activo'),
-      sb.from('propietarios').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('activo', true),
-      sb.from('profesionales').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('activo', true),
-      sb.from('caballerizas').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('activo', true),
-      sb.from('reuniones').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID),
-      sb.from('sanciones').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('estado', 'activa'),
-    ]);
+    const rol = currentUser.rol;
+    const currentYear = new Date().getFullYear();
+    const { data: clubData } = await sb.from('clubs').select('nombre,sigla').eq('id', CLUB_ID).single();
 
-    if (currentUser.rol === 'super_admin') {
+    if (rol === 'super_admin') {
       document.getElementById('club-name').style.display = 'none';
       document.getElementById('sidebar-club').textContent = 'SGH';
       document.getElementById('hero-club').textContent = 'Panel Super Admin';
       document.getElementById('hero-desc').textContent = 'Sistema de Gestión Hípica — Administración global';
-    } else if (club.data) {
-      document.getElementById('club-name').textContent = club.data.sigla || club.data.nombre;
-      document.getElementById('sidebar-club').textContent = club.data.sigla || club.data.nombre;
-      document.getElementById('hero-club').textContent = club.data.nombre;
-      document.getElementById('hero-desc').textContent = `Sistema de Gestión Hípica — ${club.data.sigla}`;
+    } else if (clubData) {
+      document.getElementById('club-name').textContent = clubData.sigla || clubData.nombre;
+      document.getElementById('sidebar-club').textContent = clubData.sigla || clubData.nombre;
+      document.getElementById('hero-club').textContent = clubData.nombre;
+      document.getElementById('hero-desc').textContent = `Sistema de Gestión Hípica — ${clubData.sigla}`;
     }
-    document.getElementById('stat-spcs').textContent = spcs.count ?? '—';
-    document.getElementById('stat-propietarios').textContent = props.count ?? '—';
-    document.getElementById('stat-profesionales').textContent = profs.count ?? '—';
-    document.getElementById('stat-caballerizas').textContent = cabs.count ?? '—';
-    document.getElementById('stat-reuniones').textContent = reuns.count ?? '—';
-    document.getElementById('stat-sanciones').textContent = sancs.count ?? '—';
+
+    if (rol === 'super_admin') {
+      const [spcs, props, profs, cabs, reuns, sancs] = await Promise.all([
+        sb.from('spcs').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('estado', 'activo'),
+        sb.from('propietarios').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('activo', true),
+        sb.from('profesionales').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('activo', true),
+        sb.from('caballerizas').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('activo', true),
+        sb.from('reuniones').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID),
+        sb.from('sanciones').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('estado', 'activa'),
+      ]);
+      document.getElementById('stats-grid').innerHTML =
+        statCard('stat-spcs',          spcs.count  ?? '—', 'SPCs activos') +
+        statCard('stat-propietarios',  props.count ?? '—', 'Propietarios') +
+        statCard('stat-profesionales', profs.count ?? '—', 'Profesionales') +
+        statCard('stat-caballerizas',  cabs.count  ?? '—', 'Caballerizas') +
+        statCard('stat-reuniones',     reuns.count ?? '—', 'Reuniones') +
+        statCard('stat-sanciones',     sancs.count ?? '—', 'Sanciones activas');
+    } else {
+      // secretario_carreras y otros roles: estadísticas relevantes del hipódromo
+      const [profs, cabs, reuns, sancs] = await Promise.all([
+        sb.from('profesionales').select('id', { count: 'exact', head: true }).eq('activo', true),
+        sb.from('caballerizas').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('activo', true),
+        sb.from('reuniones').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID)
+          .gte('fecha', `${currentYear}-01-01`).lte('fecha', `${currentYear}-12-31`),
+        sb.from('sanciones').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('estado', 'activa'),
+      ]);
+      document.getElementById('stats-grid').innerHTML =
+        statCard('stat-profesionales', profs.count ?? '—', 'Profesionales') +
+        statCard('stat-caballerizas',  cabs.count  ?? '—', 'Caballerizas') +
+        statCard('stat-reuniones',     reuns.count ?? '—', `Reuniones ${currentYear}`) +
+        statCard('stat-sanciones',     sancs.count ?? '—', 'Sanciones activas');
+    }
   } catch (e) {
     toast('Error al cargar datos del dashboard', 'error');
   }

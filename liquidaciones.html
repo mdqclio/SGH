@@ -236,7 +236,7 @@
         </div>
         <div class="form-group">
           <label>Monto fijo ($)</label>
-          <input type="number" id="cf-monto" min="0" step="0.01" placeholder="0.00">
+          <input type="text" id="cf-monto" placeholder="0" oninput="fmtInput(this)">
         </div>
         <div class="form-group">
           <label>Posición bono</label>
@@ -244,7 +244,7 @@
         </div>
         <div class="form-group">
           <label>Monto bono ($)</label>
-          <input type="number" id="cf-monto-bono" min="0" step="0.01" placeholder="0.00">
+          <input type="text" id="cf-monto-bono" placeholder="0" oninput="fmtInput(this)">
         </div>
         <div class="form-group">
           <label>Desc. fondo solidario (%)</label>
@@ -293,6 +293,16 @@ function toast(msg,type='success') {
 }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 function fmt(n) { return typeof n==='number' ? '$'+n.toLocaleString('es-AR',{minimumFractionDigits:2}) : '$0.00'; }
+function formatMonto(num) {
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+function parseMonto(str) {
+  return parseFloat(str.replace(/\./g, '')) || 0;
+}
+function fmtInput(el) {
+  const raw = el.value.replace(/\./g, '').replace(/\D/g, '');
+  el.value = raw ? formatMonto(raw) : '';
+}
 
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',['liquidaciones','comisiones'][i]===name));
@@ -539,9 +549,9 @@ function openComisionModal(rec=null) {
   document.getElementById('cf-tipo-prof').value = rec?.tipo_profesional||'jockey';
   document.getElementById('cf-tipo-cobro').value = rec?.tipo_cobro||'porcentaje_bolsa';
   document.getElementById('cf-pct').value = rec?.porcentaje||'';
-  document.getElementById('cf-monto').value = rec?.monto_fijo||'';
+  document.getElementById('cf-monto').value = rec?.monto_fijo ? formatMonto(rec.monto_fijo) : '';
   document.getElementById('cf-pos-bono').value = rec?.posicion_bono||'';
-  document.getElementById('cf-monto-bono').value = rec?.monto_bono||'';
+  document.getElementById('cf-monto-bono').value = rec?.monto_bono ? formatMonto(rec.monto_bono) : '';
   document.getElementById('cf-fondo').value = rec?.descuento_fondo_solidario_pct||'';
   document.getElementById('cf-incentivo').value = rec?.descuento_incentivo_pct||'';
   document.getElementById('cf-desde').value = rec?.vigente_desde||'';
@@ -559,9 +569,9 @@ async function saveComision() {
     tipo_profesional: document.getElementById('cf-tipo-prof').value,
     tipo_cobro: document.getElementById('cf-tipo-cobro').value,
     porcentaje: document.getElementById('cf-pct').value ? parseFloat(document.getElementById('cf-pct').value) : null,
-    monto_fijo: document.getElementById('cf-monto').value ? parseFloat(document.getElementById('cf-monto').value) : null,
+    monto_fijo: document.getElementById('cf-monto').value ? parseMonto(document.getElementById('cf-monto').value) : null,
     posicion_bono: document.getElementById('cf-pos-bono').value ? parseInt(document.getElementById('cf-pos-bono').value) : null,
-    monto_bono: document.getElementById('cf-monto-bono').value ? parseFloat(document.getElementById('cf-monto-bono').value) : null,
+    monto_bono: document.getElementById('cf-monto-bono').value ? parseMonto(document.getElementById('cf-monto-bono').value) : null,
     descuento_fondo_solidario_pct: document.getElementById('cf-fondo').value ? parseFloat(document.getElementById('cf-fondo').value) : null,
     descuento_incentivo_pct: document.getElementById('cf-incentivo').value ? parseFloat(document.getElementById('cf-incentivo').value) : null,
     vigente_desde: document.getElementById('cf-desde').value || null,
