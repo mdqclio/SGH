@@ -411,7 +411,6 @@ async function loadInscripciones() {
   const { data, error } = await sb.from('inscripciones').select('*').eq('carrera_id', currentCarreraId).order('created_at');
   if (error) { toast(error.message,'error'); return; }
   inscripciones = data||[];
-  updateStats();
   renderInscripciones();
 }
 
