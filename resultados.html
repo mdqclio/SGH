@@ -344,7 +344,7 @@ function renderFormulario(carrera, res, posiciones, insc) {
     const spc = spcsMap[i.spc_id];
     const jock = profsMap[i.jockey_titular_id];
     const pos = getPosicion(i.id);
-    const isForfait = i.estado==='forfait'||i.estado==='mal_anotado';
+    const isForfait = i.estado==='forfait';
     return `<tr class="${isForfait?'forfait-row':''}">
       <td><div class="spc-name">${spc?.nombre||i.spc_id}</div>${jock?`<div class="spc-sub">${jock.apellido}</div>`:''}</td>
       <td>${i.peso_final||i.peso_declarado||'—'}</td>
@@ -428,7 +428,7 @@ async function guardarResultado(carreraId, estado) {
   const tiempo = document.getElementById('tiempo-ganador')?.value.trim();
   const incidentes = document.getElementById('incidentes')?.value.trim();
   const estadoPista = document.getElementById('estado-pista')?.value;
-  const insc = inscripciones.filter(i=>i.carrera_id===carreraId&&i.estado!=='forfait'&&i.estado!=='mal_anotado');
+  const insc = inscripciones.filter(i=>i.carrera_id===carreraId&&i.estado!=='forfait');
   const res = resultados[carreraId];
 
   // Recopilar apuestas

@@ -53,11 +53,9 @@
     .spc-name { font-weight: 600; color: var(--accent); }
     .spc-sub { font-size: 11px; color: var(--muted); }
     .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
-    .badge-pre_inscripto { background: rgba(116,176,247,0.1); color: var(--info); border: 1px solid rgba(116,176,247,0.3); }
-    .badge-ratificado { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
-    .badge-forfait { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
-    .badge-suspendido { background: rgba(201,168,76,0.1); color: var(--muted); border: 1px solid var(--border); }
-    .badge-mal_anotado { background: rgba(224,82,82,0.05); color: var(--danger); border: 1px solid rgba(224,82,82,0.2); }
+    .badge-inscripto  { background: rgba(76,175,130,0.15);  color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-ratificado { background: rgba(201,168,76,0.15);  color: var(--accent);  border: 1px solid rgba(201,168,76,0.3); }
+    .badge-forfait    { background: rgba(224,82,82,0.1);    color: var(--danger);  border: 1px solid rgba(224,82,82,0.3); }
     .peso-input { width: 80px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 7px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; text-align: center; }
     .peso-input:focus { border-color: var(--accent); }
     .action-btns { display: flex; gap: 5px; flex-wrap: wrap; }
@@ -251,7 +249,7 @@ function renderAll(carreras, inscripciones) {
     const insc = inscripciones.filter(i=>i.carrera_id===car.id);
     const rat = insc.filter(i=>i.estado==='ratificado').length;
     const fort = insc.filter(i=>i.estado==='forfait').length;
-    const pre = insc.filter(i=>i.estado==='pre_inscripto').length;
+    const pre = insc.filter(i=>i.estado==='inscripto').length;
     const rows = insc.map(i => {
       const spc = getSpc(i.spc_id);
       const cab = getCab(i.caballeriza_id);
@@ -326,12 +324,12 @@ async function ratificar(inscId) {
 }
 
 async function volverInscripto(inscId) {
-  if (!confirm('¿Volver el estado a Pre-inscripto? Use solo si hubo un error.')) return;
-  const { error } = await sb.from('inscripciones').update({ estado:'pre_inscripto', peso_final: null }).eq('id', inscId);
+  if (!confirm('¿Volver el estado a Inscripto? Use solo si hubo un error.')) return;
+  const { error } = await sb.from('inscripciones').update({ estado:'inscripto', peso_final: null }).eq('id', inscId);
   if (error) { toast(error.message,'error'); return; }
-  toast('Vuelto a pre-inscripto');
+  toast('Vuelto a inscripto');
   const badge = document.getElementById(`badge-${inscId}`);
-  if (badge) { badge.className='badge badge-pre_inscripto'; badge.textContent='pre inscripto'; }
+  if (badge) { badge.className='badge badge-inscripto'; badge.textContent='inscripto'; }
   const row = document.getElementById(`row-${inscId}`);
   if (row) {
     row.classList.add('no-ratificado');

@@ -58,9 +58,9 @@
     .badge-macho { background: rgba(74,144,226,0.1); color: #74b0f7; border: 1px solid rgba(74,144,226,0.3); }
     .badge-hembra { background: rgba(230,100,180,0.1); color: #f07cca; border: 1px solid rgba(230,100,180,0.3); }
     .badge-castrado { background: rgba(150,200,150,0.1); color: #90c890; border: 1px solid rgba(150,200,150,0.3); }
-    .badge-confirmado { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
-    .badge-pre_inscripto { background: rgba(116,176,247,0.1); color: #74b0f7; border: 1px solid rgba(116,176,247,0.3); }
-    .badge-forfait { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .badge-inscripto  { background: rgba(76,175,130,0.15);  color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-ratificado { background: rgba(201,168,76,0.15);  color: var(--accent);  border: 1px solid rgba(201,168,76,0.3); }
+    .badge-forfait    { background: rgba(224,82,82,0.1);    color: var(--danger);  border: 1px solid rgba(224,82,82,0.3); }
     .card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .btn-sm { padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; transition: all 0.2s; white-space: nowrap; }
     .btn-edit { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
@@ -560,7 +560,7 @@ async function confirmarInscripcion() {
   const payload = {
     carrera_id: carreraSeleccionada.id,
     spc_id: spcId,
-    estado: 'pre_inscripto',
+    estado: 'inscripto',
     canal: 'web',
   };
   if (currentUser.rol === 'propietario' && propietarioId) payload.propietario_id = propietarioId;
@@ -587,7 +587,7 @@ async function loadMisInscripciones() {
   const { data, error } = await sb.from('inscripciones')
     .select('id,estado,spc_id,carrera_id,carreras(numero_turno,nombre,distancia_metros,reunion_id,reuniones(numero,fecha,hipodromos(nombre)))')
     .in('spc_id', spcIds)
-    .not('estado', 'eq', 'no_presentado')
+    .in('estado', ['inscripto','ratificado','forfait'])
     .order('created_at', { ascending: false });
   if (error) { toast(error.message, 'error'); return; }
   const lista = data || [];
@@ -597,7 +597,7 @@ async function loadMisInscripciones() {
   }
   const spcMap = {};
   misSPCs.forEach(s => spcMap[s.id] = s);
-  const estadoBadge = { pre_inscripto: 'badge-pre_inscripto', confirmado: 'badge-confirmado', ratificado: 'badge-confirmado', forfait: 'badge-forfait' };
+  const estadoBadge = { inscripto: 'badge-inscripto', ratificado: 'badge-ratificado', forfait: 'badge-forfait' };
   const rows = lista.map(i => {
     const spc = spcMap[i.spc_id];
     const car = i.carreras;

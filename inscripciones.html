@@ -62,12 +62,9 @@
     .spc-name { font-weight: 600; color: var(--accent); }
     .spc-sub { font-size: 11px; color: var(--muted); }
     .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
-    .badge-pre_inscripto { background: rgba(116,176,247,0.1); color: var(--info); border: 1px solid rgba(116,176,247,0.3); }
-    .badge-suspendido { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
-    .badge-mal_anotado { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
-    .badge-ratificado { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
-    .badge-forfait { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
-    .badge-confirmado { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-inscripto  { background: rgba(76,175,130,0.15);  color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-ratificado { background: rgba(201,168,76,0.15);  color: var(--accent);  border: 1px solid rgba(201,168,76,0.3); }
+    .badge-forfait    { background: rgba(224,82,82,0.1);    color: var(--danger);  border: 1px solid rgba(224,82,82,0.3); }
     .cert-badge { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 4px; background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); margin-left: 4px; }
     .no-cert-badge { background: rgba(224,82,82,0.1); color: var(--danger); border-color: rgba(224,82,82,0.3); }
     .actions-cell { display: flex; gap: 5px; }
@@ -194,12 +191,6 @@
   </div>
 </div>
 
-<div class="stats-row" id="stats-row" style="display:none">
-  <div class="stat-chip"><div class="stat-chip-val" id="cnt-insc">—</div><div class="stat-chip-lbl">Inscriptos</div></div>
-  <div class="stat-chip"><div class="stat-chip-val success" id="cnt-rat">—</div><div class="stat-chip-lbl">Ratificados</div></div>
-  <div class="stat-chip"><div class="stat-chip-val danger" id="cnt-fort">—</div><div class="stat-chip-lbl">Forfaits</div></div>
-  <div class="stat-chip"><div class="stat-chip-val" id="cnt-cupo">—</div><div class="stat-chip-lbl">Cupo disp.</div></div>
-</div>
 
 <div class="content">
   <div class="table-actions">
@@ -269,14 +260,14 @@
         <div class="form-group full">
           <label>Estado de inscripción</label>
           <select id="f-estado">
-            <option value="pre_inscripto">Pre-inscripto</option>
-            <option value="suspendido">Suspendido</option>
-            <option value="mal_anotado">Mal anotado</option>
+            <option value="inscripto">Inscripto</option>
+            <option value="ratificado">Ratificado</option>
+            <option value="forfait">Forfait</option>
           </select>
         </div>
         <div class="form-group full" id="forfait-motivo-group" style="display:none">
-          <label>Motivo</label>
-          <input type="text" id="f-motivo-forfait" placeholder="Motivo de suspensión o mal anotado…">
+          <label>Motivo del forfait</label>
+          <input type="text" id="f-motivo-forfait" placeholder="Motivo del forfait…">
         </div>
         <div class="form-group full">
           <label>Información adicional</label>
@@ -427,14 +418,6 @@ async function loadInscripciones() {
   renderInscripciones();
 }
 
-function updateStats() {
-  const activos = inscripciones.filter(i=>i.estado!=='forfait'&&i.estado!=='mal_anotado');
-  const cupo = currentCarrera?.cupo_maximo;
-  document.getElementById('cnt-insc').textContent = activos.length;
-  document.getElementById('cnt-rat').textContent = inscripciones.filter(i=>i.estado==='ratificado').length;
-  document.getElementById('cnt-fort').textContent = inscripciones.filter(i=>i.estado==='forfait').length;
-  document.getElementById('cnt-cupo').textContent = cupo ? Math.max(0, cupo - activos.length) : '∞';
-}
 
 function getSpc(id) { return spcs.find(s=>s.id===id); }
 function getCab(id) { return caballerizas.find(c=>c.id===id); }
@@ -542,7 +525,7 @@ function updateCertBadge() {}
 
 document.getElementById('f-estado').addEventListener('change', () => {
   const estado = document.getElementById('f-estado').value;
-  document.getElementById('forfait-motivo-group').style.display = (estado === 'suspendido' || estado === 'mal_anotado') ? '' : 'none';
+  document.getElementById('forfait-motivo-group').style.display = estado === 'forfait' ? '' : 'none';
 });
 
 function openModal(rec=null) {
@@ -560,11 +543,10 @@ function openModal(rec=null) {
     document.getElementById('f-capataz').value = rec.capataz||'';
     document.getElementById('f-sereno').value = rec.sereno||'';
     document.getElementById('f-certificado').checked = !!rec.certificado_correr;
-    document.getElementById('f-estado').value = rec.estado||'pre_inscripto';
+    document.getElementById('f-estado').value = rec.estado||'inscripto';
     document.getElementById('f-motivo-forfait').value = rec.motivo_forfait||'';
     document.getElementById('f-info').value = rec.info_adicional||'';
-    const estado = rec.estado;
-    document.getElementById('forfait-motivo-group').style.display = (estado==='suspendido'||estado==='mal_anotado') ? '' : 'none';
+    document.getElementById('forfait-motivo-group').style.display = rec.estado === 'forfait' ? '' : 'none';
     document.getElementById('cert-info-row').style.display = 'none';
   } else {
     document.getElementById('spc-search-input').value='';
@@ -577,7 +559,7 @@ function openModal(rec=null) {
     document.getElementById('f-capataz').value='';
     document.getElementById('f-sereno').value='';
     document.getElementById('f-certificado').checked=false;
-    document.getElementById('f-estado').value='pre_inscripto';
+    document.getElementById('f-estado').value='inscripto';
     document.getElementById('f-motivo-forfait').value='';
     document.getElementById('f-info').value='';
     document.getElementById('forfait-motivo-group').style.display='none';
