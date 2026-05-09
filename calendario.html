@@ -155,6 +155,15 @@ async function load() {
   const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
                  'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
+  // Ordenar: programada primero, luego borrador, luego el resto por fecha ASC
+  const PRIORIDAD = { programada: 0, borrador: 1 };
+  reuns.sort((a, b) => {
+    const pa = PRIORIDAD[a.estado] ?? 2;
+    const pb = PRIORIDAD[b.estado] ?? 2;
+    if (pa !== pb) return pa - pb;
+    return (a.fecha || '').localeCompare(b.fecha || '');
+  });
+
   // Agrupar por mes
   const porMes = {};
   reuns.forEach(r => {
@@ -190,8 +199,8 @@ async function load() {
   }).join('');
 
   const leyenda = `<div class="cal-leyenda">
-    <span class="leyenda-item"><span class="leyenda-dot" style="background:#6b7280"></span>Borrador</span>
     <span class="leyenda-item"><span class="leyenda-dot" style="background:#c9a84c"></span>Programada</span>
+    <span class="leyenda-item"><span class="leyenda-dot" style="background:#6b7280"></span>Borrador</span>
     <span class="leyenda-item"><span class="leyenda-dot" style="background:#4ade80"></span>Publicada</span>
     <span class="leyenda-item"><span class="leyenda-dot" style="background:#60a5fa"></span>En curso</span>
     <span class="leyenda-item"><span class="leyenda-dot" style="background:#059669"></span>Finalizada</span>
