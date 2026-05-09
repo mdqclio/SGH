@@ -50,7 +50,8 @@
 
     /* HERO */
     .hero { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 32px; margin-bottom: 32px; display: flex; align-items: center; gap: 24px; }
-    .hero-icon { font-size: 48px; }
+    .hero-icon { font-size: 48px; display: flex; align-items: center; }
+    .hero-icon img { height: 56px; width: auto; object-fit: contain; }
     .hero h2 { font-size: 28px; color: var(--accent); margin-bottom: 6px; }
     .hero p { color: var(--muted); font-size: 15px; }
 
@@ -134,7 +135,9 @@
 
     <div class="content">
       <div class="hero">
-        <div class="hero-icon">🏇</div>
+        <div class="hero-icon">
+          <img id="logo-hipodromo" src="logo192x192.png" alt="Logo">
+        </div>
         <div>
           <h2 id="hero-club">Bienvenido al SGH</h2>
           <p id="hero-desc">Sistema de Gestión Hípica — Panel de control</p>
@@ -172,7 +175,7 @@ async function loadDashboard() {
   try {
     const rol = currentUser.rol;
     const currentYear = new Date().getFullYear();
-    const { data: clubData } = await sb.from('clubs').select('nombre,sigla').eq('id', CLUB_ID).single();
+    const { data: clubData } = await sb.from('clubs').select('nombre,sigla,logo_url').eq('id', CLUB_ID).single();
 
     if (rol === 'super_admin') {
       document.getElementById('club-name').style.display = 'none';
@@ -184,6 +187,7 @@ async function loadDashboard() {
       document.getElementById('sidebar-club').textContent = clubData.sigla || clubData.nombre;
       document.getElementById('hero-club').textContent = clubData.nombre;
       document.getElementById('hero-desc').textContent = `Sistema de Gestión Hípica — ${clubData.sigla}`;
+      document.getElementById('logo-hipodromo').src = clubData.logo_url || 'logo192x192.png';
     }
 
     if (rol === 'super_admin') {
