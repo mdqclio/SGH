@@ -121,6 +121,7 @@
     .premio-row-subtotal .premio-row-lbl { font-size: 12px; padding-left: 14px; font-weight: 600; color: var(--text); }
     .premio-row-subtotal .premio-row-val { font-size: 12px; font-weight: 600; color: var(--text); }
     .premio-row-puestos { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .premio-dist-line { font-size: 11px; color: var(--muted); margin: 2px 0 4px; line-height: 1.5; }
     .premio-total { margin-top: 6px; padding-top: 7px; border-top: 1px solid var(--border); }
     .premio-total .premio-row-lbl { font-size: 13px; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: 0.4px; }
     .premio-total .premio-row-val { font-size: 16px; font-weight: 700; color: var(--accent); }
@@ -492,19 +493,31 @@ function renderCarreras() {
     // Desglose financiero
     let desgloseHtml = '';
     if (bolsa > 0 || totalBonos > 0) {
+      // Distribución por puesto: "1ª $X — 2ª $X — ..."
+      const ORDINAL = ['1ª','2ª','3ª','4ª','5ª','6ª'];
+      const desglosePuestos = Object.entries(dist)
+        .filter(([k,v]) => !EXCLUIR.includes(k) && Number(v) > 0)
+        .sort(([a],[b]) => parseInt(a) - parseInt(b))
+        .map(([pos,pct]) => `${ORDINAL[parseInt(pos)-1]||pos+'°'} $${formatMonto(Math.round(bolsa*pct/100))}`);
+
       const rowBolsa = bolsa > 0 ? `
         <div class="premio-row">
           <span class="premio-row-lbl">Bolsa de premios (1° al ${ultimoPuestoDist}°)</span>
           <span class="premio-row-val">$${formatMonto(bolsa)}</span>
-        </div>` : '';
+        </div>
+        ${desglosePuestos.length ? `<div class="premio-dist-line">${desglosePuestos.join(' — ')}</div>` : ''}` : '';
 
       const rowBonos = totalBonos > 0 ? `
-        <div class="premio-row" style="margin-top:2px;">
+        <div class="premio-row" style="margin-top:4px;">
           <span class="premio-row-lbl">Bonos</span>
         </div>
         ${bonoGan > 0 ? `<div class="premio-row premio-row-sub">
           <span class="premio-row-lbl">· Bono ganador</span>
           <span class="premio-row-val">$${formatMonto(bonoGan)}</span>
+        </div>` : ''}
+        ${bonoPosH > 0 && bonoPosMon > 0 ? `<div class="premio-row premio-row-sub">
+          <span class="premio-row-lbl">· Bono ${bonoPosD}°-${bonoPosH}°</span>
+          <span class="premio-row-val">$${formatMonto(bonoPosMon)}/puesto</span>
         </div>` : ''}
         <div class="premio-row premio-row-subtotal">
           <span class="premio-row-lbl">Total bonos</span>
