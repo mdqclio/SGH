@@ -59,6 +59,17 @@
     .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
     .stat-value { font-size: 32px; font-weight: 700; color: var(--accent); font-family: 'Playfair Display', serif; }
     .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-card-cal { cursor: pointer; transition: border-color 0.2s, transform 0.2s; }
+    .stat-card-cal:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .stat-card-cal .stat-label { color: var(--accent); }
+    /* MODAL CALENDARIO */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
+    .modal-overlay.open { display: flex; }
+    .modal-cal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 600px; max-height: 85vh; overflow-y: auto; margin: auto; }
+    .modal-cal-header { padding: 18px 22px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--card); z-index: 1; }
+    .modal-cal-header h2 { font-size: 18px; color: var(--accent); font-family: 'Playfair Display', serif; }
+    .btn-close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; line-height: 1; }
+    .modal-cal-body { padding: 20px 22px; }
 
     /* MODULE GRID */
     .section-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
@@ -160,12 +171,22 @@
       <!-- STATS -->
       <div class="stats-grid" id="stats-grid"></div>
 
-      <!-- CALENDARIO HÍPICO -->
-      <div id="calendario-container" style="display:none;"></div>
-
       <div id="content-modules"></div>
     </div>
   </main>
+</div>
+
+<!-- MODAL CALENDARIO -->
+<div class="modal-overlay" id="modal-calendario" onclick="if(event.target===this)closeCalendario()">
+  <div class="modal-cal">
+    <div class="modal-cal-header">
+      <h2 id="cal-modal-title">Calendario Hípico</h2>
+      <button class="btn-close" onclick="closeCalendario()">✕</button>
+    </div>
+    <div class="modal-cal-body" id="cal-modal-body">
+      <div style="text-align:center;padding:40px;color:var(--muted);">Cargando…</div>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -234,7 +255,12 @@ async function loadDashboard() {
         statCard('stat-profesionales', profs.count ?? '—', 'Profesionales') +
         statCard('stat-caballerizas',  cabs.count  ?? '—', 'Caballerizas') +
         statCard('stat-reuniones',     reuns.count ?? '—', `Reuniones ${currentYear}`) +
-        statCard('stat-sanciones',     sancs.count ?? '—', 'Sanciones activas');
+        statCard('stat-sanciones',     sancs.count ?? '—', 'Sanciones activas') +
+        `<div class="stat-card stat-card-cal" onclick="openCalendario()">
+          <div class="stat-value">${reuns.count ?? '—'}</div>
+          <div class="stat-label">📅 Calendario ${currentYear}</div>
+        </div>`;
+      document.getElementById('cal-modal-title').textContent = `Calendario Hípico ${currentYear}`;
       loadCalendario();
     }
   } catch (e) {
@@ -287,17 +313,15 @@ async function loadCalendario() {
     <span class="cal-leyenda-item"><span class="cal-dot cal-dot-rojo"></span>Cancelada / Suspendida</span>
   </div>`;
 
-  const total = reuns.length;
-  document.getElementById('calendario-container').innerHTML = `
-    <div class="cal-card">
-      <div class="cal-card-head">
-        <span class="cal-card-title">Calendario Hípico ${currentYear}</span>
-        <span class="cal-card-sub">${total} reunión${total !== 1 ? 'es' : ''} programada${total !== 1 ? 's' : ''}</span>
-      </div>
-      <div class="cal-months-grid">${mesesHtml}</div>
-      ${leyenda}
-    </div>`;
-  document.getElementById('calendario-container').style.display = '';
+  document.getElementById('cal-modal-body').innerHTML =
+    `<div class="cal-months-grid">${mesesHtml}</div>${leyenda}`;
+}
+
+function openCalendario() {
+  document.getElementById('modal-calendario').classList.add('open');
+}
+function closeCalendario() {
+  document.getElementById('modal-calendario').classList.remove('open');
 }
 
 function navSection(title, links) {
