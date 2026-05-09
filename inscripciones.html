@@ -279,7 +279,7 @@ async function loadAll() {
     sb.from('reuniones').select('id,numero,fecha,estado,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
     sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID).eq('tipo', 'jockey').eq('activo', true).order('apellido'),
     sb.from('profesionales').select('id,nombre,apellido,tipo').eq('tipo', 'entrenador').eq('activo', true).order('apellido'),
-    sb.from('spcs').select('id,nombre,caballeriza_id,entrenador_id,estado,certificado_correr').eq('estado', 'activo').order('nombre'),
+    sb.from('spcs').select('id,nombre,caballeriza_id,entrenador_id,estado').eq('estado', 'activo').order('nombre'),
     sb.from('caballerizas').select('id,nombre,responsable').eq('club_id', CLUB_ID).eq('activo', true).order('nombre'),
   ]);
   reuniones = reuns||[];
@@ -449,7 +449,7 @@ async function searchSpc() {
   dd.style.display = 'block';
   spcSearchTimer = setTimeout(async () => {
     const { data, error } = await sb.from('spcs')
-      .select('id, nombre, fecha_nacimiento, sexo, color, padrillo_nombre, madre_nombre, entrenador_id, caballeriza_id, certificado_correr')
+      .select('id, nombre, fecha_nacimiento, sexo, color, padrillo_nombre, madre_nombre, entrenador_id, caballeriza_id')
       .eq('estado', 'activo')
       .ilike('nombre', `%${q}%`)
       .order('nombre')
@@ -472,7 +472,7 @@ async function searchSpc() {
 function selectSpcIdx(idx) {
   const s = spcSearchResults[idx];
   if (!s) return;
-  selectSpc(s.id, s.nombre, s.entrenador_id||'', '', s.caballeriza_id||'', !!s.certificado_correr);
+  selectSpc(s.id, s.nombre, s.entrenador_id||'', '', s.caballeriza_id||'', false);
 }
 
 function selectSpc(id, nombre, entrenadorId, jockeyId, caballerizaId, tieneCert) {
