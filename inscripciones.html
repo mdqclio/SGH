@@ -368,7 +368,6 @@ async function onReunionChange() {
   selC.innerHTML = '<option value="">— Seleccionar carrera —</option>' +
     carreras.map(c=>`<option value="${c.id}">Turno ${c.numero_turno}${c.nombre?` — ${c.nombre}`:''} (${c.distancia_metros}m)</option>`).join('');
   document.getElementById('carrera-header').style.display='none';
-  document.getElementById('stats-row').style.display='none';
   document.getElementById('btn-nueva').style.display='none';
   document.getElementById('list-container').innerHTML='';
 }
@@ -378,7 +377,6 @@ async function onCarreraChange() {
   currentCarreraId = cid || null;
   if (!cid) {
     document.getElementById('carrera-header').style.display='none';
-    document.getElementById('stats-row').style.display='none';
     document.getElementById('btn-nueva').style.display='none';
     document.getElementById('list-container').innerHTML='';
     return;
@@ -395,7 +393,6 @@ async function onCarreraChange() {
 function renderCarreraHeader() {
   if (!currentCarrera) return;
   document.getElementById('carrera-header').style.display='block';
-  document.getElementById('stats-row').style.display='flex';
   document.getElementById('btn-nueva').style.display='';
   document.getElementById('ch-num').textContent = currentCarrera.numero_turno;
   document.getElementById('ch-name').textContent = currentCarrera.nombre || `Carrera ${currentCarrera.numero_turno}`;
