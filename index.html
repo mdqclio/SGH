@@ -59,17 +59,14 @@
     .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
     .stat-value { font-size: 32px; font-weight: 700; color: var(--accent); font-family: 'Playfair Display', serif; }
     .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .stat-card-cal { cursor: pointer; transition: border-color 0.2s, transform 0.2s; }
-    .stat-card-cal:hover { border-color: var(--accent); transform: translateY(-2px); }
-    .stat-card-cal .stat-label { color: var(--accent); }
-    /* MODAL CALENDARIO */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
-    .modal-overlay.open { display: flex; }
-    .modal-cal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 600px; max-height: 85vh; overflow-y: auto; margin: auto; }
-    .modal-cal-header { padding: 18px 22px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--card); z-index: 1; }
-    .modal-cal-header h2 { font-size: 18px; color: var(--accent); font-family: 'Playfair Display', serif; }
-    .btn-close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; line-height: 1; }
-    .modal-cal-body { padding: 20px 22px; }
+    /* CALENDARIO inline en stat card */
+    .cal-dates-inline { margin-top: 8px; font-size: 10px; line-height: 1.8; text-align: center; }
+    .cal-date-chip { text-decoration: none; font-weight: 600; white-space: nowrap; }
+    .cal-date-chip:hover { opacity: 0.75; }
+    .cal-date-sep { color: var(--muted); }
+    .cal-date-verde  { color: #4caf82; }
+    .cal-date-dorado { color: #c9a84c; }
+    .cal-date-rojo   { color: #e05252; }
 
     /* MODULE GRID */
     .section-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
@@ -84,26 +81,6 @@
     .module-card-title { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--accent); }
     .module-card-desc { font-size: 13px; color: var(--muted); line-height: 1.4; }
 
-    /* CALENDARIO HÍPICO */
-    .cal-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 22px 24px; margin-bottom: 32px; }
-    .cal-card-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; gap: 12px; flex-wrap: wrap; }
-    .cal-card-title { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--accent); }
-    .cal-card-sub { font-size: 12px; color: var(--muted); }
-    .cal-months-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 28px; }
-    .cal-month { display: flex; flex-direction: column; gap: 8px; }
-    .cal-month-name { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; }
-    .cal-circles { display: flex; flex-wrap: wrap; gap: 6px; }
-    .cal-circle { width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; text-decoration: none; transition: transform 0.15s, opacity 0.15s; cursor: pointer; }
-    .cal-circle:hover { transform: scale(1.12); opacity: 0.88; }
-    .cal-circle-verde  { background: #4caf82; color: #0e2318; }
-    .cal-circle-dorado { background: #c9a84c; color: #1a1a0a; }
-    .cal-circle-rojo   { background: #e05252; color: #fff; }
-    .cal-leyenda { display: flex; gap: 18px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); flex-wrap: wrap; }
-    .cal-leyenda-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
-    .cal-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-    .cal-dot-verde  { background: #4caf82; }
-    .cal-dot-dorado { background: #c9a84c; }
-    .cal-dot-rojo   { background: #e05252; }
 
     /* TOAST */
     #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
@@ -176,18 +153,6 @@
   </main>
 </div>
 
-<!-- MODAL CALENDARIO -->
-<div class="modal-overlay" id="modal-calendario" onclick="if(event.target===this)closeCalendario()">
-  <div class="modal-cal">
-    <div class="modal-cal-header">
-      <h2 id="cal-modal-title">Calendario Hípico</h2>
-      <button class="btn-close" onclick="closeCalendario()">✕</button>
-    </div>
-    <div class="modal-cal-body" id="cal-modal-body">
-      <div style="text-align:center;padding:40px;color:var(--muted);">Cargando…</div>
-    </div>
-  </div>
-</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -255,12 +220,11 @@ async function loadDashboard() {
         statCard('stat-profesionales', profs.count ?? '—', 'Profesionales') +
         statCard('stat-caballerizas',  cabs.count  ?? '—', 'Caballerizas') +
         statCard('stat-reuniones',     reuns.count ?? '—', `Reuniones ${currentYear}`) +
-        statCard('stat-sanciones',     sancs.count ?? '—', 'Sanciones activas') +
-        `<div class="stat-card stat-card-cal" onclick="openCalendario()">
-          <div class="stat-value">${reuns.count ?? '—'}</div>
-          <div class="stat-label">📅 Calendario ${currentYear}</div>
+        statCard('stat-sanciones', sancs.count ?? '—', 'Sanciones activas') +
+        `<div class="stat-card">
+          <div class="stat-value" id="stat-calendario-num">—</div>
+          <div class="cal-dates-inline" id="cal-dates-inline"></div>
         </div>`;
-      document.getElementById('cal-modal-title').textContent = `Calendario Hípico ${currentYear}`;
       loadCalendario();
     }
   } catch (e) {
@@ -282,54 +246,22 @@ async function loadCalendario() {
 
   if (!reuns?.length) return;
 
-  const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
-                 'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const MESES_ABR = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
-  // Agrupar por mes
-  const porMes = {};
-  reuns.forEach(r => {
-    const m = new Date(r.fecha + 'T12:00:00').getMonth();
-    if (!porMes[m]) porMes[m] = [];
-    porMes[m].push(r);
-  });
+  const chips = reuns.map(r => {
+    const f = new Date(r.fecha + 'T12:00:00');
+    const label = `${f.getDate()} ${MESES_ABR[f.getMonth()]}`;
+    let cls = 'cal-date-dorado';
+    if (['publicada','en_curso','finalizada'].includes(r.estado)) cls = 'cal-date-verde';
+    else if (['cancelada','suspendida'].includes(r.estado))        cls = 'cal-date-rojo';
+    const title = `Reunión${r.numero ? ` N° ${r.numero}` : ''} · ${r.estado}`;
+    return `<a class="cal-date-chip ${cls}" href="carta-llamados.html?reunion_id=${r.id}" title="${title}">${label}</a>`;
+  }).join('<span class="cal-date-sep"> · </span>');
 
-  const mesesHtml = Object.entries(porMes).map(([mes, reuniones]) => {
-    const circulos = reuniones.map(r => {
-      const dia = new Date(r.fecha + 'T12:00:00').getDate();
-      let cls = 'cal-circle-dorado';
-      if (['publicada','en_curso','finalizada'].includes(r.estado)) cls = 'cal-circle-verde';
-      else if (['cancelada','suspendida'].includes(r.estado))        cls = 'cal-circle-rojo';
-      const title = `${r.numero ? `Reunión N° ${r.numero}` : 'Reunión'} · ${r.estado}`;
-      return `<a class="cal-circle ${cls}" href="carta-llamados.html?reunion_id=${r.id}" title="${title}">${dia}</a>`;
-    }).join('');
-
-    return `<div class="cal-month">
-      <div class="cal-month-name">${MESES[parseInt(mes)]}</div>
-      <div class="cal-circles">${circulos}</div>
-    </div>`;
-  }).join('');
-
-  const leyenda = `<div class="cal-leyenda">
-    <span class="cal-leyenda-item"><span class="cal-dot cal-dot-verde"></span>Con carta de llamados</span>
-    <span class="cal-leyenda-item"><span class="cal-dot cal-dot-dorado"></span>Programada</span>
-    <span class="cal-leyenda-item"><span class="cal-dot cal-dot-rojo"></span>Cancelada / Suspendida</span>
-  </div>`;
-
-  document.getElementById('cal-modal-body').innerHTML =
-    `<div class="cal-months-grid">${mesesHtml}</div>${leyenda}`;
-
-  // Sincronizar el contador del stat card con el resultado real de esta consulta
-  const statCal = document.querySelector('.stat-card-cal .stat-value');
-  if (statCal) statCal.textContent = reuns.length;
-  if (document.getElementById('cal-modal-title'))
-    document.getElementById('cal-modal-title').textContent = `Calendario Hípico ${currentYear} · ${reuns.length} reunión${reuns.length !== 1 ? 'es' : ''}`;
-}
-
-function openCalendario() {
-  document.getElementById('modal-calendario').classList.add('open');
-}
-function closeCalendario() {
-  document.getElementById('modal-calendario').classList.remove('open');
+  const numEl = document.getElementById('stat-calendario-num');
+  if (numEl) numEl.textContent = reuns.length;
+  const datesEl = document.getElementById('cal-dates-inline');
+  if (datesEl) datesEl.innerHTML = chips;
 }
 
 function navSection(title, links) {
