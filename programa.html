@@ -133,7 +133,7 @@ let sb, CLUB_ID, currentUser;
 async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
-let spcs={}, profesionales={}, propietarios={}, categorias={}, performances={};
+let spcs={}, profesionales={}, propietarios={}, categorias={}, performances={}, clubData=null;
 
 function formatMonto(num) {
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
@@ -145,13 +145,15 @@ function toast(msg,type='success') {
 }
 
 async function init() {
-  const [{ data: reuns }, { data: profs }, { data: props }, { data: sprcs }, { data: cats }] = await Promise.all([
+  const [{ data: reuns }, { data: profs }, { data: props }, { data: sprcs }, { data: cats }, { data: club }] = await Promise.all([
     sb.from('reuniones').select('id,numero,fecha,tipo,condicion_pista,tiempo_clima,hipodromos(nombre,sigla,localidad)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
     sb.from('profesionales').select('id,nombre,apellido').eq('club_id', CLUB_ID).order('apellido'),
     sb.from('propietarios').select('id,nombre,colores_desc').eq('club_id', CLUB_ID).order('nombre'),
     sb.from('spcs').select('id,nombre,sexo,color,fecha_nacimiento,padrillo_nombre,madre_nombre').eq('club_id', CLUB_ID).order('nombre'),
     sb.from('categorias_carrera').select('id,nombre,codigo,simbolo').eq('club_id', CLUB_ID),
+    sb.from('clubs').select('logo_url, nombre').eq('id', CLUB_ID).single(),
   ]);
+  clubData = club||null;
   (profs||[]).forEach(p=>{ profesionales[p.id]=p; });
   (props||[]).forEach(p=>{ propietarios[p.id]=p; });
   (sprcs||[]).forEach(s=>{ spcs[s.id]=s; });
@@ -206,7 +208,11 @@ function renderPrograma(reunion, carreras, inscripciones) {
   const hip = reunion.hipodromos;
   const fecha = new Date(reunion.fecha+'T12:00:00').toLocaleDateString('es-AR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   document.getElementById('topbar-title').textContent = `Programa — Reunión ${reunion.numero||''}`;
+  const progLogoHtml = clubData?.logo_url
+    ? `<img src="${clubData.logo_url}" alt="${clubData.nombre||''}" style="width:60px;height:60px;object-fit:contain;margin-bottom:8px;">`
+    : '';
   let html = `<div class="prog-header">
+    ${progLogoHtml}
     <h2>Programa Hípico Oficial</h2>
     <div class="sub">Reunión N° ${reunion.numero||'—'} — ${hip?.nombre||'—'}</div>
     <div class="prog-meta">

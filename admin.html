@@ -167,6 +167,11 @@
           <label>Dirección</label>
           <input type="text" id="c-direccion" placeholder="Ej: Av. 44 N° 500">
         </div>
+        <div class="form-group full">
+          <label>URL del logo del hipódromo</label>
+          <input type="url" id="c-logo-url" placeholder="https://raw.githubusercontent.com/...">
+          <span class="hint">Subir la imagen a GitHub y pegar la URL directa (raw). Se usa en PDF e impresiones.</span>
+        </div>
       </div>
 
       <div class="section-divider">Contacto Institucional</div>
@@ -248,6 +253,14 @@
         <div class="form-group full">
           <label>Dirección</label>
           <input type="text" id="e-direccion">
+        </div>
+        <div class="form-group full">
+          <label>URL del logo del hipódromo</label>
+          <input type="url" id="e-logo-url" placeholder="https://raw.githubusercontent.com/...">
+          <span class="hint">Subir la imagen a GitHub y pegar la URL directa (raw). Se usa en PDF e impresiones.</span>
+        </div>
+        <div id="e-logo-preview" style="margin-top:8px;display:none;">
+          <img id="e-logo-img" style="max-height:60px;max-width:120px;object-fit:contain;border:1px solid var(--border);border-radius:6px;padding:4px;" alt="Preview logo">
         </div>
       </div>
 
@@ -364,7 +377,7 @@ function renderTable() {
 
 /* ---- CREAR ---- */
 function openCreate() {
-  ['c-nombre','c-sigla','c-localidad','c-provincia','c-direccion',
+  ['c-nombre','c-sigla','c-localidad','c-provincia','c-direccion','c-logo-url',
    'c-telefono','c-email-inst','c-nombre-contacto','c-tel-contacto',
    'c-admin-nombre','c-admin-email','c-admin-pass','c-admin-pass2'].forEach(id=>{
     document.getElementById(id).value='';
@@ -396,6 +409,7 @@ async function saveCreate(){
       localidad: document.getElementById('c-localidad').value.trim()||null,
       provincia: document.getElementById('c-provincia').value.trim()||null,
       direccion: document.getElementById('c-direccion').value.trim()||null,
+      logo_url:  document.getElementById('c-logo-url').value.trim()||null,
       telefono_contacto: document.getElementById('c-telefono').value.trim()||null,
       email_contacto:    document.getElementById('c-email-inst').value.trim()||null,
       nombre_contacto:   document.getElementById('c-nombre-contacto').value.trim()||null,
@@ -446,10 +460,15 @@ function openEdit(id){
   document.getElementById('e-localidad').value=c.localidad||'';
   document.getElementById('e-provincia').value=c.provincia||'';
   document.getElementById('e-direccion').value=c.direccion||'';
+  document.getElementById('e-logo-url').value=c.logo_url||'';
   document.getElementById('e-telefono').value=c.telefono_contacto||'';
   document.getElementById('e-email-inst').value=c.email_contacto||'';
   document.getElementById('e-nombre-contacto').value=c.nombre_contacto||'';
   document.getElementById('e-tel-contacto').value=c.tel_contacto||'';
+  // Preview del logo actual
+  const prev=document.getElementById('e-logo-preview');
+  const img=document.getElementById('e-logo-img');
+  if(c.logo_url){ img.src=c.logo_url; prev.style.display='block'; } else { prev.style.display='none'; }
   document.getElementById('modal-edit').classList.add('open');
 }
 function closeEdit(){ document.getElementById('modal-edit').classList.remove('open'); }
@@ -466,6 +485,7 @@ async function saveEdit(){
     localidad:         document.getElementById('e-localidad').value.trim()||null,
     provincia:         document.getElementById('e-provincia').value.trim()||null,
     direccion:         document.getElementById('e-direccion').value.trim()||null,
+    logo_url:          document.getElementById('e-logo-url').value.trim()||null,
     telefono_contacto: document.getElementById('e-telefono').value.trim()||null,
     email_contacto:    document.getElementById('e-email-inst').value.trim()||null,
     nombre_contacto:   document.getElementById('e-nombre-contacto').value.trim()||null,

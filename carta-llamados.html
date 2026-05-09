@@ -136,6 +136,7 @@
         border-bottom: 3px solid #245033;
       }
       .p-doc-logo { width: 56px; height: 56px; object-fit: contain; flex-shrink: 0; }
+      .p-doc-logo-fallback { width: 56px; flex-shrink: 0; font-size: 9px; font-weight: 700; color: #245033; text-align: center; border: 1px solid #245033; padding: 4px; line-height: 1.3; display: flex; align-items: center; justify-content: center; }
       .p-doc-title { flex: 1; text-align: center; padding: 0 12px; }
       .p-doc-title h1 { font-size: 20px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 4px; }
       .p-doc-title p { font-size: 10px; color: #333; margin: 1px 0; }
@@ -340,7 +341,7 @@ function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html
 
 const params = new URLSearchParams(location.search);
 let reunionId = params.get('reunion_id');
-let reunion=null, carreras=[], categorias=[], hipodromos=[];
+let reunion=null, carreras=[], categorias=[], hipodromos=[], clubData=null;
 
 function toast(msg, type='success') {
   const t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
@@ -395,14 +396,15 @@ async function load() {
     reunionId = ultima.id;
     history.replaceState(null, '', `?reunion_id=${reunionId}`);
   }
-  const [{ data: r, error: er }, { data: cars, error: ec }, { data: cats }, { data: hips }] = await Promise.all([
+  const [{ data: r, error: er }, { data: cars }, { data: cats }, { data: hips }, { data: club }] = await Promise.all([
     sb.from('reuniones').select('*, hipodromos(nombre,sigla,localidad)').eq('id', reunionId).single(),
     sb.from('carreras').select('*').eq('reunion_id', reunionId).order('numero_turno'),
     sb.from('categorias_carrera').select('id,nombre,codigo,simbolo,color_hex').eq('club_id', CLUB_ID).eq('activo', true).order('orden_display'),
     sb.from('hipodromos').select('id,nombre,sigla').eq('club_id', CLUB_ID),
+    sb.from('clubs').select('logo_url, nombre').eq('id', CLUB_ID).single(),
   ]);
   if (er) { toast(er.message,'error'); return; }
-  reunion = r; carreras = cars||[]; categorias = cats||[]; hipodromos = hips||[];
+  reunion = r; carreras = cars||[]; categorias = cats||[]; hipodromos = hips||[]; clubData = club||null;
   renderHeader();
   populateCategorias();
   renderCarreras();
@@ -526,8 +528,12 @@ function renderPrint() {
   const EXCLUIR = ['bonos','bono_ganador','bono_posicion_desde','bono_posicion_hasta','bono_posicion_monto','ganancia_minima'];
   const ORDINAL = ['1ª','2ª','3ª','4ª','5ª','6ª'];
 
+  const logoHtml = clubData?.logo_url
+    ? `<img src="${clubData.logo_url}" class="p-doc-logo" alt="${clubData.nombre||''}">`
+    : `<div class="p-doc-logo-fallback">${clubData?.nombre||'SGH'}</div>`;
+
   const header = `<div class="p-doc-header">
-    <img src="logo192x192.png" class="p-doc-logo" alt="">
+    ${logoHtml}
     <div class="p-doc-title">
       <h1>Carta de Llamado</h1>
       <p>Reunión N° ${reunion.numero||'—'} &mdash; ${hip?.nombre||'—'}${hip?.sigla?` (${hip.sigla})`:''}</p>
