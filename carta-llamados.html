@@ -68,6 +68,8 @@
     .carrera-dist      { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: var(--accent); white-space: nowrap; flex-shrink: 0; }
     /* Línea de bolsa */
     .carrera-bolsa-line { padding: 6px 18px 12px; font-size: 12px; font-weight: 600; color: var(--text); border-top: 1px solid var(--border); }
+    .bono-info { padding: 6px 18px 10px; display: flex; flex-wrap: wrap; gap: 6px 20px; border-top: 1px solid var(--border); }
+    .bono-info-item { font-size: 12px; color: var(--accent); font-weight: 500; }
     .premios-list { padding: 0 18px 14px; display: flex; gap: 8px; flex-wrap: wrap; }
     .premio-chip { background: rgba(201,168,76,0.08); border: 1px solid rgba(201,168,76,0.2); border-radius: 8px; padding: 6px 12px; font-size: 12px; text-align: center; min-width: 70px; }
     .premio-pos { color: var(--muted); font-size: 11px; }
@@ -518,13 +520,26 @@ function renderCarreras() {
       </div>`;
     }
 
+    // Título del encabezado: "CARRERA N — Condición: xxx — Categoría — 800 mts"
+    const tituloPartes = [
+      `CARRERA ${c.numero_turno}`,
+      condMain ? `Condición: ${condMain}` : null,
+      cat?.nombre || null,
+      `${c.distancia_metros} mts`,
+    ].filter(Boolean);
+    const tituloHeader = tituloPartes.join(' — ');
+
+    // Bonos visibles en el cuerpo
+    const bonoItems = [];
+    if (bonoGan > 0)               bonoItems.push(`🏆 Bono al ganador: $${formatMonto(bonoGan)}`);
+    if (bonoPosH > 0 && bonoPosMon > 0) bonoItems.push(`Bono ${bonoPosD}°-${bonoPosH}°: $${formatMonto(bonoPosMon)}/puesto`);
+    const bonoBodyHtml = bonoItems.length
+      ? `<div class="bono-info">${bonoItems.map(b=>`<span class="bono-info-item">${b}</span>`).join('')}</div>` : '';
+
     return `<div class="carrera-card">
       <div class="carrera-card-header">
-        <div class="carrera-title">Carrera ${c.numero_turno}${condMain ? ` — ${condMain}` : ''}</div>
+        <div class="carrera-title">${tituloHeader}</div>
         <div class="carrera-chips">
-          ${cat?`<span class="chip-big">${cat.nombre}</span>`:''}
-          <span class="chip-big">${c.distancia_metros} mts</span>
-          <span class="chip">${c.tipo_pista||'—'}</span>
           ${c.hora_estimada?`<span class="chip">🕐 ${c.hora_estimada}</span>`:''}
         </div>
         <div class="carrera-actions">
@@ -534,6 +549,7 @@ function renderCarreras() {
         </div>
       </div>
       ${condAd ? `<div class="carrera-body"><div class="carrera-condicion">${condAd}</div></div>` : ''}
+      ${bonoBodyHtml}
       ${desgloseHtml}
     </div>`;
   }).join('')}</div>`;
