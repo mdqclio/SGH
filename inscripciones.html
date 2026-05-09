@@ -310,17 +310,21 @@ async function loadAll() {
       await onCarreraChange();
     }
   } else {
-    // Auto-select last programada/publicada/en_curso reunion
-    const ultima = reuniones.find(r=>['programada','publicada','en_curso','borrador'].includes(r.estado)) || reuniones[0];
-    if (ultima) {
-      selR.value = ultima.id;
-      await onReunionChange();
-      const firstCarrera = document.getElementById('sel-carrera').options[1];
-      if (firstCarrera) {
-        document.getElementById('sel-carrera').value = firstCarrera.value;
-        currentCarreraId = firstCarrera.value;
-        await onCarreraChange();
-      }
+    // Prioridad: última publicada → última borrador → ninguna
+    const ultima = reuniones.find(r => r.estado === 'publicada')
+                || reuniones.find(r => r.estado === 'borrador')
+                || null;
+    if (!ultima) {
+      document.getElementById('tabla-label').textContent = 'No hay reuniones disponibles';
+      return;
+    }
+    selR.value = ultima.id;
+    await onReunionChange();
+    const firstCarrera = document.getElementById('sel-carrera').options[1];
+    if (firstCarrera) {
+      document.getElementById('sel-carrera').value = firstCarrera.value;
+      currentCarreraId = firstCarrera.value;
+      await onCarreraChange();
     }
   }
 }
