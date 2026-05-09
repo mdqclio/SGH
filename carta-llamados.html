@@ -97,8 +97,16 @@
     .bono-block { background: rgba(201,168,76,0.05); border: 1px solid rgba(201,168,76,0.15); border-radius: 8px; padding: 10px 12px; margin-top: 10px; }
     .bono-block-title { font-size: 11px; font-weight: 600; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
     .bono-pos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .bonos-display { padding: 0 18px 10px; font-size: 12px; color: var(--muted); }
-    .premio-total-bar { padding: 7px 18px; font-size: 13px; font-weight: 700; color: var(--accent); background: rgba(201,168,76,0.07); border-top: 1px solid var(--border); letter-spacing: 0.2px; }
+    .premio-desglose { padding: 10px 18px 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 5px; }
+    .premio-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; }
+    .premio-row-lbl { color: var(--muted); }
+    .premio-row-val { font-weight: 600; color: var(--text); white-space: nowrap; padding-left: 12px; }
+    .premio-row-sub .premio-row-lbl { font-size: 12px; padding-left: 14px; }
+    .premio-row-sub .premio-row-val { font-size: 12px; color: var(--muted); font-weight: 400; }
+    .premio-row-puestos { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .premio-total { margin-top: 6px; padding-top: 7px; border-top: 1px solid var(--border); }
+    .premio-total .premio-row-lbl { font-size: 13px; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: 0.4px; }
+    .premio-total .premio-row-val { font-size: 16px; font-weight: 700; color: var(--accent); }
     .modal-footer { padding: 16px 24px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
     .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; }
     #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
@@ -124,9 +132,15 @@
       .carrera-body span, .carrera-body { color: #000 !important; }
       /* Ocultar distribución porcentual en impresión */
       .premios-list { display: none !important; }
-      /* Resumen financiero en impresión */
-      .premio-total-bar { color: #000 !important; background: #f0f0f0 !important; border-top: 1px solid #ccc !important; font-size: 12px; }
-      .bonos-display { color: #333 !important; }
+      /* Desglose financiero */
+      .premio-desglose { border-top: 1px solid #ccc !important; }
+      .premio-row-lbl { color: #555 !important; }
+      .premio-row-val { color: #000 !important; }
+      .premio-row-sub .premio-row-val { color: #555 !important; }
+      .premio-row-puestos { color: #777 !important; }
+      .premio-total { border-top: 1px solid #999 !important; }
+      .premio-total .premio-row-lbl { color: #000 !important; }
+      .premio-total .premio-row-val { color: #000 !important; font-size: 14px; }
       @page { size: A4 portrait; margin: 15mm; }
     }
     #auth-overlay { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center; }
@@ -406,24 +420,54 @@ function renderCarreras() {
     const dist = c.distribucion_premios || {"1":60,"2":20,"3":10,"4":6,"5":4};
     const bolsa = c.bolsa_total || 0;
 
-    // Cálculo del premio total
-    const bonoGan = dist.bono_ganador || 0;
-    const bonoPosH = dist.bono_posicion_hasta || 0;
-    const bonoPosD = dist.bono_posicion_desde || 6;
-    const bonoPosMonto = dist.bono_posicion_monto || 0;
+    // Cálculo financiero
+    const bonoGan     = dist.bono_ganador        || 0;
+    const bonoPosH    = dist.bono_posicion_hasta  || 0;
+    const bonoPosD    = dist.bono_posicion_desde  || 6;
+    const bonoPosMon  = dist.bono_posicion_monto  || 0;
     const cantPuestos = bonoPosH >= bonoPosD ? bonoPosH - bonoPosD + 1 : 0;
-    const montoTotal = bolsa + bonoGan + (bonoPosMonto * cantPuestos);
+    const totalBonos  = bonoGan + (bonoPosMon * cantPuestos);
+    const montoTotal  = bolsa + totalBonos;
 
+    // Último puesto con premio por porcentaje (de la distribución)
     const EXCLUIR = ['bonos','bono_ganador','bono_posicion_desde','bono_posicion_hasta','bono_posicion_monto','ganancia_minima'];
-    const premioHtml = Object.entries(dist).filter(([pos])=>!EXCLUIR.includes(pos)).map(([pos,pct])=>`
-      <div class="premio-chip">
-        <div class="premio-pos">${pos}°</div>
-        <div class="premio-pct">${pct}%</div>
-        ${bolsa?`<div class="premio-monto">$${formatMonto(Math.round(bolsa*pct/100))}</div>`:''}
-      </div>`).join('');
-    const ganMinHtml = dist.ganancia_minima ? `<div class="bonos-display">Ganancia mínima: $${formatMonto(Number(dist.ganancia_minima))}/puesto</div>` : '';
-    const bonoGanadorHtml = dist.bono_ganador ? `<div class="bonos-display">🏆 Bono al ganador: $${formatMonto(Number(dist.bono_ganador))}</div>` : '';
-    const bonosHtml = dist.bono_posicion_hasta && dist.bono_posicion_monto ? `<div class="bonos-display">🎁 Bono 6°–${dist.bono_posicion_hasta}°: $${formatMonto(Number(dist.bono_posicion_monto))}/puesto</div>` : '';
+    const puestosConPct = Object.entries(dist)
+      .filter(([k,v]) => !EXCLUIR.includes(k) && Number(v) > 0)
+      .map(([k]) => parseInt(k));
+    const ultimoPuestoDist = puestosConPct.length ? Math.max(...puestosConPct) : 5;
+    const ultimoPuesto     = bonoPosH > 0 ? bonoPosH : ultimoPuestoDist;
+
+    // Desglose financiero
+    let desgloseHtml = '';
+    if (bolsa > 0 || totalBonos > 0) {
+      const rowBolsa = bolsa > 0 ? `
+        <div class="premio-row">
+          <span class="premio-row-lbl">Bolsa de premios (1° al ${ultimoPuestoDist}°)</span>
+          <span class="premio-row-val">$${formatMonto(bolsa)}</span>
+        </div>` : '';
+      const rowBonos = totalBonos > 0 ? `
+        <div class="premio-row">
+          <span class="premio-row-lbl">Bonos</span>
+          <span class="premio-row-val">$${formatMonto(totalBonos)}</span>
+        </div>
+        ${bonoGan > 0 ? `<div class="premio-row premio-row-sub">
+          <span class="premio-row-lbl">· Bono ganador</span>
+          <span class="premio-row-val">$${formatMonto(bonoGan)}</span>
+        </div>` : ''}
+        ${bonoPosH > 0 && bonoPosMon > 0 ? `<div class="premio-row premio-row-sub">
+          <span class="premio-row-lbl">· Bono ${bonoPosD}° al ${bonoPosH}°</span>
+          <span class="premio-row-val">$${formatMonto(bonoPosMon)} por puesto</span>
+        </div>` : ''}` : '';
+      desgloseHtml = `<div class="premio-desglose">
+        ${rowBolsa}${rowBonos}
+        <div class="premio-row-puestos">Premios del 1° al ${ultimoPuesto}° puesto</div>
+        <div class="premio-row premio-total">
+          <span class="premio-row-lbl">TOTAL CARRERA</span>
+          <span class="premio-row-val">$${formatMonto(montoTotal)}</span>
+        </div>
+      </div>`;
+    }
+
     return `<div class="carrera-card">
       <div class="carrera-card-header">
         <div class="carrera-num">${c.numero_turno}</div>
@@ -433,7 +477,6 @@ function renderCarreras() {
           <span class="chip">${c.distancia_metros}m</span>
           <span class="chip">${c.tipo_pista||'—'}</span>
           ${c.hora_estimada?`<span class="chip">🕐 ${c.hora_estimada}</span>`:''}
-          ${bolsa?`<span class="chip">💰 Bolsa: $${formatMonto(bolsa)}</span>`:''}
         </div>
         <div class="carrera-actions">
           <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(c)})'>✏️</button>
@@ -446,11 +489,8 @@ function renderCarreras() {
         ${c.condicion_handicap?`<div>Condición: <span>${c.condicion_handicap}</span></div>`:''}
         ${c.condicion_adicional?`<div>Condición: <span>${c.condicion_adicional}</span></div>`:''}
       </div>
-      ${montoTotal > 0 ? `<div class="premio-total-bar">💵 Premio total: $${formatMonto(montoTotal)}</div>` : ''}
-      <div class="premios-list">${premioHtml}</div>
-      ${ganMinHtml}
-      ${bonoGanadorHtml}
-      ${bonosHtml}
+      <div class="premios-list"></div>
+      ${desgloseHtml}
     </div>`;
   }).join('')}</div>`;
 }
