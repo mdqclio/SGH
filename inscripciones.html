@@ -310,8 +310,9 @@ async function loadAll() {
       await onCarreraChange();
     }
   } else {
-    // Prioridad: última publicada → última borrador → ninguna
+    // Prioridad: última publicada → última programada → última borrador → ninguna
     const ultima = reuniones.find(r => r.estado === 'publicada')
+                || reuniones.find(r => r.estado === 'programada')
                 || reuniones.find(r => r.estado === 'borrador')
                 || null;
     if (!ultima) {
