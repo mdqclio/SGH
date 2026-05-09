@@ -147,22 +147,17 @@
       .p-carrera { border: 2px solid #245033; margin-bottom: 7px; page-break-inside: avoid; }
       .p-carrera-head {
         background: #245033 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;
-        color: #c9a84c; padding: 5px 10px;
-        display: flex; align-items: center; gap: 10px;
+        color: #c9a84c; padding: 6px 10px;
+        display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
       }
-      .p-carrera-num { font-size: 13px; font-weight: 900; letter-spacing: 1px; white-space: nowrap; }
-      .p-carrera-sep { color: rgba(201,168,76,0.4); }
-      .p-carrera-cat { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; flex: 1; }
-      .p-carrera-hora { font-size: 10px; font-weight: 600; white-space: nowrap; margin-left: auto; }
-      .p-carrera-body { padding: 6px 10px 8px; }
-      /* Línea 1: condición principal + distancia */
-      .p-linea1 { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px; }
-      .p-cond-main { font-size: 12px; font-weight: 700; flex: 1; padding-right: 10px; }
-      .p-dist { font-size: 20px; font-weight: 900; color: #000; white-space: nowrap; }
-      /* Línea 2: condición adicional */
-      .p-linea2 { font-size: 10px; color: #444; margin-bottom: 4px; }
-      /* Línea 3: bolsa y distribución */
-      .p-linea3 { font-size: 11px; font-weight: 700; border-top: 1px solid #ccc; padding-top: 4px; }
+      .p-head-text { font-size: 11px; font-weight: 700; flex: 1; line-height: 1.35; }
+      .p-head-hora { font-size: 10px; font-weight: 600; white-space: nowrap; color: rgba(201,168,76,0.8); }
+      .p-head-dist { font-size: 19px; font-weight: 900; color: #c9a84c; white-space: nowrap; flex-shrink: 0; }
+      .p-carrera-body { padding: 5px 10px 7px; }
+      /* Condición adicional */
+      .p-linea2 { font-size: 10px; color: #444; margin-bottom: 3px; }
+      /* Bolsa y distribución */
+      .p-linea3 { font-size: 11px; font-weight: 700; border-top: 1px solid #ccc; padding-top: 4px; margin-top: 2px; }
       @page { size: A4 portrait; margin: 12mm; }
     }
     #auth-overlay { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center; }
@@ -546,22 +541,24 @@ function renderPrint() {
   </div>`;
 
   const carrerasHtml = carreras.map(c => {
-    const cat   = categorias.find(x => x.id === c.categoria_id);
-    const dist  = c.distribucion_premios || {};
-    const bolsa = c.bolsa_total || 0;
+    const cat     = categorias.find(x => x.id === c.categoria_id);
+    const dist    = c.distribucion_premios || {};
+    const bolsa   = c.bolsa_total || 0;
     const bonoGan    = dist.bono_ganador       || 0;
     const bonoPosH   = dist.bono_posicion_hasta || 0;
     const bonoPosD   = dist.bono_posicion_desde || 6;
     const bonoPosMon = dist.bono_posicion_monto || 0;
 
-    // Línea 1: condición principal + bono ganador | distancia
-    const condMain   = c.condicion_handicap || c.nombre || '—';
-    const bonoGanStr = bonoGan > 0 ? ` &mdash; BONO $${formatMonto(bonoGan)} al ganador` : '';
+    // Encabezado: "CARRERA N — CATEGORÍA (cód) — condición"
+    const catLabel  = cat ? cat.nombre.toUpperCase() + (cat.codigo ? ` (${cat.codigo})` : '') : '';
+    const condMain  = c.condicion_handicap || c.nombre || '';
+    const headParts = [`CARRERA ${c.numero_turno}`, catLabel, condMain].filter(Boolean);
+    const headText  = headParts.join(' &mdash; ');
 
-    // Línea 2: condición adicional
+    // Condición adicional (línea pequeña bajo encabezado)
     const condAdicional = c.condicion_adicional || '';
 
-    // Línea 3: BOLSA y distribución de premios
+    // Línea de bolsa: BOLSA $X — 1ª $X — ... — BONO GANADOR $X — BONO N°-N° $X/puesto
     let bolsaLine = '';
     if (bolsa > 0) {
       const puestos = Object.entries(dist)
@@ -569,28 +566,20 @@ function renderPrint() {
         .sort(([a],[b]) => parseInt(a) - parseInt(b))
         .map(([pos,pct]) => `${ORDINAL[parseInt(pos)-1]||pos+'°'} $${formatMonto(Math.round(bolsa * pct / 100))}`);
       bolsaLine = `BOLSA: $${formatMonto(bolsa)}`;
-      if (puestos.length) bolsaLine += ' &mdash; ' + puestos.join(' &mdash; ');
-      if (bonoPosH && bonoPosMon) {
-        bolsaLine += ` &mdash; BONO ${bonoPosD}°-${bonoPosH}° $${formatMonto(bonoPosMon)}/puesto`;
-      }
+      if (puestos.length)    bolsaLine += ' &mdash; ' + puestos.join(' &mdash; ');
+      if (bonoGan > 0)       bolsaLine += ` &mdash; BONO GANADOR $${formatMonto(bonoGan)}`;
+      if (bonoPosH && bonoPosMon) bolsaLine += ` &mdash; BONO ${bonoPosD}°-${bonoPosH}° $${formatMonto(bonoPosMon)}/puesto`;
     }
-
-    const catLabel = cat ? cat.nombre.toUpperCase() + (cat.codigo ? ` (${cat.codigo})` : '') : '';
 
     return `<div class="p-carrera">
       <div class="p-carrera-head">
-        <span class="p-carrera-num">CARRERA ${c.numero_turno}</span>
-        <span class="p-carrera-sep">&mdash;</span>
-        <span class="p-carrera-cat">${catLabel}</span>
-        ${c.hora_estimada ? `<span class="p-carrera-hora">${c.hora_estimada} hs</span>` : ''}
+        <span class="p-head-text">${headText}</span>
+        ${c.hora_estimada ? `<span class="p-head-hora">${c.hora_estimada} hs &nbsp;</span>` : ''}
+        <span class="p-head-dist">${c.distancia_metros} m</span>
       </div>
       <div class="p-carrera-body">
-        <div class="p-linea1">
-          <span class="p-cond-main">${condMain}${bonoGanStr}</span>
-          <span class="p-dist">${c.distancia_metros} m</span>
-        </div>
         ${condAdicional ? `<div class="p-linea2">${condAdicional}</div>` : ''}
-        ${bolsaLine ? `<div class="p-linea3">${bolsaLine}</div>` : ''}
+        ${bolsaLine     ? `<div class="p-linea3">${bolsaLine}</div>`     : ''}
       </div>
     </div>`;
   }).join('');
