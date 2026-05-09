@@ -477,32 +477,55 @@ function renderCarreras() {
     const totalBonos  = bonoGan + (bonoPosMon * cantPuestos);
     const montoTotal  = bolsa + totalBonos;
 
-    // Distribución por puestos para la línea de bolsa
     const EXCLUIR = ['bonos','bono_ganador','bono_posicion_desde','bono_posicion_hasta','bono_posicion_monto','ganancia_minima'];
-    const ORDINAL = ['1ª','2ª','3ª','4ª','5ª','6ª'];
-    const catCode  = cat?.codigo || '';
     const condMain = c.condicion_handicap || c.nombre || '';
     const condAd   = c.condicion_adicional || '';
-    const bodyLeft = [condAd, c.tipo_pista, c.hora_estimada ? `🕐 ${c.hora_estimada}` : ''].filter(Boolean).join(' · ');
 
-    // Línea de bolsa: BOLSA: $X — 1ª $X — ... — BONO: $totalBonos
-    let bolsaLine = '';
-    if (bolsa > 0) {
-      const puestosArr = Object.entries(dist)
-        .filter(([k,v]) => !EXCLUIR.includes(k) && Number(v) > 0)
-        .sort(([a],[b]) => parseInt(a) - parseInt(b))
-        .map(([pos,pct]) => `${ORDINAL[parseInt(pos)-1]||pos+'°'} $${formatMonto(Math.round(bolsa*pct/100))}`);
-      bolsaLine = `BOLSA: $${formatMonto(bolsa)}`;
-      if (puestosArr.length) bolsaLine += ' — ' + puestosArr.join(' — ');
-      if (totalBonos > 0) bolsaLine += ` — BONO: $${formatMonto(totalBonos)}`;
+    // Último puesto con premio en la distribución porcentual
+    const puestosConPct = Object.entries(dist)
+      .filter(([k,v]) => !EXCLUIR.includes(k) && Number(v) > 0)
+      .map(([k]) => parseInt(k));
+    const ultimoPuestoDist = puestosConPct.length ? Math.max(...puestosConPct) : 5;
+
+    // Desglose financiero
+    let desgloseHtml = '';
+    if (bolsa > 0 || totalBonos > 0) {
+      const rowBolsa = bolsa > 0 ? `
+        <div class="premio-row">
+          <span class="premio-row-lbl">Bolsa de premios (1° al ${ultimoPuestoDist}°)</span>
+          <span class="premio-row-val">$${formatMonto(bolsa)}</span>
+        </div>` : '';
+
+      const rowBonos = totalBonos > 0 ? `
+        <div class="premio-row" style="margin-top:2px;">
+          <span class="premio-row-lbl">Bonos</span>
+        </div>
+        ${bonoGan > 0 ? `<div class="premio-row premio-row-sub">
+          <span class="premio-row-lbl">· Bono ganador</span>
+          <span class="premio-row-val">$${formatMonto(bonoGan)}</span>
+        </div>` : ''}
+        <div class="premio-row premio-row-subtotal">
+          <span class="premio-row-lbl">Total bonos</span>
+          <span class="premio-row-val">$${formatMonto(totalBonos)}</span>
+        </div>` : '';
+
+      desgloseHtml = `<div class="premio-desglose">
+        ${rowBolsa}${rowBonos}
+        <div class="premio-row premio-total">
+          <span class="premio-row-lbl">BOLSA TOTAL DE LA CARRERA</span>
+          <span class="premio-row-val">$${formatMonto(montoTotal)}</span>
+        </div>
+      </div>`;
     }
 
     return `<div class="carrera-card">
       <div class="carrera-card-header">
-        <div class="carrera-head-line">
-          <span class="carrera-head-num">CARRERA ${c.numero_turno}</span>
-          ${catCode ? `<span class="carrera-head-sep"> — </span><span class="carrera-head-cat">${catCode}</span>` : ''}
-          ${condMain ? `<span class="carrera-head-sep"> — </span><span class="carrera-head-cond">${condMain}</span>` : ''}
+        <div class="carrera-title">Carrera ${c.numero_turno}${condMain ? ` — ${condMain}` : ''}</div>
+        <div class="carrera-chips">
+          ${cat?`<span class="chip-big">${cat.nombre}</span>`:''}
+          <span class="chip-big">${c.distancia_metros} mts</span>
+          <span class="chip">${c.tipo_pista||'—'}</span>
+          ${c.hora_estimada?`<span class="chip">🕐 ${c.hora_estimada}</span>`:''}
         </div>
         <div class="carrera-actions">
           ${canEdit ? `
@@ -510,11 +533,8 @@ function renderCarreras() {
           <button class="btn-sm btn-delete" onclick="deleteCarrera('${c.id}')">🗑️</button>` : ''}
         </div>
       </div>
-      <div class="carrera-body-row">
-        <div class="carrera-body-left">${bodyLeft}</div>
-        <div class="carrera-dist">${c.distancia_metros} m</div>
-      </div>
-      ${bolsaLine ? `<div class="carrera-bolsa-line">${bolsaLine}</div>` : ''}
+      ${condAd ? `<div class="carrera-body"><div class="carrera-condicion">${condAd}</div></div>` : ''}
+      ${desgloseHtml}
     </div>`;
   }).join('')}</div>`;
   renderPrint();
