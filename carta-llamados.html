@@ -33,10 +33,12 @@
     .info-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
     .info-val { color: var(--text); font-weight: 500; }
     .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
-    .badge-en_curso { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
-    .badge-publicada { background: rgba(116,176,247,0.1); color: #74b0f7; border: 1px solid rgba(116,176,247,0.3); }
-    .badge-borrador { background: rgba(160,184,160,0.1); color: var(--muted); border: 1px solid rgba(160,184,160,0.3); }
-    .badge-finalizada { background: rgba(201,168,76,0.1); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    .badge-en_curso  { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-publicada { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-borrador  { background: rgba(160,184,160,0.1); color: var(--muted);   border: 1px solid rgba(160,184,160,0.3); }
+    .badge-finalizada{ background: rgba(116,176,247,0.1); color: #74b0f7;        border: 1px solid rgba(116,176,247,0.3); }
+    .badge-cancelada,.badge-suspendida { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .locked-banner { background: rgba(76,175,130,0.08); border: 1px solid rgba(76,175,130,0.3); border-radius: 10px; padding: 10px 16px; font-size: 13px; color: var(--success); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
     /* CONTENT */
     .content { max-width: 1100px; margin: 0 auto; padding: 24px; }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
@@ -176,7 +178,8 @@
   <a href="reuniones.html" class="btn-back">← Reuniones</a>
   <h1 id="topbar-title">Carta de Llamados</h1>
   <button class="btn-outline" onclick="window.print()">🖨️ Imprimir PDF</button>
-  <button class="btn-primary" onclick="openModal()">+ Nueva Carrera</button>
+  <button class="btn-outline" id="btn-publicar" onclick="publicarCarta()" style="display:none;border-color:var(--success);color:var(--success);">📢 Publicar carta</button>
+  <button class="btn-primary" id="btn-nueva-carrera" onclick="openModal()">+ Nueva Carrera</button>
 </div>
 
 <div class="reunion-header" id="reunion-header">
@@ -431,13 +434,27 @@ function populateCategorias() {
     categorias.map(c=>`<option value="${c.id}">${c.nombre}${c.codigo?` (${c.codigo})`:''}</option>`).join('');
 }
 
+function applyEstadoUI() {
+  const borrador = reunion?.estado === 'borrador';
+  document.getElementById('btn-nueva-carrera').style.display = borrador ? '' : 'none';
+  document.getElementById('btn-publicar').style.display      = borrador ? '' : 'none';
+}
+
 function renderCarreras() {
+  applyEstadoUI();
+  const canEdit = reunion?.estado === 'borrador';
+
   document.getElementById('carreras-count').textContent = `${carreras.length} turno${carreras.length!==1?'s':''}`;
+
+  const lockedBanner = !canEdit
+    ? `<div class="locked-banner">🔒 Esta carta de llamados está <strong>publicada</strong> y no puede modificarse.</div>`
+    : '';
+
   if (!carreras.length) {
-    document.getElementById('list-container').innerHTML = `<div class="empty-state"><div class="icon">📋</div><h3>Sin turnos</h3><p>Esta reunión no tiene carreras cargadas aún. Agregá el primer turno con el botón +</p></div>`;
+    document.getElementById('list-container').innerHTML = lockedBanner + `<div class="empty-state"><div class="icon">📋</div><h3>Sin turnos</h3><p>Esta reunión no tiene carreras cargadas aún. Agregá el primer turno con el botón +</p></div>`;
     return;
   }
-  document.getElementById('list-container').innerHTML = `<div class="carrera-list">${carreras.map(c => {
+  document.getElementById('list-container').innerHTML = lockedBanner + `<div class="carrera-list">${carreras.map(c => {
     const cat = categorias.find(x=>x.id===c.categoria_id);
     const dist = c.distribucion_premios || {"1":60,"2":20,"3":10,"4":6,"5":4};
     const bolsa = c.bolsa_total || 0;
@@ -504,8 +521,9 @@ function renderCarreras() {
           ${c.hora_estimada?`<span class="chip">🕐 ${c.hora_estimada}</span>`:''}
         </div>
         <div class="carrera-actions">
+          ${canEdit ? `
           <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(c)})'>✏️</button>
-          <button class="btn-sm btn-delete" onclick="deleteCarrera('${c.id}')">🗑️</button>
+          <button class="btn-sm btn-delete" onclick="deleteCarrera('${c.id}')">🗑️</button>` : ''}
         </div>
       </div>
       <div class="carrera-body">
@@ -685,6 +703,16 @@ async function deleteCarrera(id) {
   if (error) { toast(error.message,'error'); return; }
   toast('Carrera eliminada');
   carreras = carreras.filter(c=>c.id!==id);
+  renderCarreras();
+}
+
+async function publicarCarta() {
+  if (!confirm('¿Publicar esta carta de llamados?\nUna vez publicada no podrá modificarse.')) return;
+  const { error } = await sb.from('reuniones').update({ estado: 'publicada' }).eq('id', reunionId);
+  if (error) { toast(error.message, 'error'); return; }
+  toast('Carta de llamados publicada');
+  reunion.estado = 'publicada';
+  renderHeader();
   renderCarreras();
 }
 
