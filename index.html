@@ -203,23 +203,24 @@ async function loadDashboard() {
         statCard('stat-reuniones',     reuns.count ?? '—', 'Reuniones') +
         statCard('stat-sanciones',     sancs.count ?? '—', 'Sanciones activas');
     } else {
-      // secretario_carreras y otros roles: estadísticas relevantes del hipódromo
-      const [profs, cabs, reuns, sancs] = await Promise.all([
-        sb.from('profesionales').select('id', { count: 'exact', head: true }).eq('activo', true),
-        sb.from('caballerizas').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('activo', true),
+      // secretario_carreras y otros roles
+      const [reuns, entrenadores, jockeys, cabs, sancs] = await Promise.all([
         sb.from('reuniones').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID)
-          .gte('fecha', `${currentYear}-01-01`).lte('fecha', `${currentYear}-12-31`),
+          .gte('fecha', `${currentYear}-01-01`).lt('fecha', `${currentYear + 1}-01-01`),
+        sb.from('profesionales').select('id', { count: 'exact', head: true }).eq('tipo', 'entrenador').eq('activo', true),
+        sb.from('profesionales').select('id', { count: 'exact', head: true }).eq('tipo', 'jockey').eq('activo', true),
+        sb.from('caballerizas').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('activo', true),
         sb.from('sanciones').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('estado', 'activa'),
       ]);
       document.getElementById('stats-grid').innerHTML =
-        statCard('stat-profesionales', profs.count ?? '—', 'Profesionales') +
-        statCard('stat-caballerizas',  cabs.count  ?? '—', 'Caballerizas') +
-        statCard('stat-reuniones',     reuns.count ?? '—', `Reuniones ${currentYear}`) +
-        statCard('stat-sanciones', sancs.count ?? '—', 'Sanciones activas') +
         `<a href="calendario.html" class="stat-card stat-card-cal">
           <div class="stat-value">${reuns.count ?? '—'}</div>
           <div class="stat-label">Calendario ${currentYear}</div>
-        </a>`;
+        </a>` +
+        statCard('stat-entrenadores', entrenadores.count ?? '—', 'Entrenadores') +
+        statCard('stat-jockeys',      jockeys.count      ?? '—', 'Jockeys') +
+        statCard('stat-caballerizas', cabs.count         ?? '—', 'Caballerizas') +
+        statCard('stat-sanciones',    sancs.count        ?? '—', 'Sanciones activas');
     }
   } catch (e) {
     toast('Error al cargar datos del dashboard', 'error');
