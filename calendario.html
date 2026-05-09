@@ -123,16 +123,23 @@ async function load() {
   const currentYear = new Date().getFullYear();
   document.getElementById('page-title').textContent = `Calendario Hípico ${currentYear}`;
 
-  const { data: reuns, error } = await sb.from('reuniones')
+  // Traer todas las reuniones del club y filtrar por año en JS
+  // Evita problemas de timezone o formato de fecha en el servidor
+  const { data: todasReuns, error } = await sb.from('reuniones')
     .select('id, fecha, estado, numero, tipo')
     .eq('club_id', CLUB_ID)
-    .gte('fecha', `${currentYear}-01-01`)
-    .lt('fecha',  `${currentYear + 1}-01-01`)
     .order('fecha');
 
   if (error) { toast(error.message, 'error'); return; }
 
-  if (!reuns?.length) {
+  // Filtrar por año actual en JavaScript
+  const reuns = (todasReuns || []).filter(r => {
+    if (!r.fecha) return false;
+    const anio = new Date(r.fecha).getFullYear();
+    return anio === currentYear;
+  });
+
+  if (!reuns.length) {
     document.getElementById('cal-container').innerHTML = `
       <div class="empty-state">
         <div class="icon">📅</div>
