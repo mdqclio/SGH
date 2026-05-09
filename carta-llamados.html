@@ -119,33 +119,51 @@
     .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-    /* PRINT */
+    /* PRINT — documento separado generado por renderPrint() */
+    #print-only { display: none; }
     @media print {
-      body { background: #fff !important; color: #000 !important; font-family: Arial, sans-serif; }
-      .topbar, .reunion-header .btn-primary, .btn-outline, .btn-back, .section-header .btn-primary, .carrera-actions, #toast-container { display: none !important; }
-      .reunion-header { background: #fff !important; border: none; padding: 12px 0; }
-      .info-val { color: #000 !important; }
-      .info-label { color: #666 !important; }
-      .content { padding: 0; max-width: 100%; }
-      .carrera-card { border: 1px solid #ccc !important; background: #fff !important; page-break-inside: avoid; margin-bottom: 10px; }
-      .turno, .carrera { page-break-inside: avoid; }
-      .carrera-card-header { background: #f5f5f5 !important; }
-      .carrera-num, .carrera-title { color: #000 !important; }
-      .chip, .badge { color: #333 !important; border-color: #999 !important; background: #eee !important; }
-      .carrera-body { background: #fff !important; }
-      .carrera-body span, .carrera-body { color: #000 !important; }
-      /* Ocultar distribución porcentual en impresión */
-      .premios-list { display: none !important; }
-      /* Desglose financiero */
-      .premio-desglose { border-top: 1px solid #ccc !important; }
-      .premio-row-lbl { color: #555 !important; }
-      .premio-row-val { color: #000 !important; }
-      .premio-row-sub .premio-row-val { color: #555 !important; }
-      .premio-row-puestos { color: #777 !important; }
-      .premio-total { border-top: 1px solid #999 !important; }
-      .premio-total .premio-row-lbl { color: #000 !important; }
-      .premio-total .premio-row-val { color: #000 !important; font-size: 14px; }
-      @page { size: A4 portrait; margin: 15mm; }
+      body > *:not(#print-only) { display: none !important; }
+      #print-only {
+        display: block !important;
+        font-family: Arial, Helvetica, sans-serif;
+        color: #000;
+        font-size: 11px;
+      }
+      /* ── Encabezado del documento ── */
+      .p-doc-header {
+        display: flex; align-items: flex-start; justify-content: space-between;
+        padding-bottom: 10px; margin-bottom: 12px;
+        border-bottom: 3px solid #245033;
+      }
+      .p-doc-logo { width: 56px; height: 56px; object-fit: contain; flex-shrink: 0; }
+      .p-doc-title { flex: 1; text-align: center; padding: 0 12px; }
+      .p-doc-title h1 { font-size: 20px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 4px; }
+      .p-doc-title p { font-size: 10px; color: #333; margin: 1px 0; }
+      .p-doc-fecha { text-align: right; line-height: 1.2; }
+      .p-fecha-dow { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #555; }
+      .p-fecha-dia { font-size: 30px; font-weight: 900; color: #000; line-height: 1; }
+      .p-fecha-mes { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+      /* ── Cada carrera ── */
+      .p-carrera { border: 2px solid #245033; margin-bottom: 7px; page-break-inside: avoid; }
+      .p-carrera-head {
+        background: #245033 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        color: #c9a84c; padding: 5px 10px;
+        display: flex; align-items: center; gap: 10px;
+      }
+      .p-carrera-num { font-size: 13px; font-weight: 900; letter-spacing: 1px; white-space: nowrap; }
+      .p-carrera-sep { color: rgba(201,168,76,0.4); }
+      .p-carrera-cat { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; flex: 1; }
+      .p-carrera-hora { font-size: 10px; font-weight: 600; white-space: nowrap; margin-left: auto; }
+      .p-carrera-body { padding: 6px 10px 8px; }
+      /* Línea 1: condición principal + distancia */
+      .p-linea1 { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px; }
+      .p-cond-main { font-size: 12px; font-weight: 700; flex: 1; padding-right: 10px; }
+      .p-dist { font-size: 20px; font-weight: 900; color: #000; white-space: nowrap; }
+      /* Línea 2: condición adicional */
+      .p-linea2 { font-size: 10px; color: #444; margin-bottom: 4px; }
+      /* Línea 3: bolsa y distribución */
+      .p-linea3 { font-size: 11px; font-weight: 700; border-top: 1px solid #ccc; padding-top: 4px; }
+      @page { size: A4 portrait; margin: 12mm; }
     }
     #auth-overlay { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center; }
     .btn-logout { background:none;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;transition:all 0.2s; }
@@ -178,6 +196,9 @@
   </div>
   <div id="list-container"></div>
 </div>
+
+<!-- SOLO IMPRESIÓN -->
+<div id="print-only"></div>
 
 <!-- MODAL CARRERA -->
 <div class="modal-overlay" id="modal">
@@ -498,6 +519,83 @@ function renderCarreras() {
       ${desgloseHtml}
     </div>`;
   }).join('')}</div>`;
+  renderPrint();
+}
+
+function renderPrint() {
+  if (!reunion || !carreras.length) return;
+  const hip = reunion.hipodromos;
+  const f = new Date(reunion.fecha + 'T12:00:00');
+  const DIAS  = ['DOMINGO','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO'];
+  const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+  const EXCLUIR = ['bonos','bono_ganador','bono_posicion_desde','bono_posicion_hasta','bono_posicion_monto','ganancia_minima'];
+  const ORDINAL = ['1ª','2ª','3ª','4ª','5ª','6ª'];
+
+  const header = `<div class="p-doc-header">
+    <img src="logo192x192.png" class="p-doc-logo" alt="">
+    <div class="p-doc-title">
+      <h1>Carta de Llamado</h1>
+      <p>Reunión N° ${reunion.numero||'—'} &mdash; ${hip?.nombre||'—'}${hip?.sigla?` (${hip.sigla})`:''}</p>
+      <p>${hip?.localidad||''}${reunion.condicion_pista?` &mdash; Pista: ${reunion.condicion_pista}`:''}</p>
+    </div>
+    <div class="p-doc-fecha">
+      <div class="p-fecha-dow">${DIAS[f.getDay()]}</div>
+      <div class="p-fecha-dia">${f.getDate()}</div>
+      <div class="p-fecha-mes">${MESES[f.getMonth()]} ${f.getFullYear()}</div>
+    </div>
+  </div>`;
+
+  const carrerasHtml = carreras.map(c => {
+    const cat   = categorias.find(x => x.id === c.categoria_id);
+    const dist  = c.distribucion_premios || {};
+    const bolsa = c.bolsa_total || 0;
+    const bonoGan    = dist.bono_ganador       || 0;
+    const bonoPosH   = dist.bono_posicion_hasta || 0;
+    const bonoPosD   = dist.bono_posicion_desde || 6;
+    const bonoPosMon = dist.bono_posicion_monto || 0;
+
+    // Línea 1: condición principal + bono ganador | distancia
+    const condMain   = c.condicion_handicap || c.nombre || '—';
+    const bonoGanStr = bonoGan > 0 ? ` &mdash; BONO $${formatMonto(bonoGan)} al ganador` : '';
+
+    // Línea 2: condición adicional
+    const condAdicional = c.condicion_adicional || '';
+
+    // Línea 3: BOLSA y distribución de premios
+    let bolsaLine = '';
+    if (bolsa > 0) {
+      const puestos = Object.entries(dist)
+        .filter(([k,v]) => !EXCLUIR.includes(k) && Number(v) > 0)
+        .sort(([a],[b]) => parseInt(a) - parseInt(b))
+        .map(([pos,pct]) => `${ORDINAL[parseInt(pos)-1]||pos+'°'} $${formatMonto(Math.round(bolsa * pct / 100))}`);
+      bolsaLine = `BOLSA: $${formatMonto(bolsa)}`;
+      if (puestos.length) bolsaLine += ' &mdash; ' + puestos.join(' &mdash; ');
+      if (bonoPosH && bonoPosMon) {
+        bolsaLine += ` &mdash; BONO ${bonoPosD}°-${bonoPosH}° $${formatMonto(bonoPosMon)}/puesto`;
+      }
+    }
+
+    const catLabel = cat ? cat.nombre.toUpperCase() + (cat.codigo ? ` (${cat.codigo})` : '') : '';
+
+    return `<div class="p-carrera">
+      <div class="p-carrera-head">
+        <span class="p-carrera-num">CARRERA ${c.numero_turno}</span>
+        <span class="p-carrera-sep">&mdash;</span>
+        <span class="p-carrera-cat">${catLabel}</span>
+        ${c.hora_estimada ? `<span class="p-carrera-hora">${c.hora_estimada} hs</span>` : ''}
+      </div>
+      <div class="p-carrera-body">
+        <div class="p-linea1">
+          <span class="p-cond-main">${condMain}${bonoGanStr}</span>
+          <span class="p-dist">${c.distancia_metros} m</span>
+        </div>
+        ${condAdicional ? `<div class="p-linea2">${condAdicional}</div>` : ''}
+        ${bolsaLine ? `<div class="p-linea3">${bolsaLine}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('print-only').innerHTML = header + carrerasHtml;
 }
 
 function openModal(rec=null) {
