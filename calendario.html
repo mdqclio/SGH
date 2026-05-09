@@ -54,9 +54,13 @@
     /* CÍRCULOS */
     .cal-circle { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Playfair Display', serif; font-size: 14px; font-weight: 700; flex-shrink: 0; transition: transform 0.15s; }
     .reunion-row:hover .cal-circle { transform: scale(1.08); }
-    .cal-circle-verde  { background: #4caf82; color: #0e2318; }
-    .cal-circle-dorado { background: #c9a84c; color: #1a1a0a; }
-    .cal-circle-rojo   { background: #e05252; color: #fff; }
+    .cal-circle-borrador   { background: #6b7280; color: #fff; }
+    .cal-circle-programada { background: #c9a84c; color: #1a1a0a; }
+    .cal-circle-publicada  { background: #4ade80; color: #0e2318; }
+    .cal-circle-en_curso   { background: #60a5fa; color: #0e2318; }
+    .cal-circle-finalizada { background: #059669; color: #fff; }
+    .cal-circle-cancelada  { background: #e74c3c; color: #fff; }
+    .cal-circle-suspendida { background: #f97316; color: #fff; }
 
     .reunion-label { display: flex; flex-direction: column; gap: 1px; }
     .reunion-label-main { font-size: 13px; font-weight: 500; }
@@ -66,9 +70,7 @@
     .cal-leyenda { display: flex; gap: 24px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); flex-wrap: wrap; }
     .leyenda-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
     .leyenda-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
-    .leyenda-dot-verde  { background: #4caf82; }
-    .leyenda-dot-dorado { background: #c9a84c; }
-    .leyenda-dot-rojo   { background: #e05252; }
+    .leyenda-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
 
     /* ESTADOS */
     .empty-state { text-align: center; padding: 60px 20px; }
@@ -164,9 +166,13 @@ async function load() {
   const mesesHtml = Object.entries(porMes).map(([mes, reuniones]) => {
     const filasHtml = reuniones.map(r => {
       const dia = new Date(r.fecha + 'T12:00:00').getDate();
-      let cls = 'cal-circle-dorado';
-      if (['publicada','en_curso','finalizada'].includes(r.estado)) cls = 'cal-circle-verde';
-      else if (['cancelada','suspendida'].includes(r.estado))        cls = 'cal-circle-rojo';
+      const CLS_MAP = {
+        borrador: 'cal-circle-borrador', programada: 'cal-circle-programada',
+        publicada: 'cal-circle-publicada', en_curso: 'cal-circle-en_curso',
+        finalizada: 'cal-circle-finalizada', cancelada: 'cal-circle-cancelada',
+        suspendida: 'cal-circle-suspendida',
+      };
+      const cls = CLS_MAP[r.estado] || 'cal-circle-borrador';
       const label = r.numero ? `Reunión N° ${r.numero}` : 'Reunión';
       return `<a class="reunion-row" href="carta-llamados.html?reunion_id=${r.id}">
         <div class="cal-circle ${cls}">${dia}</div>
@@ -184,9 +190,13 @@ async function load() {
   }).join('');
 
   const leyenda = `<div class="cal-leyenda">
-    <span class="leyenda-item"><span class="leyenda-dot leyenda-dot-verde"></span>Con carta de llamados</span>
-    <span class="leyenda-item"><span class="leyenda-dot leyenda-dot-dorado"></span>Programada</span>
-    <span class="leyenda-item"><span class="leyenda-dot leyenda-dot-rojo"></span>Cancelada / Suspendida</span>
+    <span class="leyenda-item"><span class="leyenda-dot" style="background:#6b7280"></span>Borrador</span>
+    <span class="leyenda-item"><span class="leyenda-dot" style="background:#c9a84c"></span>Programada</span>
+    <span class="leyenda-item"><span class="leyenda-dot" style="background:#4ade80"></span>Publicada</span>
+    <span class="leyenda-item"><span class="leyenda-dot" style="background:#60a5fa"></span>En curso</span>
+    <span class="leyenda-item"><span class="leyenda-dot" style="background:#059669"></span>Finalizada</span>
+    <span class="leyenda-item"><span class="leyenda-dot" style="background:#e74c3c"></span>Cancelada</span>
+    <span class="leyenda-item"><span class="leyenda-dot" style="background:#f97316"></span>Suspendida</span>
   </div>`;
 
   document.getElementById('cal-container').innerHTML = `
