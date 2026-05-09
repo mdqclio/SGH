@@ -132,11 +132,12 @@ async function load() {
 
   if (error) { toast(error.message, 'error'); return; }
 
-  // Filtrar por año actual en JavaScript
+  // Filtrar por año actual: leer los primeros 4 caracteres del string
+  // Evita cualquier conversión de timezone (new Date() convierte a UTC
+  // y puede cambiar el año para fechas en enero en UTC-3)
   const reuns = (todasReuns || []).filter(r => {
     if (!r.fecha) return false;
-    const anio = new Date(r.fecha).getFullYear();
-    return anio === currentYear;
+    return parseInt(r.fecha.substring(0, 4)) === currentYear;
   });
 
   if (!reuns.length) {
