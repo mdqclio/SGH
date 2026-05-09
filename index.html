@@ -271,11 +271,13 @@ async function loadDashboard() {
 async function loadCalendario() {
   if (!CLUB_ID) return;
   const currentYear = new Date().getFullYear();
+  // Sin filtro de estado — muestra todas: borrador, publicada, en_curso, finalizada, cancelada
+  // Usa lt(año+1) en lugar de lte(año-12-31) para evitar problemas con timestamps de fin de año
   const { data: reuns } = await sb.from('reuniones')
     .select('id, fecha, estado, numero, tipo')
     .eq('club_id', CLUB_ID)
     .gte('fecha', `${currentYear}-01-01`)
-    .lte('fecha', `${currentYear}-12-31`)
+    .lt('fecha',  `${currentYear + 1}-01-01`)
     .order('fecha');
 
   if (!reuns?.length) return;
@@ -315,6 +317,12 @@ async function loadCalendario() {
 
   document.getElementById('cal-modal-body').innerHTML =
     `<div class="cal-months-grid">${mesesHtml}</div>${leyenda}`;
+
+  // Sincronizar el contador del stat card con el resultado real de esta consulta
+  const statCal = document.querySelector('.stat-card-cal .stat-value');
+  if (statCal) statCal.textContent = reuns.length;
+  if (document.getElementById('cal-modal-title'))
+    document.getElementById('cal-modal-title').textContent = `Calendario Hípico ${currentYear} · ${reuns.length} reunión${reuns.length !== 1 ? 'es' : ''}`;
 }
 
 function openCalendario() {
