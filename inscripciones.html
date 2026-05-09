@@ -279,7 +279,7 @@ async function loadAll() {
     sb.from('reuniones').select('id,numero,fecha,estado,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
     sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID).eq('tipo', 'jockey').eq('activo', true).order('apellido'),
     sb.from('profesionales').select('id,nombre,apellido,tipo').eq('tipo', 'entrenador').eq('activo', true).order('apellido'),
-    sb.from('spcs').select('id,nombre,caballeriza_id,entrenador_id,jockey_habitual_id,estado,certificado_correr').eq('club_id', CLUB_ID).order('nombre'),
+    sb.from('spcs').select('id,nombre,caballeriza_id,entrenador_id,jockey_habitual_id,estado,certificado_correr').eq('activo', true).order('nombre'),
     sb.from('caballerizas').select('id,nombre,responsable').eq('club_id', CLUB_ID).eq('activo', true).order('nombre'),
   ]);
   reuniones = reuns||[];
@@ -428,22 +428,51 @@ function renderInscripciones() {
 }
 
 let spcSearchTimer;
-function searchSpc() {
+let spcSearchResults = [];
+
+function calcSpcEdad(fecha) {
+  if (!fecha) return '';
+  const anos = Math.floor((new Date() - new Date(fecha + 'T12:00:00')) / (365.25 * 24 * 3600 * 1000));
+  return `${anos} año${anos !== 1 ? 's' : ''}`;
+}
+
+async function searchSpc() {
   clearTimeout(spcSearchTimer);
-  const q = document.getElementById('spc-search-input').value.toLowerCase();
-  if (!q) { document.getElementById('spc-dropdown').style.display='none'; return; }
-  spcSearchTimer = setTimeout(() => {
-    const matches = spcs.filter(s=>s.nombre.toLowerCase().includes(q)&&s.estado==='activo').slice(0,10);
-    const dd = document.getElementById('spc-dropdown');
-    if (!matches.length) { dd.style.display='none'; return; }
-    dd.innerHTML = matches.map(s=>{
-      const cert = s.certificado_correr ? '✅ CERT' : '❌ SIN CERT';
-      return `<div class="spc-option" onclick="selectSpc('${s.id}','${s.nombre.replace(/'/g,"\\'")}','${s.entrenador_id||''}','${s.jockey_habitual_id||''}','${s.caballeriza_id||''}',${!!s.certificado_correr})">
-        <span>${s.nombre}</span><span style="font-size:11px;color:${s.certificado_correr?'var(--success)':'var(--danger)'}">${cert}</span>
+  const q = document.getElementById('spc-search-input').value.trim();
+  const dd = document.getElementById('spc-dropdown');
+  if (q.length < 2) {
+    dd.style.display = 'none';
+    if (!q) document.getElementById('f-spc-id').value = '';
+    return;
+  }
+  dd.innerHTML = '<div class="spc-option" style="color:var(--muted);cursor:default;">Buscando…</div>';
+  dd.style.display = 'block';
+  spcSearchTimer = setTimeout(async () => {
+    const { data, error } = await sb.from('spcs')
+      .select('id, nombre, fecha_nacimiento, sexo, color, padrillo_nombre, madre_nombre, entrenador_id, jockey_habitual_id, caballeriza_id, certificado_correr')
+      .eq('activo', true)
+      .ilike('nombre', `%${q}%`)
+      .order('nombre')
+      .limit(10);
+    if (error || !data?.length) { dd.innerHTML='<div class="spc-option" style="color:var(--muted);cursor:default;">Sin resultados</div>'; return; }
+    spcSearchResults = data;
+    // Agregar al cache local para getSpc()
+    data.forEach(s => { if (!spcs.find(x=>x.id===s.id)) spcs.push(s); });
+    dd.innerHTML = data.map((s, idx) => {
+      const partes = [s.nombre, s.sexo, calcSpcEdad(s.fecha_nacimiento), s.color].filter(Boolean);
+      return `<div class="spc-option" onclick="selectSpcIdx(${idx})">
+        <span>${partes.join(' — ')}</span>
+        <span style="font-size:11px;color:${s.certificado_correr?'var(--success)':'var(--danger)'}">${s.certificado_correr?'✅':'❌'}</span>
       </div>`;
     }).join('');
-    dd.style.display='block';
-  }, 200);
+    dd.style.display = 'block';
+  }, 300);
+}
+
+function selectSpcIdx(idx) {
+  const s = spcSearchResults[idx];
+  if (!s) return;
+  selectSpc(s.id, s.nombre, s.entrenador_id||'', s.jockey_habitual_id||'', s.caballeriza_id||'', !!s.certificado_correr);
 }
 
 function selectSpc(id, nombre, entrenadorId, jockeyId, caballerizaId, tieneCert) {
