@@ -516,8 +516,8 @@ function renderCarreras() {
           <span class="premio-row-val">$${formatMonto(bonoGan)}</span>
         </div>` : ''}
         ${bonoPosH > 0 && bonoPosMon > 0 ? `<div class="premio-row premio-row-sub">
-          <span class="premio-row-lbl">· Bono ${bonoPosD}°-${bonoPosH}°</span>
-          <span class="premio-row-val">$${formatMonto(bonoPosMon)}/puesto</span>
+          <span class="premio-row-lbl">· Bono ${bonoPosD}°-${bonoPosH}° ($${formatMonto(bonoPosMon)}/puesto)</span>
+          <span class="premio-row-val">$${formatMonto(bonoPosMon * cantPuestos)}</span>
         </div>` : ''}
         <div class="premio-row premio-row-subtotal">
           <span class="premio-row-lbl">Total bonos</span>
