@@ -194,7 +194,7 @@
   <h1 id="topbar-title">Carta de Llamados</h1>
   <button class="btn-outline" onclick="window.print()">🖨️ Imprimir PDF</button>
   <button class="btn-outline" id="btn-publicar" onclick="publicarCarta()" style="display:none;border-color:var(--success);color:var(--success);">📢 Publicar carta</button>
-  <button class="btn-primary" id="btn-nueva-carrera" onclick="openModal()">+ Nueva Carrera</button>
+  <button class="btn-primary" id="btn-nueva-carrera" onclick="openModal()">+ Nuevo Turno</button>
 </div>
 
 <div class="reunion-header" id="reunion-header">
@@ -645,7 +645,7 @@ function renderPrint() {
 }
 
 function openModal(rec=null) {
-  document.getElementById('modal-title').textContent = rec ? `Editar Carrera ${rec.numero_turno}` : 'Nueva Carrera';
+  document.getElementById('modal-title').textContent = rec ? `Editar Turno ${rec.numero_turno}` : 'Nuevo Turno';
   document.getElementById('f-id').value = rec?.id||'';
   document.getElementById('f-turno').value = rec?.numero_turno || (carreras.length+1);
   document.getElementById('f-nombre').value = rec?.nombre||'';
@@ -723,7 +723,7 @@ async function saveRecord() {
     : await sb.from('carreras').insert(payload);
   btn.disabled=false; btn.textContent='Guardar';
   if (error) { toast(error.message,'error'); return; }
-  toast(id ? 'Carrera actualizada' : 'Carrera creada');
+  toast(id ? 'Turno actualizado' : 'Turno creado');
   closeModal();
   const { data } = await sb.from('carreras').select('*').eq('reunion_id', reunionId).order('numero_turno');
   carreras = data || [];
@@ -734,7 +734,7 @@ async function deleteCarrera(id) {
   if (!confirm('¿Eliminar este turno? Se perderán las inscripciones asociadas.')) return;
   const { error } = await sb.from('carreras').delete().eq('id',id);
   if (error) { toast(error.message,'error'); return; }
-  toast('Carrera eliminada');
+  toast('Turno eliminado');
   carreras = carreras.filter(c=>c.id!==id);
   renderCarreras();
 }
