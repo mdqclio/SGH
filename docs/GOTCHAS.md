@@ -58,3 +58,6 @@ Para logo con fondo blanco sobre verde: agregar mix-blend-mode: multiply al img.
 ## 15. Carta de llamados bloqueada
 Para editar una carta publicada:
 UPDATE reuniones SET estado = 'borrador' WHERE id = 'UUID';
+
+## 16. toLocaleString sin locale da formato inglés
+Nunca usar .toLocaleString() ni .toFixed() directo para mostrar plata. Siempre formatMonto(). El locale default del browser suele ser en-US y mete coma de miles, que es lo opuesto al formato argentino.

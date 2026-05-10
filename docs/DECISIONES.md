@@ -36,6 +36,7 @@ Justificación: Documento oficial — cambios post-publicación serían irregula
 Decisión: Policy allow_all durante desarrollo
 Deuda técnica: Implementar RLS por club_id cuando haya múltiples clientes pagando
 
-## ADR-010: Montos como DECIMAL en DB, puntos en UI
-Decisión: Guardar números sin formato, mostrar con puntos para miles
-Funciones: formatMonto() y parseMonto()
+## ADR-010: Montos en DB sin formato, UI en formato argentino
+Decisión: Guardar números DECIMAL planos en Postgres. En UI mostrar siempre $1.234.567,89 (punto miles, coma decimal, 2 decimales fijos).
+Funciones: formatMonto() y parseMonto() en SNIPPETS.md.
+Inputs: type="text" con clase monto, normalización en blur.

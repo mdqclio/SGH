@@ -29,11 +29,22 @@ async function initAuth() {
 ## Formato de moneda
 ```js
 function formatMonto(num) {
-  if (!num && num !== 0) return '$0';
-  return '$' + Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  if (num === null || num === undefined || isNaN(num)) return '$0,00';
+  const n = parseFloat(num);
+  const signo = n < 0 ? '-' : '';
+  const [entero, dec] = Math.abs(n).toFixed(2).split('.');
+  const enteroFmt = entero.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return signo + '$' + enteroFmt + ',' + dec;
 }
+
 function parseMonto(str) {
-  return parseFloat(String(str).replace(/\./g,'').replace('$','').replace(/\s/g,'')) || 0;
+  if (str === null || str === undefined) return 0;
+  const s = String(str)
+    .replace(/\$/g, '')
+    .replace(/\s/g, '')
+    .replace(/\./g, '')
+    .replace(',', '.');
+  return parseFloat(s) || 0;
 }
 ```
 
