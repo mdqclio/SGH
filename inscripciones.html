@@ -298,7 +298,19 @@ let currentCarreraId = params.get('carrera_id');
 let reuniones=[], carreras=[], inscripciones=[], spcs=[], profesionales=[], caballerizas=[];
 let currentCarrera = null;
 
-function formatMonto(n) { return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+function formatMonto(num) {
+  if (num === null || num === undefined || isNaN(num)) return '$0,00';
+  const n = parseFloat(num);
+  const signo = n < 0 ? '-' : '';
+  const [entero, dec] = Math.abs(n).toFixed(2).split('.');
+  const enteroFmt = entero.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return signo + '$' + enteroFmt + ',' + dec;
+}
+function parseMonto(str) {
+  if (str === null || str === undefined) return 0;
+  const s = String(str).replace(/\$/g, '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+  return parseFloat(s) || 0;
+}
 
 function toast(msg, type='success') {
   const t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
@@ -403,7 +415,7 @@ function renderCarreraHeader() {
     <span class="chip">${currentCarrera.tipo_pista||'—'}</span>
     ${currentCarrera.condicion_sexo?`<span class="chip">${currentCarrera.condicion_sexo}</span>`:''}
     ${currentCarrera.cupo_maximo?`<span class="chip">Cupo: ${currentCarrera.cupo_maximo}</span>`:''}
-    ${currentCarrera.bolsa_total?`<span class="chip">💰 $${currentCarrera.bolsa_total.toLocaleString('es-AR')}</span>`:''}
+    ${currentCarrera.bolsa_total?`<span class="chip">💰 ${formatMonto(currentCarrera.bolsa_total)}</span>`:''}
   `;
 }
 
@@ -722,6 +734,12 @@ document.addEventListener('click', e => {
   if (!e.target.closest('.spc-search')) document.getElementById('spc-dropdown').style.display='none';
 });
 document.getElementById('modal').addEventListener('click', e=>{if(e.target===e.currentTarget) closeModal();});
+document.querySelectorAll('input.monto').forEach(inp => {
+  inp.addEventListener('blur', e => {
+    const v = parseMonto(e.target.value);
+    e.target.value = v === 0 ? '' : formatMonto(v);
+  });
+});
 (async()=>{if(await initAuth())loadAll();})();
 </script>
 </body>

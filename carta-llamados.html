@@ -308,7 +308,7 @@
             <div class="bono-block-title">🏆 Bono al ganador (1°)</div>
             <div class="premio-input" style="max-width:200px;">
               <label>Monto adicional ($)</label>
-              <input type="number" id="bono-ganador" min="0" step="100" value="0" placeholder="0 = sin bono">
+              <input type="text" class="monto" id="bono-ganador" placeholder="0 = sin bono">
             </div>
           </div>
           <div class="bono-block">
@@ -367,14 +367,22 @@ function toast(msg, type='success') {
 }
 
 function formatMonto(num) {
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  if (num === null || num === undefined || isNaN(num)) return '$0,00';
+  const n = parseFloat(num);
+  const signo = n < 0 ? '-' : '';
+  const [entero, dec] = Math.abs(n).toFixed(2).split('.');
+  const enteroFmt = entero.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return signo + '$' + enteroFmt + ',' + dec;
 }
 function parseMonto(str) {
-  return parseFloat(str.replace(/\./g, '')) || 0;
+  if (str === null || str === undefined) return 0;
+  const s = String(str).replace(/\$/g, '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+  return parseFloat(s) || 0;
 }
 function fmtInput(el) {
-  const raw = el.value.replace(/\./g, '').replace(/\D/g, '');
-  el.value = raw ? formatMonto(raw) : '';
+  if (el.value.match(/,\d{0,1}$/)) return;
+  const v = parseMonto(el.value);
+  el.value = v ? formatMonto(v) : '';
 }
 
 function fmtDate(d) {
@@ -750,6 +758,12 @@ async function publicarCarta() {
 }
 
 document.getElementById('modal').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeModal(); });
+document.querySelectorAll('input.monto').forEach(inp => {
+  inp.addEventListener('blur', e => {
+    const v = parseMonto(e.target.value);
+    e.target.value = v === 0 ? '' : formatMonto(v);
+  });
+});
 (async()=>{if(await initAuth())load();})();
 </script>
 </body>

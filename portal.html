@@ -332,6 +332,14 @@ async function initAuth() {
 
 function logout() { sb.auth.signOut().then(() => window.location.replace('login.html')); }
 
+function formatMonto(num) {
+  if (num === null || num === undefined || isNaN(num)) return '$0,00';
+  const n = parseFloat(num);
+  const signo = n < 0 ? '-' : '';
+  const [entero, dec] = Math.abs(n).toFixed(2).split('.');
+  const enteroFmt = entero.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return signo + '$' + enteroFmt + ',' + dec;
+}
 function toast(msg, type = 'success') {
   const t = document.createElement('div');
   t.className = `toast toast-${type}`; t.textContent = msg;
@@ -481,7 +489,7 @@ async function loadCarta() {
             ${c.tipo_pista ? `<span class="chip">${c.tipo_pista}</span>` : ''}
             ${c.condicion_sexo ? `<span class="chip">${c.condicion_sexo}</span>` : ''}
             ${c.condicion_edad ? `<span class="chip">${c.condicion_edad}</span>` : ''}
-            ${c.bolsa_total ? `<span class="chip">💰 $${Number(c.bolsa_total).toLocaleString('es-AR')}</span>` : ''}
+            ${c.bolsa_total ? `<span class="chip">💰 ${formatMonto(c.bolsa_total)}</span>` : ''}
             ${c.cupo_maximo ? `<span class="chip">Cupo ${c.cupo_maximo}</span>` : ''}
           </div>
         </div>

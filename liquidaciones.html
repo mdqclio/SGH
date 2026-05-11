@@ -292,16 +292,24 @@ function toast(msg,type='success') {
   document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),3500);
 }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-function fmt(n) { return typeof n==='number' ? '$'+n.toLocaleString('es-AR',{minimumFractionDigits:2}) : '$0.00'; }
 function formatMonto(num) {
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  if (num === null || num === undefined || isNaN(num)) return '$0,00';
+  const n = parseFloat(num);
+  const signo = n < 0 ? '-' : '';
+  const [entero, dec] = Math.abs(n).toFixed(2).split('.');
+  const enteroFmt = entero.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return signo + '$' + enteroFmt + ',' + dec;
 }
 function parseMonto(str) {
-  return parseFloat(str.replace(/\./g, '')) || 0;
+  if (str === null || str === undefined) return 0;
+  const s = String(str).replace(/\$/g, '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+  return parseFloat(s) || 0;
 }
+const fmt = formatMonto;
 function fmtInput(el) {
-  const raw = el.value.replace(/\./g, '').replace(/\D/g, '');
-  el.value = raw ? formatMonto(raw) : '';
+  if (el.value.match(/,\d{0,1}$/)) return;
+  const v = parseMonto(el.value);
+  el.value = v ? formatMonto(v) : '';
 }
 
 function switchTab(name) {

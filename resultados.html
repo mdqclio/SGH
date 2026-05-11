@@ -193,6 +193,14 @@ const TIPOS_APUESTA = [
   {key:'cadena', label:'Cadena'},
 ];
 
+function formatMonto(num) {
+  if (num === null || num === undefined || isNaN(num)) return '$0,00';
+  const n = parseFloat(num);
+  const signo = n < 0 ? '-' : '';
+  const [entero, dec] = Math.abs(n).toFixed(2).split('.');
+  const enteroFmt = entero.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return signo + '$' + enteroFmt + ',' + dec;
+}
 function toast(msg,type='success') {
   const t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
   document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),3500);
@@ -328,7 +336,7 @@ function renderResumenOficial(carrera, res, posiciones, insc) {
             <div style="background:rgba(0,0,0,0.15);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;">
               <div style="font-size:11px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">${tipo}</div>
               ${dat.combinacion?`<div style="color:var(--accent);font-weight:600;">${dat.combinacion}</div>`:''}
-              ${dat.dividendo?`<div>$ ${Number(dat.dividendo).toLocaleString('es-AR')}</div>`:''}
+              ${dat.dividendo?`<div>${formatMonto(dat.dividendo)}</div>`:''}
             </div>
           `).join('')}
         </div>
