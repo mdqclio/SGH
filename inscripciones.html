@@ -175,7 +175,7 @@
   <select id="sel-reunion" onchange="onReunionChange()">
     <option value="">Cargando…</option>
   </select>
-  <label>Carrera:</label>
+  <label>Turno:</label>
   <select id="sel-carrera" onchange="onCarreraChange()">
     <option value="">— Seleccionar reunión primero —</option>
   </select>
@@ -194,7 +194,7 @@
 
 <div class="content">
   <div class="table-actions">
-    <span style="font-size:13px;color:var(--muted);" id="tabla-label">Seleccionar una reunión y carrera para ver inscriptos</span>
+    <span style="font-size:13px;color:var(--muted);" id="tabla-label">Seleccionar una reunión y turno para ver inscriptos</span>
   </div>
   <div id="list-container"></div>
 </div>
@@ -321,7 +321,7 @@ async function loadAll() {
     sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID).eq('tipo', 'jockey').eq('activo', true).order('apellido'),
     sb.from('profesionales').select('id,nombre,apellido,tipo').eq('tipo', 'entrenador').eq('activo', true).order('apellido'),
     sb.from('spcs').select('id,nombre,caballeriza_id,entrenador_id,sexo,estado').eq('estado', 'activo').order('nombre'),
-    sb.from('caballerizas').select('id,nombre,responsable').eq('club_id', CLUB_ID).eq('activo', true).order('nombre'),
+    sb.from('caballerizas').select('id,nombre,responsable,hipodromo_patente').eq('club_id', CLUB_ID).eq('activo', true).order('nombre'),
   ]);
   reuniones = reuns||[];
   profesionales = [...(jocksData||[]), ...(entrData||[])];
@@ -387,7 +387,7 @@ async function onReunionChange() {
   if (!rid) { selC.innerHTML='<option value="">— Seleccionar reunión primero —</option>'; return; }
   const { data: cars } = await sb.from('carreras').select('id,numero_turno,nombre,distancia_metros,condicion_adicional').eq('reunion_id', rid).order('numero_turno');
   carreras = cars||[];
-  selC.innerHTML = '<option value="">— Seleccionar carrera —</option>' +
+  selC.innerHTML = '<option value="">— Seleccionar turno —</option>' +
     carreras.map(c => {
       let label = `Turno ${c.numero_turno}`;
       if (c.nombre) label += ` — ${c.nombre}`;
@@ -426,7 +426,7 @@ function renderCarreraHeader() {
   document.getElementById('carrera-header').style.display='block';
   document.getElementById('btn-nueva').style.display='';
   document.getElementById('ch-num').textContent = currentCarrera.numero_turno;
-  document.getElementById('ch-name').textContent = currentCarrera.nombre || `Carrera ${currentCarrera.numero_turno}`;
+  document.getElementById('ch-name').textContent = currentCarrera.nombre || `Turno ${currentCarrera.numero_turno}`;
   document.getElementById('ch-chips').innerHTML = `
     <span class="chip">${currentCarrera.distancia_metros}m</span>
     <span class="chip">${currentCarrera.tipo_pista||'—'}</span>
@@ -452,7 +452,7 @@ function getProf(id) { return profesionales.find(p=>p.id===id); }
 
 function renderInscripciones() {
   if (!inscripciones.length) {
-    document.getElementById('list-container').innerHTML=`<div class="empty-state"><div class="icon">📋</div><h3>Sin inscriptos</h3><p>No hay SPC inscriptos en esta carrera.</p></div>`;
+    document.getElementById('list-container').innerHTML=`<div class="empty-state"><div class="icon">📋</div><h3>Sin inscriptos</h3><p>No hay SPC inscriptos en este turno.</p></div>`;
     return;
   }
   const rows = inscripciones.map(i => {
@@ -467,11 +467,11 @@ function renderInscripciones() {
     return `<tr>
       <td><div class="spc-name">${spc?.nombre||i.spc_id}</div></td>
       <td>${certCell}</td>
-      <td>${cab?.nombre||'—'}</td>
-      <td>${entr?`${entr.apellido}`:'-'}</td>
+      <td>${cab?`${cab.nombre}${cab.hipodromo_patente?` (${cab.hipodromo_patente})`:''}`:'—'}</td>
+      <td>${entr?`${entr.apellido}, ${entr.nombre}`:'-'}</td>
       <td>${jkey?`${jkey.apellido}, ${jkey.nombre}`:'-'}</td>
       <td>${jkeySup?`${jkeySup.apellido}, ${jkeySup.nombre}`:'—'}</td>
-      <td><div style="font-size:12px;color:var(--muted);">${i.peon?`Peón: ${i.peon}`:''}${i.capataz?`<br>Cap: ${i.capataz}`:''}</div></td>
+      <td>${(() => { const l=[]; if(i.peon) l.push(`Peón: ${i.peon}`); if(i.capataz) l.push(`Cap: ${i.capataz}`); if(i.sereno) l.push(`Sereno: ${i.sereno}`); return l.length?`<div style="font-size:12px;color:var(--muted);">${l.join('<br>')}</div>`:''; })()}</td>
       <td><span class="badge badge-${i.estado}">${i.estado?.replace('_',' ')||'—'}</span></td>
       <td class="actions-cell">
         <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(i)})'>✏️</button>
@@ -480,7 +480,7 @@ function renderInscripciones() {
     </tr>`;
   }).join('');
   document.getElementById('list-container').innerHTML = `<div class="table-wrap"><table>
-    <thead><tr><th>SPC</th><th>Cert.</th><th>Caballeriza</th><th>Entrenador</th><th>Jockey</th><th>Suplente</th><th>Personal</th><th>Estado</th><th>Acciones</th></tr></thead>
+    <thead><tr><th>SPC</th><th>Cert.</th><th>Caballeriza</th><th>Entrenador</th><th>Jockey</th><th>Jockey suplente</th><th>Personal</th><th>Estado</th><th>Acciones</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
 }
@@ -644,7 +644,7 @@ async function deleteRecord(id) {
 async function printInscriptos() {
   const reunionId = document.getElementById('sel-reunion').value;
   if (!reunionId) { toast('Seleccionar una reunión para imprimir', 'error'); return; }
-  if (!carreras.length) { toast('No hay carreras en esta reunión', 'error'); return; }
+  if (!carreras.length) { toast('No hay turnos en esta reunión', 'error'); return; }
 
   const reunion = reuniones.find(r => r.id === reunionId);
   const f = reunion?.fecha ? new Date(reunion.fecha + 'T12:00:00') : new Date();
@@ -710,7 +710,7 @@ async function printInscriptos() {
     return `<div class="pi-bloque">
       <div class="pi-car-head">
         ${bolsaStr ? `<div class="pi-bolsa">${bolsaStr}</div>` : ''}
-        <div class="pi-nombre">CARRERA ${car.numero_turno}${car.nombre ? ` — ${car.nombre.toUpperCase()}` : ''}</div>
+        <div class="pi-nombre">TURNO ${car.numero_turno}${car.nombre ? ` — ${car.nombre.toUpperCase()}` : ''}</div>
         ${condParts.length ? `<div class="pi-cond">${condParts.join(' — ')}</div>` : ''}
       </div>
       <div class="pi-bloque-body">
