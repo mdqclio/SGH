@@ -45,11 +45,7 @@
     .badge-activo { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
     .badge-inactivo { background: rgba(160,184,160,0.15); color: var(--muted); border: 1px solid rgba(160,184,160,0.3); }
     .badge-baja { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
-    .spc-count { background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.25); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
-    .spc-count-num { font-size: 22px; font-weight: 700; color: var(--accent); font-family: 'Playfair Display', serif; }
-    .spc-count-label { font-size: 12px; color: var(--muted); }
-    .spc-link { font-size: 12px; color: var(--accent); text-decoration: none; }
-    .spc-link:hover { text-decoration: underline; }
+
     .card-detail { font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 14px; }
     .card-detail span { color: var(--text); }
     .card-actions { display: flex; gap: 8px; }
@@ -109,8 +105,12 @@
     .resp-inputs .span2 { grid-column: span 2; }
     .btn-add-resp { margin-top: 12px; background: transparent; border: 1px dashed rgba(201,168,76,0.35); color: var(--muted); padding: 8px 16px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; width: 100%; }
     .btn-add-resp:hover { border-color: var(--accent); color: var(--accent); }
-    .chaq-mini { width: 50px; height: 50px; object-fit: contain; border-radius: 6px; background: rgba(255,255,255,0.05); flex-shrink: 0; }
+    .chaq-mini { display: none; }
     .chaq-preview-img { width: 100%; height: 100%; object-fit: contain; border-radius: 9px; }
+    .chaq-row { display: grid; grid-template-columns: 1fr 120px; gap: 14px; align-items: start; }
+    .chaq-big-wrap { width: 120px; height: 120px; background: rgba(255,255,255,0.05); border-radius: 10px; padding: 8px; display: flex; align-items: center; justify-content: center; }
+    .chaq-big { max-width: 100%; max-height: 100%; object-fit: contain; }
+    @media (max-width: 600px) { .chaq-row { grid-template-columns: 1fr; } .chaq-big-wrap { width: 100%; max-width: 200px; margin: 0 auto; } }
   </style>
 </head>
 <body>
@@ -180,7 +180,7 @@
           </div>
           <div class="form-group">
             <label>Hipódromo otorgante</label>
-            <input type="text" id="f-hipodromo-patente" placeholder="Ej: Dolores">
+            <input type="text" id="f-hipodromo-patente" placeholder="Ej: DOL">
           </div>
 
           <fieldset class="chaq-fieldset" style="grid-column: 1 / -1; border: 1px solid var(--border); border-radius: 10px; padding: 16px;">
@@ -559,7 +559,7 @@ async function openModal(rec = null) {
     }
   }
 
-  document.getElementById('f-hipodromo-patente').value = rec?.hipodromo_patente || (rec ? '' : 'Dolores');
+  document.getElementById('f-hipodromo-patente').value = rec?.hipodromo_patente || (rec ? '' : 'DOL');
   document.getElementById('f-chaq-desc').value = rec?.chaquetilla_descripcion || '';
   document.getElementById('f-chaq-file').value = '';
   document.getElementById('f-chaq-status').textContent = '';
