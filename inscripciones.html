@@ -68,6 +68,9 @@
     .badge-ratificado { background: rgba(201,168,76,0.15);  color: var(--accent);  border: 1px solid rgba(201,168,76,0.3); }
     .badge-forfait      { background: rgba(224,82,82,0.1);    color: var(--danger);  border: 1px solid rgba(224,82,82,0.3); }
     .badge-mal_inscrito { background: rgba(232,168,76,0.15); color: #e8a84c;        border: 1px solid rgba(232,168,76,0.3); }
+    .badge-reabierta    { background: rgba(232,168,76,0.15); color: #e8a84c;        border: 1px solid rgba(232,168,76,0.3); }
+    .badge-anulada      { background: rgba(160,160,160,0.15); color: var(--muted); border: 1px solid rgba(160,160,160,0.3); }
+    .sel-estado-car { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 4px 10px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; outline: none; margin-left: 8px; }
     .actions-cell { display: flex; gap: 5px; }
     .btn-sm { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; white-space: nowrap; }
     .btn-edit { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
@@ -191,6 +194,7 @@
       <div class="carrera-name" id="ch-name">—</div>
       <div class="carrera-chips" id="ch-chips"></div>
       <div id="ch-condicion"></div>
+      <div id="ch-estado-carrera"></div>
     </div>
   </div>
 </div>
@@ -426,6 +430,15 @@ async function onCarreraChange() {
   await loadInscripciones();
 }
 
+async function onEstadoCarreraChange() {
+  const nuevoEstado = document.getElementById('sel-estado-carrera').value || null;
+  const { error } = await sb.from('carreras').update({ estado: nuevoEstado }).eq('id', currentCarreraId);
+  if (error) { toast(error.message, 'error'); return; }
+  currentCarrera.estado = nuevoEstado;
+  renderCarreraHeader();
+  toast('Estado actualizado');
+}
+
 function renderCarreraHeader() {
   if (!currentCarrera) return;
   document.getElementById('carrera-header').style.display='block';
@@ -446,6 +459,17 @@ function renderCarreraHeader() {
     (currentCarrera.condicion_adicional
       ? `<div class="carrera-condicion-extra">${currentCarrera.condicion_adicional}</div>`
       : '');
+  const est = currentCarrera.estado;
+  const puedeEditar = ['secretario_carreras','super_admin'].includes(currentUser?.rol);
+  const badge = (est === 'reabierta' || est === 'anulada')
+    ? `<span class="badge badge-${est}" style="margin-right:6px;">${est.toUpperCase()}</span>` : '';
+  const sel = puedeEditar
+    ? `<select class="sel-estado-car" id="sel-estado-carrera" onchange="onEstadoCarreraChange()">
+         <option value="">Normal</option>
+         <option value="reabierta"${est==='reabierta'?' selected':''}>Reabierta</option>
+         <option value="anulada"${est==='anulada'?' selected':''}>Anulada</option>
+       </select>` : '';
+  document.getElementById('ch-estado-carrera').innerHTML = badge + sel;
 }
 
 async function loadInscripciones() {
