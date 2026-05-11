@@ -65,8 +65,6 @@
     .badge-inscripto  { background: rgba(76,175,130,0.15);  color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
     .badge-ratificado { background: rgba(201,168,76,0.15);  color: var(--accent);  border: 1px solid rgba(201,168,76,0.3); }
     .badge-forfait    { background: rgba(224,82,82,0.1);    color: var(--danger);  border: 1px solid rgba(224,82,82,0.3); }
-    .cert-badge { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 4px; background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); margin-left: 4px; }
-    .no-cert-badge { background: rgba(224,82,82,0.1); color: var(--danger); border-color: rgba(224,82,82,0.3); }
     .actions-cell { display: flex; gap: 5px; }
     .btn-sm { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; white-space: nowrap; }
     .btn-edit { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
@@ -354,21 +352,31 @@ async function loadAll() {
     }
   } else {
     // Prioridad: última publicada → última programada → última borrador → ninguna
-    const ultima = reuniones.find(r => r.estado === 'publicada')
-                || reuniones.find(r => r.estado === 'programada')
-                || reuniones.find(r => r.estado === 'borrador')
-                || null;
-    if (!ultima) {
-      document.getElementById('tabla-label').textContent = 'No hay reuniones disponibles';
-      return;
+    const { data: pub } = await sb.from('reuniones')
+      .select('id, fecha')
+      .eq('club_id', CLUB_ID)
+      .eq('estado', 'publicada')
+      .order('fecha', { ascending: true })
+      .limit(1);
+
+    let reunionASeleccionar = null;
+    if (pub?.length) {
+      reunionASeleccionar = pub[0].id;
+    } else {
+      const fallback = reuniones.find(r => r.estado === 'programada')
+                    || reuniones.find(r => r.estado === 'borrador');
+      if (fallback) reunionASeleccionar = fallback.id;
     }
-    selR.value = ultima.id;
-    await onReunionChange();
-    const firstCarrera = document.getElementById('sel-carrera').options[1];
-    if (firstCarrera) {
-      document.getElementById('sel-carrera').value = firstCarrera.value;
-      currentCarreraId = firstCarrera.value;
-      await onCarreraChange();
+
+    if (reunionASeleccionar) {
+      selR.value = reunionASeleccionar;
+      await onReunionChange();
+      const firstCarrera = document.getElementById('sel-carrera').options[1];
+      if (firstCarrera) {
+        document.getElementById('sel-carrera').value = firstCarrera.value;
+        currentCarreraId = firstCarrera.value;
+        await onCarreraChange();
+      }
     }
   }
 }
@@ -377,10 +385,19 @@ async function onReunionChange() {
   const rid = document.getElementById('sel-reunion').value;
   const selC = document.getElementById('sel-carrera');
   if (!rid) { selC.innerHTML='<option value="">— Seleccionar reunión primero —</option>'; return; }
-  const { data: cars } = await sb.from('carreras').select('id,numero_turno,nombre,distancia_metros').eq('reunion_id', rid).order('numero_turno');
+  const { data: cars } = await sb.from('carreras').select('id,numero_turno,nombre,distancia_metros,condicion').eq('reunion_id', rid).order('numero_turno');
   carreras = cars||[];
   selC.innerHTML = '<option value="">— Seleccionar carrera —</option>' +
-    carreras.map(c=>`<option value="${c.id}">Turno ${c.numero_turno}${c.nombre?` — ${c.nombre}`:''} (${c.distancia_metros}m)</option>`).join('');
+    carreras.map(c => {
+      let label = `Turno ${c.numero_turno}`;
+      if (c.nombre) label += ` — ${c.nombre}`;
+      label += ` — ${c.distancia_metros}m`;
+      if (c.condicion) {
+        const cond = c.condicion.length > 70 ? c.condicion.slice(0, 70) + '…' : c.condicion;
+        label += ` — ${cond}`;
+      }
+      return `<option value="${c.id}">${label}</option>`;
+    }).join('');
   document.getElementById('carrera-header').style.display='none';
   document.getElementById('btn-nueva').style.display='none';
   document.getElementById('list-container').innerHTML='';
@@ -444,11 +461,16 @@ function renderInscripciones() {
     const jkey = getProf(i.jockey_titular_id);
     const jkeySup = getProf(i.jockey_suplente_id);
     const entr = getProf(i.entrenador_id);
-    const certBadge = i.certificado_correr ? `<span class="cert-badge">CERT ✓</span>` : `<span class="cert-badge no-cert-badge">SIN CERT</span>`;
+    const certCell = i.certificado_correr
+      ? `<span style="color:var(--success);font-weight:600;">Sí</span>`
+      : `<span style="color:var(--danger);font-weight:600;">No</span>`;
     return `<tr>
-      <td><div class="spc-name">${spc?.nombre||i.spc_id} ${certBadge}</div><div class="spc-sub">${cab?.nombre||'—'}</div></td>
+      <td><div class="spc-name">${spc?.nombre||i.spc_id}</div></td>
+      <td>${certCell}</td>
+      <td>${cab?.nombre||'—'}</td>
       <td>${entr?`${entr.apellido}`:'-'}</td>
-      <td>${jkey?`${jkey.apellido}, ${jkey.nombre}`:'-'}${jkeySup?`<br><span class="spc-sub">Sup: ${jkeySup.apellido}</span>`:''}</td>
+      <td>${jkey?`${jkey.apellido}, ${jkey.nombre}`:'-'}</td>
+      <td>${jkeySup?`${jkeySup.apellido}, ${jkeySup.nombre}`:'—'}</td>
       <td><div style="font-size:12px;color:var(--muted);">${i.peon?`Peón: ${i.peon}`:''}${i.capataz?`<br>Cap: ${i.capataz}`:''}</div></td>
       <td><span class="badge badge-${i.estado}">${i.estado?.replace('_',' ')||'—'}</span></td>
       <td class="actions-cell">
@@ -458,7 +480,7 @@ function renderInscripciones() {
     </tr>`;
   }).join('');
   document.getElementById('list-container').innerHTML = `<div class="table-wrap"><table>
-    <thead><tr><th>SPC / Caballeriza</th><th>Entrenador</th><th>Jockey</th><th>Personal</th><th>Estado</th><th>Acciones</th></tr></thead>
+    <thead><tr><th>SPC</th><th>Cert.</th><th>Caballeriza</th><th>Entrenador</th><th>Jockey</th><th>Suplente</th><th>Personal</th><th>Estado</th><th>Acciones</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
 }
