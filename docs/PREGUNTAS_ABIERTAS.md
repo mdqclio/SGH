@@ -46,3 +46,41 @@ Cómo: CNAME en DNS + GitHub Pages custom domain
 
 ## 8. Precios del SaaS
 No definidos. Sugerir modelo por hipódromo/mes según cantidad de reuniones anuales.
+
+---
+
+## Resueltas en sesión may-2026
+
+### Carrera → Turno en UI
+Parcialmente resuelto. carta-llamados.html ✅, inscripciones.html ✅. **Pendiente**: PDF impreso de carta de llamados.
+
+### Estados de inscripción
+Confirmados 4 visibles al operador: inscripto / mal_inscrito / ratificado / forfait.
+
+### Asignación de gateras
+Workflow definido: sistema asigna automáticamente al inscribir + operador puede modificar manualmente para clásicos. Implementación pendiente.
+
+### Estados de carrera para secretaria
+Solo importan 'reabierta' y 'anulada' en esta etapa. Campo VARCHAR libre, sin ENUM.
+
+---
+
+## Pendientes (sesión may-2026)
+
+### 9. Portal de auto-registro
+SPC con autocompletado + certificado auto desde DB + resto manual + campos obligatorios.
+
+### 10. Limpieza datos de prueba
+Esperar UI completa para marcar 'baja' antes de limpiar.
+
+### 11. Carrera→Turno en PDF impreso de carta de llamados
+Falta actualizar el PDF generado (rótulo CARRERA → TURNO).
+
+### 12. Selector de hipódromo para super_admin
+Cuando entre el segundo hipódromo: considerar Supabase Pro + selector de club para super_admin en pantallas que filtran por club_id.
+
+### 13. Categorías reales de jockeys de Dolores
+7 jockeys cargados sin categoría asignada. Fede debe informar cuál corresponde a cada uno.
+
+### 14. ¿Deprecar módulo Propietarios?
+Si propietarios y caballerizas son el mismo concepto en Dolores, evaluar deprecar propietarios.html. Consultar con Fede.

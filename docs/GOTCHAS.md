@@ -13,8 +13,8 @@ La tabla usuarios tiene nombre_completo NO nombre.
 Usar siempre: .select('club_id, nombre_completo, rol')
 Afecta todos los archivos con verificación de auth.
 
-## 4. jockey_habitual_id no existe en spcs
-Nunca incluir jockey_habitual_id en SELECT de spcs — no es una columna.
+## 4. jockey_habitual_id SÍ existe en spcs (CORRECCIÓN)
+~~No era columna~~ → sí existe. Verificado en sesión may-2026.
 
 ## 5. spcs usa estado, no activo
 La tabla spcs no tiene columna activo.
@@ -61,3 +61,19 @@ UPDATE reuniones SET estado = 'borrador' WHERE id = 'UUID';
 
 ## 16. toLocaleString sin locale da formato inglés
 Nunca usar .toLocaleString() ni .toFixed() directo para mostrar plata. Siempre formatMonto(). El locale default del browser suele ser en-US y mete coma de miles, que es lo opuesto al formato argentino.
+
+## 17. Comillas curly de iOS rompen SQL (may-2026)
+iOS autocompleta comillas tipográficas (' ') en lugar de rectas (' '). Si pegás SQL con strings desde el iPhone, Supabase SQL Editor no lo ejecuta. Desactivar smart quotes en iPhone: Configuración → General → Teclado → Smart Punctuation OFF.
+
+## 18. condicion_adicional NO es la condición principal (may-2026)
+A pesar del nombre, condicion_adicional es solo una nota extra (ej: "Peso x impresion"). La condición real de la carrera está en condicion_handicap. Usar condicion_handicap para mostrar la condición en dropdowns y cards.
+
+## 19. inscripciones.estado es ENUM rígido (may-2026)
+No migrar inscripciones.estado a VARCHAR — hay una vista v_inscriptos_carrera que depende del ENUM. Para agregar valores: ALTER TYPE estado_inscripcion ADD VALUE 'nuevo_valor'.
+Contraste: carreras.estado es VARCHAR libre (sin ENUM ni restricciones).
+
+## 20. super_admin sin club_id no ve datos en pantallas con filtro por club_id (may-2026)
+Las pantallas que usan CLUB_ID para filtrar (inscripciones, jockeys, caballerizas) no muestran datos si el super_admin no tiene club_id asignado en la tabla usuarios. Es un problema de UX, no de código. Solución temporal: asignar club_id al super_admin en la DB.
+
+## 21. Bucket Storage requiere policies SQL después de crearlo (may-2026)
+Crear el bucket desde la UI de Supabase no genera las RLS policies. Hay que ejecutar las 4 CREATE POLICY manualmente en el SQL Editor (ver SCHEMA.md → Storage Supabase).

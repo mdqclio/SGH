@@ -43,7 +43,8 @@
 ## Reglas de negocio críticas
 
 ### Estados de inscripción
-Solo 3 activos: inscripto → ratificado → forfait
+4 activos en UI: inscripto → mal_inscrito → ratificado → forfait
+- mal_inscrito: caballo fuera de condición del turno, pero inscripto de igual forma. NO bloquea la inscripción.
 
 ### Carta de llamados
 Una vez publicada no se puede modificar.
@@ -52,11 +53,24 @@ Para desbloquear: UPDATE reuniones SET estado='borrador' WHERE id='UUID';
 ### SPCs son globales
 NO filtrar por club_id al buscar SPCs. Usar .eq('estado','activo') sin club_id.
 
-### Entrenadores son globales
-club_id nullable — trabajan en cualquier hipódromo.
+### Propietarios son globales
+club_id nullable. Un propietario puede tener caballos en múltiples hipódromos.
+
+### Entrenadores son per-hipódromo (CORRECCIÓN — antes decía "globales")
+Tienen hipodromo_patente (hipódromo que les otorgó la patente). NO son globales.
+club_id técnicamente nullable en DB pero el campo hipodromo_patente es obligatorio.
 
 ### Jockeys son por hipódromo
-club_id obligatorio — patente otorgada por cada hipódromo.
+club_id del hipódromo. Patente otorgada por cada hipódromo. hipodromo_patente registrado.
+
+### Caballerizas son per-hipódromo
+hipodromo_patente registra el hipódromo que las habilitó. Los responsables se gestionan en caballeriza_responsables (1 propietario + N copropietarios).
+
+### 3 estados en profesionales, propietarios y caballerizas
+activo → inactivo → baja. Campo booleano "activo" sincronizado para retrocompatibilidad.
+- activo: visible en buscadores
+- inactivo: baja temporal, visible con filtro explícito
+- baja: baja definitiva, oculto salvo filtro de auditoría
 
 ### Sanciones son compartidas
 Sin filtro por club_id — se ven en todos los hipódromos.

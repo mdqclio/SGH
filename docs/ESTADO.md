@@ -9,10 +9,10 @@
 - Alta de nuevos hipódromos (registro.html)
 - Reuniones: CRUD con 7 estados
 - Carta de llamados: turnos, bonos, premios, publicar/bloquear
-- Inscripciones: buscador SPCs, jockey titular/suplente, peón/capataz/sereno
+- Inscripciones: buscador SPCs, jockey titular/suplente, peón/capataz/sereno, estado mal_inscrito, marcar carrera reabierta/anulada
 - Ratificación: inscripto ↔ ratificado, forfait
 - Programa hípico con PDF
-- Stud Book, profesionales, jockeys, propietarios, caballerizas
+- Stud Book, profesionales, jockeys, propietarios, caballerizas (con modelo relacional de responsables)
 - Sanciones compartidas, resoluciones
 - Gestión de usuarios por hipódromo
 - Calendario anual de reuniones
@@ -20,25 +20,38 @@
 
 ## En desarrollo
 - Resultados: rediseñado, sin testing completo de oficialización
-- Carta de llamados: diseño final del PDF en ajuste
-- PDF de inscriptos: comparando con modelo Palermo
+- Carta de llamados: diseño final del PDF en ajuste; falta Carrera→Turno en PDF
+- PDF de inscriptos: en diseño (gateras pendientes)
 
 ## No funciona
 - Liquidaciones: UI existe pero lógica no implementada
 
 ## Pendiente de construir
+- Gateras: campo numero_gatera + sorteo automático + display + edición manual
+- PDF de inscriptos (orden alfabético + gatera + estado + condición + premio + bono)
 - Portal propietarios/entrenadores (portal.html)
 - Auto-registro de profesionales (registro-profesional.html)
 - API con Stud Book nacional (en gestión de acceso)
 - Emails automáticos (pendiente Resend/SendGrid)
 - RLS por club_id
+- Selector de hipódromo para super_admin sin club_id
 
 ## Clientes activos
 | Hipódromo | Sigla | Estado | club_id |
 |---|---|---|---|
 | Hipódromo de Dolores | HDO | Piloto activo | 0649e9c5-9e87-4aad-842f-101458e6b33c |
 
-## Datos de prueba en Dolores
+## Datos cargados en Dolores (sesión may-2026)
 - 5 reuniones (enero-mayo 2026)
 - 11 carreras en reunión 5
-- SPCs, jockeys y entrenadores de prueba cargados
+- 7 jockeys (Dolores)
+- 77 entrenadores (Dolores)
+- 201 caballerizas
+- 219 responsables de caballerizas (38 vinculados con profesional_id por DNI matching, 16 copropiedades)
+- SPCs y entrenadores de prueba cargados
+
+## Limpieza pendiente (datos de prueba en Dolores)
+- 9 caballerizas extra detectadas
+- 14 profesionales extra detectados
+- 7 propietarios de prueba detectados
+- Todos identificados pero no borrados (esperar UI de baja)

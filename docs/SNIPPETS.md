@@ -94,6 +94,71 @@ function calcularTotalBonos(distribucion) {
 }
 ```
 
+## Formato de DNI (sesión may-2026)
+```js
+function formatDNI(num) {
+  if (!num) return '';
+  const limpio = String(num).replace(/\D/g, '');
+  if (!limpio) return '';
+  return limpio.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+function parseDNI(str) { return (str || '').replace(/\D/g, ''); }
+// NOTA: CUIT debería usar guiones (XX-XXXXXXXX-X) — pendiente ISSUE-014
+```
+
+## Estado badge 3 valores (sesión may-2026)
+```js
+function estadoBadge(estado) {
+  if (estado === 'baja')     return '<span class="badge badge-baja">Baja</span>';
+  if (estado === 'inactivo') return '<span class="badge badge-inactivo">Inactivo</span>';
+  return '<span class="badge badge-activo">Activo</span>';
+}
+// CSS:
+// .badge-activo   { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+// .badge-inactivo { background: rgba(160,184,160,0.15); color: var(--muted);   border: 1px solid rgba(160,184,160,0.3); }
+// .badge-baja     { background: rgba(224,82,82,0.1);    color: var(--danger);  border: 1px solid rgba(224,82,82,0.3); }
+```
+
+## Upload de imagen a Storage (sesión may-2026)
+```js
+async function uploadChaquetilla(file) {
+  if (file.size > 2 * 1024 * 1024) throw new Error('La imagen no puede superar 2 MB.');
+  const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+  const filename = `${crypto.randomUUID()}.${ext}`;
+  const { error } = await sb.storage
+    .from('chaquetillas')
+    .upload(filename, file, { upsert: false, contentType: file.type });
+  if (error) throw error;
+  const { data: { publicUrl } } = sb.storage.from('chaquetillas').getPublicUrl(filename);
+  return publicUrl;
+}
+```
+
+## Guardar responsables de caballeriza (sesión may-2026)
+```js
+// Patrón DELETE+INSERT desde JS (no atómico — ver ISSUE-012)
+async function resolveAndInsertResponsables(rows, cabId) {
+  // rows = [{ rol, apellido, nombre, documento_nro, fecha_nacimiento, localidad }]
+  const toInsert = [];
+  for (const r of rows) {
+    if (!r.apellido && !r.nombre) continue;
+    let profesional_id = null;
+    if (r.documento_nro) {
+      const { data } = await sb.from('profesionales')
+        .select('id').eq('documento_nro', r.documento_nro).eq('club_id', CLUB_ID).maybeSingle();
+      profesional_id = data?.id ?? null;
+    }
+    toInsert.push({ caballeriza_id: cabId, profesional_id, ...r, activo: true });
+  }
+  if (toInsert.length) await sb.from('caballeriza_responsables').insert(toInsert);
+}
+// Texto denormalizado para campo responsable:
+function buildResponsableText(rows) {
+  return rows.filter(r => r.apellido || r.nombre)
+    .map(r => `${[r.apellido, r.nombre].filter(Boolean).join(' ')} (${r.rol})`).join(' + ');
+}
+```
+
 ## SQL útiles
 ```sql
 -- Agregar valor a ENUM:
@@ -113,4 +178,22 @@ UPDATE clubs SET logo_url = 'https://mdqclio.github.io/SGH/logo-dolores-192x192.
 ## CSS logo sobre fondo verde
 ```css
 .logo-hipodromo { mix-blend-mode: multiply; height: 80px; width: auto; }
+```
+
+## SQL útiles (sesión may-2026)
+```sql
+-- Agregar mal_inscrito al ENUM (ya ejecutado):
+ALTER TYPE estado_inscripcion ADD VALUE IF NOT EXISTS 'mal_inscrito';
+
+-- Ver responsables de una caballeriza:
+SELECT cr.*, p.nombre as prof_nombre FROM caballeriza_responsables cr
+LEFT JOIN profesionales p ON p.id = cr.profesional_id
+WHERE cr.caballeriza_id = 'UUID' ORDER BY (cr.rol='propietario') DESC, cr.apellido;
+
+-- Regenerar texto responsable para todas las caballerizas:
+UPDATE caballerizas c SET responsable = (
+  SELECT string_agg(apellido || ' ' || nombre || ' (' || rol || ')', ' + '
+    ORDER BY (rol='propietario') DESC, apellido)
+  FROM caballeriza_responsables WHERE caballeriza_id = c.id
+);
 ```

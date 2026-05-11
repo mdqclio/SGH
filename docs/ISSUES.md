@@ -42,7 +42,7 @@ Estado: Pendiente fix de timezone
 ### ISSUE-008: Logo con fondo blanco
 Descripción: Logo de Dolores tiene fondo blanco visible sobre verde
 Módulo: index.html
-Estado: Workaround con mix-blend-mode pendiente
+Estado: ✅ Resuelto — logo PNG con transparencia (140px, sesión may-2026)
 
 ### ISSUE-009: Emails no implementados
 Estado: Pendiente Resend/SendGrid
@@ -54,3 +54,29 @@ Estado: Aceptable para MVP
 
 ### ISSUE-011: Sin rate limiting en login
 Estado: Pendiente
+
+## DEUDAS TÉCNICAS (sesión may-2026)
+
+### ISSUE-012: caballeriza_responsables no transaccional
+Descripción: El guardado hace DELETE + INSERT desde JS sin RPC. Si falla el INSERT, los responsables quedan borrados.
+Módulo: caballerizas.html
+Solución V2: migrar a función Postgres atómica.
+
+### ISSUE-013: usuarios.html debe usar sb.auth.admin.createUser
+Descripción: La creación de usuarios choca con rate limit de emails en plan gratuito. Usar sb.auth.admin.createUser con email_confirm:true evita el email de verificación.
+Módulo: usuarios.html
+Estado: Pendiente
+
+### ISSUE-014: formatDNI no distingue DNI de CUIT
+Descripción: CUIT debería mostrarse con guiones (XX-XXXXXXXX-X), no con puntos. Hoy formatDNI() aplica punto de miles a cualquier campo numérico sin importar el tipo de documento.
+Módulo: jockeys.html, profesionales.html, propietarios.html, caballerizas.html
+Solución: lógica condicional según documento_tipo.
+
+### ISSUE-015: super_admin sin club_id no puede usar pantallas con filtro por club_id
+Descripción: Las pantallas que filtran por CLUB_ID (inscripciones, jockeys, etc.) no muestran datos cuando el super_admin no tiene club asignado.
+Módulo: múltiples
+Solución V2: selector de hipódromo para super_admin en pantallas que lo requieren.
+
+### ISSUE-016: Módulo Propietarios puede ser redundante
+Descripción: caballeriza_responsables cubre el concepto de propietario en Dolores. Decidir si el módulo propietarios.html debe deprecarse o mantenerse para casos distintos.
+Estado: Pendiente decisión con Fede.

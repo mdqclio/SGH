@@ -47,3 +47,14 @@ Cada módulo es un archivo HTML autocontenido con CSS y JS inline. No hay build 
 ## CRÍTICO: nombre_completo
 La tabla usuarios tiene nombre_completo NO nombre.
 Usar SIEMPRE: .select('club_id, nombre_completo, rol')
+
+## Archivos eliminados (sesión may-2026)
+- `caballerizas-propietarios.html` — legacy con tabs Caballerizas+Propietarios. Reemplazado por `caballerizas.html` como pantalla estándar. index.html actualizado.
+
+## Refactorizaciones grandes (sesión may-2026)
+- **caballerizas.html**: modelo relacional de responsables (caballeriza_responsables), chaquetilla con upload a Storage, 3 estados (activo/inactivo/baja), hipódromo otorgante, sin campo domicilio en UI.
+- **jockeys.html**: 5 categorías nuevas (VARCHAR), sin pesos, hipódromo otorgante, 3 estados, chip Inactivos, formatDNI.
+- **profesionales.html**: 3 estados, formatDNI.
+- **propietarios.html**: 3 estados, formatDNI.
+- **inscripciones.html**: 9 columnas en tabla, condición en dropdown (condicion_handicap), sereno en celda, jockey suplente separado, estado mal_inscrito, marcar carrera reabierta/anulada.
+- **carta-llamados.html**: rótulo CARRERA → TURNO en UI y PDF.

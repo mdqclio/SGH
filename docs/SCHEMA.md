@@ -22,14 +22,21 @@ id UUID PK, club_id FK clubs, nombre, codigo, descripcion, es_computable BOOLEAN
 UNIQUE (club_id, codigo)
 
 ### propietarios (GLOBALES — club_id nullable)
-id UUID PK, club_id FK nullable, tipo (persona/sociedad), nombre, documento_tipo, documento_nro, domicilio, localidad, provincia, telefono, email, colores_desc, colores_img_url, nombre_stud VARCHAR(150), activo
+id UUID PK, club_id FK nullable, tipo (persona/sociedad), nombre, documento_tipo, documento_nro, domicilio, localidad, provincia, telefono, email, colores_desc, colores_img_url, nombre_stud VARCHAR(150), activo, estado VARCHAR(20) DEFAULT 'activo'
 
 ### caballerizas
-id UUID PK, club_id FK nullable, nombre, responsable, domicilio, telefono, activo, notas
+id UUID PK, club_id FK nullable, nombre, responsable TEXT (autogenerado de caballeriza_responsables), domicilio, telefono, activo, notas, estado VARCHAR(20) DEFAULT 'activo', hipodromo_patente VARCHAR(50), chaquetilla_descripcion VARCHAR(500), chaquetilla_url VARCHAR(500)
+NOTA: campo "responsable" no se edita directamente — se regenera desde caballeriza_responsables al guardar.
 
-### profesionales (GLOBALES — club_id nullable)
-id UUID PK, club_id FK nullable, tipo ENUM(jockey/entrenador/ambos), nombre, apellido, documento_tipo, documento_nro, fecha_nacimiento, matricula_nro, patente, hipodromo_patente, categoria_jockey ENUM(aprendiz/clasico/senior/amateur), peso_minimo, peso_maximo, caballeriza_id FK, telefono, email, foto_url, activo
-NOTA: entrenadores son globales (club_id nullable). Jockeys tienen club_id del hipódromo.
+### caballeriza_responsables (nueva — sesión may-2026)
+id UUID PK, caballeriza_id FK caballerizas ON DELETE CASCADE, profesional_id FK profesionales (opcional — NULL si no es profesional del sistema), apellido VARCHAR(150), nombre VARCHAR(150), documento_tipo VARCHAR(10) DEFAULT 'DNI', documento_nro VARCHAR(30), fecha_nacimiento DATE, localidad VARCHAR(150), rol VARCHAR(20) CHECK (rol IN ('propietario','copropietario')), porcentaje DECIMAL (V2 — no usado aún), activo BOOLEAN DEFAULT TRUE, created_at
+RLS: policy permisiva (allow_all).
+REGLA: exactamente 1 fila con rol='propietario' por caballeriza, 0-N con rol='copropietario'.
+
+### profesionales (per-hipódromo — CORRECCIÓN: NO son globales)
+id UUID PK, club_id FK nullable, tipo ENUM(jockey/entrenador/ambos), nombre, apellido, documento_tipo, documento_nro, fecha_nacimiento, localidad VARCHAR(150), matricula_nro, patente, hipodromo_patente VARCHAR(50), categoria_jockey VARCHAR(50), peso_minimo, peso_maximo, caballeriza_id FK, telefono, email, foto_url, activo, estado VARCHAR(20) DEFAULT 'activo'
+NOTA: categoria_jockey cambió de ENUM a VARCHAR(50) — sesión may-2026. Valores actuales: Jockey / 2ª categoría / 3ª categoría / 4ª categoría.
+CORRECCIÓN: entrenadores NO son globales — tienen hipodromo_patente igual que jockeys (patente otorgada por un hipódromo específico).
 
 ### spcs (GLOBALES — club_id nullable)
 id UUID PK, club_id FK nullable, nombre, registro_stud_book, fecha_nacimiento DATE, sexo ENUM(macho/hembra/castrado), color, marcas, padrillo_nombre, madre_nombre, abuela_materna, pais_origen DEFAULT 'Argentina', caballeriza_id FK, entrenador_id FK, estado ENUM(activo/retirado/suspendido/fallecido/vendido) DEFAULT 'activo', notas, doc_url, foto_url, certificado_correr BOOLEAN DEFAULT FALSE
@@ -47,11 +54,14 @@ id UUID PK, club_id FK clubs, hipodromo_id FK hipodromos, numero INTEGER, fecha 
 ### carreras
 id UUID PK, reunion_id FK reuniones, numero_turno INTEGER, nombre, categoria_id FK categorias_carrera, tipo_pista ENUM(cesped/arena/tierra/sintetica), distancia_metros INTEGER, edad_minima_anos, edad_maxima_anos, condicion_sexo ENUM(ambos/machos/hembras/machos_castrados), condicion_handicap, condicion_adicional, bolsa_total DECIMAL, bolsa_bonos DECIMAL DEFAULT 0, premio_minimo DECIMAL DEFAULT 0, distribucion_premios JSONB, cupo_maximo, hora_estimada TIME, apertura_inscripcion, cierre_inscripcion, apertura_ratificacion, cierre_ratificacion, estado VARCHAR DEFAULT 'programada'
 UNIQUE (reunion_id, numero_turno)
+NOTA condicion: condicion_handicap es la condición principal en texto libre. condicion_adicional es nota extra ("Peso x impresion" en casos especiales).
+NOTA estado: campo VARCHAR libre (sin ENUM). Valores especiales usados en UI: 'reabierta' (cupo no completado, se reabre), 'anulada' (cancelada). NULL = sin marca especial.
 
 ### inscripciones
-id UUID PK, carrera_id FK carreras, spc_id FK spcs, propietario_id FK, entrenador_id FK, jockey_titular_id FK, jockey_suplente_id FK, caballeriza_id FK, peon VARCHAR, capataz VARCHAR, sereno VARCHAR, numero_partidor, peso_declarado, peso_final, estado ENUM(pre_inscripto/inscripto/confirmado/ratificado/forfait/no_presentado) DEFAULT 'inscripto', canal DEFAULT 'manual', motivo_forfait, info_adicional, certificado_correr BOOLEAN, inscripto_por FK usuarios, ratificado_por FK usuarios
+id UUID PK, carrera_id FK carreras, spc_id FK spcs, propietario_id FK, entrenador_id FK, jockey_titular_id FK, jockey_suplente_id FK, caballeriza_id FK, peon VARCHAR, capataz VARCHAR, sereno VARCHAR, numero_partidor, peso_declarado, peso_final, estado ENUM(pre_inscripto/inscripto/confirmado/ratificado/forfait/no_presentado/mal_inscrito) DEFAULT 'inscripto', canal DEFAULT 'manual', motivo_forfait, info_adicional, certificado_correr BOOLEAN, inscripto_por FK usuarios, ratificado_por FK usuarios
 UNIQUE (carrera_id, spc_id)
-ESTADOS ACTIVOS: solo inscripto → ratificado → forfait
+ESTADOS VISIBLES EN UI: inscripto / mal_inscrito / ratificado / forfait. mal_inscrito agregado en sesión may-2026.
+CRÍTICO: estado es ENUM rígido (estado_inscripcion). Para agregar valores usar ALTER TYPE ADD VALUE, NO migrar a VARCHAR (v_inscriptos_carrera depende del ENUM).
 
 ### resultados
 id UUID PK, carrera_id FK UNIQUE, estado ENUM(provisional/oficial/en_protesta), tiempo_ganador, estado_pista VARCHAR, dividendos JSONB, apuestas JSONB, incidentes, observaciones, oficializado_por FK, oficializado_at
@@ -109,7 +119,40 @@ ALTER TABLE spcs ADD COLUMN IF NOT EXISTS certificado_correr BOOLEAN DEFAULT FAL
 ALTER TYPE tipo_pista ADD VALUE IF NOT EXISTS 'tierra';
 ALTER TYPE estado_reunion ADD VALUE IF NOT EXISTS 'programada';
 ALTER TYPE estado_inscripcion ADD VALUE IF NOT EXISTS 'inscripto';
+-- Sesión may-2026:
+ALTER TABLE profesionales ADD COLUMN IF NOT EXISTS localidad VARCHAR(150);
+ALTER TABLE profesionales ADD COLUMN IF NOT EXISTS estado VARCHAR(20) DEFAULT 'activo';
+ALTER TABLE propietarios ADD COLUMN IF NOT EXISTS estado VARCHAR(20) DEFAULT 'activo';
+ALTER TABLE caballerizas ADD COLUMN IF NOT EXISTS estado VARCHAR(20) DEFAULT 'activo';
+ALTER TABLE caballerizas ADD COLUMN IF NOT EXISTS hipodromo_patente VARCHAR(50);
+ALTER TABLE caballerizas ADD COLUMN IF NOT EXISTS chaquetilla_descripcion VARCHAR(500);
+ALTER TABLE caballerizas ADD COLUMN IF NOT EXISTS chaquetilla_url VARCHAR(500);
+ALTER TABLE profesionales ALTER COLUMN categoria_jockey TYPE VARCHAR(50); -- era ENUM
+ALTER TYPE estado_inscripcion ADD VALUE IF NOT EXISTS 'mal_inscrito';
+CREATE TABLE IF NOT EXISTS caballeriza_responsables (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  caballeriza_id UUID NOT NULL REFERENCES caballerizas(id) ON DELETE CASCADE,
+  profesional_id UUID REFERENCES profesionales(id),
+  apellido VARCHAR(150), nombre VARCHAR(150),
+  documento_tipo VARCHAR(10) DEFAULT 'DNI', documento_nro VARCHAR(30),
+  fecha_nacimiento DATE, localidad VARCHAR(150),
+  rol VARCHAR(20) CHECK (rol IN ('propietario','copropietario')),
+  porcentaje DECIMAL, activo BOOLEAN DEFAULT TRUE, created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE caballeriza_responsables ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow_all" ON caballeriza_responsables FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 ```
+
+## Storage Supabase
+Bucket: **chaquetillas** (público, creado sesión may-2026)
+Policies SQL requeridas después de crear el bucket desde la UI:
+```sql
+CREATE POLICY "chaquetillas_public_read"   ON storage.objects FOR SELECT TO anon, authenticated USING (bucket_id = 'chaquetillas');
+CREATE POLICY "chaquetillas_auth_insert"   ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'chaquetillas');
+CREATE POLICY "chaquetillas_auth_update"   ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'chaquetillas');
+CREATE POLICY "chaquetillas_auth_delete"   ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'chaquetillas');
+```
+URL pública: `https://unlhcuanfrtpatoipwve.supabase.co/storage/v1/object/public/chaquetillas/{filename}`
 
 ## RLS
 Actualmente todas las tablas tienen policy permisiva para desarrollo:
