@@ -206,7 +206,7 @@
           </div>
           <div class="form-group">
             <label>N° documento</label>
-            <input type="text" id="f-doc-nro" placeholder="XX-XXXXXXXX-X">
+            <input type="text" id="f-doc-nro" placeholder="XX-XXXXXXXX-X" inputmode="numeric" onblur="this.value = formatDNI(this.value)">
           </div>
           <div class="form-group full">
             <label>Domicilio</label>
@@ -254,6 +254,14 @@ function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html
 
 let allData = [];
 
+function formatDNI(num) {
+  if (!num) return '';
+  const limpio = String(num).replace(/\D/g, '');
+  if (!limpio) return '';
+  return limpio.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+function parseDNI(str) { return (str || '').replace(/\D/g, ''); }
+
 function toast(msg, type = 'success') {
   const t = document.createElement('div');
   t.className = `toast toast-${type}`;
@@ -293,8 +301,9 @@ function updateStats() {
 function filterRender() {
   const q = document.getElementById('search').value.toLowerCase();
   const tipo = document.getElementById('filter-tipo').value;
+  const qDni = parseDNI(q);
   const data = allData.filter(r => {
-    const matchQ = !q || r.nombre?.toLowerCase().includes(q) || r.documento_nro?.toLowerCase().includes(q);
+    const matchQ = !q || r.nombre?.toLowerCase().includes(q) || (qDni && r.documento_nro?.includes(qDni));
     const matchTipo = !tipo || r.tipo === tipo;
     return matchQ && matchTipo;
   });
@@ -314,7 +323,7 @@ function cardHTML(r) {
     ? `<span class="badge badge-persona">Persona</span>`
     : `<span class="badge badge-sociedad">Sociedad</span>`;
   const activoBadge = estadoBadge(r.estado || 'activo');
-  const doc = r.documento_nro ? `${r.documento_tipo || ''} ${r.documento_nro}` : '—';
+  const doc = r.documento_nro ? `${r.documento_tipo || ''} ${formatDNI(r.documento_nro)}` : '—';
   const loc = [r.localidad, r.provincia].filter(Boolean).join(', ') || '—';
   return `<div class="card">
     <div class="card-header">
@@ -347,7 +356,7 @@ function openModal(rec = null) {
   document.getElementById('f-estado-original').value = rec?.estado || 'activo';
   document.getElementById('f-nombre').value = rec?.nombre || '';
   document.getElementById('f-doc-tipo').value = rec?.documento_tipo || 'DNI';
-  document.getElementById('f-doc-nro').value = rec?.documento_nro || '';
+  document.getElementById('f-doc-nro').value = formatDNI(rec?.documento_nro);
   document.getElementById('f-domicilio').value = rec?.domicilio || '';
   document.getElementById('f-localidad').value = rec?.localidad || '';
   document.getElementById('f-provincia').value = rec?.provincia || '';
@@ -384,7 +393,7 @@ async function saveRecord(e) {
     nombre: document.getElementById('f-nombre').value.trim(),
     nombre_stud: document.getElementById('f-stud').value.trim() || null,
     documento_tipo: document.getElementById('f-doc-tipo').value,
-    documento_nro: document.getElementById('f-doc-nro').value.trim() || null,
+    documento_nro: parseDNI(document.getElementById('f-doc-nro').value) || null,
     domicilio: document.getElementById('f-domicilio').value.trim() || null,
     localidad: document.getElementById('f-localidad').value.trim() || null,
     provincia: document.getElementById('f-provincia').value.trim() || null,

@@ -117,6 +117,7 @@
     <div class="stat-chip"><div class="stat-chip-val" id="cnt-aprendiz">—</div><div class="stat-chip-lbl">Aprendices</div></div>
     <div class="stat-chip"><div class="stat-chip-val" id="cnt-clasico">—</div><div class="stat-chip-lbl">Jockeys</div></div>
     <div class="stat-chip"><div class="stat-chip-val" id="cnt-activos">—</div><div class="stat-chip-lbl">Activos</div></div>
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-inactivos">—</div><div class="stat-chip-lbl">Inactivos</div></div>
   </div>
 
   <div class="toolbar">
@@ -171,7 +172,7 @@
           </div>
           <div class="form-group">
             <label>N° documento</label>
-            <input type="text" id="f-doc-nro">
+            <input type="text" id="f-doc-nro" inputmode="numeric" onblur="this.value = formatDNI(this.value)">
           </div>
           <div class="form-group">
             <label>Fecha nacimiento</label>
@@ -236,6 +237,14 @@ function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html
 
 let allData = [];
 
+function formatDNI(num) {
+  if (!num) return '';
+  const limpio = String(num).replace(/\D/g, '');
+  if (!limpio) return '';
+  return limpio.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+function parseDNI(str) { return (str || '').replace(/\D/g, ''); }
+
 function toast(msg, type = 'success') {
   const t = document.createElement('div');
   t.className = `toast toast-${type}`; t.textContent = msg;
@@ -273,7 +282,8 @@ function updateStats() {
   const cats_aprendiz = ['2ª categoría', '3ª categoría', '4ª categoría'];
   document.getElementById('cnt-aprendiz').textContent = allData.filter(r => cats_aprendiz.includes(r.categoria_jockey)).length;
   document.getElementById('cnt-clasico').textContent = allData.filter(r => r.categoria_jockey === 'Jockey').length;
-  document.getElementById('cnt-activos').textContent = allData.filter(r => r.estado === 'activo').length;
+  document.getElementById('cnt-activos').textContent  = allData.filter(r => r.estado === 'activo').length;
+  document.getElementById('cnt-inactivos').textContent = allData.filter(r => r.estado === 'inactivo').length;
 }
 
 function filterRender() {
@@ -313,7 +323,7 @@ function cardHTML(r) {
       </div>
     </div>
     <div class="card-detail">
-      ${r.documento_nro ? `<div>🪪 <span>${r.documento_tipo||''} ${r.documento_nro}</span></div>` : ''}
+      ${r.documento_nro ? `<div>🪪 <span>${r.documento_tipo||''} ${formatDNI(r.documento_nro)}</span></div>` : ''}
       ${r.fecha_nacimiento ? `<div>🎂 <span>${new Date(r.fecha_nacimiento).toLocaleDateString('es-AR')}</span></div>` : ''}
       ${r.telefono ? `<div>📞 <span>${r.telefono}</span></div>` : ''}
     </div>
@@ -330,7 +340,7 @@ function openModal(rec = null) {
   document.getElementById('f-nombre').value = rec?.nombre || '';
   document.getElementById('f-apellido').value = rec?.apellido || '';
   document.getElementById('f-doc-tipo').value = rec?.documento_tipo || 'DNI';
-  document.getElementById('f-doc-nro').value = rec?.documento_nro || '';
+  document.getElementById('f-doc-nro').value = formatDNI(rec?.documento_nro);
   document.getElementById('f-nacimiento').value = rec?.fecha_nacimiento || '';
   document.getElementById('f-telefono').value = rec?.telefono || '';
   document.getElementById('f-email').value = rec?.email || '';
@@ -367,7 +377,7 @@ async function saveRecord(e) {
     nombre: document.getElementById('f-nombre').value.trim(),
     apellido: document.getElementById('f-apellido').value.trim(),
     documento_tipo: document.getElementById('f-doc-tipo').value,
-    documento_nro: document.getElementById('f-doc-nro').value.trim() || null,
+    documento_nro: parseDNI(document.getElementById('f-doc-nro').value) || null,
     fecha_nacimiento: document.getElementById('f-nacimiento').value || null,
     telefono: document.getElementById('f-telefono').value.trim() || null,
     email: document.getElementById('f-email').value.trim() || null,

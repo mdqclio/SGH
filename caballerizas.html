@@ -194,8 +194,8 @@
               <div class="resp-inputs">
                 <input id="rp-apellido" placeholder="Apellido *">
                 <input id="rp-nombre"   placeholder="Nombre *">
-                <input id="rp-dni"      placeholder="DNI *"
-                       onblur="checkProfesional(this, document.getElementById('rp-badge'))">
+                <input id="rp-dni"      placeholder="DNI *" inputmode="numeric"
+                       onblur="this.value = formatDNI(this.value); checkProfesional(this, document.getElementById('rp-badge'))">
                 <input id="rp-fnac"     type="date" title="Fecha de nacimiento">
                 <input id="rp-localidad" placeholder="Localidad" class="span2">
               </div>
@@ -224,6 +224,14 @@ function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html
 
 let allData = [];
 let spcCounts = {};
+
+function formatDNI(num) {
+  if (!num) return '';
+  const limpio = String(num).replace(/\D/g, '');
+  if (!limpio) return '';
+  return limpio.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+function parseDNI(str) { return (str || '').replace(/\D/g, ''); }
 
 function toast(msg, type = 'success') {
   const t = document.createElement('div');
@@ -360,11 +368,15 @@ function addCopropRow(data = null) {
   const inpApellido  = mk('Apellido');
   const inpNombre    = mk('Nombre');
   const inpDni       = mk('DNI');
+  inpDni.inputMode   = 'numeric';
   const inpFnac      = mk('', 'date');
   inpFnac.title      = 'Fecha de nacimiento';
   const inpLocalidad = mk('Localidad', 'text', 'span2');
 
-  inpDni.addEventListener('blur', () => checkProfesional(inpDni, badge));
+  inpDni.addEventListener('blur', () => {
+    inpDni.value = formatDNI(inpDni.value);
+    checkProfesional(inpDni, badge);
+  });
 
   grid.append(inpApellido, inpNombre, inpDni, inpFnac, inpLocalidad);
   row.append(header, grid);
@@ -372,7 +384,7 @@ function addCopropRow(data = null) {
   if (data) {
     inpApellido.value  = data.apellido        || '';
     inpNombre.value    = data.nombre          || '';
-    inpDni.value       = data.documento_nro   || '';
+    inpDni.value       = formatDNI(data.documento_nro);
     inpFnac.value      = data.fecha_nacimiento || '';
     inpLocalidad.value = data.localidad       || '';
   }
@@ -384,7 +396,7 @@ function addCopropRow(data = null) {
 
 async function checkProfesional(dniInput, badgeEl) {
   badgeEl.style.display = 'none';
-  const dni = dniInput.value.trim();
+  const dni = parseDNI(dniInput.value);
   if (!dni) return;
   const { data } = await sb.from('profesionales')
     .select('id')
@@ -399,7 +411,7 @@ function getResponsableData() {
     rol:              'propietario',
     apellido:         document.getElementById('rp-apellido').value.trim(),
     nombre:           document.getElementById('rp-nombre').value.trim(),
-    documento_nro:    document.getElementById('rp-dni').value.trim(),
+    documento_nro:    parseDNI(document.getElementById('rp-dni').value),
     fecha_nacimiento: document.getElementById('rp-fnac').value || null,
     localidad:        document.getElementById('rp-localidad').value.trim() || null,
   }];
@@ -409,7 +421,7 @@ function getResponsableData() {
       rol:              'copropietario',
       apellido:         inp[0].value.trim(),
       nombre:           inp[1].value.trim(),
-      documento_nro:    inp[2].value.trim(),
+      documento_nro:    parseDNI(inp[2].value),
       fecha_nacimiento: inp[3].value || null,
       localidad:        inp[4].value.trim() || null,
     });
@@ -504,7 +516,7 @@ async function openModal(rec = null) {
       if (prop) {
         document.getElementById('rp-apellido').value  = prop.apellido        || '';
         document.getElementById('rp-nombre').value    = prop.nombre          || '';
-        document.getElementById('rp-dni').value       = prop.documento_nro   || '';
+        document.getElementById('rp-dni').value       = formatDNI(prop.documento_nro);
         document.getElementById('rp-fnac').value      = prop.fecha_nacimiento || '';
         document.getElementById('rp-localidad').value = prop.localidad       || '';
         if (prop.documento_nro) {
