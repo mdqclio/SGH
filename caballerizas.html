@@ -109,6 +109,8 @@
     .resp-inputs .span2 { grid-column: span 2; }
     .btn-add-resp { margin-top: 12px; background: transparent; border: 1px dashed rgba(201,168,76,0.35); color: var(--muted); padding: 8px 16px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; width: 100%; }
     .btn-add-resp:hover { border-color: var(--accent); color: var(--accent); }
+    .chaq-mini { width: 50px; height: 50px; object-fit: contain; border-radius: 6px; background: rgba(255,255,255,0.05); flex-shrink: 0; }
+    .chaq-preview-img { width: 100%; height: 100%; object-fit: contain; border-radius: 9px; }
   </style>
 </head>
 <body>
@@ -180,6 +182,28 @@
             <label>Notas</label>
             <textarea id="f-notas" placeholder="Observaciones…"></textarea>
           </div>
+          <div class="form-group">
+            <label>Hipódromo otorgante</label>
+            <input type="text" id="f-hipodromo-patente" placeholder="Ej: Dolores">
+          </div>
+
+          <fieldset class="chaq-fieldset" style="grid-column: 1 / -1; border: 1px solid var(--border); border-radius: 10px; padding: 16px;">
+            <legend style="font-family: 'Playfair Display', serif; color: var(--accent); font-size: 15px; padding: 0 8px;">Chaquetilla</legend>
+            <div class="form-group full" style="margin-bottom: 14px;">
+              <label>Descripción de colores</label>
+              <textarea id="f-chaq-desc" rows="2" placeholder="Ej: Azul oscuro con banda diagonal roja, gorra roja"></textarea>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 140px; gap: 16px; align-items: start;">
+              <div class="form-group">
+                <label>Imagen (PNG/JPG, máx 2 MB)</label>
+                <input type="file" id="f-chaq-file" accept="image/png,image/jpeg,image/webp">
+                <small id="f-chaq-status" style="display: block; margin-top: 6px; color: var(--muted); font-size: 12px;"></small>
+              </div>
+              <div id="chaq-preview" style="width: 140px; height: 140px; border: 1px dashed var(--border); border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.2);">
+                <span style="color: var(--muted); font-size: 11px;">Sin imagen</span>
+              </div>
+            </div>
+          </fieldset>
 
           <!-- Responsables -->
           <fieldset class="resp-fieldset">
@@ -294,9 +318,12 @@ function cardHTML(r) {
   const badge = estadoBadge(r.estado || 'activo');
   return `<div class="card">
     <div class="card-header">
-      <div>
-        <div class="card-name">${r.nombre}</div>
-        ${r.responsable ? `<div class="card-responsable">Responsable: ${r.responsable}</div>` : ''}
+      <div style="display:flex;gap:12px;align-items:center;flex:1;min-width:0;">
+        ${r.chaquetilla_url ? `<img src="${r.chaquetilla_url}" class="chaq-mini" alt="Chaquetilla">` : ''}
+        <div style="min-width:0;">
+          <div class="card-name">${r.nombre}</div>
+          ${r.responsable ? `<div class="card-responsable">Responsable: ${r.responsable}</div>` : ''}
+        </div>
       </div>
       ${badge}
     </div>
@@ -308,8 +335,10 @@ function cardHTML(r) {
       ${cnt > 0 ? `<a href="spcs.html?caballeriza=${r.id}" class="spc-link">Ver SPC →</a>` : ''}
     </div>
     <div class="card-detail">
+      ${r.hipodromo_patente ? `<div>🏟️ <span>${r.hipodromo_patente}</span></div>` : ''}
       ${r.domicilio ? `<div>📍 <span>${r.domicilio}</span></div>` : ''}
       ${r.telefono ? `<div>📞 <span>${r.telefono}</span></div>` : ''}
+      ${r.chaquetilla_descripcion ? `<div>🎨 <span>${r.chaquetilla_descripcion}</span></div>` : ''}
       ${r.notas ? `<div>📝 <span>${r.notas}</span></div>` : ''}
     </div>
     <div class="card-actions">
@@ -488,6 +517,29 @@ async function resolveAndInsertResponsables(rows, cabId) {
   }
 }
 
+// ── Chaquetilla ───────────────────────────────────────────────────────────────
+
+async function uploadChaquetilla(file) {
+  if (file.size > 2 * 1024 * 1024) throw new Error('La imagen no puede superar 2 MB.');
+  const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+  const filename = `${crypto.randomUUID()}.${ext}`;
+  const { error } = await sb.storage
+    .from('chaquetillas')
+    .upload(filename, file, { upsert: false, contentType: file.type });
+  if (error) throw error;
+  const { data: { publicUrl } } = sb.storage.from('chaquetillas').getPublicUrl(filename);
+  return publicUrl;
+}
+
+function renderChaqPreview(url) {
+  const preview = document.getElementById('chaq-preview');
+  if (url) {
+    preview.innerHTML = `<img src="${url}" class="chaq-preview-img" alt="Chaquetilla">`;
+  } else {
+    preview.innerHTML = `<span style="color: var(--muted); font-size: 11px;">Sin imagen</span>`;
+  }
+}
+
 // ── Modal ─────────────────────────────────────────────────────────────────────
 
 async function openModal(rec = null) {
@@ -530,6 +582,13 @@ async function openModal(rec = null) {
     }
   }
 
+  document.getElementById('f-hipodromo-patente').value = rec?.hipodromo_patente || (rec ? '' : 'Dolores');
+  document.getElementById('f-chaq-desc').value = rec?.chaquetilla_descripcion || '';
+  document.getElementById('f-chaq-file').value = '';
+  document.getElementById('f-chaq-status').textContent = '';
+  renderChaqPreview(rec?.chaquetilla_url || null);
+  document.getElementById('f-chaq-file').dataset.currentUrl = rec?.chaquetilla_url || '';
+
   document.getElementById('modal').classList.add('open');
 }
 
@@ -559,6 +618,21 @@ async function saveRecord(e) {
       btn.disabled = false; btn.textContent = 'Guardar'; return;
     }
   }
+  const fileInput = document.getElementById('f-chaq-file');
+  const newFile = fileInput.files[0];
+  let chaquetillaUrl = fileInput.dataset.currentUrl || null;
+  if (newFile) {
+    document.getElementById('f-chaq-status').textContent = 'Subiendo imagen…';
+    try {
+      chaquetillaUrl = await uploadChaquetilla(newFile);
+    } catch (err) {
+      btn.disabled = false; btn.textContent = 'Guardar';
+      toast(`Error subiendo imagen: ${err.message}`, 'error');
+      return;
+    }
+    document.getElementById('f-chaq-status').textContent = 'Subida OK';
+  }
+
   const cabPayload = {
     club_id:   CLUB_ID,
     nombre:    document.getElementById('f-nombre').value.trim(),
@@ -567,6 +641,9 @@ async function saveRecord(e) {
     estado:    nuevoEstado,
     activo:    nuevoEstado === 'activo',
     notas:     document.getElementById('f-notas').value.trim() || null,
+    hipodromo_patente:       document.getElementById('f-hipodromo-patente').value.trim() || null,
+    chaquetilla_descripcion: document.getElementById('f-chaq-desc').value.trim() || null,
+    chaquetilla_url:         chaquetillaUrl,
   };
 
   let cabId = id;
