@@ -385,15 +385,15 @@ async function onReunionChange() {
   const rid = document.getElementById('sel-reunion').value;
   const selC = document.getElementById('sel-carrera');
   if (!rid) { selC.innerHTML='<option value="">— Seleccionar reunión primero —</option>'; return; }
-  const { data: cars } = await sb.from('carreras').select('id,numero_turno,nombre,distancia_metros,condicion').eq('reunion_id', rid).order('numero_turno');
+  const { data: cars } = await sb.from('carreras').select('id,numero_turno,nombre,distancia_metros,condicion_adicional').eq('reunion_id', rid).order('numero_turno');
   carreras = cars||[];
   selC.innerHTML = '<option value="">— Seleccionar carrera —</option>' +
     carreras.map(c => {
       let label = `Turno ${c.numero_turno}`;
       if (c.nombre) label += ` — ${c.nombre}`;
       label += ` — ${c.distancia_metros}m`;
-      if (c.condicion) {
-        const cond = c.condicion.length > 70 ? c.condicion.slice(0, 70) + '…' : c.condicion;
+      if (c.condicion_adicional) {
+        const cond = c.condicion_adicional.length > 70 ? c.condicion_adicional.slice(0, 70) + '…' : c.condicion_adicional;
         label += ` — ${cond}`;
       }
       return `<option value="${c.id}">${label}</option>`;
