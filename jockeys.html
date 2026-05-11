@@ -126,10 +126,9 @@
     <select class="filter-select" id="filter-cat" onchange="filterRender()">
       <option value="">Todas las categorías</option>
       <option value="Jockey">Jockey</option>
-      <option value="Jockey aprendiz">Jockey aprendiz</option>
-      <option value="4ª categoría">4ª categoría</option>
-      <option value="3ª categoría">3ª categoría</option>
       <option value="2ª categoría">2ª categoría</option>
+      <option value="3ª categoría">3ª categoría</option>
+      <option value="4ª categoría">4ª categoría</option>
     </select>
     <select class="filter-select" id="filter-estado" onchange="load()">
       <option value="activos">Solo activos</option>
@@ -205,10 +204,9 @@
             <select id="f-categoria">
               <option value="">-- Seleccionar --</option>
               <option value="Jockey">Jockey</option>
-              <option value="Jockey aprendiz">Jockey aprendiz</option>
-              <option value="4ª categoría">4ª categoría</option>
-              <option value="3ª categoría">3ª categoría</option>
               <option value="2ª categoría">2ª categoría</option>
+              <option value="3ª categoría">3ª categoría</option>
+              <option value="4ª categoría">4ª categoría</option>
             </select>
           </div>
           <div class="form-group">
@@ -272,7 +270,8 @@ async function load() {
 
 function updateStats() {
   document.getElementById('cnt-total').textContent = allData.length;
-  document.getElementById('cnt-aprendiz').textContent = allData.filter(r => r.categoria_jockey === 'Jockey aprendiz').length;
+  const cats_aprendiz = ['2ª categoría', '3ª categoría', '4ª categoría'];
+  document.getElementById('cnt-aprendiz').textContent = allData.filter(r => cats_aprendiz.includes(r.categoria_jockey)).length;
   document.getElementById('cnt-clasico').textContent = allData.filter(r => r.categoria_jockey === 'Jockey').length;
   document.getElementById('cnt-activos').textContent = allData.filter(r => r.estado === 'activo').length;
 }
@@ -289,7 +288,7 @@ function filterRender() {
   renderList(data);
 }
 
-const catBadge = { 'Jockey': 'badge-clasico', 'Jockey aprendiz': 'badge-aprendiz', '4ª categoría': 'badge-senior', '3ª categoría': 'badge-senior', '2ª categoría': 'badge-senior' };
+const catBadge = { 'Jockey': 'badge-clasico', '2ª categoría': 'badge-senior', '3ª categoría': 'badge-senior', '4ª categoría': 'badge-senior' };
 
 function renderList(data) {
   if (!data.length) {
