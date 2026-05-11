@@ -43,7 +43,8 @@
     .card-responsable { font-size: 13px; color: var(--muted); }
     .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
     .badge-activo { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
-    .badge-inactivo { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .badge-inactivo { background: rgba(160,184,160,0.15); color: var(--muted); border: 1px solid rgba(160,184,160,0.3); }
+    .badge-baja { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
     .spc-count { background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.25); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
     .spc-count-num { font-size: 22px; font-weight: 700; color: var(--accent); font-family: 'Playfair Display', serif; }
     .spc-count-label { font-size: 12px; color: var(--muted); }
@@ -132,10 +133,10 @@
     <div class="search-box">
       <input type="text" id="search" placeholder="Buscar por nombre o responsable…" oninput="filterRender()">
     </div>
-    <select class="filter-select" id="filter-activo" onchange="filterRender()">
-      <option value="">Todas</option>
-      <option value="true">Activas</option>
-      <option value="false">Inactivas</option>
+    <select class="filter-select" id="filter-estado" onchange="load()">
+      <option value="activos">Solo activas</option>
+      <option value="visibles">Activas + inactivas</option>
+      <option value="todos">Todas (incluye bajas)</option>
     </select>
     <button class="btn-primary" onclick="openModal()">+ Nueva Caballeriza</button>
   </div>
@@ -153,6 +154,7 @@
     <div class="modal-body">
       <form id="form" onsubmit="saveRecord(event)">
         <input type="hidden" id="f-id">
+        <input type="hidden" id="f-estado-original">
         <div class="form-grid">
           <div class="form-group full">
             <label>Nombre *</label>
@@ -163,10 +165,11 @@
             <input type="tel" id="f-telefono">
           </div>
           <div class="form-group">
-            <label>Activo</label>
-            <select id="f-activo">
-              <option value="true">Sí</option>
-              <option value="false">No</option>
+            <label>Estado</label>
+            <select id="f-estado">
+              <option value="activo">Activo</option>
+              <option value="inactivo">Inactivo</option>
+              <option value="baja">Dado de baja</option>
             </select>
           </div>
           <div class="form-group full">
@@ -230,10 +233,20 @@ function toast(msg, type = 'success') {
   setTimeout(() => t.remove(), 3500);
 }
 
+function estadoBadge(estado) {
+  if (estado === 'baja')     return '<span class="badge badge-baja">Baja</span>';
+  if (estado === 'inactivo') return '<span class="badge badge-inactivo">Inactiva</span>';
+  return '<span class="badge badge-activo">Activa</span>';
+}
+
 async function load() {
   document.getElementById('list-container').innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando caballerizas…</div>';
+  const filtro = document.getElementById('filter-estado').value;
+  let cabQuery = sb.from('caballerizas').select('*').eq('club_id', CLUB_ID).order('nombre');
+  if (filtro === 'activos')  cabQuery = cabQuery.eq('estado', 'activo');
+  else if (filtro === 'visibles') cabQuery = cabQuery.in('estado', ['activo', 'inactivo']);
   const [{ data: cabs, error }, { data: spcs }] = await Promise.all([
-    sb.from('caballerizas').select('*').eq('club_id', CLUB_ID).order('nombre'),
+    cabQuery,
     sb.from('spcs').select('caballeriza_id').eq('club_id', CLUB_ID).eq('estado', 'activo'),
   ]);
   if (error) { toast(error.message, 'error'); document.getElementById('list-container').innerHTML = ''; return; }
@@ -248,18 +261,15 @@ async function load() {
 
 function updateStats(totalSpcs) {
   document.getElementById('cnt-total').textContent = allData.length;
-  document.getElementById('cnt-activas').textContent = allData.filter(r => r.activo).length;
+  document.getElementById('cnt-activas').textContent = allData.filter(r => r.estado === 'activo').length;
   document.getElementById('cnt-spcs').textContent = totalSpcs;
 }
 
 function filterRender() {
   const q = document.getElementById('search').value.toLowerCase();
-  const activo = document.getElementById('filter-activo').value;
-  const data = allData.filter(r => {
-    const matchQ = !q || r.nombre?.toLowerCase().includes(q) || r.responsable?.toLowerCase().includes(q);
-    const matchActivo = activo === '' || String(r.activo) === activo;
-    return matchQ && matchActivo;
-  });
+  const data = allData.filter(r =>
+    !q || r.nombre?.toLowerCase().includes(q) || r.responsable?.toLowerCase().includes(q)
+  );
   renderList(data);
 }
 
@@ -273,9 +283,7 @@ function renderList(data) {
 
 function cardHTML(r) {
   const cnt = spcCounts[r.id] || 0;
-  const badge = r.activo
-    ? `<span class="badge badge-activo">Activa</span>`
-    : `<span class="badge badge-inactivo">Inactiva</span>`;
+  const badge = estadoBadge(r.estado || 'activo');
   return `<div class="card">
     <div class="card-header">
       <div>
@@ -476,7 +484,8 @@ async function openModal(rec = null) {
   document.getElementById('f-nombre').value   = rec?.nombre    || '';
   document.getElementById('f-telefono').value = rec?.telefono  || '';
   document.getElementById('f-domicilio').value = rec?.domicilio || '';
-  document.getElementById('f-activo').value   = rec ? String(rec.activo) : 'true';
+  document.getElementById('f-estado').value          = rec?.estado || 'activo';
+  document.getElementById('f-estado-original').value = rec?.estado || 'activo';
   document.getElementById('f-notas').value    = rec?.notas     || '';
 
   clearPropietario();
@@ -530,12 +539,21 @@ async function saveRecord(e) {
   btn.disabled = true; btn.textContent = 'Guardando…';
 
   const id = document.getElementById('f-id').value;
+  const nuevoEstado = document.getElementById('f-estado').value;
+  const estadoOriginal = document.getElementById('f-estado-original').value;
+  if (nuevoEstado === 'baja' && estadoOriginal !== 'baja') {
+    const nombre = document.getElementById('f-nombre').value.trim();
+    if (!confirm(`¿Confirmás dar de baja definitiva a "${nombre}"?\nQuedará oculto del sistema.`)) {
+      btn.disabled = false; btn.textContent = 'Guardar'; return;
+    }
+  }
   const cabPayload = {
     club_id:   CLUB_ID,
     nombre:    document.getElementById('f-nombre').value.trim(),
     telefono:  document.getElementById('f-telefono').value.trim() || null,
     domicilio: document.getElementById('f-domicilio').value.trim() || null,
-    activo:    document.getElementById('f-activo').value === 'true',
+    estado:    nuevoEstado,
+    activo:    nuevoEstado === 'activo',
     notas:     document.getElementById('f-notas').value.trim() || null,
   };
 

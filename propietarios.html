@@ -55,7 +55,9 @@
     .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
     .badge-persona { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
     .badge-sociedad { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
-    .badge-inactivo { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .badge-activo { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-inactivo { background: rgba(160,184,160,0.15); color: var(--muted); border: 1px solid rgba(160,184,160,0.3); }
+    .badge-baja { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
     .card-detail { font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 12px; }
     .card-detail span { color: var(--text); }
     .card-colors { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 13px; color: var(--muted); }
@@ -146,10 +148,10 @@
       <option value="persona">Persona</option>
       <option value="sociedad">Sociedad</option>
     </select>
-    <select class="filter-select" id="filter-activo" onchange="filterRender()">
-      <option value="">Todos</option>
-      <option value="true">Activos</option>
-      <option value="false">Inactivos</option>
+    <select class="filter-select" id="filter-estado" onchange="load()">
+      <option value="activos">Solo activos</option>
+      <option value="visibles">Activos + inactivos</option>
+      <option value="todos">Todos (incluye bajas)</option>
     </select>
     <button class="btn-primary" onclick="openModal()">+ Nuevo Propietario</button>
   </div>
@@ -167,6 +169,7 @@
     <div class="modal-body">
       <form id="form" onsubmit="saveRecord(event)">
         <input type="hidden" id="f-id">
+        <input type="hidden" id="f-estado-original">
         <div class="form-grid">
           <div class="form-group">
             <label>Tipo *</label>
@@ -176,10 +179,11 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Activo</label>
-            <select id="f-activo">
-              <option value="true">Sí</option>
-              <option value="false">No</option>
+            <label>Estado</label>
+            <select id="f-estado">
+              <option value="activo">Activo</option>
+              <option value="inactivo">Inactivo</option>
+              <option value="baja">Dado de baja</option>
             </select>
           </div>
           <div class="form-group full">
@@ -260,9 +264,19 @@ function toast(msg, type = 'success') {
 
 function setList(html) { document.getElementById('list-container').innerHTML = html; }
 
+function estadoBadge(estado) {
+  if (estado === 'baja')     return '<span class="badge badge-baja">Baja</span>';
+  if (estado === 'inactivo') return '<span class="badge badge-inactivo">Inactivo</span>';
+  return '<span class="badge badge-activo">Activo</span>';
+}
+
 async function load() {
   setList('<div class="loading-state"><div class="spinner"></div> Cargando propietarios…</div>');
-  const { data, error } = await sb.from('propietarios').select('*').order('nombre');
+  const filtro = document.getElementById('filter-estado').value;
+  let query = sb.from('propietarios').select('*').order('nombre');
+  if (filtro === 'activos')  query = query.eq('estado', 'activo');
+  else if (filtro === 'visibles') query = query.in('estado', ['activo', 'inactivo']);
+  const { data, error } = await query;
   if (error) { toast(error.message, 'error'); setList(''); return; }
   allData = data || [];
   updateStats();
@@ -273,18 +287,16 @@ function updateStats() {
   document.getElementById('cnt-total').textContent = allData.length;
   document.getElementById('cnt-persona').textContent = allData.filter(r => r.tipo === 'persona').length;
   document.getElementById('cnt-sociedad').textContent = allData.filter(r => r.tipo === 'sociedad').length;
-  document.getElementById('cnt-activos').textContent = allData.filter(r => r.activo).length;
+  document.getElementById('cnt-activos').textContent = allData.filter(r => r.estado === 'activo').length;
 }
 
 function filterRender() {
   const q = document.getElementById('search').value.toLowerCase();
   const tipo = document.getElementById('filter-tipo').value;
-  const activo = document.getElementById('filter-activo').value;
-  let data = allData.filter(r => {
+  const data = allData.filter(r => {
     const matchQ = !q || r.nombre?.toLowerCase().includes(q) || r.documento_nro?.toLowerCase().includes(q);
     const matchTipo = !tipo || r.tipo === tipo;
-    const matchActivo = activo === '' || String(r.activo) === activo;
-    return matchQ && matchTipo && matchActivo;
+    return matchQ && matchTipo;
   });
   renderList(data);
 }
@@ -301,7 +313,7 @@ function cardHTML(r) {
   const tipoBadge = r.tipo === 'persona'
     ? `<span class="badge badge-persona">Persona</span>`
     : `<span class="badge badge-sociedad">Sociedad</span>`;
-  const activoBadge = !r.activo ? `<span class="badge badge-inactivo">Inactivo</span>` : '';
+  const activoBadge = estadoBadge(r.estado || 'activo');
   const doc = r.documento_nro ? `${r.documento_tipo || ''} ${r.documento_nro}` : '—';
   const loc = [r.localidad, r.provincia].filter(Boolean).join(', ') || '—';
   return `<div class="card">
@@ -331,7 +343,8 @@ function openModal(rec = null) {
   document.getElementById('modal-title').textContent = rec ? 'Editar Propietario' : 'Nuevo Propietario';
   document.getElementById('f-id').value = rec?.id || '';
   document.getElementById('f-tipo').value = rec?.tipo || 'persona';
-  document.getElementById('f-activo').value = rec ? String(rec.activo) : 'true';
+  document.getElementById('f-estado').value = rec?.estado || 'activo';
+  document.getElementById('f-estado-original').value = rec?.estado || 'activo';
   document.getElementById('f-nombre').value = rec?.nombre || '';
   document.getElementById('f-doc-tipo').value = rec?.documento_tipo || 'DNI';
   document.getElementById('f-doc-nro').value = rec?.documento_nro || '';
@@ -356,9 +369,18 @@ async function saveRecord(e) {
   const btn = document.getElementById('btn-save');
   btn.disabled = true; btn.textContent = 'Guardando…';
   const id = document.getElementById('f-id').value;
+  const nuevoEstado = document.getElementById('f-estado').value;
+  const estadoOriginal = document.getElementById('f-estado-original').value;
+  if (nuevoEstado === 'baja' && estadoOriginal !== 'baja') {
+    const nombre = document.getElementById('f-nombre').value.trim();
+    if (!confirm(`¿Confirmás dar de baja definitiva a "${nombre}"?\nQuedará oculto del sistema.`)) {
+      btn.disabled = false; btn.textContent = 'Guardar'; return;
+    }
+  }
   const payload = {
     tipo: document.getElementById('f-tipo').value,
-    activo: document.getElementById('f-activo').value === 'true',
+    estado: nuevoEstado,
+    activo: nuevoEstado === 'activo',
     nombre: document.getElementById('f-nombre').value.trim(),
     nombre_stud: document.getElementById('f-stud').value.trim() || null,
     documento_tipo: document.getElementById('f-doc-tipo').value,

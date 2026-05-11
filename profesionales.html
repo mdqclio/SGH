@@ -46,7 +46,9 @@
     .badges { display: flex; gap: 4px; flex-wrap: wrap; }
     .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
     .badge-entrenador { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
-    .badge-inactivo { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .badge-activo { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-inactivo { background: rgba(160,184,160,0.15); color: var(--muted); border: 1px solid rgba(160,184,160,0.3); }
+    .badge-baja { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
     .card-detail { font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 12px; }
     .card-detail span { color: var(--text); }
     .card-actions { display: flex; gap: 8px; }
@@ -121,10 +123,10 @@
     <div class="search-box">
       <input type="text" id="search" placeholder="Buscar por nombre o patente…" oninput="filterRender()">
     </div>
-    <select class="filter-select" id="filter-activo" onchange="filterRender()">
-      <option value="">Todos</option>
-      <option value="true">Activos</option>
-      <option value="false">Inactivos</option>
+    <select class="filter-select" id="filter-estado" onchange="load()">
+      <option value="activos">Solo activos</option>
+      <option value="visibles">Activos + inactivos</option>
+      <option value="todos">Todos (incluye bajas)</option>
     </select>
     <button class="btn-primary" id="btn-nuevo" onclick="openModal()">+ Nuevo Entrenador</button>
   </div>
@@ -142,6 +144,7 @@
     <div class="modal-body">
       <form id="form" onsubmit="saveRecord(event)">
         <input type="hidden" id="f-id">
+        <input type="hidden" id="f-estado-original">
         <div class="form-grid">
           <div class="form-group">
             <label>Nombre *</label>
@@ -176,10 +179,11 @@
             <input type="email" id="f-email">
           </div>
           <div class="form-group">
-            <label>Activo</label>
-            <select id="f-activo">
-              <option value="true">Sí</option>
-              <option value="false">No</option>
+            <label>Estado</label>
+            <select id="f-estado">
+              <option value="activo">Activo</option>
+              <option value="inactivo">Inactivo</option>
+              <option value="baja">Dado de baja</option>
             </select>
           </div>
 
@@ -223,45 +227,49 @@ function toast(msg, type = 'success') {
   setTimeout(() => t.remove(), 3500);
 }
 
+function estadoBadge(estado) {
+  if (estado === 'baja')     return '<span class="badge badge-baja">Baja</span>';
+  if (estado === 'inactivo') return '<span class="badge badge-inactivo">Inactivo</span>';
+  return '<span class="badge badge-activo">Activo</span>';
+}
+
 async function load() {
   if (currentUser.rol !== 'super_admin') {
     document.getElementById('btn-nuevo').style.display = 'none';
   }
   document.getElementById('list-container').innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando entrenadores…</div>';
-  const { data, error } = await sb.from('profesionales')
-    .select('*')
-    .eq('tipo', 'entrenador')
-    .order('apellido')
-    .order('nombre');
+  const filtro = document.getElementById('filter-estado').value;
+  let query = sb.from('profesionales').select('*').eq('tipo', 'entrenador').order('apellido').order('nombre');
+  if (filtro === 'activos')  query = query.eq('estado', 'activo');
+  else if (filtro === 'visibles') query = query.in('estado', ['activo', 'inactivo']);
+  const { data, error } = await query;
   if (error) { toast(error.message, 'error'); document.getElementById('list-container').innerHTML = ''; return; }
   allData = data || [];
   updateStats();
   filterRender();
 }
 
-async function toggleActivo(id, activo, nombre) {
-  const nuevoEstado = !activo;
-  if (!confirm(`¿${nuevoEstado ? 'Activar' : 'Desactivar'} a "${nombre}"?`)) return;
-  const { error } = await sb.from('profesionales').update({ activo: nuevoEstado }).eq('id', id);
+async function toggleEstado(id, estado, nombre) {
+  if (estado === 'baja') return;
+  const nuevo = estado === 'activo' ? 'inactivo' : 'activo';
+  if (!confirm(`¿${nuevo === 'activo' ? 'Activar' : 'Desactivar'} a "${nombre}"?`)) return;
+  const { error } = await sb.from('profesionales').update({ estado: nuevo, activo: nuevo === 'activo' }).eq('id', id);
   if (error) { toast(error.message, 'error'); return; }
-  toast(`Entrenador ${nuevoEstado ? 'activado' : 'desactivado'}`);
+  toast(`Entrenador ${nuevo === 'activo' ? 'activado' : 'desactivado'}`);
   load();
 }
 
 function updateStats() {
   document.getElementById('cnt-total').textContent = allData.length;
-  document.getElementById('cnt-activos').textContent = allData.filter(r => r.activo).length;
-  document.getElementById('cnt-inactivos').textContent = allData.filter(r => !r.activo).length;
+  document.getElementById('cnt-activos').textContent = allData.filter(r => r.estado === 'activo').length;
+  document.getElementById('cnt-inactivos').textContent = allData.filter(r => r.estado === 'inactivo').length;
 }
 
 function filterRender() {
   const q = document.getElementById('search').value.toLowerCase();
-  const activo = document.getElementById('filter-activo').value;
   const data = allData.filter(r => {
     const fullName = `${r.apellido} ${r.nombre}`.toLowerCase();
-    const matchQ = !q || fullName.includes(q) || r.patente?.toLowerCase().includes(q);
-    const matchActivo = activo === '' || String(r.activo) === activo;
-    return matchQ && matchActivo;
+    return !q || fullName.includes(q) || r.patente?.toLowerCase().includes(q);
   });
   renderList(data);
 }
@@ -285,7 +293,7 @@ function cardHTML(r) {
       </div>
       <div class="badges">
         <span class="badge badge-entrenador">Entrenador</span>
-        ${!r.activo ? `<span class="badge badge-inactivo">Inactivo</span>` : ''}
+        ${estadoBadge(r.estado || 'activo')}
       </div>
     </div>
     <div class="card-detail">
@@ -299,10 +307,11 @@ function cardHTML(r) {
       ${currentUser.rol === 'super_admin'
         ? `<button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(r)})'>✏️ Editar</button>
            <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}','${r.apellido} ${r.nombre}')">🗑️ Eliminar</button>`
-        : `<button class="btn-sm ${r.activo ? 'btn-desactivar' : 'btn-activar'}"
-               onclick="toggleActivo('${r.id}', ${r.activo}, '${r.apellido} ${r.nombre}')">
-             ${r.activo ? '🔴 Desactivar' : '🟢 Activar'}
-           </button>`
+        : ((r.estado || 'activo') === 'baja' ? '' :
+           `<button class="btn-sm ${(r.estado || 'activo') === 'activo' ? 'btn-desactivar' : 'btn-activar'}"
+               onclick="toggleEstado('${r.id}','${r.estado || 'activo'}','${r.apellido} ${r.nombre}')">
+             ${(r.estado || 'activo') === 'activo' ? '🔴 Desactivar' : '🟢 Activar'}
+           </button>`)
       }
     </div>
   </div>`;
@@ -318,7 +327,8 @@ function openModal(rec = null) {
   document.getElementById('f-nacimiento').value = rec?.fecha_nacimiento || '';
   document.getElementById('f-telefono').value = rec?.telefono || '';
   document.getElementById('f-email').value = rec?.email || '';
-  document.getElementById('f-activo').value = rec ? String(rec.activo) : 'true';
+  document.getElementById('f-estado').value = rec?.estado || 'activo';
+  document.getElementById('f-estado-original').value = rec?.estado || 'activo';
   document.getElementById('f-patente').value = rec?.patente || '';
   document.getElementById('f-hipodromo-patente').value = rec?.hipodromo_patente || '';
   document.getElementById('f-notas').value = rec?.notas || '';
@@ -335,6 +345,14 @@ async function saveRecord(e) {
   const btn = document.getElementById('btn-save');
   btn.disabled = true; btn.textContent = 'Guardando…';
   const id = document.getElementById('f-id').value;
+  const nuevoEstado = document.getElementById('f-estado').value;
+  const estadoOriginal = document.getElementById('f-estado-original').value;
+  if (nuevoEstado === 'baja' && estadoOriginal !== 'baja') {
+    const nombre = `${document.getElementById('f-apellido').value.trim()} ${document.getElementById('f-nombre').value.trim()}`;
+    if (!confirm(`¿Confirmás dar de baja definitiva a "${nombre}"?\nQuedará oculto del sistema.`)) {
+      btn.disabled = false; btn.textContent = 'Guardar'; return;
+    }
+  }
   const payload = {
     tipo: 'entrenador',
     nombre: document.getElementById('f-nombre').value.trim(),
@@ -344,7 +362,8 @@ async function saveRecord(e) {
     fecha_nacimiento: document.getElementById('f-nacimiento').value || null,
     telefono: document.getElementById('f-telefono').value.trim() || null,
     email: document.getElementById('f-email').value.trim() || null,
-    activo: document.getElementById('f-activo').value === 'true',
+    estado: nuevoEstado,
+    activo: nuevoEstado === 'activo',
     patente: document.getElementById('f-patente').value.trim() || null,
     hipodromo_patente: document.getElementById('f-hipodromo-patente').value.trim() || null,
     notas: document.getElementById('f-notas').value.trim() || null,
