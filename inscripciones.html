@@ -42,6 +42,7 @@
     .carrera-header { background: rgba(201,168,76,0.07); border-bottom: 1px solid var(--border); padding: 14px 24px; }
     .carrera-info { display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; align-items: center; }
     .carrera-num { font-family: 'Playfair Display', serif; font-size: 28px; color: var(--accent); font-weight: 700; }
+    .carrera-condicion { font-size: 13px; color: var(--muted); margin-top: 4px; font-style: italic; }
     .carrera-name { font-family: 'Playfair Display', serif; font-size: 17px; }
     .carrera-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
     .chip { font-size: 11px; background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.2); color: var(--muted); padding: 2px 9px; border-radius: 5px; }
@@ -188,6 +189,7 @@
     <div>
       <div class="carrera-name" id="ch-name">—</div>
       <div class="carrera-chips" id="ch-chips"></div>
+      <div id="ch-condicion"></div>
     </div>
   </div>
 </div>
@@ -436,6 +438,9 @@ function renderCarreraHeader() {
     ${currentCarrera.cupo_maximo?`<span class="chip">Cupo: ${currentCarrera.cupo_maximo}</span>`:''}
     ${currentCarrera.bolsa_total?`<span class="chip">💰 ${formatMonto(currentCarrera.bolsa_total)}</span>`:''}
   `;
+  document.getElementById('ch-condicion').innerHTML = currentCarrera.condicion_adicional
+    ? `<div class="carrera-condicion">Condición: ${currentCarrera.condicion_adicional}</div>`
+    : '';
 }
 
 async function loadInscripciones() {
