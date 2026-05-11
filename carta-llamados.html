@@ -542,9 +542,9 @@ function renderCarreras() {
       </div>`;
     }
 
-    // Título del encabezado: "CARRERA N — Condición: xxx — Categoría — 800 mts"
+    // Título del encabezado: "TURNO N — Condición: xxx — Categoría — 800 mts"
     const tituloPartes = [
-      `CARRERA ${c.numero_turno}`,
+      `TURNO ${c.numero_turno}`,
       condMain ? `Condición: ${condMain}` : null,
       cat?.nombre || null,
       `${c.distancia_metros} mts`,
