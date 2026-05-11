@@ -128,7 +128,7 @@
   <div class="stats-row">
     <div class="stat-chip"><div class="stat-chip-val" id="cnt-total">—</div><div class="stat-chip-lbl">Total</div></div>
     <div class="stat-chip"><div class="stat-chip-val" id="cnt-activas">—</div><div class="stat-chip-lbl">Activas</div></div>
-    <div class="stat-chip"><div class="stat-chip-val" id="cnt-spcs">—</div><div class="stat-chip-lbl">SPC alojados</div></div>
+    <div class="stat-chip"><div class="stat-chip-val" id="cnt-inactivas">—</div><div class="stat-chip-lbl">Inactivas</div></div>
   </div>
 
   <div class="toolbar">
@@ -173,10 +173,6 @@
               <option value="inactivo">Inactivo</option>
               <option value="baja">Dado de baja</option>
             </select>
-          </div>
-          <div class="form-group full">
-            <label>Domicilio</label>
-            <input type="text" id="f-domicilio" placeholder="Dirección de la caballeriza">
           </div>
           <div class="form-group full">
             <label>Notas</label>
@@ -247,7 +243,6 @@ async function initAuth(){const{createClient}=supabase;sb=createClient('https://
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
 let allData = [];
-let spcCounts = {};
 
 function formatDNI(num) {
   if (!num) return '';
@@ -274,27 +269,20 @@ function estadoBadge(estado) {
 async function load() {
   document.getElementById('list-container').innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando caballerizas…</div>';
   const filtro = document.getElementById('filter-estado').value;
-  let cabQuery = sb.from('caballerizas').select('*').eq('club_id', CLUB_ID).order('nombre');
-  if (filtro === 'activos')  cabQuery = cabQuery.eq('estado', 'activo');
-  else if (filtro === 'visibles') cabQuery = cabQuery.in('estado', ['activo', 'inactivo']);
-  const [{ data: cabs, error }, { data: spcs }] = await Promise.all([
-    cabQuery,
-    sb.from('spcs').select('caballeriza_id').eq('club_id', CLUB_ID).eq('estado', 'activo'),
-  ]);
+  let query = sb.from('caballerizas').select('*').eq('club_id', CLUB_ID).order('nombre');
+  if (filtro === 'activos')  query = query.eq('estado', 'activo');
+  else if (filtro === 'visibles') query = query.in('estado', ['activo', 'inactivo']);
+  const { data, error } = await query;
   if (error) { toast(error.message, 'error'); document.getElementById('list-container').innerHTML = ''; return; }
-  allData = cabs || [];
-  spcCounts = {};
-  (spcs || []).forEach(s => {
-    if (s.caballeriza_id) spcCounts[s.caballeriza_id] = (spcCounts[s.caballeriza_id] || 0) + 1;
-  });
-  updateStats(spcs?.length || 0);
+  allData = data || [];
+  updateStats();
   filterRender();
 }
 
-function updateStats(totalSpcs) {
-  document.getElementById('cnt-total').textContent = allData.length;
-  document.getElementById('cnt-activas').textContent = allData.filter(r => r.estado === 'activo').length;
-  document.getElementById('cnt-spcs').textContent = totalSpcs;
+function updateStats() {
+  document.getElementById('cnt-total').textContent     = allData.length;
+  document.getElementById('cnt-activas').textContent   = allData.filter(r => r.estado === 'activo').length;
+  document.getElementById('cnt-inactivas').textContent = allData.filter(r => r.estado === 'inactivo').length;
 }
 
 function filterRender() {
@@ -314,33 +302,23 @@ function renderList(data) {
 }
 
 function cardHTML(r) {
-  const cnt = spcCounts[r.id] || 0;
   const badge = estadoBadge(r.estado || 'activo');
+  const detailInner = `
+    ${r.chaquetilla_descripcion ? `<div>🎨 <span>${r.chaquetilla_descripcion}</span></div>` : ''}
+    ${r.telefono ? `<div>📞 <span>${r.telefono}</span></div>` : ''}
+    ${r.notas ? `<div>📝 <span>${r.notas}</span></div>` : ''}
+  `;
+  const detailBlock = r.chaquetilla_url
+    ? `<div class="chaq-row"><div class="card-detail">${detailInner}</div><div class="chaq-big-wrap"><img src="${r.chaquetilla_url}" class="chaq-big" alt="Chaquetilla"></div></div>`
+    : `<div class="card-detail">${detailInner}</div>`;
   return `<div class="card">
     <div class="card-header">
-      <div style="display:flex;gap:12px;align-items:center;flex:1;min-width:0;">
-        ${r.chaquetilla_url ? `<img src="${r.chaquetilla_url}" class="chaq-mini" alt="Chaquetilla">` : ''}
-        <div style="min-width:0;">
-          <div class="card-name">${r.nombre}</div>
-          ${r.responsable ? `<div class="card-responsable">Responsable: ${r.responsable}</div>` : ''}
-        </div>
+      <div>
+        <div class="card-name">${r.nombre}${r.hipodromo_patente ? ` (${r.hipodromo_patente})` : ''}</div>
       </div>
       ${badge}
     </div>
-    <div class="spc-count">
-      <div>
-        <div class="spc-count-num">${cnt}</div>
-        <div class="spc-count-label">SPC activos</div>
-      </div>
-      ${cnt > 0 ? `<a href="spcs.html?caballeriza=${r.id}" class="spc-link">Ver SPC →</a>` : ''}
-    </div>
-    <div class="card-detail">
-      ${r.hipodromo_patente ? `<div>🏟️ <span>${r.hipodromo_patente}</span></div>` : ''}
-      ${r.domicilio ? `<div>📍 <span>${r.domicilio}</span></div>` : ''}
-      ${r.telefono ? `<div>📞 <span>${r.telefono}</span></div>` : ''}
-      ${r.chaquetilla_descripcion ? `<div>🎨 <span>${r.chaquetilla_descripcion}</span></div>` : ''}
-      ${r.notas ? `<div>📝 <span>${r.notas}</span></div>` : ''}
-    </div>
+    ${detailBlock}
     <div class="card-actions">
       <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(r)})'>✏️ Editar</button>
       <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}','${r.nombre.replace(/'/g,"\\'")}')">🗑️ Eliminar</button>
@@ -547,7 +525,6 @@ async function openModal(rec = null) {
   document.getElementById('f-id').value       = rec?.id        || '';
   document.getElementById('f-nombre').value   = rec?.nombre    || '';
   document.getElementById('f-telefono').value = rec?.telefono  || '';
-  document.getElementById('f-domicilio').value = rec?.domicilio || '';
   document.getElementById('f-estado').value          = rec?.estado || 'activo';
   document.getElementById('f-estado-original').value = rec?.estado || 'activo';
   document.getElementById('f-notas').value    = rec?.notas     || '';
@@ -637,7 +614,6 @@ async function saveRecord(e) {
     club_id:   CLUB_ID,
     nombre:    document.getElementById('f-nombre').value.trim(),
     telefono:  document.getElementById('f-telefono').value.trim() || null,
-    domicilio: document.getElementById('f-domicilio').value.trim() || null,
     estado:    nuevoEstado,
     activo:    nuevoEstado === 'activo',
     notas:     document.getElementById('f-notas').value.trim() || null,
