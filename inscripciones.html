@@ -43,6 +43,7 @@
     .carrera-info { display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; align-items: center; }
     .carrera-num { font-family: 'Playfair Display', serif; font-size: 28px; color: var(--accent); font-weight: 700; }
     .carrera-condicion { font-size: 13px; color: var(--muted); margin-top: 4px; font-style: italic; }
+    .carrera-condicion-extra { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 2px; }
     .carrera-name { font-family: 'Playfair Display', serif; font-size: 17px; }
     .carrera-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
     .chip { font-size: 11px; background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.2); color: var(--muted); padding: 2px 9px; border-radius: 5px; }
@@ -389,15 +390,15 @@ async function onReunionChange() {
   const rid = document.getElementById('sel-reunion').value;
   const selC = document.getElementById('sel-carrera');
   if (!rid) { selC.innerHTML='<option value="">— Seleccionar reunión primero —</option>'; return; }
-  const { data: cars } = await sb.from('carreras').select('id,numero_turno,nombre,distancia_metros,condicion_adicional').eq('reunion_id', rid).order('numero_turno');
+  const { data: cars } = await sb.from('carreras').select('id,numero_turno,nombre,distancia_metros,condicion_handicap').eq('reunion_id', rid).order('numero_turno');
   carreras = cars||[];
   selC.innerHTML = '<option value="">— Seleccionar turno —</option>' +
     carreras.map(c => {
       let label = `Turno ${c.numero_turno}`;
       if (c.nombre) label += ` — ${c.nombre}`;
       label += ` — ${c.distancia_metros}m`;
-      if (c.condicion_adicional) {
-        const cond = c.condicion_adicional.length > 70 ? c.condicion_adicional.slice(0, 70) + '…' : c.condicion_adicional;
+      if (c.condicion_handicap) {
+        const cond = c.condicion_handicap.length > 70 ? c.condicion_handicap.slice(0, 70) + '…' : c.condicion_handicap;
         label += ` — ${cond}`;
       }
       return `<option value="${c.id}">${label}</option>`;
@@ -438,9 +439,13 @@ function renderCarreraHeader() {
     ${currentCarrera.cupo_maximo?`<span class="chip">Cupo: ${currentCarrera.cupo_maximo}</span>`:''}
     ${currentCarrera.bolsa_total?`<span class="chip">💰 ${formatMonto(currentCarrera.bolsa_total)}</span>`:''}
   `;
-  document.getElementById('ch-condicion').innerHTML = currentCarrera.condicion_adicional
-    ? `<div class="carrera-condicion">Condición: ${currentCarrera.condicion_adicional}</div>`
-    : '';
+  document.getElementById('ch-condicion').innerHTML =
+    (currentCarrera.condicion_handicap
+      ? `<div class="carrera-condicion">Condición: ${currentCarrera.condicion_handicap}</div>`
+      : '') +
+    (currentCarrera.condicion_adicional
+      ? `<div class="carrera-condicion-extra">${currentCarrera.condicion_adicional}</div>`
+      : '');
 }
 
 async function loadInscripciones() {
