@@ -67,7 +67,7 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 16px; }
     .modal-overlay.open { display: flex; }
-    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 720px; max-height: 90vh; overflow-y: auto; }
     .modal-header { padding: 24px 24px 0; display: flex; align-items: center; justify-content: space-between; }
     .modal-header h2 { font-size: 20px; color: var(--accent); }
     .btn-close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; line-height: 1; padding: 4px; }
@@ -88,11 +88,26 @@
     .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
     .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .form-group.full { grid-column: 1; } }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .form-group.full { grid-column: 1; } .resp-inputs { grid-template-columns: 1fr 1fr; } .resp-inputs .span2 { grid-column: span 2; } }
     #auth-overlay { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center; }
     .btn-logout { background:none;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;transition:all 0.2s;margin-left:auto; }
     .btn-logout:hover { border-color:var(--danger);color:var(--danger); }
     .user-name { font-size:13px;color:var(--muted); }
+    /* ── Sección responsables ── */
+    .resp-fieldset { border: 1px solid var(--border); border-radius: 10px; padding: 16px; grid-column: 1 / -1; }
+    .resp-fieldset legend { font-family: 'Playfair Display', serif; color: var(--accent); font-size: 15px; padding: 0 8px; }
+    .resp-row { padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .resp-row:last-of-type { border-bottom: none; }
+    .resp-row-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .resp-row-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .badge-prof { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .btn-remove-resp { margin-left: auto; background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background 0.2s; }
+    .btn-remove-resp:hover { background: rgba(224,82,82,0.22); }
+    .resp-inputs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .resp-inputs input { font-size: 13px; padding: 8px 12px; }
+    .resp-inputs .span2 { grid-column: span 2; }
+    .btn-add-resp { margin-top: 12px; background: transparent; border: 1px dashed rgba(201,168,76,0.35); color: var(--muted); padding: 8px 16px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; width: 100%; }
+    .btn-add-resp:hover { border-color: var(--accent); color: var(--accent); }
   </style>
 </head>
 <body>
@@ -144,16 +159,8 @@
             <input type="text" id="f-nombre" required placeholder="Nombre del stud o caballeriza">
           </div>
           <div class="form-group">
-            <label>Responsable</label>
-            <input type="text" id="f-responsable" placeholder="Nombre del responsable">
-          </div>
-          <div class="form-group">
             <label>Teléfono</label>
             <input type="tel" id="f-telefono">
-          </div>
-          <div class="form-group full">
-            <label>Domicilio</label>
-            <input type="text" id="f-domicilio" placeholder="Dirección de la caballeriza">
           </div>
           <div class="form-group">
             <label>Activo</label>
@@ -163,9 +170,39 @@
             </select>
           </div>
           <div class="form-group full">
+            <label>Domicilio</label>
+            <input type="text" id="f-domicilio" placeholder="Dirección de la caballeriza">
+          </div>
+          <div class="form-group full">
             <label>Notas</label>
             <textarea id="f-notas" placeholder="Observaciones…"></textarea>
           </div>
+
+          <!-- Responsables -->
+          <fieldset class="resp-fieldset">
+            <legend>Responsables</legend>
+
+            <!-- Fila fija: propietario -->
+            <div class="resp-row" id="row-propietario">
+              <div class="resp-row-header">
+                <span class="resp-row-label">Propietario *</span>
+                <div id="rp-badge" class="badge-prof" style="display:none">✓ Entrenador con patente</div>
+              </div>
+              <div class="resp-inputs">
+                <input id="rp-apellido" placeholder="Apellido *">
+                <input id="rp-nombre"   placeholder="Nombre *">
+                <input id="rp-dni"      placeholder="DNI *"
+                       onblur="checkProfesional(this, document.getElementById('rp-badge'))">
+                <input id="rp-fnac"     type="date" title="Fecha de nacimiento">
+                <input id="rp-localidad" placeholder="Localidad" class="span2">
+              </div>
+            </div>
+
+            <!-- Co-propietarios dinámicos -->
+            <div id="coprop-list"></div>
+
+            <button type="button" class="btn-add-resp" onclick="addCopropRow()">+ Agregar co-propietario</button>
+          </fieldset>
         </div>
       </form>
     </div>
@@ -218,7 +255,7 @@ function updateStats(totalSpcs) {
 function filterRender() {
   const q = document.getElementById('search').value.toLowerCase();
   const activo = document.getElementById('filter-activo').value;
-  let data = allData.filter(r => {
+  const data = allData.filter(r => {
     const matchQ = !q || r.nombre?.toLowerCase().includes(q) || r.responsable?.toLowerCase().includes(q);
     const matchActivo = activo === '' || String(r.activo) === activo;
     return matchQ && matchActivo;
@@ -266,42 +303,269 @@ function cardHTML(r) {
   </div>`;
 }
 
-function openModal(rec = null) {
+// ── Responsables helpers ──────────────────────────────────────────────────────
+
+function clearPropietario() {
+  ['rp-apellido','rp-nombre','rp-dni','rp-fnac','rp-localidad'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('rp-badge').style.display = 'none';
+}
+
+function clearCopropietarios() {
+  document.getElementById('coprop-list').innerHTML = '';
+}
+
+function addCopropRow(data = null) {
+  const row = document.createElement('div');
+  row.className = 'resp-row';
+
+  const badge = document.createElement('div');
+  badge.className = 'badge-prof';
+  badge.style.display = 'none';
+  badge.textContent = '✓ Entrenador con patente';
+
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'btn-remove-resp';
+  removeBtn.textContent = '✕ Eliminar';
+  removeBtn.onclick = () => row.remove();
+
+  const header = document.createElement('div');
+  header.className = 'resp-row-header';
+  const lbl = document.createElement('span');
+  lbl.className = 'resp-row-label';
+  lbl.textContent = 'Co-propietario';
+  header.append(lbl, badge, removeBtn);
+
+  const grid = document.createElement('div');
+  grid.className = 'resp-inputs';
+
+  const mk = (placeholder, type = 'text', extraClass = '') => {
+    const inp = document.createElement('input');
+    inp.type = type;
+    inp.placeholder = placeholder;
+    if (extraClass) inp.className = extraClass;
+    return inp;
+  };
+
+  const inpApellido  = mk('Apellido');
+  const inpNombre    = mk('Nombre');
+  const inpDni       = mk('DNI');
+  const inpFnac      = mk('', 'date');
+  inpFnac.title      = 'Fecha de nacimiento';
+  const inpLocalidad = mk('Localidad', 'text', 'span2');
+
+  inpDni.addEventListener('blur', () => checkProfesional(inpDni, badge));
+
+  grid.append(inpApellido, inpNombre, inpDni, inpFnac, inpLocalidad);
+  row.append(header, grid);
+
+  if (data) {
+    inpApellido.value  = data.apellido        || '';
+    inpNombre.value    = data.nombre          || '';
+    inpDni.value       = data.documento_nro   || '';
+    inpFnac.value      = data.fecha_nacimiento || '';
+    inpLocalidad.value = data.localidad       || '';
+  }
+
+  document.getElementById('coprop-list').appendChild(row);
+
+  if (data?.documento_nro) checkProfesional(inpDni, badge);
+}
+
+async function checkProfesional(dniInput, badgeEl) {
+  badgeEl.style.display = 'none';
+  const dni = dniInput.value.trim();
+  if (!dni) return;
+  const { data } = await sb.from('profesionales')
+    .select('id')
+    .eq('documento_nro', dni)
+    .eq('club_id', CLUB_ID)
+    .maybeSingle();
+  if (data) badgeEl.style.display = 'inline-flex';
+}
+
+function getResponsableData() {
+  const rows = [{
+    rol:              'propietario',
+    apellido:         document.getElementById('rp-apellido').value.trim(),
+    nombre:           document.getElementById('rp-nombre').value.trim(),
+    documento_nro:    document.getElementById('rp-dni').value.trim(),
+    fecha_nacimiento: document.getElementById('rp-fnac').value || null,
+    localidad:        document.getElementById('rp-localidad').value.trim() || null,
+  }];
+  document.querySelectorAll('#coprop-list .resp-row').forEach(row => {
+    const inp = row.querySelectorAll('.resp-inputs input');
+    rows.push({
+      rol:              'copropietario',
+      apellido:         inp[0].value.trim(),
+      nombre:           inp[1].value.trim(),
+      documento_nro:    inp[2].value.trim(),
+      fecha_nacimiento: inp[3].value || null,
+      localidad:        inp[4].value.trim() || null,
+    });
+  });
+  return rows;
+}
+
+function validateResponsables(rows) {
+  const prop = rows[0];
+  if (!prop.apellido || !prop.nombre || !prop.documento_nro) {
+    return 'El propietario requiere apellido, nombre y DNI.';
+  }
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (r.apellido && (!r.nombre || !r.documento_nro)) {
+      return `Co-propietario ${i}: si ingresás apellido, completá también nombre y DNI.`;
+    }
+  }
+  const dnis = rows.filter(r => r.documento_nro).map(r => r.documento_nro);
+  if (new Set(dnis).size !== dnis.length) {
+    return 'Hay DNI duplicados entre los responsables.';
+  }
+  return null;
+}
+
+function buildResponsableText(rows) {
+  return rows
+    .filter(r => r.apellido || r.nombre)
+    .map(r => {
+      const name = [r.apellido, r.nombre].filter(Boolean).join(' ');
+      return `${name} (${r.rol})`;
+    })
+    .join(' + ');
+}
+
+async function resolveAndInsertResponsables(rows, cabId) {
+  const toInsert = [];
+  for (const r of rows) {
+    if (!r.apellido && !r.nombre) continue;
+    let profesional_id = null;
+    if (r.documento_nro) {
+      const { data } = await sb.from('profesionales')
+        .select('id')
+        .eq('documento_nro', r.documento_nro)
+        .eq('club_id', CLUB_ID)
+        .maybeSingle();
+      profesional_id = data?.id ?? null;
+    }
+    toInsert.push({
+      caballeriza_id:   cabId,
+      profesional_id,
+      apellido:         r.apellido        || null,
+      nombre:           r.nombre          || null,
+      documento_nro:    r.documento_nro   || null,
+      fecha_nacimiento: r.fecha_nacimiento,
+      localidad:        r.localidad,
+      rol:              r.rol,
+      activo:           true,
+    });
+  }
+  if (toInsert.length) {
+    const { error } = await sb.from('caballeriza_responsables').insert(toInsert);
+    if (error) throw error;
+  }
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+
+async function openModal(rec = null) {
   document.getElementById('modal-title').textContent = rec ? 'Editar Caballeriza' : 'Nueva Caballeriza';
-  document.getElementById('f-id').value = rec?.id || '';
-  document.getElementById('f-nombre').value = rec?.nombre || '';
-  document.getElementById('f-responsable').value = rec?.responsable || '';
-  document.getElementById('f-telefono').value = rec?.telefono || '';
+  document.getElementById('f-id').value       = rec?.id        || '';
+  document.getElementById('f-nombre').value   = rec?.nombre    || '';
+  document.getElementById('f-telefono').value = rec?.telefono  || '';
   document.getElementById('f-domicilio').value = rec?.domicilio || '';
-  document.getElementById('f-activo').value = rec ? String(rec.activo) : 'true';
-  document.getElementById('f-notas').value = rec?.notas || '';
+  document.getElementById('f-activo').value   = rec ? String(rec.activo) : 'true';
+  document.getElementById('f-notas').value    = rec?.notas     || '';
+
+  clearPropietario();
+  clearCopropietarios();
+
+  if (rec?.id) {
+    const { data: respons } = await sb
+      .from('caballeriza_responsables')
+      .select('*')
+      .eq('caballeriza_id', rec.id)
+      .order('rol', { ascending: false })
+      .order('id',  { ascending: true });
+
+    if (respons?.length) {
+      const prop = respons.find(r => r.rol === 'propietario');
+      if (prop) {
+        document.getElementById('rp-apellido').value  = prop.apellido        || '';
+        document.getElementById('rp-nombre').value    = prop.nombre          || '';
+        document.getElementById('rp-dni').value       = prop.documento_nro   || '';
+        document.getElementById('rp-fnac').value      = prop.fecha_nacimiento || '';
+        document.getElementById('rp-localidad').value = prop.localidad       || '';
+        if (prop.documento_nro) {
+          checkProfesional(
+            document.getElementById('rp-dni'),
+            document.getElementById('rp-badge')
+          );
+        }
+      }
+      respons.filter(r => r.rol === 'copropietario').forEach(cp => addCopropRow(cp));
+    }
+  }
+
   document.getElementById('modal').classList.add('open');
 }
 
 function closeModal() {
   document.getElementById('modal').classList.remove('open');
   document.getElementById('form').reset();
+  clearPropietario();
+  clearCopropietarios();
 }
 
 async function saveRecord(e) {
   e.preventDefault();
+
+  const rows = getResponsableData();
+  const validErr = validateResponsables(rows);
+  if (validErr) { toast(validErr, 'error'); return; }
+
   const btn = document.getElementById('btn-save');
   btn.disabled = true; btn.textContent = 'Guardando…';
+
   const id = document.getElementById('f-id').value;
-  const payload = {
-    club_id: CLUB_ID,
-    nombre: document.getElementById('f-nombre').value.trim(),
-    responsable: document.getElementById('f-responsable').value.trim() || null,
-    telefono: document.getElementById('f-telefono').value.trim() || null,
+  const cabPayload = {
+    club_id:   CLUB_ID,
+    nombre:    document.getElementById('f-nombre').value.trim(),
+    telefono:  document.getElementById('f-telefono').value.trim() || null,
     domicilio: document.getElementById('f-domicilio').value.trim() || null,
-    activo: document.getElementById('f-activo').value === 'true',
-    notas: document.getElementById('f-notas').value.trim() || null,
+    activo:    document.getElementById('f-activo').value === 'true',
+    notas:     document.getElementById('f-notas').value.trim() || null,
   };
-  const { error } = id
-    ? await sb.from('caballerizas').update(payload).eq('id', id)
-    : await sb.from('caballerizas').insert(payload);
+
+  let cabId = id;
+
+  if (id) {
+    const { error } = await sb.from('caballerizas').update(cabPayload).eq('id', id);
+    if (error) { btn.disabled = false; btn.textContent = 'Guardar'; toast(error.message, 'error'); return; }
+  } else {
+    const { data, error } = await sb.from('caballerizas').insert(cabPayload).select('id').single();
+    if (error) { btn.disabled = false; btn.textContent = 'Guardar'; toast(error.message, 'error'); return; }
+    cabId = data.id;
+  }
+
+  if (id) {
+    await sb.from('caballeriza_responsables').delete().eq('caballeriza_id', cabId);
+  }
+
+  try {
+    await resolveAndInsertResponsables(rows, cabId);
+  } catch (insertErr) {
+    btn.disabled = false; btn.textContent = 'Guardar';
+    toast(insertErr.message, 'error');
+    return;
+  }
+
+  const responsableText = buildResponsableText(rows.filter(r => r.apellido || r.nombre)) || null;
+  await sb.from('caballerizas').update({ responsable: responsableText }).eq('id', cabId);
+
   btn.disabled = false; btn.textContent = 'Guardar';
-  if (error) { toast(error.message, 'error'); return; }
   toast(id ? 'Caballeriza actualizada' : 'Caballeriza creada');
   closeModal();
   load();
