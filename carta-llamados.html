@@ -614,10 +614,10 @@ function renderPrint() {
     const bonoPosD   = dist.bono_posicion_desde || 6;
     const bonoPosMon = dist.bono_posicion_monto || 0;
 
-    // Encabezado: "CARRERA N — CATEGORÍA (cód) — condición"
+    // Encabezado: "TURNO N — CATEGORÍA (cód) — condición"
     const catLabel  = cat ? cat.nombre.toUpperCase() + (cat.codigo ? ` (${cat.codigo})` : '') : '';
     const condMain  = c.condicion_handicap || c.nombre || '';
-    const headParts = [`CARRERA ${c.numero_turno}`, catLabel, condMain].filter(Boolean);
+    const headParts = [`TURNO ${c.numero_turno}`, catLabel, condMain].filter(Boolean);
     const headText  = headParts.join(' &mdash; ');
 
     // Condición adicional (línea pequeña bajo encabezado)
