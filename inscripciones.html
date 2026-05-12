@@ -111,50 +111,42 @@
     .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
     .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-    /* PRINT — documento separado generado por printInscriptos() */
+    /* PRINT — estilo Palermo */
     #print-only { display: none; }
     @media print {
       body > *:not(#print-only) { display: none !important; }
-      #print-only {
-        display: block !important;
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 9px; color: #000;
-      }
-      /* Encabezado del documento */
-      .pi-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 8px; }
-      .pi-title  { font-size: 16px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; }
-      .pi-sub    { font-size: 9px; font-weight: 700; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
-      /* Grilla: 3 carreras por fila */
-      .pi-cols   { display: flex; flex-wrap: wrap; gap: 5px; }
-      .pi-bloque { flex: 0 1 calc(33.33% - 4px); border: 1px solid #000; page-break-inside: avoid; display: flex; flex-direction: column; font-size: 8px; }
-      /* Sub-columnas dentro de cada carrera */
-      .pi-bloque-body { display: flex; flex: 1; }
-      .pi-sub-col { flex: 1; overflow: hidden; }
-      .pi-sub-col + .pi-sub-col { border-left: 1px solid #aaa; }
-      /* Encabezado de carrera */
-      .pi-car-head { background: #e8e8e8; padding: 3px 5px; border-bottom: 1px solid #000; }
-      .pi-bolsa  { font-size: 12px; font-weight: 900; line-height: 1.1; }
-      .pi-nombre { font-size: 8.5px; font-weight: 700; text-transform: uppercase; }
-      .pi-cond   { font-size: 7.5px; color: #333; }
-      .pi-sub-head { background: #d0d0d0; padding: 2px 4px; border-bottom: 1px solid #999; font-size: 7px; font-weight: 700; text-transform: uppercase; text-align: center; letter-spacing: 0.3px; }
-      /* Tabla de caballos */
-      .pi-table { width: 100%; border-collapse: collapse; }
-      .pi-table tr { border-bottom: 1px solid #eee; }
-      .pi-table tr:last-child { border-bottom: none; }
-      .pi-td-num  { width: 14px; padding: 1px 2px; color: #555; text-align: center; font-size: 7px; }
-      .pi-td-name { padding: 1px 3px; font-weight: 700; text-transform: uppercase; font-size: 7.5px; }
-      .pi-td-peso { width: 20px; padding: 1px 2px; text-align: right; font-size: 7px; }
-      .pi-td-gate { width: 16px; padding: 1px 2px; text-align: center; font-weight: 900; font-size: 8px; }
-      .pi-cert    { font-weight: 900; }
-      .pi-hembra  { font-weight: 900; }
-      /* Pie de carrera */
-      .pi-car-foot { border-top: 1px solid #000; padding: 2px 5px; font-size: 7.5px; font-weight: 700; text-align: right; background: #f5f5f5; }
-      /* Pie del documento */
-      .pi-footer { margin-top: 8px; border-top: 2px solid #000; padding-top: 5px; font-size: 8px; display: flex; justify-content: space-between; align-items: flex-end; }
-      .pi-footer-left { display: flex; flex-direction: column; gap: 2px; }
+      #print-only { display: block !important; font-family: 'DM Sans', Arial, sans-serif; font-size: 8px; color: #000; background: #fff; }
+      .pi-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 6px; }
+      .pi-title { font-family: 'Playfair Display', Georgia, serif; font-size: 14pt; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
+      .pi-sub { font-size: 8pt; font-weight: 700; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+      .pi-cols { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+      .pi-bloque { border: 1px solid #000; display: flex; flex-direction: column; font-size: 7.5px; break-inside: avoid; page-break-inside: avoid; }
+      .pi-car-head { background: #e8e8e8; padding: 3px 4px; border-bottom: 1px solid #000; }
+      .pi-bolsa { font-size: 10px; font-weight: 900; line-height: 1.2; }
+      .pi-turno { font-size: 8.5px; font-weight: 900; text-transform: uppercase; }
+      .pi-cond { font-size: 7px; color: #333; margin-top: 1px; }
+      .pi-cesped { background: #333; color: #fff; text-align: center; font-size: 6.5px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; padding: 1px 0; margin-top: 2px; }
+      .pi-banda-reabierta { background: #000; color: #fff; text-align: center; font-size: 7px; font-weight: 900; padding: 1px 0; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #000; }
+      .pi-banda-anulada { background: #ccc; color: #555; text-align: center; font-size: 7px; font-weight: 700; padding: 1px 0; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #999; }
+      .pi-lista { flex: 1; }
+      .pi-row { display: flex; align-items: baseline; padding: 1px 3px; border-bottom: 1px solid #eee; line-height: 1.35; }
+      .pi-row:last-child { border-bottom: none; }
+      .pi-hembra-pfx { font-weight: 900; font-size: 7px; margin-right: 1px; flex-shrink: 0; }
+      .pi-spc-name { font-weight: 700; text-transform: uppercase; flex: 1; min-width: 0; overflow: hidden; font-size: 7.5px; }
+      .pi-peso { font-size: 7px; font-weight: 700; white-space: nowrap; margin-left: 2px; flex-shrink: 0; }
+      .pi-nocert { font-size: 7px; font-weight: 900; margin-left: 1px; flex-shrink: 0; }
+      .pi-car-foot { border-top: 1px solid #000; padding: 2px 4px; font-size: 10px; font-weight: 900; text-align: center; background: #f0f0f0; }
+      .pi-gatera { border-top: 1px solid #bbb; }
+      .pi-gatera-head { background: #d8d8d8; padding: 1px 3px; font-size: 6.5px; font-weight: 700; text-align: center; border-bottom: 1px solid #bbb; text-transform: uppercase; letter-spacing: 0.5px; }
+      .pi-gatera-row { display: flex; justify-content: space-between; padding: 0 3px; font-size: 7px; border-bottom: 1px solid #eee; line-height: 1.3; }
+      .pi-gatera-row:last-child { border-bottom: none; }
+      .pi-gatera-spc { flex: 1; font-weight: 700; text-transform: uppercase; overflow: hidden; }
+      .pi-gatera-num { font-weight: 900; margin-left: 4px; flex-shrink: 0; }
+      .pi-footer { margin-top: 6px; border-top: 2px solid #000; padding-top: 4px; font-size: 7.5px; display: flex; justify-content: space-between; align-items: flex-end; }
+      .pi-footer-left { display: flex; flex-direction: column; gap: 1px; }
       .pi-footer-right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
-      .pi-footer-logo { max-height: 40px; max-width: 80px; object-fit: contain; }
-      @page { size: A4 landscape; margin: 7mm; }
+      .pi-footer-logo { max-height: 35px; max-width: 70px; object-fit: contain; }
+      @page { size: A4 landscape; margin: 8mm; }
     }
     #auth-overlay { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center; }
     .btn-logout { background:none;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;transition:all 0.2s; }
@@ -664,108 +656,127 @@ async function deleteRecord(id) {
 async function printInscriptos() {
   const reunionId = document.getElementById('sel-reunion').value;
   if (!reunionId) { toast('Seleccionar una reunión para imprimir', 'error'); return; }
-  if (!carreras.length) { toast('No hay turnos en esta reunión', 'error'); return; }
 
   const reunion = reuniones.find(r => r.id === reunionId);
   const f = reunion?.fecha ? new Date(reunion.fecha + 'T12:00:00') : new Date();
   const DIAS  = ['DOMINGO','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO'];
   const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
   const fechaStr = `${DIAS[f.getDay()]} ${f.getDate()} DE ${MESES[f.getMonth()]} DE ${f.getFullYear()}`;
-
-  // Nombre del hipódromo sin duplicar "Hipódromo de"
-  const hipRaw    = (reunion?.hipodromos?.nombre || '').toUpperCase();
+  const hipRaw = (reunion?.hipodromos?.nombre || '').toUpperCase();
   const hipNombre = hipRaw.replace(/^HIP[ÓO]DROMO DE /i, '').trim() || 'SGH';
 
-  // Cargar todas las inscripciones de la reunión + datos del club
-  const [{ data: allInsc }, { data: clubData }] = await Promise.all([
-    sb.from('inscripciones').select('*').in('carrera_id', carreras.map(c => c.id)).order('numero_partidor'),
+  const [{ data: carsData }, { data: clubData }] = await Promise.all([
+    sb.from('carreras')
+      .select('id,numero_turno,nombre,bolsa_total,distancia_metros,tipo_pista,edad_minima_anos,edad_maxima_anos,condicion_sexo,condicion_handicap,estado')
+      .eq('reunion_id', reunionId)
+      .order('numero_turno'),
     sb.from('clubs').select('logo_url, localidad').eq('id', CLUB_ID).single(),
   ]);
 
-  const inscs = allInsc || [];
+  const allCars = carsData || [];
+  if (!allCars.length) { toast('No hay turnos en esta reunión', 'error'); return; }
+
+  const { data: inscsData } = await sb.from('inscripciones')
+    .select('carrera_id, spc_id, peso_declarado, peso_final, numero_partidor, certificado_correr, estado, spcs(nombre, sexo)')
+    .in('carrera_id', allCars.map(c => c.id))
+    .in('estado', ['inscripto', 'ratificado', 'mal_inscrito']);
+
+  const inscs = inscsData || [];
+
+  function buildCondAbr(car) {
+    const sexoMap = { machos: 'Cab', hembras: 'Yeg', machos_castrados: 'Cas', ambos: 'Prod' };
+    const parts = [];
+    const sexoAbr = sexoMap[car.condicion_sexo] || '';
+    if (sexoAbr) parts.push(sexoAbr);
+    const emin = car.edad_minima_anos, emax = car.edad_maxima_anos;
+    if (emin && emax) parts.push(emin === emax ? `${emin}a` : `${emin}-${emax}a`);
+    else if (emin) parts.push(`${emin}a+`);
+    const hc = (car.condicion_handicap || '').trim();
+    if (hc) {
+      const hcLow = hc.toLowerCase();
+      const condAbr = /\bperdedor(es)?\b/.test(hcLow) ? 'perd'
+        : /\bganadores? de 1 carrera\b/.test(hcLow) ? 'g.1c'
+        : /\bganadores? de 2 carreras\b/.test(hcLow) ? 'g.2c'
+        : hc.length > 22 ? hc.slice(0, 22) + '…' : hc;
+      parts.push(condAbr);
+    }
+    let result = parts.join('.');
+    if (car.distancia_metros) result += (result ? ' ' : '') + `${car.distancia_metros} mts`;
+    return result;
+  }
+
+  function formatBolsa(num) {
+    if (!num) return '';
+    const n = Math.round(parseFloat(num));
+    return '$' + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '.-';
+  }
+
   let totalCaballos = 0;
 
-  const bloquesHtml = carreras.map(car => {
-    const inscsCar = inscs.filter(i => i.carrera_id === car.id && i.estado !== 'forfait');
-    if (!inscsCar.length) return '';          // omitir carreras sin inscriptos
-
+  const bloquesHtml = allCars.map(car => {
+    const inscsCar = inscs
+      .filter(i => i.carrera_id === car.id)
+      .sort((a, b) => (a.spcs?.nombre || '').localeCompare(b.spcs?.nombre || ''));
+    if (!inscsCar.length) return '';
     totalCaballos += inscsCar.length;
 
-    const porPartidor = [...inscsCar].sort((a,b) => (a.numero_partidor||99) - (b.numero_partidor||99));
-    const porAlfabeto = [...inscsCar].sort((a,b) =>
-      (getSpc(a.spc_id)?.nombre||'').localeCompare(getSpc(b.spc_id)?.nombre||''));
+    const esMixta = car.condicion_sexo === 'ambos';
+    const hayPartidor = inscsCar.some(i => i.numero_partidor != null && i.numero_partidor !== '');
+    const bolsaStr = formatBolsa(car.bolsa_total);
+    const condStr = buildCondAbr(car);
+    const esCesped = (car.tipo_pista || '').toLowerCase() === 'cesped';
+    const turnoBand = car.nombre
+      ? `TURNO ${car.numero_turno} — ${car.nombre.toUpperCase()}`
+      : `TURNO ${car.numero_turno}`;
+    const est = car.estado || '';
+    const bandaHtml = est === 'reabierta'
+      ? '<div class="pi-banda-reabierta">REABIERTA</div>'
+      : est === 'anulada' ? '<div class="pi-banda-anulada">Anulada</div>' : '';
 
-    const bolsaStr = car.bolsa_total ? `$${formatMonto(car.bolsa_total)}.-` : '';
-    const condParts = [
-      car.condicion_sexo,
-      car.distancia_metros ? `${car.distancia_metros}m` : '',
-      car.condicion_handicap,
-    ].filter(Boolean);
-
-    const filaPartidor = porPartidor.map(i => {
-      const spc    = getSpc(i.spc_id);
-      const nombre = (spc?.nombre || '—').toUpperCase().substring(0, 24);
-      const esH    = ['hembra','yegua','h'].includes((spc?.sexo||'').toLowerCase());
+    const listaHtml = inscsCar.map(i => {
+      const nombre = (i.spcs?.nombre || '—').toUpperCase();
+      const esH = esMixta && (i.spcs?.sexo || '').toLowerCase() === 'hembra';
+      const peso = i.peso_final || i.peso_declarado || '';
       const noCert = !i.certificado_correr;
-      const peso   = i.peso_final || i.peso_declarado || '';
-      return `<tr>
-        <td class="pi-td-num">${i.numero_partidor||''}</td>
-        <td class="pi-td-name">${nombre}${noCert ? ' <span class="pi-cert">●</span>' : ''}${esH ? ' <span class="pi-hembra">H</span>' : ''}</td>
-        <td class="pi-td-peso">${peso}</td>
-      </tr>`;
+      return `<div class="pi-row">${esH ? '<span class="pi-hembra-pfx">H</span>' : ''}<span class="pi-spc-name">${nombre}</span>${peso ? `<span class="pi-peso">${peso}</span>` : ''}${noCert ? '<span class="pi-nocert">●</span>' : ''}</div>`;
     }).join('');
 
-    const filaAlfa = porAlfabeto.map((i, idx) => {
-      const spc    = getSpc(i.spc_id);
-      const nombre = (spc?.nombre || '—').toUpperCase().substring(0, 24);
-      const esH    = ['hembra','yegua','h'].includes((spc?.sexo||'').toLowerCase());
-      const noCert = !i.certificado_correr;
-      return `<tr>
-        <td class="pi-td-num">${idx+1}</td>
-        <td class="pi-td-name">${nombre}${noCert ? ' <span class="pi-cert">●</span>' : ''}${esH ? ' <span class="pi-hembra">H</span>' : ''}</td>
-        <td class="pi-td-gate">${i.numero_partidor||''}</td>
-      </tr>`;
-    }).join('');
+    let gateraHtml = '';
+    if (hayPartidor) {
+      const gRows = inscsCar.map((i, idx) => {
+        const n = (i.spcs?.nombre || '—').toUpperCase().slice(0, 20);
+        return `<div class="pi-gatera-row"><span class="pi-gatera-spc">${idx + 1}. ${n}</span><span class="pi-gatera-num">${i.numero_partidor || '—'}</span></div>`;
+      }).join('');
+      gateraHtml = `<div class="pi-gatera"><div class="pi-gatera-head">ALFA / GATERA</div>${gRows}</div>`;
+    }
 
     return `<div class="pi-bloque">
-      <div class="pi-car-head">
-        ${bolsaStr ? `<div class="pi-bolsa">${bolsaStr}</div>` : ''}
-        <div class="pi-nombre">TURNO ${car.numero_turno}${car.nombre ? ` — ${car.nombre.toUpperCase()}` : ''}</div>
-        ${condParts.length ? `<div class="pi-cond">${condParts.join(' — ')}</div>` : ''}
-      </div>
-      <div class="pi-bloque-body">
-        <div class="pi-sub-col">
-          <div class="pi-sub-head">ORDEN PARTIDOR</div>
-          <table class="pi-table">${filaPartidor}</table>
-        </div>
-        <div class="pi-sub-col">
-          <div class="pi-sub-head">ALFABÉTICO — GATERA</div>
-          <table class="pi-table">${filaAlfa}</table>
-        </div>
-      </div>
-      <div class="pi-car-foot">Total: ${inscsCar.length} caballos</div>
+      <div class="pi-car-head">${bolsaStr ? `<div class="pi-bolsa">${bolsaStr}</div>` : ''}<div class="pi-turno">${turnoBand}</div>${condStr ? `<div class="pi-cond">${condStr}</div>` : ''}${esCesped ? '<div class="pi-cesped">CESPED</div>' : ''}</div>
+      ${bandaHtml}
+      <div class="pi-lista">${listaHtml}</div>
+      <div class="pi-car-foot">${inscsCar.length}</div>
+      ${gateraHtml}
     </div>`;
   }).join('');
 
   const logoHtml = clubData?.logo_url
-    ? `<img src="${clubData.logo_url}" class="pi-footer-logo" alt="">`
-    : '';
+    ? `<img src="${clubData.logo_url}" class="pi-footer-logo" alt="">` : '';
 
   document.getElementById('print-only').innerHTML = `
     <div class="pi-header">
       <div class="pi-title">INSCRIPTOS</div>
-      <div class="pi-sub">HIPÓDROMO DE ${hipNombre} — REUNIÓN N° ${reunion?.numero||'—'} DEL DÍA ${fechaStr}</div>
+      <div class="pi-sub">HIPÓDROMO DE ${hipNombre} — REUNIÓN N° ${reunion?.numero || '—'} DEL DÍA ${fechaStr}</div>
     </div>
     <div class="pi-cols">${bloquesHtml}</div>
     <div class="pi-footer">
       <div class="pi-footer-left">
-        <span><strong>H</strong> → Hembra</span>
-        <span><strong>●</strong> = Sin certificado de correr</span>
-        <span style="font-weight:700;margin-top:3px;">TOTAL DE CABALLOS: ${totalCaballos}</span>
+        <span><strong>H</strong> = Hembra (en carrera mixta)</span>
+        <span><strong>●</strong> = Falta certificado para correr</span>
+        <span style="font-weight:900;margin-top:2px;">TOTAL DE CABALLOS: ${totalCaballos}</span>
       </div>
       <div class="pi-footer-right">
         ${logoHtml}
-        <span>${clubData?.localidad || ''} — ${fechaStr}</span>
+        <span>${fechaStr}</span>
       </div>
     </div>`;
 
