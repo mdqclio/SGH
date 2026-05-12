@@ -67,6 +67,9 @@ Solo importan 'reabierta' y 'anulada' en esta etapa. Campo VARCHAR libre, sin EN
 
 ## Pendientes (sesión may-2026 — segunda iteración)
 
+### 16. Vocabulario formal de condiciones de carrera
+Hoy la condición técnica abreviada del PDF reconoce solo 'perdedor(es)', 'ganador de 1 carrera' y 'ganador de 2 carreras' por regex; el resto se trunca a 22 chars. Las condiciones largas de Dolores ('Todo caballo de 3 y 4 años...') quedan truncadas. Cuando Fede defina un vocabulario fijo, refactorizar a un mapping explícito en lugar de regex.
+
 ### 15. cantidad_gateras al alta de hipódromo nuevo
 El campo hipodromos.cantidad_gateras existe y es DEFAULT 12. El PDF de inscriptos lo usa para dimensionar la matriz ORDEN DE LARGADA. Hoy se setea por SQL manual. Idealmente debería ser un campo editable en registro.html (alta de hipódromo) y en hipodromos.html (edición). Pendiente agregar a esos formularios.
 
