@@ -156,7 +156,7 @@ function toast(msg,type='success') {
 
 async function init() {
   const [{ data: reuns }, { data: profs }, { data: props }, { data: sprcs }, { data: cats }, { data: club }] = await Promise.all([
-    sb.from('reuniones').select('id,numero,fecha,tipo,condicion_pista,tiempo_clima,hipodromos(nombre,sigla,localidad)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
+    sb.from('reuniones').select('id,numero,fecha,estado,tipo,condicion_pista,tiempo_clima,hipodromos(nombre,sigla,localidad)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
     sb.from('profesionales').select('id,nombre,apellido').eq('club_id', CLUB_ID).order('apellido'),
     sb.from('propietarios').select('id,nombre,colores_desc').eq('club_id', CLUB_ID).order('nombre'),
     sb.from('spcs').select('id,nombre,sexo,color,fecha_nacimiento,padrillo_nombre,madre_nombre').eq('club_id', CLUB_ID).order('nombre'),
@@ -172,7 +172,32 @@ async function init() {
   sel.innerHTML = '<option value="">— Seleccionar —</option>' + (reuns||[]).map(r=>`<option value="${r.id}">Reunión ${r.numero||''} — ${new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR')} — ${r.hipodromos?.nombre||''}</option>`).join('');
   const params = new URLSearchParams(location.search);
   const rid = params.get('reunion_id');
-  if (rid) { sel.value=rid; await loadPrograma(); }
+  if (rid) {
+    sel.value = rid;
+    await loadPrograma();
+  } else {
+    // Prioridad: publicada más antigua → primera programada → primera borrador → ninguna
+    const { data: pub } = await sb.from('reuniones')
+      .select('id')
+      .eq('club_id', CLUB_ID)
+      .eq('estado', 'publicada')
+      .order('fecha', { ascending: true })
+      .limit(1);
+
+    let reunionASeleccionar = null;
+    if (pub?.length) {
+      reunionASeleccionar = pub[0].id;
+    } else {
+      const fallback = (reuns||[]).find(r => r.estado === 'programada')
+                    || (reuns||[]).find(r => r.estado === 'borrador');
+      if (fallback) reunionASeleccionar = fallback.id;
+    }
+
+    if (reunionASeleccionar) {
+      sel.value = reunionASeleccionar;
+      await loadPrograma();
+    }
+  }
 }
 
 async function loadPrograma() {
