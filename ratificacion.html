@@ -7,7 +7,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="logo180x180.png">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0e2318">
-  <title>Ratificación — SGH</title>
+  <title>Ratificados y forfait — SGH</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -120,7 +120,7 @@
 
 <div class="topbar">
   <a href="index.html" class="btn-back">← Inicio</a>
-  <h1>Ratificación</h1>
+  <h1>Ratificados y forfait</h1>
   <span class="user-name" id="user-name"></span>
   <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
   <button class="btn-outline" onclick="showPrintDialog()">🖨️ Imprimir PDF</button>
@@ -217,9 +217,17 @@ async function init() {
   if (rid) {
     sel.value=rid; await loadReunion();
   } else {
-    // Auto-select last programada/en_curso
-    const ultima = reuniones.find(r=>['programada','publicada','en_curso','borrador'].includes(r.estado)) || reuniones[0];
-    if (ultima) { sel.value=ultima.id; await loadReunion(); }
+    const hoy = new Date();
+    const conPrioridad = reuniones
+      .filter(r => ['publicada','en_curso','borrador','programada'].includes(r.estado))
+      .map(r => ({
+        ...r,
+        prioridad: ['publicada','en_curso'].includes(r.estado) ? 0 : 1,
+        diasAbs: Math.abs(new Date(r.fecha + 'T12:00:00') - hoy)
+      }));
+    conPrioridad.sort((a, b) => a.prioridad - b.prioridad || a.diasAbs - b.diasAbs);
+    const reunionDefault = conPrioridad[0];
+    if (reunionDefault) { sel.value = reunionDefault.id; await loadReunion(); }
   }
 }
 
