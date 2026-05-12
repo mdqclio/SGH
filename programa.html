@@ -157,9 +157,9 @@ function toast(msg,type='success') {
 async function init() {
   const [{ data: reuns }, { data: profs }, { data: props }, { data: sprcs }, { data: cats }, { data: club }] = await Promise.all([
     sb.from('reuniones').select('id,numero,fecha,estado,tipo,condicion_pista,tiempo_clima,hipodromos(nombre,sigla,localidad)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
-    sb.from('profesionales').select('id,nombre,apellido').eq('club_id', CLUB_ID).order('apellido'),
-    sb.from('propietarios').select('id,nombre,colores_desc').eq('club_id', CLUB_ID).order('nombre'),
-    sb.from('spcs').select('id,nombre,sexo,color,fecha_nacimiento,padrillo_nombre,madre_nombre').eq('club_id', CLUB_ID).order('nombre'),
+    sb.from('profesionales').select('id,nombre,apellido,tipo').order('apellido'),
+    sb.from('propietarios').select('id,nombre,colores_desc').order('nombre'),
+    sb.from('spcs').select('id,nombre,sexo,color,fecha_nacimiento,padrillo_nombre,madre_nombre').order('nombre'),
     sb.from('categorias_carrera').select('id,nombre,codigo,simbolo').eq('club_id', CLUB_ID),
     sb.from('clubs').select('logo_url, nombre').eq('id', CLUB_ID).single(),
   ]);
@@ -268,7 +268,20 @@ function renderPrograma(reunion, carreras, inscripciones) {
       const inscs = inscripciones.filter(i=>i.carrera_id===car.id);
       const dist = car.distribucion_premios || {};
       const bolsa = car.bolsa_total || 0;
-      const premioStr = Object.entries(dist).map(([p,pct])=>`${p}°: ${pct}%${bolsa?` ($${formatMonto(Math.round(bolsa*pct/100))})`:''}`).join(' | ');
+      // Premios por puesto: solo claves numéricas del JSONB
+      const puestosStr = Object.entries(dist)
+        .filter(([k]) => /^\d+$/.test(k))
+        .sort(([a],[b]) => parseInt(a) - parseInt(b))
+        .map(([p, pct]) => `${p}°: ${pct}%${bolsa ? ` (${formatMonto(Math.round(bolsa * pct / 100))})` : ''}`)
+        .join(' | ');
+      // Bonos y mínimos: claves con monto fijo en pesos
+      const extras = [];
+      if (dist.bono_ganador) extras.push(`Bono ganador: ${formatMonto(dist.bono_ganador)}`);
+      if (dist.bono_posicion_monto && dist.bono_posicion_desde && dist.bono_posicion_hasta) {
+        extras.push(`Bono ${dist.bono_posicion_desde}°–${dist.bono_posicion_hasta}°: ${formatMonto(dist.bono_posicion_monto)} c/u`);
+      }
+      if (dist.ganancia_minima) extras.push(`Mínimo: ${formatMonto(dist.ganancia_minima)}`);
+      const premioStr = [puestosStr, extras.join(' | ')].filter(Boolean).join(' || ');
       const rows = inscs.map(i => {
         const spc = spcs[i.spc_id];
         const prop = propietarios[i.propietario_id];
@@ -307,7 +320,7 @@ function renderPrograma(reunion, carreras, inscripciones) {
             ${car.condicion_handicap?`<div>Condición <span>${car.condicion_handicap}</span></div>`:''}
             ${car.hora_estimada?`<div>Hora <span>${car.hora_estimada}</span></div>`:''}
           </div>
-          ${bolsa?`<div class="car-prize">💰 Bolsa: $${formatMonto(bolsa)} — ${premioStr}</div>`:''}
+          ${bolsa?`<div class="car-prize">💰 Bolsa: ${formatMonto(bolsa)} — ${premioStr}</div>`:''}
         </div>
         <table class="part-table">
           <thead><tr><th>#</th><th>SPC</th><th>Propietario</th><th>Entrenador</th><th>Jockey</th><th>Peso</th><th>Últimas 5 performances</th></tr></thead>
