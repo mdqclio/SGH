@@ -51,6 +51,14 @@ Usar SIEMPRE: .select('club_id, nombre_completo, rol')
 ## Archivos eliminados (sesión may-2026)
 - `caballerizas-propietarios.html` — legacy con tabs Caballerizas+Propietarios. Reemplazado por `caballerizas.html` como pantalla estándar. index.html actualizado.
 
+## Sistema de impresión / PDF
+Cada módulo puede tener su propia función printX() con CSS `@media print`. Patrón:
+- `#print-only` oculto en pantalla, visible solo al imprimir (`display:none` / `display:block !important`)
+- Para listados densos (ej: inscriptos): A4 landscape, CSS columns para flujo tipo diario (`column-count: N; column-fill: balance`)
+- Cada bloque atómico usa `break-inside: avoid` en su wrapper (`display: inline-block; width: 100%`)
+- Elementos que deben quedar enteros en página propia: `break-before: always` o `page-break-before: always`
+- Colores de fondo para imprimir: `print-color-adjust: exact; -webkit-print-color-adjust: exact`
+
 ## Refactorizaciones grandes (sesión may-2026)
 - **caballerizas.html**: modelo relacional de responsables (caballeriza_responsables), chaquetilla con upload a Storage, 3 estados (activo/inactivo/baja), hipódromo otorgante, sin campo domicilio en UI.
 - **jockeys.html**: 5 categorías nuevas (VARCHAR), sin pesos, hipódromo otorgante, 3 estados, chip Inactivos, formatDNI.
@@ -58,3 +66,7 @@ Usar SIEMPRE: .select('club_id, nombre_completo, rol')
 - **propietarios.html**: 3 estados, formatDNI.
 - **inscripciones.html**: 9 columnas en tabla, condición en dropdown (condicion_handicap), sereno en celda, jockey suplente separado, estado mal_inscrito, marcar carrera reabierta/anulada.
 - **carta-llamados.html**: rótulo CARRERA → TURNO en UI y PDF.
+
+## Refactorizaciones grandes (sesión may-2026 — segunda iteración)
+- **inscripciones.html vista de pantalla**: header compacto (card redundante eliminada), dropdown Estado inline junto al selector de turno, contador "N inscriptos" condicional, margen lateral reducido.
+- **inscripciones.html vista de impresión**: rediseño estilo Palermo completo — CSS columns 4 col, bloques por turno con bolsa/condición abreviada/lista alfa/(H)/●/banda estado, matriz consolidada "ORDEN DE LARGADA" al pie (filas=posición alfa, cols=T1..TN, celdas=numero_partidor). Resultado: 2 páginas A4 landscape (página 1 = bloques, página 2 = matriz + footer).

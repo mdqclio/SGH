@@ -63,6 +63,20 @@ Justificación: imágenes servidas directamente desde CDN de Supabase, sin costo
 Decisión: formatDNI() / parseDNI() en los 4 módulos de registro
 Justificación: DNI argentino se muestra con punto de miles (12.345.678) pero se guarda sin puntos en DB. DEUDA: CUIT debería usar formato XX-XXXXXXXX-X (guiones), no puntos.
 
+## ADR-017: PDF de inscriptos estilo Palermo con matriz consolidada (may-2026)
+Decisión: rediseñar printInscriptos() para replicar el formato visual del Hipódromo de Palermo: bloques compactos por carrera en CSS columns + una sola matriz "ORDEN DE LARGADA" al pie del documento.
+Justificación: convención de hipódromos argentinos; una tabla consolidada es más legible que N mini-tablas por carrera; permite cruzar nombre (posición alfabética) con gatera de un vistazo. La condición técnica abreviada (ej: "Prod.2a.perd 800 mts") compone datos estructurados de la carrera, no el texto libre de condicion_handicap.
+
+## ADR-018: cantidad_gateras como atributo del hipódromo (may-2026)
+Decisión: campo hipodromos.cantidad_gateras INTEGER DEFAULT 12
+Justificación: la cantidad de gateras físicas es una propiedad estable de la instalación, no de la reunión ni de cada carrera. Default 12 para nuevos hipódromos. Dolores: 16. El PDF de inscriptos lo usa para dimensionar las filas de la matriz ORDEN DE LARGADA.
+Consecuencia: al dar de alta un hipódromo nuevo hay que setear cantidad_gateras manualmente hasta que se agregue al formulario de registro.html.
+
+## ADR-019: PDF de inscriptos en 2 páginas A4 landscape (may-2026)
+Decisión: aceptar que el PDF ocupe 2 páginas: página 1 = bloques de carrera (CSS columns 4-col), página 2 = matriz ORDEN DE LARGADA + footer leyenda.
+Justificación: meter todo en 1 página requería bajar fuentes por debajo de 7pt, sacrificando legibilidad. 2 páginas es el balance correcto entre compactación y lectura sin lupas.
+Alternativa rechazada: column-count: 5 + suprimir la matriz.
+
 ## ADR-010: Montos en DB sin formato, UI en formato argentino
 Decisión: Guardar números DECIMAL planos en Postgres. En UI mostrar siempre $1.234.567,89 (punto miles, coma decimal, 2 decimales fijos).
 Funciones: formatMonto() y parseMonto() en SNIPPETS.md.

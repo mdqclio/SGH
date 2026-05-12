@@ -77,3 +77,12 @@ Las pantallas que usan CLUB_ID para filtrar (inscripciones, jockeys, caballeriza
 
 ## 21. Bucket Storage requiere policies SQL después de crearlo (may-2026)
 Crear el bucket desde la UI de Supabase no genera las RLS policies. Hay que ejecutar las 4 CREATE POLICY manualmente en el SQL Editor (ver SCHEMA.md → Storage Supabase).
+
+## 22. Supabase MCP es read-only — INSERT/UPDATE/DELETE van al SQL Editor (may-2026)
+El MCP de Supabase en Claude Code ejecuta queries en modo read-only. Las herramientas `execute_sql` y `apply_migration` fallan con "cannot execute UPDATE in a read-only transaction" o "Cannot apply migration in read-only mode." cuando se intenta DML o DDL. Cualquier INSERT/UPDATE/DELETE hay que correrlo en el SQL Editor del dashboard de Supabase, no desde el agente.
+
+## 23. CSS columns + break-inside: avoid no garantiza que una tabla grande quede entera (may-2026)
+Si un bloque con `break-inside: avoid` no cabe en el espacio restante de la página, el browser lo mueve a la siguiente página completa — pero si el bloque es más alto que la página entera, se parte igual. Para forzar que un elemento empiece en su propia página: `break-before: always` o `page-break-before: always` en su wrapper. Aplica a la matriz ORDEN DE LARGADA del PDF de inscriptos.
+
+## 24. hipodromos.cantidad_gateras no se carga en el alta de hipódromo (may-2026)
+El campo existe con DEFAULT 12, pero registro.html no tiene el campo en el formulario. Para hipódromos nuevos queda en 12 hasta que alguien lo actualice por SQL. El PDF de inscriptos hace fallback a 12 si cantidad_gateras es null. Pendiente agregar el campo a registro.html y a hipodromos.html.

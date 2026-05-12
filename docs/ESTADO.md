@@ -9,7 +9,8 @@
 - Alta de nuevos hipódromos (registro.html)
 - Reuniones: CRUD con 7 estados
 - Carta de llamados: turnos, bonos, premios, publicar/bloquear
-- Inscripciones: buscador SPCs, jockey titular/suplente, peón/capataz/sereno, estado mal_inscrito, marcar carrera reabierta/anulada
+- Inscripciones: buscador SPCs, jockey titular/suplente, peón/capataz/sereno, estado mal_inscrito, marcar carrera reabierta/anulada. Header compacto, dropdown Estado inline, contador inscriptos.
+- PDF inscriptos estilo Palermo: CSS columns 4-col, bloques por turno, condición abreviada, banda REABIERTA, lista alfabética con (H) y ●, matriz consolidada ORDEN DE LARGADA al pie. 2 páginas A4 landscape.
 - Ratificación: inscripto ↔ ratificado, forfait
 - Programa hípico con PDF
 - Stud Book, profesionales, jockeys, propietarios, caballerizas (con modelo relacional de responsables)
@@ -21,14 +22,11 @@
 ## En desarrollo
 - Resultados: rediseñado, sin testing completo de oficialización
 - Carta de llamados: diseño final del PDF en ajuste; falta Carrera→Turno en PDF
-- PDF de inscriptos: en diseño (gateras pendientes)
 
 ## No funciona
 - Liquidaciones: UI existe pero lógica no implementada
 
 ## Pendiente de construir
-- Gateras: campo numero_gatera + sorteo automático + display + edición manual
-- PDF de inscriptos (orden alfabético + gatera + estado + condición + premio + bono)
 - Portal propietarios/entrenadores (portal.html)
 - Auto-registro de profesionales (registro-profesional.html)
 - API con Stud Book nacional (en gestión de acceso)
@@ -49,6 +47,14 @@
 - 201 caballerizas
 - 219 responsables de caballerizas (38 vinculados con profesional_id por DNI matching, 16 copropiedades)
 - SPCs y entrenadores de prueba cargados
+
+## Datos de validación PDF (reunión 5 Dolores — may-2026)
+- Los 11 turnos poblados con ~81 inscripciones en total (distribución random)
+- Turno 1: 11 inscriptos, condicion_sexo='ambos', nombre='Premio Apertura'
+- Dourada: sexo='hembra' para validar el indicador (H) en carrera mixta
+- Todos los inscriptos de turno 1: certificado_correr=false (validación del ●)
+- numero_partidor asignado aleatoriamente 1-16 por carrera, sin repetir dentro de la misma carrera
+- hipodromos.cantidad_gateras = 16 para Dolores (cargado por SQL)
 
 ## Limpieza pendiente (datos de prueba en Dolores)
 - 9 caballerizas extra detectadas

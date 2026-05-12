@@ -12,7 +12,7 @@
 | Reset password | reset-password.html | ✅ |
 | Reuniones | reuniones.html | ✅ |
 | Carta de llamados | carta-llamados.html | 🔧 |
-| Inscripciones | inscripciones.html | 🔧 |
+| Inscripciones | inscripciones.html | ✅ |
 | Ratificación | ratificacion.html | ✅ |
 | Programa | programa.html | ✅ |
 | Resultados | resultados.html | 🔧 |
@@ -30,6 +30,12 @@
 | Hipódromos | hipodromos.html | ✅ |
 | Portal | portal.html | 📋 |
 | Registro profesional | registro-profesional.html | 📋 |
+
+## Notas por módulo
+
+### inscripciones.html (✅ may-2026)
+**Vista de pantalla**: header compacto sin card redundante; dropdown Estado (Normal/Reabierta/Anulada) inline junto al selector de turno; contador "N inscriptos" a la derecha; placeholder condicional solo sin turno seleccionado; wrapper de tabla con margen lateral reducido.
+**Vista de impresión** (`printInscriptos()`): trae TODA la reunión, CSS columns 4-col flujo tipo diario, bloques de carrera con bolsa/$, condición técnica abreviada (ej: `Prod.2a.perd 800 mts`), banda REABIERTA negra/Anulada gris, lista alfabética con sufijo `(H)` para yeguas en carreras mixtas y `●` para inscriptos sin certificado. Al pie: matriz consolidada "ORDEN DE LARGADA" (filas = posiciones alfabéticas, columnas = T1..T11, celdas = numero_partidor). Condición de render de la matriz: al menos un inscripto con numero_partidor ≠ null. Resultado: 2 páginas A4 landscape.
 
 ## Flujo principal del negocio
 1. Crear reunión (reuniones.html)

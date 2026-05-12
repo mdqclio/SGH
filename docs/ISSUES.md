@@ -18,7 +18,7 @@ Solución: Implementar políticas RLS con auth.uid() vinculado a club_id
 ### ISSUE-003: PDF inscriptos no similar al modelo Palermo
 Descripción: Falta columnas orden partidor + alfabético/gatera, bolsa por carrera, indicadores H y punto negro
 Módulo: inscripciones.html
-Estado: En progreso
+Estado: ✅ RESUELTO (may-2026) — Rediseño completo Palermo-style: CSS columns 4-col, bloques por turno con bolsa/$, condición abreviada, lista alfabética con (H) y ●, banda REABIERTA negra, matriz consolidada ORDEN DE LARGADA al pie. 2 páginas A4 landscape aceptado.
 
 ### ISSUE-004: Portal propietarios/entrenadores no construido
 Módulo: portal.html (no existe)

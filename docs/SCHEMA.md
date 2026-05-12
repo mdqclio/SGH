@@ -10,8 +10,9 @@
 id UUID PK, nombre VARCHAR(150), sigla VARCHAR(10) UNIQUE, razon_social, cuit, domicilio, localidad, provincia, telefono, email, logo_url TEXT, activo BOOLEAN DEFAULT TRUE, created_at, updated_at
 
 ### hipodromos
-id UUID PK, club_id FK clubs, nombre, sigla, localidad, provincia, tipo_pista, activo
+id UUID PK, club_id FK clubs, nombre, sigla, localidad, provincia, tipo_pista, activo, cantidad_gateras INTEGER DEFAULT 12
 UNIQUE (club_id, sigla)
+NOTA: cantidad_gateras = gateras físicas del hipódromo. Dolores: 16. Default 12 para nuevos hipódromos.
 
 ### usuarios
 id UUID PK, club_id FK clubs (NULLABLE), email, password_hash, nombre_completo, rol ENUM(super_admin/secretario_carreras/operador/profesional/propietario/publico), activo, telefono, estado TEXT DEFAULT 'activo', created_at
@@ -141,6 +142,8 @@ CREATE TABLE IF NOT EXISTS caballeriza_responsables (
 );
 ALTER TABLE caballeriza_responsables ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "allow_all" ON caballeriza_responsables FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+-- Sesión may-2026 (segunda iteración — inscripciones + PDF):
+ALTER TABLE hipodromos ADD COLUMN IF NOT EXISTS cantidad_gateras INTEGER DEFAULT 12;
 ```
 
 ## Storage Supabase

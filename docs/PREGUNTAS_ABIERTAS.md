@@ -65,6 +65,11 @@ Solo importan 'reabierta' y 'anulada' en esta etapa. Campo VARCHAR libre, sin EN
 
 ---
 
+## Pendientes (sesión may-2026 — segunda iteración)
+
+### 15. cantidad_gateras al alta de hipódromo nuevo
+El campo hipodromos.cantidad_gateras existe y es DEFAULT 12. El PDF de inscriptos lo usa para dimensionar la matriz ORDEN DE LARGADA. Hoy se setea por SQL manual. Idealmente debería ser un campo editable en registro.html (alta de hipódromo) y en hipodromos.html (edición). Pendiente agregar a esos formularios.
+
 ## Pendientes (sesión may-2026)
 
 ### 9. Portal de auto-registro

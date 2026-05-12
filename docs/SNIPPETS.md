@@ -197,3 +197,34 @@ UPDATE caballerizas c SET responsable = (
   FROM caballeriza_responsables WHERE caballeriza_id = c.id
 );
 ```
+
+## SQL útiles (sesión may-2026 — segunda iteración)
+```sql
+-- Asignar gateras random a inscripciones de una reunión completa (sin repetir dentro de la misma carrera)
+-- Reemplazar [cantidad_gateras] por el valor real (ej: 16) y [reunion_id] por el UUID de la reunión
+WITH
+  gateras_pool AS (
+    SELECT
+      c.id AS carrera_id,
+      g.gatera,
+      ROW_NUMBER() OVER (PARTITION BY c.id ORDER BY random()) AS orden_sorteo
+    FROM carreras c
+    CROSS JOIN generate_series(1, [cantidad_gateras]) AS g(gatera)
+    WHERE c.reunion_id = '[reunion_id]'
+  ),
+  inscripciones_ordenadas AS (
+    SELECT
+      i.id,
+      i.carrera_id,
+      ROW_NUMBER() OVER (PARTITION BY i.carrera_id ORDER BY s.nombre) AS posicion_alf
+    FROM inscripciones i
+    JOIN spcs s ON s.id = i.spc_id
+    WHERE i.carrera_id IN (SELECT id FROM carreras WHERE reunion_id = '[reunion_id]')
+  )
+UPDATE inscripciones
+SET numero_partidor = gp.gatera
+FROM inscripciones_ordenadas io
+JOIN gateras_pool gp ON gp.carrera_id = io.carrera_id
+                     AND gp.orden_sorteo = io.posicion_alf
+WHERE inscripciones.id = io.id;
+```
