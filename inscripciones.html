@@ -118,12 +118,14 @@
       #print-only { display: block !important; font-family: 'DM Sans', Arial, sans-serif; color: #000; background: #fff; }
       /* Header del documento */
       .pi-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 8px; }
-      .pi-title { font-family: 'Playfair Display', Georgia, serif; font-size: 14pt; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
-      .pi-sub { font-size: 8pt; font-weight: 700; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
-      /* Contenedor general: flex wrap */
-      .pi-cols { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-start; }
-      /* Wrapper bloque + tabla gatera — unidad de ruptura de página */
-      .pi-wrapper { display: flex; gap: 8pt; align-items: flex-start; break-inside: avoid; page-break-inside: avoid; }
+      .pi-title { font-family: 'Playfair Display', Georgia, serif; font-size: 15pt; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
+      .pi-sub { font-size: 10pt; font-weight: 700; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+      /* Contenedor general: CSS columns (evita huecos verticales del flex-wrap) */
+      .pi-cols { column-count: 4; column-gap: 12pt; column-fill: balance; }
+      /* Wrapper: inline-block para que CSS columns lo trate como bloque atómico */
+      .pi-wrapper { display: inline-block; width: 100%; vertical-align: top; break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid; margin-bottom: 8pt; }
+      /* Inner: flex horizontal para bloque + tabla gatera lado a lado */
+      .pi-inner { display: flex; gap: 8pt; align-items: flex-start; }
       /* Bloque de carrera: min-width garantiza que el header no rompa en muchas líneas */
       .pi-bloque { display: flex; flex-direction: column; width: fit-content; min-width: 165pt; }
       /* Header del bloque: enmarcado y centrado */
@@ -752,13 +754,15 @@ async function printInscriptos() {
       : '';
 
     return `<div class="pi-wrapper">
-      <div class="pi-bloque">
-        <div class="pi-car-head">${bolsaStr ? `<div class="pi-bolsa">${bolsaStr}</div>` : ''}<div class="pi-turno">${turnoBand}</div>${condStr ? `<div class="pi-cond">${condStr}</div>` : ''}${esCesped ? '<div class="pi-cesped">CESPED</div>' : ''}</div>
-        ${bandaHtml}
-        <div class="pi-lista">${listaHtml}</div>
-        <div class="pi-car-foot">${inscsCar.length}</div>
+      <div class="pi-inner">
+        <div class="pi-bloque">
+          <div class="pi-car-head">${bolsaStr ? `<div class="pi-bolsa">${bolsaStr}</div>` : ''}<div class="pi-turno">${turnoBand}</div>${condStr ? `<div class="pi-cond">${condStr}</div>` : ''}${esCesped ? '<div class="pi-cesped">CESPED</div>' : ''}</div>
+          ${bandaHtml}
+          <div class="pi-lista">${listaHtml}</div>
+          <div class="pi-car-foot">${inscsCar.length}</div>
+        </div>
+        ${gateraHtml}
       </div>
-      ${gateraHtml}
     </div>`;
   }).join('');
 
