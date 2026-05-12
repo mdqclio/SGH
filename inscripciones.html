@@ -121,17 +121,17 @@
       .pi-title { font-family: 'Playfair Display', Georgia, serif; font-size: 14pt; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
       .pi-sub { font-size: 9pt; font-weight: 700; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
       /* Contenedor general: CSS columns (evita huecos verticales del flex-wrap) */
-      .pi-cols { column-count: 4; column-gap: 12pt; column-fill: balance; }
-      /* Wrapper: inline-block para que CSS columns lo trate como bloque atómico */
-      .pi-wrapper { display: inline-block; width: 100%; vertical-align: top; break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid; margin-bottom: 8pt; }
-      /* Bloque de carrera: ocupa el ancho completo de la columna CSS */
-      .pi-bloque { display: flex; flex-direction: column; width: 100%; }
+      .pi-cols { column-count: 5; column-gap: 10pt; column-fill: balance; }
+      /* Wrapper: block para que CSS columns lo trate como bloque atómico */
+      .pi-wrapper { display: block; width: 100%; break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid; margin-bottom: 8pt; }
+      /* Bloque de carrera: se ajusta al contenido más ancho (nombre de caballo más largo) */
+      .pi-bloque { display: flex; flex-direction: column; width: fit-content; max-width: 100%; }
       /* Header del bloque: enmarcado y centrado */
-      .pi-car-head { background: #e8e8e8; padding: 4px 8px; border: 1px solid #000; text-align: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .pi-bolsa { font-size: 13pt; font-weight: 900; line-height: 1.2; white-space: nowrap; }
-      .pi-turno { font-size: 10pt; font-weight: 900; text-transform: uppercase; white-space: nowrap; }
-      .pi-cond { font-size: 8pt; color: #333; margin-top: 1px; white-space: nowrap; }
-      .pi-cesped { font-size: 8pt; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+      .pi-car-head { background: #e8e8e8; padding: 3px 7px; border: 1px solid #000; text-align: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .pi-titulo { font-size: 9pt; font-weight: 900; text-transform: uppercase; white-space: nowrap; line-height: 1.25; }
+      .pi-bolsa-inline { font-size: 10pt; font-weight: 900; }
+      .pi-condiciones { font-size: 7.5pt; color: #222; margin-top: 1px; white-space: nowrap; }
+      .pi-cesped-inline { font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; }
       /* Bandas de estado */
       .pi-banda-reabierta { background: #000 !important; color: #fff !important; text-align: center; font-size: 8pt; font-weight: 900; padding: 3px 0; text-transform: uppercase; letter-spacing: 1px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .pi-banda-anulada { background: #ddd; color: #333; text-align: center; font-size: 8pt; font-weight: 700; padding: 3px 0; text-transform: uppercase; letter-spacing: 1px; font-style: italic; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -702,13 +702,20 @@ async function printInscriptos() {
   });
 
   function buildCondAbr(car) {
-    const sexoMap = { machos: 'Cab', hembras: 'Yeg', machos_castrados: 'Cas', ambos: 'Prod' };
-    const parts = [];
+    const sexoMap = { machos: 'Cab', hembras: 'Yeg', machos_castrados: 'Cas', ambos: 'Todo caballo' };
     const sexoAbr = sexoMap[car.condicion_sexo] || '';
+    const usaEspacios = sexoAbr.includes(' '); // "Todo caballo" usa espacios; el resto, puntos (estilo Palermo)
+    const sep = usaEspacios ? ' ' : '.';
+    const parts = [];
     if (sexoAbr) parts.push(sexoAbr);
     const emin = car.edad_minima_anos, emax = car.edad_maxima_anos;
-    if (emin && emax) parts.push(emin === emax ? `${emin}a` : `${emin}-${emax}a`);
-    else if (emin) parts.push(`${emin}a+`);
+    if (emin && emax) {
+      parts.push(emin === emax
+        ? (usaEspacios ? `${emin} a` : `${emin}a`)
+        : (usaEspacios ? `${emin} - ${emax} a` : `${emin}-${emax}a`));
+    } else if (emin) {
+      parts.push(usaEspacios ? `${emin} a +` : `${emin}a+`);
+    }
     const hc = (car.condicion_handicap || '').trim();
     if (hc) {
       const hcLow = hc.toLowerCase();
@@ -718,7 +725,7 @@ async function printInscriptos() {
         : hc.length > 22 ? hc.slice(0, 22) + '…' : hc;
       parts.push(condAbr);
     }
-    let result = parts.join('.');
+    let result = parts.join(sep);
     if (car.distancia_metros) result += (result ? ' ' : '') + `${car.distancia_metros} mts`;
     return result;
   }
@@ -755,9 +762,15 @@ async function printInscriptos() {
       return `<div class="pi-row"><span class="pi-spc-name">${nombre}${esH ? '<span class="pi-h-sfx"> (H)</span>' : ''}</span>${noCert ? '<span class="pi-nocert">●</span>' : ''}</div>`;
     }).join('');
 
+    const tituloHtml = bolsaStr
+      ? `<div class="pi-titulo"><span class="pi-bolsa-inline">${bolsaStr}</span> · ${turnoBand}</div>`
+      : `<div class="pi-titulo">${turnoBand}</div>`;
+    const condHtml = (condStr || esCesped)
+      ? `<div class="pi-condiciones">${condStr || ''}${esCesped ? `${condStr ? ' · ' : ''}<span class="pi-cesped-inline">CESPED</span>` : ''}</div>`
+      : '';
     return `<div class="pi-wrapper">
       <div class="pi-bloque">
-        <div class="pi-car-head">${bolsaStr ? `<div class="pi-bolsa">${bolsaStr}</div>` : ''}<div class="pi-turno">${turnoBand}</div>${condStr ? `<div class="pi-cond">${condStr}</div>` : ''}${esCesped ? '<div class="pi-cesped">CESPED</div>' : ''}</div>
+        <div class="pi-car-head">${tituloHtml}${condHtml}</div>
         ${bandaHtml}
         <div class="pi-lista">${listaHtml}</div>
         <div class="pi-car-foot">${inscsCar.length}</div>
