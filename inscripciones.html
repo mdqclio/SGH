@@ -185,17 +185,9 @@
   <select id="sel-carrera" onchange="onCarreraChange()">
     <option value="">— Seleccionar reunión primero —</option>
   </select>
-</div>
-
-<div id="carrera-header" style="display:none" class="carrera-header">
-  <div class="carrera-info">
-    <div class="carrera-num" id="ch-num">—</div>
-    <div>
-      <div class="carrera-name" id="ch-name">—</div>
-      <div class="carrera-chips" id="ch-chips"></div>
-      <div id="ch-condicion"></div>
-      <div id="ch-estado-carrera"></div>
-    </div>
+  <div id="sel-estado-car-wrap" style="display:none;margin-left:auto;align-items:center;gap:6px;">
+    <label>Estado:</label>
+    <div id="ch-estado-carrera"></div>
   </div>
 </div>
 
@@ -203,6 +195,7 @@
 <div class="content">
   <div class="table-actions">
     <span style="font-size:13px;color:var(--muted);" id="tabla-label">Seleccionar una reunión y turno para ver inscriptos</span>
+    <span id="inscriptos-count" style="display:none;font-size:13px;color:#e8d5a3;font-weight:500;"></span>
   </div>
   <div id="list-container"></div>
 </div>
@@ -407,7 +400,9 @@ async function onReunionChange() {
       }
       return `<option value="${c.id}">${label}</option>`;
     }).join('');
-  document.getElementById('carrera-header').style.display='none';
+  document.getElementById('sel-estado-car-wrap').style.display='none';
+  document.getElementById('tabla-label').style.display='';
+  document.getElementById('inscriptos-count').style.display='none';
   document.getElementById('btn-nueva').style.display='none';
   document.getElementById('list-container').innerHTML='';
 }
@@ -416,7 +411,9 @@ async function onCarreraChange() {
   const cid = document.getElementById('sel-carrera').value;
   currentCarreraId = cid || null;
   if (!cid) {
-    document.getElementById('carrera-header').style.display='none';
+    document.getElementById('sel-estado-car-wrap').style.display='none';
+    document.getElementById('tabla-label').style.display='';
+    document.getElementById('inscriptos-count').style.display='none';
     document.getElementById('btn-nueva').style.display='none';
     document.getElementById('list-container').innerHTML='';
     return;
@@ -441,24 +438,8 @@ async function onEstadoCarreraChange() {
 
 function renderCarreraHeader() {
   if (!currentCarrera) return;
-  document.getElementById('carrera-header').style.display='block';
   document.getElementById('btn-nueva').style.display='';
-  document.getElementById('ch-num').textContent = currentCarrera.numero_turno;
-  document.getElementById('ch-name').textContent = currentCarrera.nombre || `Turno ${currentCarrera.numero_turno}`;
-  document.getElementById('ch-chips').innerHTML = `
-    <span class="chip">${currentCarrera.distancia_metros}m</span>
-    <span class="chip">${currentCarrera.tipo_pista||'—'}</span>
-    ${currentCarrera.condicion_sexo?`<span class="chip">${currentCarrera.condicion_sexo}</span>`:''}
-    ${currentCarrera.cupo_maximo?`<span class="chip">Cupo: ${currentCarrera.cupo_maximo}</span>`:''}
-    ${currentCarrera.bolsa_total?`<span class="chip">💰 ${formatMonto(currentCarrera.bolsa_total)}</span>`:''}
-  `;
-  document.getElementById('ch-condicion').innerHTML =
-    (currentCarrera.condicion_handicap
-      ? `<div class="carrera-condicion">Condición: ${currentCarrera.condicion_handicap}</div>`
-      : '') +
-    (currentCarrera.condicion_adicional
-      ? `<div class="carrera-condicion-extra">${currentCarrera.condicion_adicional}</div>`
-      : '');
+  document.getElementById('tabla-label').style.display='none';
   const est = currentCarrera.estado;
   const puedeEditar = ['secretario_carreras','super_admin'].includes(currentUser?.rol);
   const badge = (est === 'reabierta' || est === 'anulada')
@@ -470,6 +451,7 @@ function renderCarreraHeader() {
          <option value="anulada"${est==='anulada'?' selected':''}>Anulada</option>
        </select>` : '';
   document.getElementById('ch-estado-carrera').innerHTML = badge + sel;
+  document.getElementById('sel-estado-car-wrap').style.display='flex';
 }
 
 async function loadInscripciones() {
@@ -489,6 +471,7 @@ function getProf(id) { return profesionales.find(p=>p.id===id); }
 function renderInscripciones() {
   if (!inscripciones.length) {
     document.getElementById('list-container').innerHTML=`<div class="empty-state"><div class="icon">📋</div><h3>Sin inscriptos</h3><p>No hay SPC inscriptos en este turno.</p></div>`;
+    const cEl=document.getElementById('inscriptos-count'); cEl.textContent='0 inscriptos'; cEl.style.display='';
     return;
   }
   const rows = inscripciones.map(i => {
@@ -519,6 +502,7 @@ function renderInscripciones() {
     <thead><tr><th>SPC</th><th>Cert.</th><th>Caballeriza</th><th>Entrenador</th><th>Jockey</th><th>Jockey suplente</th><th>Personal</th><th>Estado</th><th>Acciones</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
+  const n=inscripciones.length; const cEl=document.getElementById('inscriptos-count'); cEl.textContent=`${n} inscripto${n!==1?'s':''}`; cEl.style.display='';
 }
 
 let spcSearchTimer;
