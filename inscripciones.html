@@ -128,9 +128,9 @@
       .pi-bloque { display: flex; flex-direction: column; width: fit-content; max-width: 100%; }
       /* Header del bloque: enmarcado y centrado */
       .pi-car-head { background: #e8e8e8; padding: 3px 7px; border: 1px solid #000; text-align: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .pi-titulo { font-size: 9pt; font-weight: 900; text-transform: uppercase; white-space: nowrap; line-height: 1.25; }
-      .pi-bolsa-inline { font-size: 10pt; font-weight: 900; }
-      .pi-condiciones { font-size: 7.5pt; color: #222; margin-top: 1px; white-space: nowrap; }
+      .pi-titulo { font-size: 8pt; font-weight: 900; text-transform: uppercase; line-height: 1.2; }
+      .pi-bolsa-inline { font-size: 9pt; font-weight: 900; }
+      .pi-condiciones { font-size: 7pt; color: #222; margin-top: 1px; line-height: 1.25; }
       .pi-cesped-inline { font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; }
       /* Bandas de estado */
       .pi-banda-reabierta { background: #000 !important; color: #fff !important; text-align: center; font-size: 8pt; font-weight: 900; padding: 3px 0; text-transform: uppercase; letter-spacing: 1px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -716,13 +716,19 @@ async function printInscriptos() {
     } else if (emin) {
       parts.push(usaEspacios ? `${emin} a +` : `${emin}a+`);
     }
-    const hc = (car.condicion_handicap || '').trim();
+    let hc = (car.condicion_handicap || '').trim();
+    // Si el prefijo ya es "Todo caballo", remover redundancia del handicap libre
+    if (usaEspacios && hc) {
+      hc = hc.replace(/^todo\s+caballo\s+(de\s+)?/i, '').trim();
+      // También remover edad duplicada si arranca con "N años y" o "N a"
+      hc = hc.replace(/^\d+\s*(a|años?)\s*(y\s*\d+\s*(a|años?)?)?\s*/i, '').trim();
+    }
     if (hc) {
       const hcLow = hc.toLowerCase();
       const condAbr = /\bperdedor(es)?\b/.test(hcLow) ? 'perd'
         : /\bganadores? de 1 carrera\b/.test(hcLow) ? 'g.1c'
         : /\bganadores? de 2 carreras\b/.test(hcLow) ? 'g.2c'
-        : hc.length > 22 ? hc.slice(0, 22) + '…' : hc;
+        : hc.length > 18 ? hc.slice(0, 18) + '…' : hc;
       parts.push(condAbr);
     }
     let result = parts.join(sep);
