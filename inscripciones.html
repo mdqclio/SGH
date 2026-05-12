@@ -120,9 +120,12 @@
       .pi-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 8px; }
       .pi-title { font-family: 'Playfair Display', Georgia, serif; font-size: 15pt; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
       .pi-sub { font-size: 8pt; font-weight: 700; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
-      /* Bloques: flex wrap, ancho fit-content */
+      /* Contenedor general: flex wrap */
       .pi-cols { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-start; }
-      .pi-bloque { display: flex; flex-direction: column; width: fit-content; min-width: 110pt; break-inside: avoid; page-break-inside: avoid; }
+      /* Wrapper bloque + tabla gatera — unidad de ruptura de página */
+      .pi-wrapper { display: flex; gap: 8pt; align-items: flex-start; break-inside: avoid; page-break-inside: avoid; }
+      /* Bloque de carrera */
+      .pi-bloque { display: flex; flex-direction: column; width: fit-content; min-width: 110pt; }
       /* Header del bloque: enmarcado y centrado */
       .pi-car-head { background: #e8e8e8; padding: 4px 8px; border: 1px solid #000; text-align: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .pi-bolsa { font-size: 15pt; font-weight: 900; line-height: 1.2; }
@@ -135,13 +138,16 @@
       /* Lista de inscriptos */
       .pi-row { display: flex; align-items: baseline; padding: 1px 4px; border-bottom: 1px solid #eee; line-height: 1.4; }
       .pi-row:last-child { border-bottom: none; }
-      .pi-hembra-pfx { font-size: 10pt; font-weight: 900; margin-right: 2px; flex-shrink: 0; }
+      .pi-h-col { font-size: 10pt; font-weight: 900; width: 9pt; min-width: 9pt; flex-shrink: 0; }
       .pi-spc-name { font-size: 10pt; font-weight: 700; text-transform: uppercase; flex: 1; min-width: 0; }
-      .pi-peso { font-size: 10pt; font-weight: 700; white-space: nowrap; margin-left: 4px; flex-shrink: 0; }
-      .pi-nocert { font-size: 10pt; font-weight: 900; margin-left: 2px; flex-shrink: 0; }
-      .pi-gatera-i { font-size: 10pt; font-weight: 900; margin-left: 4px; flex-shrink: 0; color: #555; min-width: 1.2em; text-align: right; }
-      /* Total del turno: línea arriba, sin borde lateral ni inferior */
+      .pi-nocert { font-size: 10pt; font-weight: 900; margin-left: 3px; flex-shrink: 0; }
+      /* Total del turno */
       .pi-car-foot { border-top: 1px solid #000; padding: 2px 4px; font-size: 12pt; font-weight: 900; text-align: center; }
+      /* Mini tabla gatera */
+      .pi-gatera-tbl { border-collapse: collapse; font-size: 9pt; }
+      .pi-gatera-tbl th { background: #e0e0e0; border: 1px solid #000; padding: 2px 6px; text-align: center; font-weight: 900; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .pi-gatera-tbl td { border: 1px solid #ddd; padding: 1px 6px; text-align: center; }
+      .pi-gatera-tbl td:last-child { font-weight: 900; }
       /* Footer del documento */
       .pi-footer { margin-top: 8px; border-top: 2px solid #000; padding-top: 4px; font-size: 9pt; display: flex; justify-content: space-between; align-items: flex-end; }
       .pi-footer-left { display: flex; flex-direction: column; gap: 2px; }
@@ -737,17 +743,22 @@ async function printInscriptos() {
     const listaHtml = inscsCar.map(i => {
       const nombre = (i.spcs?.nombre || '—').toUpperCase();
       const esH = esMixta && (i.spcs?.sexo || '').toLowerCase() === 'hembra';
-      const peso = i.peso_final || i.peso_declarado || '';
       const noCert = !i.certificado_correr;
-      const gate = hayPartidor ? `<span class="pi-gatera-i">${i.numero_partidor != null ? i.numero_partidor : ''}</span>` : '';
-      return `<div class="pi-row">${esH ? '<span class="pi-hembra-pfx">H</span>' : ''}<span class="pi-spc-name">${nombre}</span>${peso ? `<span class="pi-peso">${peso}</span>` : ''}${noCert ? '<span class="pi-nocert">●</span>' : ''}${gate}</div>`;
+      return `<div class="pi-row"><span class="pi-h-col">${esH ? 'H' : ''}</span><span class="pi-spc-name">${nombre}</span>${noCert ? '<span class="pi-nocert">●</span>' : ''}</div>`;
     }).join('');
 
-    return `<div class="pi-bloque">
-      <div class="pi-car-head">${bolsaStr ? `<div class="pi-bolsa">${bolsaStr}</div>` : ''}<div class="pi-turno">${turnoBand}</div>${condStr ? `<div class="pi-cond">${condStr}</div>` : ''}${esCesped ? '<div class="pi-cesped">CESPED</div>' : ''}</div>
-      ${bandaHtml}
-      <div class="pi-lista">${listaHtml}</div>
-      <div class="pi-car-foot">${inscsCar.length}</div>
+    const gateraHtml = hayPartidor
+      ? `<table class="pi-gatera-tbl"><thead><tr><th>Nº</th><th>GAT</th></tr></thead><tbody>${inscsCar.map((i, idx) => `<tr><td>${idx + 1}</td><td>${i.numero_partidor != null ? i.numero_partidor : '—'}</td></tr>`).join('')}</tbody></table>`
+      : '';
+
+    return `<div class="pi-wrapper">
+      <div class="pi-bloque">
+        <div class="pi-car-head">${bolsaStr ? `<div class="pi-bolsa">${bolsaStr}</div>` : ''}<div class="pi-turno">${turnoBand}</div>${condStr ? `<div class="pi-cond">${condStr}</div>` : ''}${esCesped ? '<div class="pi-cesped">CESPED</div>' : ''}</div>
+        ${bandaHtml}
+        <div class="pi-lista">${listaHtml}</div>
+        <div class="pi-car-foot">${inscsCar.length}</div>
+      </div>
+      ${gateraHtml}
     </div>`;
   }).join('');
 
