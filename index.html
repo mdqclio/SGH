@@ -289,6 +289,7 @@ function buildUI(rol) {
       navSection('Administración', [
         ['usuarios.html',                 '👥', 'Usuarios'],
         ['admin.html',                    '🔧', 'Configuración'],
+        ['auditoria.html',                '📋', 'Auditoría'],
       ]);
 
     content.innerHTML =
@@ -312,6 +313,7 @@ function buildUI(rol) {
       moduleSection('Administración', [
         moduleCard('usuarios.html',                 '👥', 'Usuarios',              'Gestión de usuarios del hipódromo'),
         moduleCard('admin.html',                    '🔧', 'Configuración',         'Gestión global de hipódromos clientes'),
+        moduleCard('auditoria.html',                '📋', 'Auditoría',             'Registro de cambios'),
       ]);
 
   } else {
@@ -337,6 +339,7 @@ function buildUI(rol) {
       ]) +
       navSection('Administración', [
         ['usuarios.html',                 '👥', 'Usuarios'],
+        ['auditoria.html',                '📋', 'Auditoría'],
       ]);
 
     content.innerHTML =
@@ -359,6 +362,7 @@ function buildUI(rol) {
       ]) +
       moduleSection('Administración', [
         moduleCard('usuarios.html',                 '👥', 'Usuarios',              'Gestión de usuarios del hipódromo'),
+        moduleCard('auditoria.html',                '📋', 'Auditoría',             'Registro de cambios'),
       ]);
   }
 }

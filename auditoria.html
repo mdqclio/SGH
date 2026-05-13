@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="logo32x32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="logo180x180.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0e2318">
+  <title>Auditoría — SGH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e2318; --card: #1a3d26; --accent: #c9a84c;
+      --text: #f5f0e8; --muted: #a0b8a0; --danger: #e05252;
+      --success: #4caf82; --info: #74b0f7;
+      --border: rgba(201,168,76,0.2); --input-bg: #0e2318;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    h1, h2, h3 { font-family: 'Playfair Display', serif; }
+    .topbar { background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .btn-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 7px 14px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s; }
+    .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+    .topbar h1 { font-size: 18px; color: var(--accent); flex: 1; min-width: 180px; }
+    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-outline:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-danger { background: transparent; border: 1px solid rgba(224,82,82,0.4); color: var(--danger); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .btn-danger:hover { background: rgba(224,82,82,0.1); }
+    .user-name { font-size: 13px; color: var(--muted); }
+    .btn-logout { background: none; border: 1px solid var(--border); color: var(--muted); padding: 6px 14px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; transition: all 0.2s; }
+    .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
+    .selector-bar { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 16px; display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+    .filter-group { display: flex; flex-direction: column; gap: 3px; }
+    .filter-group label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .selector-bar select, .selector-bar input[type=date], .selector-bar input[type=text] { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 7px 11px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; }
+    .selector-bar select option { background: #1a3d26; }
+    .stats-row { display: flex; gap: 12px; padding: 14px 24px; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+    .stat-chip { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 18px; text-align: center; min-width: 130px; }
+    .stat-chip-val { font-size: 22px; font-weight: 700; color: var(--accent); font-family: 'Playfair Display', serif; }
+    .stat-chip-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .content { padding: 16px; }
+    .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { background: rgba(0,0,0,0.2); padding: 11px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+    tbody tr { border-top: 1px solid var(--border); transition: background 0.15s; }
+    tbody tr:hover { background: rgba(201,168,76,0.04); cursor: pointer; }
+    tbody td { padding: 11px 14px; font-size: 13px; vertical-align: middle; }
+    .ts-cell { white-space: nowrap; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .reg-cell-uuid { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); }
+    .reg-cell-label { font-weight: 500; color: var(--text); }
+    .user-cell { font-weight: 500; }
+    .tabla-cell { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent); }
+    .pagination { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; flex-wrap: wrap; gap: 12px; border-top: 1px solid var(--border); background: rgba(0,0,0,0.1); }
+    .pagination-info { font-size: 12px; color: var(--muted); }
+    .pagination-buttons { display: flex; gap: 8px; }
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .badge-INSERT { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .badge-UPDATE { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+    .badge-DELETE { background: rgba(224,82,82,0.15); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .empty-state { text-align: center; padding: 50px 20px; }
+    .empty-state .icon { font-size: 44px; margin-bottom: 14px; }
+    .empty-state h3 { font-size: 17px; color: var(--muted); }
+    .loading-state { display: flex; align-items: center; justify-content: center; padding: 50px; gap: 12px; color: var(--muted); }
+    .spinner { width: 22px; height: 22px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; display: none; align-items: flex-start; justify-content: center; padding: 20px; overflow-y: auto; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 900px; margin: auto; }
+    .modal-header { padding: 18px 22px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); gap: 12px; flex-wrap: wrap; }
+    .modal-header h2 { font-size: 18px; color: var(--accent); }
+    .modal-header-meta { font-size: 12px; color: var(--muted); }
+    .btn-close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; }
+    .modal-body { padding: 18px 22px; }
+    .modal-footer { padding: 14px 22px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
+    .diff-meta { background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 12px; }
+    .diff-meta dt { color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px; font-weight: 600; align-self: center; }
+    .diff-meta dd { color: var(--text); font-family: 'JetBrains Mono', monospace; word-break: break-all; }
+    .diff-section-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 12px; margin-bottom: 8px; }
+    .diff-table { width: 100%; border-collapse: collapse; background: rgba(0,0,0,0.15); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .diff-table th { background: rgba(0,0,0,0.25); padding: 8px 12px; text-align: left; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .diff-table td { padding: 7px 12px; font-size: 12px; vertical-align: top; border-top: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; word-break: break-word; }
+    .diff-table td.field { color: var(--accent); font-weight: 500; white-space: nowrap; }
+    .diff-table tr.changed { background: rgba(201,168,76,0.06); }
+    .diff-table tr.added { background: rgba(76,175,130,0.07); }
+    .diff-table tr.removed { background: rgba(224,82,82,0.07); }
+    .diff-val-empty { color: var(--muted); font-style: italic; }
+    .diff-val-changed-from { color: var(--danger); text-decoration: line-through; opacity: 0.7; }
+    .diff-val-changed-to { color: var(--success); }
+    .json-fallback { background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; max-height: 300px; overflow-y: auto; color: var(--text); }
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 360px; animation: slideIn 0.3s ease; }
+    .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
+    .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
+    .toast-info { background: #1a2d4a; border: 1px solid var(--info); color: var(--text); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    #auth-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+  </style>
+</head>
+<body>
+
+<div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;"></div></div>
+<div id="toast-container"></div>
+
+<div class="topbar">
+  <a href="admin.html" class="btn-back">← Admin</a>
+  <h1>Auditoría</h1>
+  <span class="user-name" id="user-name"></span>
+  <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+  <button class="btn-outline" onclick="exportCSV()">⬇ Exportar CSV</button>
+  <button class="btn-danger" id="btn-purgar" onclick="purgarAuditoria()" style="display:none">🗑 Purgar según retención</button>
+  <button class="btn-outline" onclick="loadEventos()">↻ Refrescar</button>
+</div>
+
+<div class="selector-bar">
+  <div class="filter-group">
+    <label>Tabla</label>
+    <select id="f-tabla" onchange="loadEventos()">
+      <option value="">— Todas —</option>
+      <option value="carreras">carreras</option>
+      <option value="categorias_carrera">categorias_carrera</option>
+      <option value="clubs">clubs</option>
+      <option value="inscripciones">inscripciones</option>
+      <option value="liquidaciones">liquidaciones</option>
+      <option value="resultados">resultados</option>
+      <option value="reuniones">reuniones</option>
+      <option value="usuarios">usuarios</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>Acción</label>
+    <select id="f-accion" onchange="loadEventos()">
+      <option value="">— Todas —</option>
+      <option value="INSERT">INSERT</option>
+      <option value="UPDATE">UPDATE</option>
+      <option value="DELETE">DELETE</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>Usuario</label>
+    <select id="f-usuario" onchange="loadEventos()">
+      <option value="">— Todos —</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>Desde</label>
+    <input type="date" id="f-desde" onchange="loadEventos()">
+  </div>
+  <div class="filter-group">
+    <label>Hasta</label>
+    <input type="date" id="f-hasta" onchange="loadEventos()">
+  </div>
+  <div class="filter-group">
+    <label>Por página</label>
+    <select id="f-limite" onchange="loadEventos()">
+      <option value="25">25</option>
+      <option value="50" selected>50</option>
+      <option value="100">100</option>
+      <option value="250">250</option>
+    </select>
+  </div>
+  <button class="btn-outline" onclick="limpiarFiltros()">Limpiar</button>
+</div>
+
+<div class="stats-row" id="stats-row" style="display:none">
+  <div class="stat-chip">
+    <div class="stat-chip-val" id="stat-total">0</div>
+    <div class="stat-chip-lbl">Total en filtro</div>
+  </div>
+  <div class="stat-chip">
+    <div class="stat-chip-val" id="stat-insert">0</div>
+    <div class="stat-chip-lbl">INSERTs (página)</div>
+  </div>
+  <div class="stat-chip">
+    <div class="stat-chip-val" id="stat-update">0</div>
+    <div class="stat-chip-lbl">UPDATEs (página)</div>
+  </div>
+  <div class="stat-chip">
+    <div class="stat-chip-val" id="stat-delete">0</div>
+    <div class="stat-chip-lbl">DELETEs (página)</div>
+  </div>
+</div>
+
+<div class="content">
+  <div id="list-container">
+    <div class="loading-state"><div class="spinner"></div> Cargando…</div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Detalle del evento</h2>
+      <span class="modal-header-meta" id="modal-meta"></span>
+      <button class="btn-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn-outline" onclick="closeModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+let sb, CLUB_ID, currentUser;
+let eventos = [], usuariosCache = {}, lookupCache = {};
+let pageOffset = 0, totalCount = 0;
+
+async function initAuth() {
+  const { createClient } = supabase;
+  sb = createClient(
+    'https://unlhcuanfrtpatoipwve.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM'
+  );
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.replace('login.html'); return false; }
+  const { data: usr } = await sb.from('usuarios').select('club_id, nombre_completo, rol').eq('email', session.user.email).single();
+  if (!usr) { await sb.auth.signOut(); window.location.replace('login.html'); return false; }
+  if (!['super_admin', 'secretario_carreras'].includes(usr.rol)) {
+    document.getElementById('auth-overlay').innerHTML = '<div style="text-align:center;padding:40px"><h2 style="font-family:Playfair Display,serif;color:#c9a84c;margin-bottom:8px">Acceso restringido</h2><p style="color:#a0b8a0">Tu rol no tiene permiso para ver auditoría.</p><a href="index.html" style="color:#c9a84c;margin-top:14px;display:inline-block">← Volver</a></div>';
+    return false;
+  }
+  if (usr.rol === 'super_admin') {
+    const urlClub = new URLSearchParams(window.location.search).get('club');
+    CLUB_ID = urlClub || usr.club_id || null;
+    document.getElementById('btn-purgar').style.display = '';
+  } else {
+    if (!usr.club_id) { await sb.auth.signOut(); window.location.replace('login.html'); return false; }
+    CLUB_ID = usr.club_id;
+  }
+  currentUser = { ...session.user, nombre_completo: usr.nombre_completo, rol: usr.rol };
+  document.getElementById('user-name').textContent = usr.nombre_completo || session.user.email;
+  document.getElementById('auth-overlay').style.display = 'none';
+  return true;
+}
+
+function logout() { sb.auth.signOut().then(() => window.location.replace('login.html')); }
+
+function toast(msg, type = 'success') {
+  const t = document.createElement('div'); t.className = `toast toast-${type}`; t.textContent = msg;
+  document.getElementById('toast-container').appendChild(t); setTimeout(() => t.remove(), 4000);
+}
+
+function escapeHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function shortId(uuid) {
+  if (!uuid) return '—';
+  return String(uuid).split('-')[0];
+}
+
+function formatTs(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return d.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function formatFechaCorta(f) {
+  if (!f) return '';
+  const d = new Date(f + (f.length === 10 ? 'T12:00:00' : ''));
+  return d.toLocaleDateString('es-AR');
+}
+
+async function loadUsuarios() {
+  let q = sb.from('usuarios').select('id, nombre_completo, email, rol, club_id');
+  if (currentUser.rol !== 'super_admin') q = q.eq('club_id', CLUB_ID);
+  const { data } = await q.order('nombre_completo');
+  (data || []).forEach(u => { usuariosCache[u.id] = u; });
+  const sel = document.getElementById('f-usuario');
+  sel.innerHTML = '<option value="">— Todos —</option>' +
+    (data || []).map(u => `<option value="${u.id}">${escapeHtml(u.nombre_completo || u.email)}</option>`).join('');
+}
+
+async function resolverRegistros(evts) {
+  const idsPorTabla = {};
+  evts.forEach(e => {
+    if (!e.registro_id || !e.tabla) return;
+    if (!idsPorTabla[e.tabla]) idsPorTabla[e.tabla] = new Set();
+    idsPorTabla[e.tabla].add(e.registro_id);
+  });
+
+  const queries = [];
+  Object.entries(idsPorTabla).forEach(([tabla, idsSet]) => {
+    const ids = Array.from(idsSet);
+    if (!lookupCache[tabla]) lookupCache[tabla] = {};
+    const idsToFetch = ids.filter(id => !(id in lookupCache[tabla]));
+    if (!idsToFetch.length) return;
+    let q;
+    if (tabla === 'reuniones') q = sb.from('reuniones').select('id, numero, fecha').in('id', idsToFetch);
+    else if (tabla === 'carreras') q = sb.from('carreras').select('id, numero_turno, nombre, reuniones(numero)').in('id', idsToFetch);
+    else if (tabla === 'inscripciones') q = sb.from('inscripciones').select('id, spcs(nombre), carreras(numero_turno, reuniones(numero))').in('id', idsToFetch);
+    else if (tabla === 'resultados') q = sb.from('resultados').select('id, carreras(numero_turno, reuniones(numero))').in('id', idsToFetch);
+    else if (tabla === 'liquidaciones') q = sb.from('liquidaciones').select('id, numero_recibo').in('id', idsToFetch);
+    else if (tabla === 'clubs') q = sb.from('clubs').select('id, nombre').in('id', idsToFetch);
+    else if (tabla === 'usuarios') q = sb.from('usuarios').select('id, nombre_completo, email').in('id', idsToFetch);
+    else if (tabla === 'categorias_carrera') q = sb.from('categorias_carrera').select('id, nombre, codigo').in('id', idsToFetch);
+    if (q) queries.push({ tabla, idsToFetch, promise: q });
+  });
+
+  const results = await Promise.all(queries.map(x => x.promise));
+  queries.forEach(({ tabla, idsToFetch }, idx) => {
+    const data = results[idx].data || [];
+    const foundIds = new Set(data.map(r => r.id));
+    idsToFetch.forEach(id => { if (!foundIds.has(id)) lookupCache[tabla][id] = null; });
+    data.forEach(r => {
+      let label;
+      if (tabla === 'reuniones') label = `Reunión ${r.numero || '?'}` + (r.fecha ? ` · ${formatFechaCorta(r.fecha)}` : '');
+      else if (tabla === 'carreras') label = `T${r.numero_turno}${r.reuniones?.numero ? ` R${r.reuniones.numero}` : ''}${r.nombre ? ` — ${r.nombre}` : ''}`;
+      else if (tabla === 'inscripciones') label = `${r.spcs?.nombre || '—'} (T${r.carreras?.numero_turno || '?'}${r.carreras?.reuniones?.numero ? ` R${r.carreras.reuniones.numero}` : ''})`;
+      else if (tabla === 'resultados') label = `Resultado T${r.carreras?.numero_turno || '?'}${r.carreras?.reuniones?.numero ? ` R${r.carreras.reuniones.numero}` : ''}`;
+      else if (tabla === 'liquidaciones') label = r.numero_recibo ? `Recibo ${r.numero_recibo}` : shortId(r.id) + '…';
+      else if (tabla === 'clubs') label = r.nombre || '—';
+      else if (tabla === 'usuarios') label = r.nombre_completo || r.email || '—';
+      else if (tabla === 'categorias_carrera') label = r.nombre || r.codigo || '—';
+      lookupCache[tabla][r.id] = label;
+    });
+  });
+}
+
+function getRegistroLabel(e) {
+  if (lookupCache[e.tabla]?.[e.registro_id]) return lookupCache[e.tabla][e.registro_id];
+  const datos = e.datos_despues || e.datos_antes || {};
+  if (e.tabla === 'reuniones' && datos.numero) return `Reunión ${datos.numero}` + (datos.fecha ? ` · ${formatFechaCorta(datos.fecha)}` : '');
+  if (e.tabla === 'carreras' && datos.numero_turno) return `T${datos.numero_turno}` + (datos.nombre ? ` — ${datos.nombre}` : '');
+  if (e.tabla === 'usuarios') return datos.nombre_completo || datos.email || null;
+  if (e.tabla === 'clubs') return datos.nombre || null;
+  if (e.tabla === 'categorias_carrera') return datos.nombre || datos.codigo || null;
+  if (e.tabla === 'liquidaciones' && datos.numero_recibo) return `Recibo ${datos.numero_recibo}`;
+  return null;
+}
+
+async function loadEventos(opts = {}) {
+  if (opts.resetOffset !== false) pageOffset = 0;
+  const tabla = document.getElementById('f-tabla').value;
+  const accion = document.getElementById('f-accion').value;
+  const usuarioId = document.getElementById('f-usuario').value;
+  const desde = document.getElementById('f-desde').value;
+  const hasta = document.getElementById('f-hasta').value;
+  const pageSize = parseInt(document.getElementById('f-limite').value, 10) || 50;
+  document.getElementById('list-container').innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando eventos…</div>';
+  let q = sb.from('auditoria').select('*', { count: 'exact' }).order('created_at', { ascending: false }).range(pageOffset, pageOffset + pageSize - 1);
+  if (currentUser.rol !== 'super_admin') q = q.eq('club_id', CLUB_ID);
+  if (tabla) q = q.eq('tabla', tabla);
+  if (accion) q = q.eq('accion', accion);
+  if (usuarioId) q = q.eq('usuario_id', usuarioId);
+  if (desde) q = q.gte('created_at', desde + 'T00:00:00');
+  if (hasta) q = q.lte('created_at', hasta + 'T23:59:59');
+  const { data, error, count } = await q;
+  if (error) { toast(error.message, 'error'); return; }
+  eventos = data || [];
+  totalCount = count || 0;
+  if (eventos.length) await resolverRegistros(eventos);
+  renderEventos(pageSize);
+}
+
+function renderEventos(pageSize) {
+  if (!eventos.length) {
+    document.getElementById('list-container').innerHTML = '<div class="empty-state"><div class="icon">📭</div><h3>Sin eventos para los filtros aplicados</h3></div>';
+    document.getElementById('stats-row').style.display = 'none';
+    return;
+  }
+  const counts = { INSERT: 0, UPDATE: 0, DELETE: 0 };
+  eventos.forEach(e => { counts[e.accion] = (counts[e.accion] || 0) + 1; });
+  document.getElementById('stat-total').textContent = totalCount;
+  document.getElementById('stat-insert').textContent = counts.INSERT;
+  document.getElementById('stat-update').textContent = counts.UPDATE;
+  document.getElementById('stat-delete').textContent = counts.DELETE;
+  document.getElementById('stats-row').style.display = 'flex';
+  const rows = eventos.map((e, idx) => {
+    const u = usuariosCache[e.usuario_id];
+    const userLabel = u ? escapeHtml(u.nombre_completo || u.email) : (e.usuario_id ? `<span class="reg-cell-uuid">${shortId(e.usuario_id)}…</span>` : '—');
+    const regLabel = getRegistroLabel(e);
+    const regCell = regLabel ? `<span class="reg-cell-label">${escapeHtml(regLabel)}</span>` : `<span class="reg-cell-uuid">${shortId(e.registro_id)}…</span>`;
+    return `<tr onclick="showDetalle(${idx})">
+      <td class="ts-cell">${formatTs(e.created_at)}</td>
+      <td class="tabla-cell">${escapeHtml(e.tabla)}</td>
+      <td><span class="badge badge-${e.accion}">${e.accion}</span></td>
+      <td>${regCell}</td>
+      <td class="user-cell">${userLabel}</td>
+      <td style="text-align:right;color:var(--muted);font-size:11px">👁 ver</td>
+    </tr>`;
+  }).join('');
+  const fromN = pageOffset + 1;
+  const toN = pageOffset + eventos.length;
+  const hayPrev = pageOffset > 0;
+  const hayNext = pageOffset + pageSize < totalCount;
+  document.getElementById('list-container').innerHTML = `<div class="table-wrap">
+    <table>
+      <thead><tr><th>Fecha y hora</th><th>Tabla</th><th>Acción</th><th>Registro</th><th>Usuario</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="pagination">
+      <div class="pagination-info">Mostrando <strong>${fromN}–${toN}</strong> de <strong>${totalCount}</strong></div>
+      <div class="pagination-buttons">
+        <button class="btn-outline" onclick="pagePrev()" ${hayPrev ? '' : 'disabled'}>← Anterior</button>
+        <button class="btn-outline" onclick="pageNext()" ${hayNext ? '' : 'disabled'}>Siguiente →</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function pageNext() {
+  const pageSize = parseInt(document.getElementById('f-limite').value, 10) || 50;
+  pageOffset += pageSize;
+  loadEventos({ resetOffset: false });
+}
+
+function pagePrev() {
+  const pageSize = parseInt(document.getElementById('f-limite').value, 10) || 50;
+  pageOffset = Math.max(0, pageOffset - pageSize);
+  loadEventos({ resetOffset: false });
+}
+
+function showDetalle(idx) {
+  const e = eventos[idx];
+  if (!e) return;
+  const u = usuariosCache[e.usuario_id];
+  const userLabel = u ? (u.nombre_completo || u.email) : (e.usuario_id || '— sin usuario —');
+  const regLabel = getRegistroLabel(e);
+  document.getElementById('modal-title').textContent = `${e.tabla} · ${e.accion}`;
+  document.getElementById('modal-meta').innerHTML = `<span class="badge badge-${e.accion}">${e.accion}</span> · ${formatTs(e.created_at)}`;
+  let html = `<dl class="diff-meta">
+    <dt>Tabla</dt><dd>${escapeHtml(e.tabla)}</dd>
+    <dt>Registro</dt><dd>${regLabel ? `${escapeHtml(regLabel)} <span style="color:var(--muted)">· ${escapeHtml(e.registro_id || '—')}</span>` : escapeHtml(e.registro_id || '—')}</dd>
+    <dt>Acción</dt><dd>${e.accion}</dd>
+    <dt>Usuario</dt><dd>${escapeHtml(userLabel)}</dd>
+    <dt>Club</dt><dd>${escapeHtml(e.club_id || '—')}</dd>
+    <dt>Fecha</dt><dd>${formatTs(e.created_at)}</dd>
+  </dl>`;
+  html += `<div class="diff-section-title">Cambios</div>`;
+  html += renderDiff(e.datos_antes, e.datos_despues, e.accion);
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('modal').classList.add('open');
+}
+
+function renderDiff(antes, despues, accion) {
+  const a = antes || {};
+  const d = despues || {};
+  const keys = new Set([...Object.keys(a), ...Object.keys(d)]);
+  if (!keys.size) return '<p style="color:var(--muted);font-size:13px">Sin datos.</p>';
+  const filas = [];
+  Array.from(keys).sort().forEach(k => {
+    const va = a[k];
+    const vd = d[k];
+    const stringA = va === undefined ? null : (va === null ? null : (typeof va === 'object' ? JSON.stringify(va) : String(va)));
+    const stringD = vd === undefined ? null : (vd === null ? null : (typeof vd === 'object' ? JSON.stringify(vd) : String(vd)));
+    if (accion === 'INSERT') {
+      filas.push({ k, cls: 'added', antes: '', despues: stringD });
+    } else if (accion === 'DELETE') {
+      filas.push({ k, cls: 'removed', antes: stringA, despues: '' });
+    } else {
+      if (stringA !== stringD) {
+        let cls = 'changed';
+        if (stringA === null || va === undefined) cls = 'added';
+        else if (stringD === null || vd === undefined) cls = 'removed';
+        filas.push({ k, cls, antes: stringA, despues: stringD });
+      }
+    }
+  });
+  if (!filas.length) {
+    return '<p style="color:var(--muted);font-size:13px">Sin diferencias detectadas (¿el trigger filtró por updated_at?).</p>';
+  }
+  const showAntes = accion !== 'INSERT';
+  const showDespues = accion !== 'DELETE';
+  let html = '<table class="diff-table"><thead><tr><th>Campo</th>';
+  if (showAntes) html += '<th>Antes</th>';
+  if (showDespues) html += '<th>Después</th>';
+  html += '</tr></thead><tbody>';
+  filas.forEach(f => {
+    html += `<tr class="${f.cls}"><td class="field">${escapeHtml(f.k)}</td>`;
+    if (showAntes) html += `<td>${f.antes === null || f.antes === '' ? '<span class="diff-val-empty">∅</span>' : `<span class="${f.cls === 'changed' ? 'diff-val-changed-from' : ''}">${escapeHtml(f.antes)}</span>`}</td>`;
+    if (showDespues) html += `<td>${f.despues === null || f.despues === '' ? '<span class="diff-val-empty">∅</span>' : `<span class="${f.cls === 'changed' ? 'diff-val-changed-to' : ''}">${escapeHtml(f.despues)}</span>`}</td>`;
+    html += `</tr>`;
+  });
+  html += '</tbody></table>';
+  html += `<details style="margin-top:14px"><summary style="font-size:12px;color:var(--muted);cursor:pointer;padding:6px 0">Ver JSON completo (datos crudos)</summary>`;
+  html += `<div class="diff-section-title" style="margin-top:8px">datos_antes</div>`;
+  html += `<pre class="json-fallback">${escapeHtml(JSON.stringify(antes, null, 2) || 'null')}</pre>`;
+  html += `<div class="diff-section-title" style="margin-top:8px">datos_despues</div>`;
+  html += `<pre class="json-fallback">${escapeHtml(JSON.stringify(despues, null, 2) || 'null')}</pre>`;
+  html += `</details>`;
+  return html;
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+function limpiarFiltros() {
+  document.getElementById('f-tabla').value = '';
+  document.getElementById('f-accion').value = '';
+  document.getElementById('f-usuario').value = '';
+  document.getElementById('f-desde').value = '';
+  document.getElementById('f-hasta').value = '';
+  document.getElementById('f-limite').value = '50';
+  loadEventos();
+}
+
+function exportCSV() {
+  if (!eventos.length) { toast('No hay eventos para exportar', 'error'); return; }
+  const headers = ['Fecha', 'Tabla', 'Accion', 'Registro_id', 'Registro_label', 'Usuario_id', 'Usuario', 'Club_id', 'Datos_antes', 'Datos_despues'];
+  const rows = eventos.map(e => {
+    const u = usuariosCache[e.usuario_id];
+    return [
+      e.created_at || '',
+      e.tabla || '',
+      e.accion || '',
+      e.registro_id || '',
+      getRegistroLabel(e) || '',
+      e.usuario_id || '',
+      u ? (u.nombre_completo || u.email || '') : '',
+      e.club_id || '',
+      e.datos_antes ? JSON.stringify(e.datos_antes) : '',
+      e.datos_despues ? JSON.stringify(e.datos_despues) : ''
+    ];
+  });
+  const csv = [headers, ...rows].map(r => r.map(cell => {
+    const s = String(cell ?? '');
+    return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }).join(',')).join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `auditoria_sgh_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast(`Exportados ${eventos.length} eventos de la página actual`);
+}
+
+async function purgarAuditoria() {
+  if (currentUser.rol !== 'super_admin') { toast('Solo super_admin puede purgar', 'error'); return; }
+  if (!confirm('Esto va a borrar eventos de auditoría según la retención configurada en cada club (clubs.auditoria_retencion_meses).\n\n¿Continuar?')) return;
+  const { data, error } = await sb.rpc('fn_purgar_auditoria');
+  if (error) { toast(error.message, 'error'); return; }
+  if (!data || !data.length) {
+    toast('Nada para purgar (ningún club tiene retención activa o no había eventos viejos)', 'info');
+  } else {
+    const total = data.reduce((s, r) => s + parseInt(r.eventos_borrados || 0, 10), 0);
+    toast(`Purga completada: ${total} eventos borrados en ${data.length} club(s).`);
+  }
+  await loadEventos();
+}
+
+document.getElementById('modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+(async () => {
+  if (await initAuth()) {
+    await loadUsuarios();
+    await loadEventos();
+  }
+})();
+</script>
+</body>
+</html>
