@@ -198,6 +198,48 @@ UPDATE caballerizas c SET responsable = (
 );
 ```
 
+## SQL útiles — auditoría de seguridad (sesión 12/05/2026)
+```sql
+-- Ver todas las policies de una tabla:
+SELECT policyname, cmd, roles, qual, with_check
+FROM pg_policies
+WHERE tablename = 'usuarios' AND schemaname = 'public';
+
+-- Detectar policies con USING=true (permisivas residuales — las que anulan RLS):
+SELECT tablename, policyname, cmd, qual
+FROM pg_policies
+WHERE schemaname = 'public'
+  AND qual = 'true'
+ORDER BY tablename;
+
+-- Ver todas las policies del schema public ordenadas por tabla:
+SELECT tablename, policyname, cmd, roles, qual, with_check
+FROM pg_policies
+WHERE schemaname = 'public'
+ORDER BY tablename, policyname;
+```
+
+## Test de aislamiento cross-club desde browser console (sesión 12/05/2026)
+```js
+// Abre la consola en cualquier página del SGH con sesión activa.
+// Reemplazá el club_id por el de OTRO hipódromo (no el propio).
+// El resultado debe ser un array vacío — si no lo es, hay fuga cross-club.
+
+const { createClient } = supabase;
+const testDb = createClient(
+  'https://unlhcuanfrtpatoipwve.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM'
+);
+// Reutilizar la sesión activa del browser:
+const { data: { session } } = await db.auth.getSession();
+await testDb.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
+
+// Pedir caballerizas de un club que NO es el propio:
+const OTHER_CLUB_ID = 'UUID-DEL-OTRO-CLUB';
+const { data, error } = await testDb.from('caballerizas').select('id').eq('club_id', OTHER_CLUB_ID);
+console.log('Registros visibles del otro club:', data?.length ?? 0, '← debe ser 0');
+```
+
 ## SQL útiles (sesión may-2026 — segunda iteración)
 ```sql
 -- Asignar gateras random a inscripciones de una reunión completa (sin repetir dentro de la misma carrera)

@@ -10,8 +10,7 @@ Estado: Pendiente rediseño completo
 ### ISSUE-002: RLS sin configurar por club
 Descripción: Cualquier usuario autenticado puede leer/escribir datos de cualquier hipódromo
 Módulo: Backend Supabase — todas las tablas
-Estado: Deuda técnica aceptable en fase piloto con 1 cliente
-Solución: Implementar políticas RLS con auth.uid() vinculado a club_id
+Estado: ✅ RESUELTO (12/05/2026) — RLS implementada en 17 tablas. Aislamiento cross-club verificado. Ver SECURITY.md y migrations/2026-05-12-rls.sql. Quedan 8 tablas residuales (ver ISSUE-017).
 
 ## ALTOS
 
@@ -80,3 +79,19 @@ Solución V2: selector de hipódromo para super_admin en pantallas que lo requie
 ### ISSUE-016: Módulo Propietarios puede ser redundante
 Descripción: caballeriza_responsables cubre el concepto de propietario en Dolores. Decidir si el módulo propietarios.html debe deprecarse o mantenerse para casos distintos.
 Estado: Pendiente decisión con Fede.
+
+## SEGURIDAD (post 12/05/2026)
+
+### ISSUE-017: RLS pendiente en 8 tablas residuales
+Descripción: Las siguientes tablas aún tienen policy permisiva (`allow_all` o `dev_allow_all`) y no están aisladas por club_id: `comision_config`, `spc_propietarios`, `club_configuracion`, `performances`, `caballeriza_responsables`, `novedades_reunion`, `resolucion_entidades`, `auditoria`
+Prioridad: comision_config y spc_propietarios son alta prioridad (datos financieros y titularidad de caballos). auditoria requiere tratamiento especial (SELECT acotado por club; INSERT solo desde triggers).
+Estado: Pendiente — próxima sesión de seguridad
+
+### ISSUE-018: XSS escape pass pendiente
+Descripción: Varios módulos usan template literals con `${variable}` dentro de `innerHTML` sin escapar. Un valor de DB con `<script>` o `"` puede ejecutar JS arbitrario en el browser del usuario.
+Solución: Agregar `escapeHtml()` (reemplaza &, <, >, ", ') en todos los templates literales que van a innerHTML con datos de usuario.
+Estado: Pendiente — recorrer todos los módulos HTML
+
+### ISSUE-019: Auditoría extendida pendiente
+Descripción: Los triggers de auditoría cubren 8 tablas (reuniones, carreras, inscripciones, resultados, liquidaciones, clubs, usuarios, categorias_carrera). Quedan sin auditar: caballerizas, resoluciones, hipodromos, propietarios, profesionales, spcs, sanciones.
+Estado: Pendiente — agregar triggers de auditoría una vez que la RLS de esas tablas esté endurecida

@@ -18,6 +18,8 @@
 - Gestión de usuarios por hipódromo
 - Calendario anual de reuniones
 - PWA instalable
+- **RLS multi-tenant por club_id** — aislamiento cross-club verificado, listo para múltiples clientes (12/05/2026)
+- **Sistema de auditoría** — UI completa con paginación, filtros, diff visual, export CSV (12/05/2026)
 
 ## En desarrollo
 - Resultados: rediseñado, sin testing completo de oficialización
@@ -31,8 +33,18 @@
 - Auto-registro de profesionales (registro-profesional.html)
 - API con Stud Book nacional (en gestión de acceso)
 - Emails automáticos (pendiente Resend/SendGrid)
-- RLS por club_id
 - Selector de hipódromo para super_admin sin club_id
+
+## Seguridad — pendientes próxima sesión (post 12/05/2026)
+8 tablas con policy permisiva residual que aún necesitan RLS endurecida:
+- `comision_config` — alta prioridad (datos financieros)
+- `spc_propietarios` — alta prioridad (cambios de titularidad)
+- `club_configuracion`
+- `performances`
+- `caballeriza_responsables`
+- `novedades_reunion`
+- `resolucion_entidades`
+- `auditoria` — caso especial: SELECT acotado por club; INSERT solo desde triggers
 
 ## Clientes activos
 | Hipódromo | Sigla | Estado | club_id |

@@ -86,3 +86,14 @@ Si un bloque con `break-inside: avoid` no cabe en el espacio restante de la pág
 
 ## 24. hipodromos.cantidad_gateras no se carga en el alta de hipódromo (may-2026)
 El campo existe con DEFAULT 12, pero registro.html no tiene el campo en el formulario. Para hipódromos nuevos queda en 12 hasta que alguien lo actualice por SQL. El PDF de inscriptos hace fallback a 12 si cantidad_gateras es null. Pendiente agregar el campo a registro.html y a hipodromos.html.
+
+## 25. DROP POLICY no es magia: el nombre exacto importa (12/05/2026)
+Si una policy se llama `allow_all_usuarios` (con sufijo) y ejecutás `DROP POLICY IF EXISTS "allow_all" ON usuarios`, **no se borra nada** — y PostgreSQL no da error. La policy permisiva queda viva y anula toda la RLS endurecida, porque PostgreSQL es PERMISSIVE por default: si una sola policy devuelve true, la operación se permite sin importar las demás.
+Cómo auditar antes de asumir limpieza:
+```sql
+SELECT policyname FROM pg_policies WHERE tablename = 'usuarios' AND schemaname = 'public';
+```
+Para borrar todo sin adivinar nombres, usar el DO/LOOP dinámico del script de migración.
+
+## 26. Funciones helper de RLS deben ser SECURITY DEFINER (12/05/2026)
+Si `fn_get_user_club_id()` o `fn_is_super_admin()` fueran SECURITY INVOKER (default), al ser invocadas desde una policy sobre la tabla `usuarios` (que ya tiene RLS), la función intentaría leer `usuarios` con los permisos del usuario llamante — que a su vez pasan por la misma RLS, causando recursión infinita o devolviendo NULL. SECURITY DEFINER hace que la función se ejecute con permisos del owner de la función, bypasseando la RLS de la tabla destino. Combinado siempre con `SET search_path = public` para evitar path injection via search_path hijacking.

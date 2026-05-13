@@ -33,9 +33,9 @@ Justificación: La nueva key da error 400 en consultas REST. Verificado en produ
 Decisión: estado=publicada bloquea edición en la UI
 Justificación: Documento oficial — cambios post-publicación serían irregulares
 
-## ADR-009: RLS permisivo en desarrollo
+## ADR-009: RLS permisivo en desarrollo (SUPERADO — ver ADR-020)
 Decisión: Policy allow_all durante desarrollo
-Deuda técnica: Implementar RLS por club_id cuando haya múltiples clientes pagando
+Deuda técnica: ✅ IMPLEMENTADA (12/05/2026) — ver ADR-020 y SECURITY.md
 
 ## ADR-011: Modelo relacional caballeriza_responsables (may-2026)
 Decisión: tabla caballeriza_responsables en lugar de campo texto "responsable"
@@ -76,6 +76,24 @@ Consecuencia: al dar de alta un hipódromo nuevo hay que setear cantidad_gateras
 Decisión: aceptar que el PDF ocupe 2 páginas: página 1 = bloques de carrera (CSS columns 4-col), página 2 = matriz ORDEN DE LARGADA + footer leyenda.
 Justificación: meter todo en 1 página requería bajar fuentes por debajo de 7pt, sacrificando legibilidad. 2 páginas es el balance correcto entre compactación y lectura sin lupas.
 Alternativa rechazada: column-count: 5 + suprimir la matriz.
+
+## ADR-020: RLS de Postgres en lugar de filtrado solo en JS (12/05/2026)
+Decisión: Implementar Row Level Security en Postgres como capa de seguridad primaria
+Justificación: Defensa en profundidad — el filtrado solo en JS es bypasseable si alguien obtiene la anon key. RLS garantiza aislamiento incluso con acceso directo a la API de Supabase. Necesario para onboardear múltiples hipódromos sin riesgo de fuga cross-club.
+Consecuencia: Todas las queries del cliente siguen funcionando sin cambios; la RLS filtra transparentemente en el servidor.
+
+## ADR-021: Catálogos globales con SELECT/INSERT/UPDATE abiertos (12/05/2026)
+Decisión: `spcs`, `propietarios` y `profesionales` mantienen SELECT/INSERT/UPDATE abiertos a todos los hipódromos autenticados. Solo DELETE restringido a super_admin.
+Justificación: Respeta el modelo cooperativo federativo de la hípica argentina — un caballo, propietario o profesional puede operar en múltiples hipódromos. Restringir por club_id rompiría la carga de inscripciones con SPCs de otros hipódromos.
+Alternativa rechazada: RLS por club_id en catálogos globales (requeriría resolver propietario → hipódromo en cada query, rompiendo la búsqueda cross-club de inscripciones).
+
+## ADR-022: Trigger antes que policy para proteger rol/club_id en usuarios (12/05/2026)
+Decisión: `trg_proteger_rol_club_id_usuario` como BEFORE UPDATE trigger en lugar de lógica en la policy
+Justificación: Las policies de PostgreSQL no tienen acceso a `OLD` — solo pueden evaluar el estado final de la fila (`NEW`). No es posible implementar "si el rol cambió, denegar" puramente como policy. El trigger BEFORE UPDATE tiene acceso a ambos `OLD` y `NEW`.
+
+## ADR-023: Funciones helper de RLS como SECURITY DEFINER (12/05/2026)
+Decisión: `fn_get_user_club_id()`, `fn_is_super_admin()` y las `fn_club_de_X()` declaradas con SECURITY DEFINER
+Justificación: Cuando una policy invoca una función, la función se ejecuta con los permisos del usuario llamante. Si ese usuario no puede ver la tabla `usuarios` (porque tiene RLS activa), la función devuelve NULL y toda la policy falla. SECURITY DEFINER hace que la función se ejecute con permisos del owner, bypasseando la RLS internamente. Combinado con `SET search_path = public` para evitar path injection.
 
 ## ADR-010: Montos en DB sin formato, UI en formato argentino
 Decisión: Guardar números DECIMAL planos en Postgres. En UI mostrar siempre $1.234.567,89 (punto miles, coma decimal, 2 decimales fijos).

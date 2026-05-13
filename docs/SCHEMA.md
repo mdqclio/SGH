@@ -7,7 +7,7 @@
 ## Tablas principales
 
 ### clubs
-id UUID PK, nombre VARCHAR(150), sigla VARCHAR(10) UNIQUE, razon_social, cuit, domicilio, localidad, provincia, telefono, email, logo_url TEXT, activo BOOLEAN DEFAULT TRUE, created_at, updated_at
+id UUID PK, nombre VARCHAR(150), sigla VARCHAR(10) UNIQUE, razon_social, cuit, domicilio, localidad, provincia, telefono, email, logo_url TEXT, activo BOOLEAN DEFAULT TRUE, created_at, updated_at, auditoria_retencion_meses INTEGER DEFAULT 12
 
 ### hipodromos
 id UUID PK, club_id FK clubs, nombre, sigla, localidad, provincia, tipo_pista, activo, cantidad_gateras INTEGER DEFAULT 12
@@ -144,6 +144,8 @@ ALTER TABLE caballeriza_responsables ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "allow_all" ON caballeriza_responsables FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 -- Sesión may-2026 (segunda iteración — inscripciones + PDF):
 ALTER TABLE hipodromos ADD COLUMN IF NOT EXISTS cantidad_gateras INTEGER DEFAULT 12;
+-- Sesión 12/05/2026 (seguridad — RLS + auditoría):
+ALTER TABLE clubs ADD COLUMN IF NOT EXISTS auditoria_retencion_meses INTEGER DEFAULT 12;
 ```
 
 ## Storage Supabase
@@ -157,10 +159,42 @@ CREATE POLICY "chaquetillas_auth_delete"   ON storage.objects FOR DELETE TO auth
 ```
 URL pública: `https://unlhcuanfrtpatoipwve.supabase.co/storage/v1/object/public/chaquetillas/{filename}`
 
-## RLS
-Actualmente todas las tablas tienen policy permisiva para desarrollo:
-```sql
-ALTER TABLE [tabla] ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "allow_all" ON [tabla] FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
-```
-PENDIENTE: Implementar RLS por club_id cuando haya múltiples clientes.
+## Funciones de seguridad (12/05/2026)
+
+Todas con `STABLE SECURITY DEFINER SET search_path = public`. Ver SECURITY.md para detalle de diseño.
+
+| Función | Firma | Propósito |
+|---|---|---|
+| `fn_get_user_club_id()` | `() → UUID` | club_id del usuario logueado (vía email del JWT) |
+| `fn_is_super_admin()` | `() → BOOLEAN` | true si el usuario logueado es super_admin |
+| `fn_club_de_reunion(uuid)` | `(UUID) → UUID` | club_id de una reunión |
+| `fn_club_de_carrera(uuid)` | `(UUID) → UUID` | club_id de una carrera (vía reuniones) |
+| `fn_club_de_inscripcion(uuid)` | `(UUID) → UUID` | club_id de una inscripción (vía carreras → reuniones) |
+| `fn_club_de_liquidacion(uuid)` | `(UUID) → UUID` | club_id de una liquidación |
+| `fn_auditoria_log()` | `() → TRIGGER` | Registra INSERT/UPDATE/DELETE en tabla auditoria |
+| `fn_purgar_auditoria()` | `() → INTEGER` | Borra registros viejos según auditoria_retencion_meses por club |
+| `fn_proteger_rol_club_id_usuario()` | `() → TRIGGER` | BEFORE UPDATE en usuarios — impide auto-promoción de rol/club_id |
+
+## Triggers (12/05/2026)
+
+| Trigger | Tabla | Evento | Función |
+|---|---|---|---|
+| `trg_audit_reuniones` | reuniones | AFTER INSERT/UPDATE/DELETE | fn_auditoria_log() |
+| `trg_audit_carreras` | carreras | AFTER INSERT/UPDATE/DELETE | fn_auditoria_log() |
+| `trg_audit_inscripciones` | inscripciones | AFTER INSERT/UPDATE/DELETE | fn_auditoria_log() |
+| `trg_audit_resultados` | resultados | AFTER INSERT/UPDATE/DELETE | fn_auditoria_log() |
+| `trg_audit_liquidaciones` | liquidaciones | AFTER INSERT/UPDATE/DELETE | fn_auditoria_log() |
+| `trg_audit_clubs` | clubs | AFTER INSERT/UPDATE/DELETE | fn_auditoria_log() |
+| `trg_audit_usuarios` | usuarios | AFTER INSERT/UPDATE/DELETE | fn_auditoria_log() |
+| `trg_audit_categorias_carrera` | categorias_carrera | AFTER INSERT/UPDATE/DELETE | fn_auditoria_log() |
+| `trg_proteger_rol_club_id_usuario` | usuarios | BEFORE UPDATE | fn_proteger_rol_club_id_usuario() |
+
+## RLS (12/05/2026)
+
+17 tablas con RLS endurecida por club_id. Ver SECURITY.md para detalle por tabla y patrón aplicado.
+
+Tablas endurecidas: `caballerizas`, `categorias_carrera`, `reuniones`, `liquidaciones`, `resoluciones`, `hipodromos`, `carreras`, `inscripciones`, `resultados`, `resultado_posiciones`, `liquidacion_detalle`, `spcs`, `propietarios`, `profesionales`, `sanciones`, `usuarios`, `clubs`
+
+8 tablas con policy permisiva residual pendiente: `comision_config`, `spc_propietarios`, `club_configuracion`, `performances`, `caballeriza_responsables`, `novedades_reunion`, `resolucion_entidades`, `auditoria`
+
+Script idempotente completo: `docs/migrations/2026-05-12-rls.sql`
