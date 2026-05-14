@@ -95,6 +95,10 @@ Justificación: Las policies de PostgreSQL no tienen acceso a `OLD` — solo pue
 Decisión: `fn_get_user_club_id()`, `fn_is_super_admin()` y las `fn_club_de_X()` declaradas con SECURITY DEFINER
 Justificación: Cuando una policy invoca una función, la función se ejecuta con los permisos del usuario llamante. Si ese usuario no puede ver la tabla `usuarios` (porque tiene RLS activa), la función devuelve NULL y toda la policy falla. SECURITY DEFINER hace que la función se ejecute con permisos del owner, bypasseando la RLS internamente. Combinado con `SET search_path = public` para evitar path injection.
 
+## ADR-024: performances — Fase 3 catálogo con INSERT/UPDATE restringidos a super_admin (14/05/2026)
+Decisión: `performances.carrera_id` es nullable (registra carreras de hipódromos externos). Tratar como catálogo global (SELECT abierto a authenticated), pero INSERT/UPDATE exclusivos de super_admin.
+Justificación: `carrera_id` nullable obliga a Fase 3 catálogo — Fase 2B (`fn_club_de_carrera`) haría invisibles los registros importados (carrera_id IS NULL). Sin embargo, aceptar INSERT/UPDATE abiertos en un catálogo global de historial hípico permite cross-club writes en datos que son de alcance nacional. El compromiso: SELECT cooperativo (cualquier hipódromo puede ver el historial de cualquier caballo), escritura centralizada (solo el super_admin carga y corrige historiales).
+
 ## ADR-010: Montos en DB sin formato, UI en formato argentino
 Decisión: Guardar números DECIMAL planos en Postgres. En UI mostrar siempre $1.234.567,89 (punto miles, coma decimal, 2 decimales fijos).
 Funciones: formatMonto() y parseMonto() en SNIPPETS.md.
