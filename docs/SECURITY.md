@@ -32,7 +32,7 @@ Todas declaradas como `STABLE SECURITY DEFINER SET search_path = public`. Son SE
 
 Protege que un usuario no super_admin no pueda cambiar su propio `rol` ni su `club_id`. Lanza `RAISE EXCEPTION` si se detecta el cambio. Se implementa como trigger (BEFORE UPDATE) con SECURITY INVOKER y no como policy porque las policies de PostgreSQL no tienen acceso a `OLD` — solo el trigger puede comparar el valor anterior con el nuevo.
 
-## Tablas endurecidas (25)
+## Tablas endurecidas (26)
 
 | Tabla | Patrón aplicado | Fase |
 |---|---|---|
@@ -61,15 +61,17 @@ Protege que un usuario no super_admin no pueda cambiar su propio `rol` ni su `cl
 | `resolucion_entidades` | `fn_is_super_admin() OR fn_club_de_resolucion(resolucion_id) = fn_get_user_club_id()` | 2B — FK indirecta |
 | `caballeriza_responsables` | `fn_is_super_admin() OR fn_club_de_caballeriza(caballeriza_id) = fn_get_user_club_id()` | 2B — FK indirecta |
 | `auditoria` | SELECT: `fn_is_super_admin() OR club_id = fn_get_user_club_id()`; INSERT: bloqueado (triggers SECURITY DEFINER bypasean RLS); UPDATE: bloqueado; DELETE: `fn_is_super_admin()` | especial — auditoría |
+| `resultado_log` | `fn_is_super_admin() OR fn_club_de_resultado(resultado_id) = fn_get_user_club_id()` | 2B — FK indirecta |
 
 ## Funciones helper (actualizado 14/05/2026)
 
-Se agregaron dos helpers nuevas con el mismo shape que las existentes (`STABLE SECURITY DEFINER SET search_path = public`):
+Se agregaron helpers nuevas con el mismo shape que las existentes (`STABLE SECURITY DEFINER SET search_path = public`):
 
 | Función | Resuelve |
 |---|---|
 | `fn_club_de_resolucion(uuid)` | `club_id` desde `resoluciones.id` |
 | `fn_club_de_caballeriza(uuid)` | `club_id` desde `caballerizas.id` |
+| `fn_club_de_resultado(uuid)` | `club_id` desde `resultados.id` (vía `fn_club_de_carrera`) |
 
 ## Sistema de auditoría
 
