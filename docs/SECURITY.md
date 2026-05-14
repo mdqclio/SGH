@@ -32,7 +32,7 @@ Todas declaradas como `STABLE SECURITY DEFINER SET search_path = public`. Son SE
 
 Protege que un usuario no super_admin no pueda cambiar su propio `rol` ni su `club_id`. Lanza `RAISE EXCEPTION` si se detecta el cambio. Se implementa como trigger (BEFORE UPDATE) con SECURITY INVOKER y no como policy porque las policies de PostgreSQL no tienen acceso a `OLD` — solo el trigger puede comparar el valor anterior con el nuevo.
 
-## Tablas endurecidas (24)
+## Tablas endurecidas (25)
 
 | Tabla | Patrón aplicado | Fase |
 |---|---|---|
@@ -60,12 +60,7 @@ Protege que un usuario no super_admin no pueda cambiar su propio `rol` ni su `cl
 | `performances` | SELECT/INSERT/UPDATE: `authenticated`; DELETE: `fn_is_super_admin()` | 3 — catálogo global (carrera_id nullable) |
 | `resolucion_entidades` | `fn_is_super_admin() OR fn_club_de_resolucion(resolucion_id) = fn_get_user_club_id()` | 2B — FK indirecta |
 | `caballeriza_responsables` | `fn_is_super_admin() OR fn_club_de_caballeriza(caballeriza_id) = fn_get_user_club_id()` | 2B — FK indirecta |
-
-## Tablas residuales pendientes (1)
-
-| Tabla | Prioridad | Estado |
-|---|---|---|
-| `auditoria` | Especial | `dev_allow_all` activa — propuesta en SESION_HARDENING_RLS_2026-05-14.md |
+| `auditoria` | SELECT: `fn_is_super_admin() OR club_id = fn_get_user_club_id()`; INSERT: bloqueado (triggers SECURITY DEFINER bypasean RLS); UPDATE: bloqueado; DELETE: `fn_is_super_admin()` | especial — auditoría |
 
 ## Funciones helper (actualizado 14/05/2026)
 
