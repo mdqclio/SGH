@@ -32,7 +32,7 @@ Todas declaradas como `STABLE SECURITY DEFINER SET search_path = public`. Son SE
 
 Protege que un usuario no super_admin no pueda cambiar su propio `rol` ni su `club_id`. Lanza `RAISE EXCEPTION` si se detecta el cambio. Se implementa como trigger (BEFORE UPDATE) con SECURITY INVOKER y no como policy porque las policies de PostgreSQL no tienen acceso a `OLD` — solo el trigger puede comparar el valor anterior con el nuevo.
 
-## Tablas endurecidas (17)
+## Tablas endurecidas (24)
 
 | Tabla | Patrón aplicado | Fase |
 |---|---|---|
@@ -53,6 +53,28 @@ Protege que un usuario no super_admin no pueda cambiar su propio `rol` ni su `cl
 | `sanciones` | SELECT: `authenticated`; INSERT/UPDATE: `fn_is_super_admin() OR club_id = fn_get_user_club_id()`; DELETE: `fn_is_super_admin()` | 3 — especial |
 | `usuarios` | SELECT: super_admin O propio email O mismo club; INSERT/DELETE: solo super_admin; UPDATE: super_admin O propio email (protegido por trigger) | 4 — hardening |
 | `clubs` | SELECT: `fn_is_super_admin() OR id = fn_get_user_club_id()`; INSERT/UPDATE/DELETE: solo super_admin | 4 — hardening |
+| `comision_config` | `fn_is_super_admin() OR club_id = fn_get_user_club_id()` | 2A — club_id directo |
+| `club_configuracion` | `fn_is_super_admin() OR club_id = fn_get_user_club_id()` | 2A — club_id directo |
+| `spc_propietarios` | SELECT/INSERT/UPDATE: `authenticated`; DELETE: `fn_is_super_admin()` | 3 — catálogo global |
+| `novedades_reunion` | `fn_is_super_admin() OR fn_club_de_reunion(reunion_id) = fn_get_user_club_id()` | 2B — FK indirecta |
+| `performances` | SELECT/INSERT/UPDATE: `authenticated`; DELETE: `fn_is_super_admin()` | 3 — catálogo global (carrera_id nullable) |
+| `resolucion_entidades` | `fn_is_super_admin() OR fn_club_de_resolucion(resolucion_id) = fn_get_user_club_id()` | 2B — FK indirecta |
+| `caballeriza_responsables` | `fn_is_super_admin() OR fn_club_de_caballeriza(caballeriza_id) = fn_get_user_club_id()` | 2B — FK indirecta |
+
+## Tablas residuales pendientes (1)
+
+| Tabla | Prioridad | Estado |
+|---|---|---|
+| `auditoria` | Especial | `dev_allow_all` activa — propuesta en SESION_HARDENING_RLS_2026-05-14.md |
+
+## Funciones helper (actualizado 14/05/2026)
+
+Se agregaron dos helpers nuevas con el mismo shape que las existentes (`STABLE SECURITY DEFINER SET search_path = public`):
+
+| Función | Resuelve |
+|---|---|
+| `fn_club_de_resolucion(uuid)` | `club_id` desde `resoluciones.id` |
+| `fn_club_de_caballeriza(uuid)` | `club_id` desde `caballerizas.id` |
 
 ## Sistema de auditoría
 
@@ -65,20 +87,6 @@ Protege que un usuario no super_admin no pueda cambiar su propio `rol` ni su `cl
 - **UI:** `auditoria.html` — paginación server-side, filtros (tabla/acción/usuario/fecha), diff visual con colores (rojo=antes, verde=después), modal de detalle con JSON plegable, export CSV con BOM UTF-8, botón de purga visible solo para super_admin
 - **Acceso:** sidebar de `index.html`, sección Administración, visible para super_admin y secretario_carreras
 
-## Tablas residuales pendientes (próxima sesión)
-
-Aún tienen policy permisiva (`allow_all` o `dev_allow_all`). Ordenadas por prioridad:
-
-| Tabla | Prioridad | Motivo |
-|---|---|---|
-| `comision_config` | Alta | Datos financieros sensibles |
-| `spc_propietarios` | Alta | Cambios de titularidad de caballos |
-| `club_configuracion` | Media | Configuración por club |
-| `performances` | Media | Historial de rendimiento |
-| `caballeriza_responsables` | Media | Responsables de caballerizas |
-| `novedades_reunion` | Media | Novedades internas de reunión |
-| `resolucion_entidades` | Media | Entidades vinculadas a resoluciones |
-| `auditoria` | Especial | SELECT acotado por club_id del usuario; INSERT exclusivo desde triggers (no usuarios directos) |
 
 ## Procedimiento de rollback de emergencia
 

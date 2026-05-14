@@ -85,7 +85,15 @@ Estado: Pendiente decisión con Fede.
 ### ISSUE-017: RLS pendiente en 8 tablas residuales
 Descripción: Las siguientes tablas aún tienen policy permisiva (`allow_all` o `dev_allow_all`) y no están aisladas por club_id: `comision_config`, `spc_propietarios`, `club_configuracion`, `performances`, `caballeriza_responsables`, `novedades_reunion`, `resolucion_entidades`, `auditoria`
 Prioridad: comision_config y spc_propietarios son alta prioridad (datos financieros y titularidad de caballos). auditoria requiere tratamiento especial (SELECT acotado por club; INSERT solo desde triggers).
-Estado: Pendiente — próxima sesión de seguridad
+Estado: ✅ PARCIALMENTE RESUELTO (14/05/2026) — 7/8 tablas hardenadas. Ver SESION_HARDENING_RLS_2026-05-14.md.
+- ✅ comision_config → Fase 2A
+- ✅ club_configuracion → Fase 2A
+- ✅ spc_propietarios → Fase 3 (catálogo global)
+- ✅ novedades_reunion → Fase 2B (fn_club_de_reunion)
+- ✅ performances → Fase 3 (carrera_id nullable; ver decisión en reporte)
+- ✅ resolucion_entidades → Fase 2B (fn_club_de_resolucion — helper nueva)
+- ✅ caballeriza_responsables → Fase 2B (fn_club_de_caballeriza — helper nueva)
+- ⏸ auditoria → PENDIENTE revisión manual (propuesta en reporte, dev_allow_all activa)
 
 ### ISSUE-018: XSS escape pass pendiente
 Descripción: Varios módulos usan template literals con `${variable}` dentro de `innerHTML` sin escapar. Un valor de DB con `<script>` o `"` puede ejecutar JS arbitrario en el browser del usuario.
