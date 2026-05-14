@@ -296,7 +296,7 @@ function abrirResultado(carreraId) {
 
 function renderResumenOficial(carrera, res, posiciones, insc) {
   const posOrdenadas = [...posiciones].sort((a,b)=>(a.posicion||99)-(b.posicion||99));
-  const apuestas = res.apuestas || {};
+  const apuestas = res.dividendos || {};
   document.getElementById('main-container').innerHTML = `
     <button class="btn-outline no-print" onclick="renderCarrerasList()" style="margin-bottom:16px;">← Volver a carreras</button>
     <div class="res-panel">
@@ -345,7 +345,7 @@ function renderResumenOficial(carrera, res, posiciones, insc) {
 }
 
 function renderFormulario(carrera, res, posiciones, insc) {
-  const apuestas = res?.apuestas || {};
+  const apuestas = res?.dividendos || {};
   const getPosicion = (inscId) => posiciones.find(p=>p.inscripcion_id===inscId);
 
   const inscRows = insc.map(i => {
@@ -448,7 +448,7 @@ async function guardarResultado(carreraId, estado) {
   });
 
   let resId = res?.id;
-  const resPayload = { carrera_id: carreraId, estado, tiempo_ganador: tiempo||null, incidentes: incidentes||null, estado_pista: estadoPista||null, apuestas: Object.keys(apuestas).length?apuestas:null };
+  const resPayload = { carrera_id: carreraId, estado, tiempo_ganador: tiempo||null, incidentes: incidentes||null, estado_pista: estadoPista||null, dividendos: Object.keys(apuestas).length?apuestas:null };
 
   if (!resId) {
     const { data, error } = await sb.from('resultados').insert(resPayload).select().single();
@@ -468,7 +468,7 @@ async function guardarResultado(carreraId, estado) {
     const empate = document.getElementById(`emp-${i.id}`)?.checked||false;
     const desc = document.getElementById(`desc-${i.id}`)?.checked||false;
     const motDesc = desc ? (prompt(`Motivo de descalificación para ${spcsMap[i.spc_id]?.nombre||'SPC'}:`)||null) : null;
-    return { resultado_id: resId, inscripcion_id: i.id, posicion: posVal?parseInt(posVal):null, diferencia: cuerpVal||null, empate, descalificado: desc, motivo_descalificacion: motDesc };
+    return { resultado_id: resId, inscripcion_id: i.id, posicion: posVal?parseInt(posVal):null, diferencia: cuerpVal||null, empate, descalificado: desc, motivo_desc: motDesc };
   }).filter(p=>p.posicion);
 
   if (posData.length) {
@@ -503,7 +503,7 @@ async function oficializar(carreraId) {
   }
 
   // Log
-  await sb.from('resultado_log').insert({ resultado_id: resId, usuario_id: currentUser?.id, accion: 'oficializar', datos_despues: { estado: 'oficial', fecha: new Date().toISOString() } }).catch(()=>{});
+  await sb.from('resultado_log').insert({ resultado_id: resId, usuario_id: currentUser?.id, accion: 'oficializar', datos_despues: { estado: 'oficial', fecha: new Date().toISOString() } }).catch(err => console.error('Error al registrar log de oficialización:', err));
 
   toast('✅ Resultado oficializado');
   abrirResultado(carreraId);
@@ -513,7 +513,7 @@ async function modificarOficial(resId, carreraId) {
   const motivo = prompt('Ingrese el motivo de la modificación (quedará registrado en el log):');
   if (!motivo) return;
   const resBefore = resultados[carreraId];
-  await sb.from('resultado_log').insert({ resultado_id: resId, usuario_id: currentUser?.id, accion: 'modificar_despues_oficial', datos_antes: resBefore, datos_despues: { motivo, fecha: new Date().toISOString() } }).catch(()=>{});
+  await sb.from('resultado_log').insert({ resultado_id: resId, usuario_id: currentUser?.id, accion: 'modificar_despues_oficial', datos_antes: resBefore, datos_despues: { motivo, fecha: new Date().toISOString() } }).catch(err => console.error('Error al registrar log de modificación:', err));
   const { error } = await sb.from('resultados').update({ estado: 'provisional' }).eq('id', resId);
   if (error) { toast(error.message,'error'); return; }
   resultados[carreraId].estado = 'provisional';
