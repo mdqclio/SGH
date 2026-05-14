@@ -72,7 +72,7 @@ El siguiente paso es que un humano verifique desde el browser:
 
 ---
 
-## Bloque B — Motor de cálculo completo ✅ COMPLETO (14/05/2026)
+## Bloque B — Motor de cálculo completo ✅ COMPLETO (14/05/2026) — commit 03f6f1b
 
 **Objetivo:** `generarLiquidaciones()` calcula correctamente para todos los beneficiarios.
 
@@ -133,6 +133,6 @@ Ver reporte en chat de sesión 14/05/2026.
 | Bloque | Estado | Sesiones | Dependencias |
 |---|---|---|---|
 | A — Schema + fixes resultados | ✅ Completo (14/05/2026) | 1 | — |
-| B — Motor de cálculo completo | ⏳ Pendiente | 1-2 | A + decisiones diseño |
+| B — Motor de cálculo completo | ✅ Completo (14/05/2026) | 1 | A + decisiones diseño |
 | C — Montas perdidas | ⏳ Pendiente | 1 | B |
 | D — Recibos y resumen | ⏳ Pendiente | 1 | B + C |
