@@ -95,5 +95,15 @@ SELECT policyname FROM pg_policies WHERE tablename = 'usuarios' AND schemaname =
 ```
 Para borrar todo sin adivinar nombres, usar el DO/LOOP dinámico del script de migración.
 
+## 27. Columnas GENERATED en Postgres NO se pueden incluir en INSERT/UPDATE (14/05/2026)
+`total_neto` en `liquidaciones` y `monto_neto` en `liquidacion_detalle` son `GENERATED ALWAYS AS (total_bruto - total_descuentos) STORED`. Postgres las calcula automáticamente; si las incluís en el payload de un INSERT/UPDATE, el query falla con error. Solución: excluirlas del payload y dejar que Postgres las calcule.
+Patrón de detección: error "cannot insert into column X" o "column X can only be updated to DEFAULT".
+
+## 28. El patrón `.catch(()=>{})` en queries de Supabase oculta bugs críticos (14/05/2026)
+El motor de liquidaciones no había funcionado nunca por este motivo: queries que fallaban silenciosamente devolvían `undefined` en lugar de lanzar excepción. El catch vacío tragaba el error y el código seguía como si todo estuviera bien, generando datos incorrectos o no generando nada. Reemplazar siempre con `.catch(err => { console.error('[contexto]', err); throw err; })`. Revisar todos los módulos HTML ante la duda — buscar `.catch(()=>{})` como regex.
+
+## 29. Mismatch silencioso entre código y schema (14/05/2026)
+`resultados.html` escribía `apuestas` y `motivo_descalificacion` mientras la DB tenía `dividendos` y `motivo_desc`. Sin verbose error handling, el INSERT/UPDATE silenciaba el fallo y los campos quedaban NULL durante meses sin que nadie lo notara. Patrón de riesgo: usar nombres de campo de memoria o de mockups sin verificar contra el schema real. Solución: ante cualquier campo que no persiste como se espera, correr `SELECT column_name FROM information_schema.columns WHERE table_name = 'X'` en el SQL Editor para confirmar nombres exactos.
+
 ## 26. Funciones helper de RLS deben ser SECURITY DEFINER (12/05/2026)
 Si `fn_get_user_club_id()` o `fn_is_super_admin()` fueran SECURITY INVOKER (default), al ser invocadas desde una policy sobre la tabla `usuarios` (que ya tiene RLS), la función intentaría leer `usuarios` con los permisos del usuario llamante — que a su vez pasan por la misma RLS, causando recursión infinita o devolviendo NULL. SECURITY DEFINER hace que la función se ejecute con permisos del owner de la función, bypasseando la RLS de la tabla destino. Combinado siempre con `SET search_path = public` para evitar path injection via search_path hijacking.

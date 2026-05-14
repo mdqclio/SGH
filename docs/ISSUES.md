@@ -2,15 +2,20 @@
 
 ## CRÍTICOS
 
-### ISSUE-001: Liquidaciones no funciona
-Descripción: liquidaciones.html existe pero no implementa cálculo de premios ni genera recibos
+### ISSUE-001: Liquidaciones — motor de cálculo
+Descripción: liquidaciones.html — motor de cálculo de premios y recibos
 Módulo: liquidaciones.html
-Estado: Pendiente rediseño completo
+Estado: 🔄 En progreso — 2/4 bloques completos (14/05/2026)
+- ✅ Bloque A: schema fixes + resultados (14/05/2026)
+- ✅ Bloque B: motor de cálculo completo — 11 liquidaciones generadas vs. data sintética (14/05/2026)
+- ⏳ Bloque C: montas perdidas + incentivo entrenador (próxima sesión)
+- ⏳ Bloque D: recibos imprimibles + resumen de reunión
+Prerequisito Bloque C: testing manual de Fede en resultados.html + correr generarLiquidaciones() contra reunión real de Dolores
 
 ### ISSUE-002: RLS sin configurar por club
 Descripción: Cualquier usuario autenticado puede leer/escribir datos de cualquier hipódromo
 Módulo: Backend Supabase — todas las tablas
-Estado: ✅ RESUELTO (12/05/2026) — RLS implementada en 17 tablas. Aislamiento cross-club verificado. Ver SECURITY.md y migrations/2026-05-12-rls.sql. Quedan 8 tablas residuales (ver ISSUE-017).
+Estado: ✅ RESUELTO COMPLETAMENTE (14/05/2026) — RLS implementada en 26 tablas. Aislamiento cross-club verificado. Ver SECURITY.md. ISSUE-017 también cerrado.
 
 ## ALTOS
 

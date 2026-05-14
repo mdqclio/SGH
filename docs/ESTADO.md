@@ -18,15 +18,13 @@
 - Gestión de usuarios por hipódromo
 - Calendario anual de reuniones
 - PWA instalable
-- **RLS multi-tenant por club_id** — aislamiento cross-club verificado, listo para múltiples clientes (12/05/2026)
+- **RLS multi-tenant por club_id** — 26 tablas endurecidas, aislamiento cross-club verificado, ISSUE-017 cerrado (14/05/2026)
 - **Sistema de auditoría** — UI completa con paginación, filtros, diff visual, export CSV (12/05/2026)
 
 ## En desarrollo
-- Resultados: rediseñado, sin testing completo de oficialización
+- Resultados: rediseñado — pendiente testing manual end-to-end por Fede (checklist en PLAN_LIQUIDACIONES.md)
 - Carta de llamados: diseño final del PDF en ajuste; falta Carrera→Turno en PDF
-
-## No funciona
-- Liquidaciones: UI existe pero lógica no implementada
+- Liquidaciones: Bloques A (schema fixes + resultados) y B (motor de cálculo) completos (14/05/2026). Motor ejecutado vs. data sintética: 11 liquidaciones generadas, montos verificados. Pendiente: testing Fede → correr contra reunión real de Dolores → Bloque C (montas perdidas)
 
 ## Pendiente de construir
 - Portal propietarios/entrenadores (portal.html)
@@ -34,17 +32,6 @@
 - API con Stud Book nacional (en gestión de acceso)
 - Emails automáticos (pendiente Resend/SendGrid)
 - Selector de hipódromo para super_admin sin club_id
-
-## Seguridad — pendientes próxima sesión (post 12/05/2026)
-8 tablas con policy permisiva residual que aún necesitan RLS endurecida:
-- `comision_config` — alta prioridad (datos financieros)
-- `spc_propietarios` — alta prioridad (cambios de titularidad)
-- `club_configuracion`
-- `performances`
-- `caballeriza_responsables`
-- `novedades_reunion`
-- `resolucion_entidades`
-- `auditoria` — caso especial: SELECT acotado por club; INSERT solo desde triggers
 
 ## Clientes activos
 | Hipódromo | Sigla | Estado | club_id |

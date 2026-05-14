@@ -65,10 +65,10 @@ ESTADOS VISIBLES EN UI: inscripto / mal_inscrito / ratificado / forfait. mal_ins
 CRÍTICO: estado es ENUM rígido (estado_inscripcion). Para agregar valores usar ALTER TYPE ADD VALUE, NO migrar a VARCHAR (v_inscriptos_carrera depende del ENUM).
 
 ### resultados
-id UUID PK, carrera_id FK UNIQUE, estado ENUM(provisional/oficial/en_protesta), tiempo_ganador, estado_pista VARCHAR, dividendos JSONB, apuestas JSONB, incidentes, observaciones, oficializado_por FK, oficializado_at
+id UUID PK, carrera_id FK UNIQUE, estado ENUM(provisional/oficial/en_protesta), tiempo_ganador, estado_pista VARCHAR(20) CHECK (IN 'seca','buena','algo_pesada','pesada','muy_pesada'), dividendos JSONB, incidentes, observaciones, oficializado_por FK, oficializado_at
 
 ### resultado_posiciones
-id UUID PK, resultado_id FK resultados, inscripcion_id FK inscripciones, posicion INTEGER, tiempo, diferencia, descalificado BOOLEAN, motivo_desc
+id UUID PK, resultado_id FK resultados, inscripcion_id FK inscripciones, posicion INTEGER, tiempo, diferencia, descalificado BOOLEAN, motivo_desc, empate BOOLEAN DEFAULT false
 UNIQUE (resultado_id, posicion)
 CRÍTICO: borrar siempre antes de borrar inscripciones
 
@@ -146,6 +146,20 @@ CREATE POLICY "allow_all" ON caballeriza_responsables FOR ALL TO anon, authentic
 ALTER TABLE hipodromos ADD COLUMN IF NOT EXISTS cantidad_gateras INTEGER DEFAULT 12;
 -- Sesión 12/05/2026 (seguridad — RLS + auditoría):
 ALTER TABLE clubs ADD COLUMN IF NOT EXISTS auditoria_retencion_meses INTEGER DEFAULT 12;
+-- Sesión 14/05/2026 (liquidaciones + resultados fixes):
+ALTER TABLE resultado_posiciones ADD COLUMN IF NOT EXISTS empate BOOLEAN DEFAULT false;
+ALTER TABLE resultados ADD COLUMN IF NOT EXISTS estado_pista VARCHAR(20) CHECK (estado_pista IN ('seca','buena','algo_pesada','pesada','muy_pesada'));
+CREATE TABLE IF NOT EXISTS resultado_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  resultado_id UUID NOT NULL REFERENCES resultados(id) ON DELETE CASCADE,
+  usuario_id UUID REFERENCES usuarios(id),
+  accion VARCHAR(50),
+  datos_antes JSONB,
+  datos_despues JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE resultado_log ENABLE ROW LEVEL SECURITY;
+-- RLS resultado_log: Fase 2B via fn_club_de_resultado
 ```
 
 ## Storage Supabase
@@ -171,6 +185,9 @@ Todas con `STABLE SECURITY DEFINER SET search_path = public`. Ver SECURITY.md pa
 | `fn_club_de_carrera(uuid)` | `(UUID) → UUID` | club_id de una carrera (vía reuniones) |
 | `fn_club_de_inscripcion(uuid)` | `(UUID) → UUID` | club_id de una inscripción (vía carreras → reuniones) |
 | `fn_club_de_liquidacion(uuid)` | `(UUID) → UUID` | club_id de una liquidación |
+| `fn_club_de_resolucion(uuid)` | `(UUID) → UUID` | club_id de una resolución |
+| `fn_club_de_caballeriza(uuid)` | `(UUID) → UUID` | club_id de una caballeriza |
+| `fn_club_de_resultado(uuid)` | `(UUID) → UUID` | club_id de un resultado (vía fn_club_de_carrera) |
 | `fn_auditoria_log()` | `() → TRIGGER` | Registra INSERT/UPDATE/DELETE en tabla auditoria |
 | `fn_purgar_auditoria()` | `() → INTEGER` | Borra registros viejos según auditoria_retencion_meses por club |
 | `fn_proteger_rol_club_id_usuario()` | `() → TRIGGER` | BEFORE UPDATE en usuarios — impide auto-promoción de rol/club_id |
@@ -189,12 +206,12 @@ Todas con `STABLE SECURITY DEFINER SET search_path = public`. Ver SECURITY.md pa
 | `trg_audit_categorias_carrera` | categorias_carrera | AFTER INSERT/UPDATE/DELETE | fn_auditoria_log() |
 | `trg_proteger_rol_club_id_usuario` | usuarios | BEFORE UPDATE | fn_proteger_rol_club_id_usuario() |
 
-## RLS (12/05/2026)
+## RLS (actualizado 14/05/2026)
 
-17 tablas con RLS endurecida por club_id. Ver SECURITY.md para detalle por tabla y patrón aplicado.
+26 tablas con RLS endurecida. ISSUE-017 cerrado. Ver SECURITY.md para detalle por tabla y patrón aplicado.
 
-Tablas endurecidas: `caballerizas`, `categorias_carrera`, `reuniones`, `liquidaciones`, `resoluciones`, `hipodromos`, `carreras`, `inscripciones`, `resultados`, `resultado_posiciones`, `liquidacion_detalle`, `spcs`, `propietarios`, `profesionales`, `sanciones`, `usuarios`, `clubs`
+Tablas endurecidas: `caballerizas`, `categorias_carrera`, `reuniones`, `liquidaciones`, `resoluciones`, `hipodromos`, `carreras`, `inscripciones`, `resultados`, `resultado_posiciones`, `resultado_log`, `liquidacion_detalle`, `spcs`, `propietarios`, `profesionales`, `sanciones`, `usuarios`, `clubs`, `comision_config`, `club_configuracion`, `spc_propietarios`, `novedades_reunion`, `performances`, `resolucion_entidades`, `caballeriza_responsables`, `auditoria`
 
-8 tablas con policy permisiva residual pendiente: `comision_config`, `spc_propietarios`, `club_configuracion`, `performances`, `caballeriza_responsables`, `novedades_reunion`, `resolucion_entidades`, `auditoria`
+Sin tablas con policy permisiva residual.
 
-Script idempotente completo: `docs/migrations/2026-05-12-rls.sql`
+Script base: `docs/migrations/2026-05-12-rls.sql`
