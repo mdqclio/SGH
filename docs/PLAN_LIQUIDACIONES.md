@@ -7,15 +7,13 @@ Liquidaciones es el paso 7 (y último) del workflow end-to-end de una reunión:
 
 El esqueleto de `liquidaciones.html` existe (611 líneas) con UI completa, ABM de comisiones y flujo de estados. Falta el motor de cálculo.
 
-## Decisiones de diseño previas al Bloque B
+## Decisiones de diseño resueltas
 
-Antes de arrancar Bloque B se necesitan respuestas a estas tres preguntas:
+1. **Peón/capataz/sereno: TEXTO LIBRE.** Sin matching contra `profesionales`. Sus montos se agregan como sub-líneas en la liquidación del entrenador (Opción A). El hipódromo paga al entrenador el monto total; el entrenador redistribuye a su personal de caballeriza. La `liquidacion_detalle` muestra el desglose con `concepto = "Peón — [nombre]"`. No requiere schema change. Ver ADR-025.
 
-1. **Peón/capataz/sereno:** ¿se liquidan como texto libre (nombre en `notas`, sin UUID) o se hace matching contra `profesionales`? Los campos en `inscripciones` son `peon VARCHAR`, `capataz VARCHAR`, `sereno VARCHAR` — no tienen UUID.
+2. **Montas perdidas: extender `comision_config` con nuevos valores de ENUM `tipo_cobro`.** Es Bloque C — no tocar en Bloque B.
 
-2. **Montas perdidas — dónde se configura el monto:** ¿en `comision_config` con nuevo valor de `tipo_cobro`, en `clubs`, o en `reuniones`? El schema actual de `comision_config.tipo_cobro` es un ENUM.
-
-3. **`dividendos` vs `apuestas`:** Resuelto en Bloque A — el código ahora usa `dividendos` (nombre real del campo en DB).
+3. **`dividendos` vs `apuestas`: resuelto en Bloque A.** El código usa `dividendos` (nombre real del campo en DB).
 
 ---
 
@@ -74,32 +72,37 @@ El siguiente paso es que un humano verifique desde el browser:
 
 ---
 
-## Bloque B — Motor de cálculo completo
+## Bloque B — Motor de cálculo completo ✅ COMPLETO (14/05/2026)
 
 **Objetivo:** `generarLiquidaciones()` calcula correctamente para todos los beneficiarios.
 
 **Estimación:** 1-2 sesiones
 **Dependencias:** Bloque A completo + respuestas a las 3 decisiones de diseño
 
-**Actores y FKs:**
-- Propietario → `inscripciones.propietario_id` (UUID) → 70% del premio
-- Entrenador → `inscripciones.entrenador_id` (UUID) → 10%
-- Jockey → `inscripciones.jockey_titular_id` (UUID) → 10%
-- Peón → `inscripciones.peon` (TEXT) → 4% — decisión pendiente
-- Capataz → `inscripciones.capataz` (TEXT) → 3% — decisión pendiente
-- Sereno → `inscripciones.sereno` (TEXT) → 1% — decisión pendiente
-- Fondo solidario → 2% — no va a persona, es descuento
+**Implementado:** rewrite completo de `generarLiquidaciones()` en `liquidaciones.html`.
 
-**Fórmula base:**
+**Fórmula implementada:**
 ```
-premio_puesto = bolsa_total * distribucion_premios[posicion] / 100
-parte_actor   = premio_puesto * porcentaje_actor / 100
-comision      = parte_actor * comision_config.porcentaje / 100  (si aplica)
-descuentos    = bruto * (fondo_solidario_pct + incentivo_pct) / 100
-neto          = bruto - descuentos
+premio_puesto = max(bolsa * dist_premios[pos] / 100 + bonos, premio_minimo)
+share_actor   = premio_puesto * porcentaje_base
+descuento     = share_actor * (fondo_solidario_pct + incentivo_pct) / 100  [si comision_config activo]
+neto          = share_actor - descuento
 ```
 
-**Criterio de cierre:** generar liquidaciones para una reunión y verificar en DB que hay filas para propietario + jockey + entrenador de cada carrera oficializada, con montos matemáticamente correctos.
+**Edge cases implementados:**
+- Empates: promedio de premios de posiciones N a N+k-1
+- Descalificados: excluidos de la distribución (filtro en query)
+- Forfait: excluidos (filtro `estado != 'forfait'` en inscripciones)
+- Mismo propietario en múltiples carreras: una liquidación con N líneas de detalle
+- Regeneración con aprobadas/pagadas: bloqueada con mensaje de error
+- Borradores previos: eliminados antes de regenerar (idempotencia)
+
+**Peón/capataz/sereno (ADR-025):** líneas en la liquidación del entrenador.
+
+**Data sintética de test:** 2 carreras, 5 inscripciones, 5 posiciones.
+Ver reporte en chat de sesión 14/05/2026.
+
+**Criterio de cierre:** ✅ Motor ejecutado contra data sintética. 11 liquidaciones generadas. Montos verificados contra cálculo manual. Data limpiada.
 
 ---
 

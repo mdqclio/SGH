@@ -99,6 +99,18 @@ Justificación: Cuando una policy invoca una función, la función se ejecuta co
 Decisión: `performances.carrera_id` es nullable (registra carreras de hipódromos externos). Tratar como catálogo global (SELECT abierto a authenticated), pero INSERT/UPDATE exclusivos de super_admin.
 Justificación: `carrera_id` nullable obliga a Fase 3 catálogo — Fase 2B (`fn_club_de_carrera`) haría invisibles los registros importados (carrera_id IS NULL). Sin embargo, aceptar INSERT/UPDATE abiertos en un catálogo global de historial hípico permite cross-club writes en datos que son de alcance nacional. El compromiso: SELECT cooperativo (cualquier hipódromo puede ver el historial de cualquier caballo), escritura centralizada (solo el super_admin carga y corrige historiales).
 
+## ADR-025: Peón/capataz/sereno como sub-líneas en la liquidación del entrenador (14/05/2026)
+Decisión: Los actores texto libre (peón, capataz, sereno) no generan liquidaciones propias. Sus montos aparecen como filas adicionales en `liquidacion_detalle` dentro de la liquidación del entrenador, con `concepto = "Peón — [nombre]"`. El hipódromo emite un único pago al entrenador quien redistribuye a su personal.
+Justificación: Sin UUID no hay FK posible en `liquidaciones`; evita ALTER TABLE; refleja el flujo real de pago en hipódromos argentinos donde el entrenador es responsable de su caballeriza.
+
+## ADR-026: Montas perdidas en comision_config via nuevo valor de ENUM tipo_cobro (14/05/2026)
+Decisión: Bloque C extenderá el ENUM `tipo_cobro` de `comision_config` con valores `monta_perdida_tipo1` y `monta_perdida_tipo2`.
+Justificación: Reutiliza la infraestructura de comisiones ya existente y permite configuración por hipódromo sin nuevas tablas.
+
+## ADR-027: Distribución interna fija 70/10/10/4/3/1/2 hardcodeada, comision_config solo para descuentos (14/05/2026)
+Decisión: Los porcentajes base de distribución de premios (70% prop, 10% entr, 10% jockey, 4% peón, 3% capataz, 1% sereno) son constantes en el código. `comision_config` solo aplica descuentos adicionales (`descuento_fondo_solidario_pct`, `descuento_incentivo_pct`).
+Justificación: Estos son porcentajes nacionales de la hípica argentina regulados federativamente; no varían por hipódromo. `comision_config` cubre la variabilidad operativa (montas, incentivos).
+
 ## ADR-010: Montos en DB sin formato, UI en formato argentino
 Decisión: Guardar números DECIMAL planos en Postgres. En UI mostrar siempre $1.234.567,89 (punto miles, coma decimal, 2 decimales fijos).
 Funciones: formatMonto() y parseMonto() en SNIPPETS.md.
