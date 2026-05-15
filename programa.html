@@ -109,7 +109,7 @@
 <div id="toast-container"></div>
 
 <div class="topbar">
-  <a href="reuniones.html" class="btn-back">← Reuniones</a>
+  <a href="index.html" class="btn-back">← Inicio</a>
   <h1 id="topbar-title">Programa Hípico</h1>
   <span class="user-name" id="user-name"></span>
   <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
@@ -133,7 +133,7 @@ let sb, CLUB_ID, currentUser;
 async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
-let spcs={}, profesionales={}, propietarios={}, categorias={}, performances={}, clubData=null;
+let spcs={}, profesionales={}, propietarios={}, categorias={}, performances={}, caballerizas={}, clubData=null;
 
 function formatMonto(num) {
   if (num === null || num === undefined || isNaN(num)) return '$0,00';
@@ -155,12 +155,13 @@ function toast(msg,type='success') {
 }
 
 async function init() {
-  const [{ data: reuns }, { data: profs }, { data: props }, { data: sprcs }, { data: cats }, { data: club }] = await Promise.all([
+  const [{ data: reuns }, { data: profs }, { data: props }, { data: sprcs }, { data: cats }, { data: cabs }, { data: club }] = await Promise.all([
     sb.from('reuniones').select('id,numero,fecha,estado,tipo,condicion_pista,tiempo_clima,hipodromos(nombre,sigla,localidad)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
     sb.from('profesionales').select('id,nombre,apellido,tipo').order('apellido'),
     sb.from('propietarios').select('id,nombre,colores_desc').order('nombre'),
     sb.from('spcs').select('id,nombre,sexo,color,fecha_nacimiento,padrillo_nombre,madre_nombre').order('nombre'),
     sb.from('categorias_carrera').select('id,nombre,codigo,simbolo').eq('club_id', CLUB_ID),
+    sb.from('caballerizas').select('id,nombre').eq('club_id', CLUB_ID).eq('activo', true).order('nombre'),
     sb.from('clubs').select('logo_url, nombre').eq('id', CLUB_ID).single(),
   ]);
   clubData = club||null;
@@ -168,6 +169,7 @@ async function init() {
   (props||[]).forEach(p=>{ propietarios[p.id]=p; });
   (sprcs||[]).forEach(s=>{ spcs[s.id]=s; });
   (cats||[]).forEach(c=>{ categorias[c.id]=c; });
+  (cabs||[]).forEach(c=>{ caballerizas[c.id]=c; });
   const sel = document.getElementById('sel-reunion');
   sel.innerHTML = '<option value="">— Seleccionar —</option>' + (reuns||[]).map(r=>`<option value="${r.id}">Reunión ${r.numero||''} — ${new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR')} — ${r.hipodromos?.nombre||''}</option>`).join('');
   const params = new URLSearchParams(location.search);
@@ -210,7 +212,7 @@ async function loadPrograma() {
   const carIds = (carreras||[]).map(c=>c.id);
   let inscripciones = [];
   if (carIds.length) {
-    const { data } = await sb.from('inscripciones').select('*').in('carrera_id', carIds).neq('estado','forfait').order('numero_partidor');
+    const { data } = await sb.from('inscripciones').select('*').in('carrera_id', carIds).eq('estado','ratificado').order('numero_partidor');
     inscripciones = data||[];
   }
   // Load performances for SPCs
@@ -287,12 +289,14 @@ function renderPrograma(reunion, carreras, inscripciones) {
         const prop = propietarios[i.propietario_id];
         const jock = profesionales[i.jockey_titular_id];
         const entr = profesionales[i.entrenador_id];
+        const cab = caballerizas[i.caballeriza_id];
         return `<tr>
           <td class="part-num">${i.numero_partidor||'—'}</td>
           <td>
             <div class="part-spc">${spc?.nombre||i.spc_id}</div>
             <div class="part-sub">${spc?`${spc.sexo||''}${calcEdad(spc.fecha_nacimiento)} | ${spc.color||''} | Por ${spc.padrillo_nombre||'?'} - ${spc.madre_nombre||'?'}`:''}</div>
           </td>
+          <td>${cab?.nombre||'—'}</td>
           <td>
             <div>${prop?.nombre||'—'}</div>
             ${prop?.colores_desc?`<div class="part-sub">🎨 ${prop.colores_desc}</div>`:''}
@@ -308,7 +312,7 @@ function renderPrograma(reunion, carreras, inscripciones) {
           <div class="carrera-block-title">
             <div class="car-num">${car.numero_turno}</div>
             <div>
-              <div class="car-name">${car.nombre||`Carrera ${car.numero_turno}`}</div>
+              <div class="car-name">${car.nombre||`Turno ${car.numero_turno}`}</div>
               <div class="car-cat">${cat?`${cat.nombre}${cat.codigo?` (${cat.codigo})`:''}`:'—'}</div>
             </div>
           </div>
@@ -323,8 +327,8 @@ function renderPrograma(reunion, carreras, inscripciones) {
           ${bolsa?`<div class="car-prize">💰 Bolsa: ${formatMonto(bolsa)} — ${premioStr}</div>`:''}
         </div>
         <table class="part-table">
-          <thead><tr><th>#</th><th>SPC</th><th>Propietario</th><th>Entrenador</th><th>Jockey</th><th>Peso</th><th>Últimas 5 performances</th></tr></thead>
-          <tbody>${rows||'<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--muted)">Sin inscriptos ratificados</td></tr>'}</tbody>
+          <thead><tr><th>#</th><th>SPC</th><th>Caballeriza</th><th>Propietario</th><th>Entrenador</th><th>Jockey</th><th>Peso</th><th>Últimas 5</th></tr></thead>
+          <tbody>${rows||'<tr><td colspan="8" style="padding:16px;text-align:center;color:var(--muted)">Sin inscriptos ratificados</td></tr>'}</tbody>
         </table>
       </div>`;
     });
