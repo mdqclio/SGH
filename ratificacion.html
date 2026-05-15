@@ -44,7 +44,6 @@
     .cstat-pre { background: rgba(116,176,247,0.1); color: var(--info); }
     .insc-counter { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; }
     .insc-counter-sub { font-size: 12px; color: var(--muted); font-weight: 400; }
-    .col-peso-display { display: none; }
     .expand-icon { color: var(--muted); font-size: 12px; transition: transform 0.2s; }
     .carrera-section.open .expand-icon { transform: rotate(180deg); }
     .inscr-table { width: 100%; border-collapse: collapse; }
@@ -270,7 +269,7 @@ function renderAll(carreras, inscripciones) {
       return `<tr id="row-${i.id}" data-carrera="${car.id}" class="${isRat?'':'no-ratificado'}">
         <td class="num-part print-hide">${i.numero_partidor||'—'}</td>
         <td><div class="spc-name">${spc?.nombre||i.spc_id}</div><div class="spc-sub">${cab?.nombre||'—'}</div></td>
-        <td class="col-peso-display">${i.peso_final?`<strong>${i.peso_final} kg</strong>`:i.peso_declarado?`${i.peso_declarado} kg`:'—'}</td>
+        <td>${i.peso_final?`<strong>${i.peso_final} kg</strong>`:i.peso_declarado?`${i.peso_declarado} kg`:'—'}</td>
         <td><input class="peso-input print-hide" type="number" id="peso-${i.id}" value="${i.peso_final||i.peso_declarado||''}" min="40" max="80" step="0.1" placeholder="kg"></td>
         <td><span class="badge badge-${i.estado}" id="badge-${i.id}">${i.estado?.replace('_',' ')||'—'}</span></td>
         <td class="action-btns print-hide">
@@ -291,8 +290,8 @@ function renderAll(carreras, inscripciones) {
         <thead><tr>
           <th class="print-hide">#</th>
           <th>SPC / Caballeriza</th>
-          <th class="col-peso-display">Peso (impreso)</th>
-          <th class="print-hide">Peso</th>
+          <th>Peso (impreso)</th>
+          <th class="print-hide">Peso final</th>
           <th>Estado</th>
           <th class="print-hide">Acciones</th>
         </tr></thead>
