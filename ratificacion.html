@@ -267,14 +267,17 @@ function renderAll(carreras, inscripciones) {
       const cab = getCab(i.caballeriza_id);
       const isRat = i.estado==='ratificado';
       const isForf = i.estado==='forfait';
-      return `<tr id="row-${i.id}" data-carrera="${car.id}" class="${isRat?'':'no-ratificado'}">
+      return `<tr id="row-${i.id}" data-carrera="${car.id}" data-jockey="${i.jockey_titular_id||''}" class="${isRat?'':'no-ratificado'}">
         <td class="num-part print-hide">${i.numero_partidor||'—'}</td>
         <td><div class="spc-name">${spc?.nombre||i.spc_id}</div><div class="spc-sub">${cab?.nombre||'—'}</div></td>
         <td class="col-peso-display">${i.peso_final?`<strong>${i.peso_final} kg</strong>`:i.peso_declarado?`${i.peso_declarado} kg`:'—'}</td>
         <td><input class="peso-input print-hide" type="number" id="peso-${i.id}" value="${i.peso_final||i.peso_declarado||''}" min="40" max="80" step="0.1" placeholder="kg"></td>
         <td><span class="badge badge-${i.estado}" id="badge-${i.id}">${i.estado?.replace('_',' ')||'—'}</span></td>
         <td class="action-btns print-hide">
-          ${!isRat&&!isForf?`<button class="btn-sm btn-rat" onclick="ratificar('${i.id}')">✅ Ratificar</button>`:''}
+          ${!isRat&&!isForf?(i.jockey_titular_id
+            ?`<button class="btn-sm btn-rat" onclick="ratificar('${i.id}')">✅ Ratificar</button>`
+            :`<button class="btn-sm btn-rat" disabled title="Sin jockey asignado — asignarlo primero en Inscripciones" style="opacity:0.4;cursor:not-allowed;">✅ Ratificar</button>`)
+          :''}
           ${isRat?`<button class="btn-sm btn-volver" onclick="volverInscripto('${i.id}')">↩ Volver</button>`:''}
           ${!isForf?`<button class="btn-sm btn-fort" onclick="openForfait('${i.id}')">❌ Forfait</button>`:''}
         </td>
@@ -321,6 +324,10 @@ function updateCounter(inscId) {
 }
 
 async function ratificar(inscId) {
+  if (!document.getElementById(`row-${inscId}`)?.dataset.jockey) {
+    toast('No se puede ratificar sin jockey asignado. Asigná el jockey primero en Inscripciones.', 'error');
+    return;
+  }
   const pesoEl = document.getElementById(`peso-${inscId}`);
   const peso = parseFloat(pesoEl?.value) || null;
   const { error } = await sb.from('inscripciones').update({ estado:'ratificado', peso_final: peso }).eq('id', inscId);
@@ -357,10 +364,11 @@ async function volverInscripto(inscId) {
     row.classList.add('no-ratificado');
     const actionCell = row.querySelector('.action-btns');
     if (actionCell) {
-      actionCell.innerHTML = `
-        <button class="btn-sm btn-rat" onclick="ratificar('${inscId}')">✅ Ratificar</button>
-        <button class="btn-sm btn-fort" onclick="openForfait('${inscId}')">❌ Forfait</button>
-      `;
+      const tieneJockey = !!row.dataset.jockey;
+      const btnRat = tieneJockey
+        ? `<button class="btn-sm btn-rat" onclick="ratificar('${inscId}')">✅ Ratificar</button>`
+        : `<button class="btn-sm btn-rat" disabled title="Sin jockey asignado — asignarlo primero en Inscripciones" style="opacity:0.4;cursor:not-allowed;">✅ Ratificar</button>`;
+      actionCell.innerHTML = `${btnRat}<button class="btn-sm btn-fort" onclick="openForfait('${inscId}')">❌ Forfait</button>`;
     }
   }
   updateCounter(inscId);
