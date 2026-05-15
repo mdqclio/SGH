@@ -257,6 +257,18 @@ async function init() {
   }
 }
 
+async function congelarPesos(inscripciones) {
+  const pendientes = inscripciones.filter(i => i.estado==='ratificado' && i.peso_final===null && i.peso_declarado!==null);
+  if (!pendientes.length) return;
+  await Promise.all(pendientes.map(i =>
+    sb.from('inscripciones').update({ peso_final: i.peso_declarado }).eq('id', i.id)
+  ));
+  pendientes.forEach(i => {
+    const input = document.getElementById(`peso-${i.id}`);
+    if (input) input.value = i.peso_declarado;
+  });
+}
+
 function calcCierreStatus(reunion) {
   if (!reunion?.fecha) return false;
   const hoy = new Date();
@@ -297,7 +309,9 @@ async function loadReunion() {
     sb.from('carreras').select('*').eq('reunion_id', rid).order('numero_turno'),
     ids.length ? sb.from('inscripciones').select('*').in('carrera_id', ids).order('created_at') : Promise.resolve({data:[]}),
   ]);
-  renderAll(cars||[], inscResult.data||[]);
+  const inscData = inscResult.data||[];
+  renderAll(cars||[], inscData);
+  if (isCerrada) await congelarPesos(inscData);
 }
 
 function getSpc(id) { return spcs.find(s=>s.id===id); }
