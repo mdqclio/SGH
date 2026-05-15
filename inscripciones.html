@@ -596,7 +596,7 @@ function openModal(rec=null) {
     document.getElementById('f-sereno').value = rec.sereno||'';
     document.getElementById('f-certificado').checked = !!rec.certificado_correr;
     document.getElementById('f-estado').value = rec.estado||'inscripto';
-    document.getElementById('f-motivo-forfait').value = rec.motivo_forfait||'';
+    document.getElementById('f-motivo-forfait').value = rec.motivo_estado||'';
     document.getElementById('f-info').value = rec.info_adicional||'';
     document.getElementById('forfait-motivo-group').style.display = rec.estado === 'forfait' ? '' : 'none';
     document.getElementById('cert-info-row').style.display = 'none';
@@ -640,7 +640,7 @@ async function saveRecord() {
     sereno: document.getElementById('f-sereno').value.trim() || null,
     certificado_correr: document.getElementById('f-certificado').checked,
     estado: document.getElementById('f-estado').value,
-    motivo_forfait: document.getElementById('f-motivo-forfait').value.trim() || null,
+    motivo_estado: document.getElementById('f-motivo-forfait').value.trim() || null,
     info_adicional: document.getElementById('f-info').value.trim() || null,
   };
   const { error } = id

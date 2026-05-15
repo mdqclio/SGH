@@ -492,7 +492,7 @@ async function confirmMotivo() {
   const motivo = document.getElementById('motivo-input').value.trim();
   if (!motivo) { toast('Ingresar motivo','error'); return; }
   const nuevoEstado = pendingAction;
-  const { error } = await sb.from('inscripciones').update({ estado: nuevoEstado, motivo_forfait: motivo }).eq('id', pendingInscId);
+  const { error } = await sb.from('inscripciones').update({ estado: nuevoEstado, motivo_estado: motivo }).eq('id', pendingInscId);
   if (error) { toast(error.message,'error'); return; }
   toast(nuevoEstado === 'forfait' ? 'Forfait registrado' : 'Mal inscripto registrado');
   const badge = document.getElementById(`badge-${pendingInscId}`);

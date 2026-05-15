@@ -628,7 +628,7 @@ async function loadMisInscripciones() {
 
 async function darForfait(inscId) {
   if (!confirm('¿Confirmar forfait para este SPC?')) return;
-  const { error } = await sb.from('inscripciones').update({ estado: 'forfait', motivo_forfait: 'Forfait solicitado por el propietario/entrenador' }).eq('id', inscId);
+  const { error } = await sb.from('inscripciones').update({ estado: 'forfait', motivo_estado: 'Forfait solicitado por el propietario/entrenador' }).eq('id', inscId);
   if (error) { toast(error.message, 'error'); return; }
   toast('Forfait registrado');
   loadMisInscripciones();
