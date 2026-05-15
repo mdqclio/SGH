@@ -210,7 +210,7 @@ async function init() {
   const [{ data: reuns }, { data: profs }, { data: sprcs }, { data: cabs }] = await Promise.all([
     sb.from('reuniones').select('id,numero,fecha,estado,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
     sb.from('profesionales').select('id,nombre,apellido').eq('club_id', CLUB_ID),
-    sb.from('spcs').select('id,nombre').eq('club_id', CLUB_ID),
+    sb.from('spcs').select('id,nombre').order('nombre'),
     sb.from('caballerizas').select('id,nombre').eq('club_id', CLUB_ID),
   ]);
   reuniones = reuns||[];

@@ -253,7 +253,7 @@ async function load() {
   const [{ data: sancs }, { data: jocks }, { data: spcs }, { data: cabs }, { data: profs }] = await Promise.all([
     sb.from('sanciones').select('*').order('fecha_inicio', {ascending: false}),
     sb.from('profesionales').select('id,nombre,apellido').eq('club_id', CLUB_ID).eq('tipo','jockey').order('apellido'),
-    sb.from('spcs').select('id,nombre').eq('club_id', CLUB_ID).order('nombre'),
+    sb.from('spcs').select('id,nombre').order('nombre'),
     sb.from('caballerizas').select('id,nombre').eq('club_id', CLUB_ID).order('nombre'),
     sb.from('profesionales').select('id,nombre,apellido').eq('club_id', CLUB_ID).eq('tipo','entrenador').order('apellido'),
   ]);

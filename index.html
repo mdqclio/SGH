@@ -192,7 +192,7 @@ async function loadDashboard() {
 
     if (rol === 'super_admin') {
       const [spcs, props, profs, cabs, reuns, sancs] = await Promise.all([
-        sb.from('spcs').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('estado', 'activo'),
+        sb.from('spcs').select('id', { count: 'exact', head: true }).eq('estado', 'activo'),
         sb.from('propietarios').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('activo', true),
         sb.from('profesionales').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('activo', true),
         sb.from('caballerizas').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('activo', true),

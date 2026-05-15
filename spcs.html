@@ -299,7 +299,7 @@ async function load() {
   const cabFilter = params.get('caballeriza');
 
   const [{ data: spcs, error }, { data: cabs }, { data: jocksData }, { data: props }, { data: entrData }] = await Promise.all([
-    sb.from('spcs').select('*').eq('club_id', CLUB_ID).order('nombre'),
+    sb.from('spcs').select('*').order('nombre'),
     sb.from('caballerizas').select('id,nombre').eq('club_id', CLUB_ID).eq('activo', true).order('nombre'),
     sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID).eq('tipo', 'jockey').eq('activo', true).order('apellido'),
     sb.from('propietarios').select('id,nombre,tipo').eq('activo', true).order('nombre'),
@@ -469,7 +469,7 @@ async function saveRecord() {
   const btn = document.getElementById('btn-save');
   btn.disabled = true; btn.textContent = 'Guardando…';
   const payload = {
-    club_id: CLUB_ID,
+    club_id: null,
     nombre,
     registro_stud_book: document.getElementById('f-registro').value.trim() || null,
     fecha_nacimiento: document.getElementById('f-nacimiento').value || null,
