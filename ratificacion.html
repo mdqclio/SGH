@@ -112,6 +112,13 @@
     .print-orient-bar { display:none; }
     @media print { .print-orient-bar { display:none; } }
 
+    .turno-nav { background: var(--card); border-bottom: 1px solid var(--border); padding: 10px 24px; display: none; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .turno-nav.visible { display: flex; }
+    .turno-nav label { font-size: 12px; color: var(--muted); margin-right: 4px; }
+    .btn-turno { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 5px 14px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+    .btn-turno:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-turno.active { background: rgba(201,168,76,0.15); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+    @media print { .turno-nav { display: none !important; } }
     #auth-overlay { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center; }
     .btn-logout { background:none;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;transition:all 0.2s; }
     .btn-logout:hover { border-color:var(--danger);color:var(--danger); }
@@ -159,6 +166,8 @@
     <option value="">Cargando…</option>
   </select>
 </div>
+
+<div class="turno-nav" id="turno-nav"></div>
 
 <div class="content" id="content">
   <div class="empty-state"><div class="icon">✅</div><h3>Seleccionar una reunión para comenzar la ratificación</h3></div>
@@ -240,7 +249,7 @@ async function init() {
 
 async function loadReunion() {
   const rid = document.getElementById('sel-reunion').value;
-  if (!rid) { document.getElementById('content').innerHTML='<div class="empty-state"><div class="icon">✅</div><h3>Seleccionar una reunión</h3></div>'; return; }
+  if (!rid) { document.getElementById('content').innerHTML='<div class="empty-state"><div class="icon">✅</div><h3>Seleccionar una reunión</h3></div>'; document.getElementById('turno-nav').classList.remove('visible'); return; }
   document.getElementById('content').innerHTML='<div class="loading-state"><div class="spinner"></div> Cargando datos de ratificación…</div>';
   const { data: carIds } = await sb.from('carreras').select('id').eq('reunion_id', rid);
   const ids = (carIds||[]).map(c=>c.id);
@@ -258,6 +267,7 @@ function getCab(id) { return caballerizas.find(c=>c.id===id); }
 function renderAll(carreras, inscripciones) {
   if (!carreras.length) {
     document.getElementById('content').innerHTML='<div class="empty-state"><div class="icon">📋</div><h3>Esta reunión no tiene carreras</h3></div>';
+    document.getElementById('turno-nav').classList.remove('visible');
     return;
   }
   const html = carreras.map(car => {
@@ -310,6 +320,21 @@ function renderAll(carreras, inscripciones) {
     </div>`;
   }).join('');
   document.getElementById('content').innerHTML = html;
+  const nav = document.getElementById('turno-nav');
+  nav.innerHTML = '<label>Turno:</label>' + carreras.map((car, idx) =>
+    `<button class="btn-turno${idx===0?' active':''}" onclick="goToTurno('${car.id}',this)">${car.numero_turno}</button>`
+  ).join('');
+  nav.classList.add('visible');
+}
+
+function goToTurno(carreraId, btnEl) {
+  document.querySelectorAll('.btn-turno').forEach(b => b.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
+  document.querySelectorAll('.carrera-section').forEach(sec => {
+    sec.classList.toggle('open', sec.id === `csec-${carreraId}`);
+  });
+  const target = document.getElementById(`csec-${carreraId}`);
+  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function toggleSection(id) {
