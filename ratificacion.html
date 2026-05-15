@@ -279,7 +279,7 @@ function renderAll(carreras, inscripciones) {
     return `<div class="carrera-section open" id="csec-${car.id}">
       <div class="carrera-header" onclick="toggleSection('${car.id}')">
         <div class="carrera-num">${car.numero_turno}</div>
-        <div class="carrera-title">${car.nombre||`Premio Turno ${car.numero_turno}`} — ${car.distancia_metros}m</div>
+        <div class="carrera-title">${car.nombre||`Carrera ${car.numero_turno}`} — ${car.distancia_metros}m</div>
         <div class="carrera-stats">
           <span class="cstat cstat-rat">${rat} rat.</span>
           ${fort?`<span class="cstat cstat-fort">${fort} forfait</span>`:''}
