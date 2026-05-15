@@ -115,6 +115,10 @@
     .print-orient-bar { display:none; }
     @media print { .print-orient-bar { display:none; } }
 
+    .cierre-status { font-size: 13px; font-weight: 600; margin-left: auto; white-space: nowrap; }
+    .cierre-abierta { color: var(--success); }
+    .cierre-cerrada { color: var(--danger); }
+    .peso-input:disabled { opacity: 0.5; cursor: not-allowed; }
     .turno-nav { background: var(--card); border-bottom: 1px solid var(--border); padding: 10px 24px; display: none; gap: 8px; align-items: center; flex-wrap: wrap; }
     .turno-nav.visible { display: flex; }
     .turno-nav label { font-size: 12px; color: var(--muted); margin-right: 4px; }
@@ -168,6 +172,7 @@
   <select id="sel-reunion" onchange="loadReunion()">
     <option value="">Cargando…</option>
   </select>
+  <span class="cierre-status" id="cierre-status"></span>
 </div>
 
 <div class="turno-nav" id="turno-nav"></div>
@@ -200,6 +205,8 @@ let spcs=[], profesionales=[], caballerizas=[];
 let pendingInscId=null;
 let pendingAction=null;
 let reuniones=[];
+let isCerrada=false;
+let currentReunion=null;
 
 function toast(msg,type='success') {
   const t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
@@ -218,7 +225,7 @@ function doPrint() {
 
 async function init() {
   const [{ data: reuns }, { data: profs }, { data: sprcs }, { data: cabs }] = await Promise.all([
-    sb.from('reuniones').select('id,numero,fecha,estado,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
+    sb.from('reuniones').select('id,numero,fecha,estado,hora_cierre_ratificacion,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
     sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID).eq('activo', true).order('apellido'),
     sb.from('spcs').select('id,nombre').order('nombre'),
     sb.from('caballerizas').select('id,nombre').eq('club_id', CLUB_ID).eq('activo', true).order('nombre'),
@@ -250,10 +257,40 @@ async function init() {
   }
 }
 
+function calcCierreStatus(reunion) {
+  if (!reunion?.fecha) return false;
+  const hoy = new Date();
+  const [anio, mes, dia] = reunion.fecha.split('-').map(Number);
+  const hoyY = hoy.getFullYear(), hoyM = hoy.getMonth()+1, hoyD = hoy.getDate();
+  if (anio > hoyY || (anio===hoyY && mes > hoyM) || (anio===hoyY && mes===hoyM && dia > hoyD)) return false;
+  if (anio < hoyY || (anio===hoyY && mes < hoyM) || (anio===hoyY && mes===hoyM && dia < hoyD)) return true;
+  const [hh, mm] = (reunion.hora_cierre_ratificacion || '12:00:00').split(':').map(Number);
+  return hoy.getHours() * 60 + hoy.getMinutes() >= hh * 60 + mm;
+}
+
+function renderCierreStatus(reunion) {
+  const el = document.getElementById('cierre-status');
+  if (!el) return;
+  if (!reunion) { el.textContent = ''; return; }
+  const hora = (reunion.hora_cierre_ratificacion || '12:00:00').slice(0, 5);
+  el.innerHTML = isCerrada
+    ? `<span class="cierre-cerrada">Cierre ${hora} hs — CERRADA</span>`
+    : `<span class="cierre-abierta">Cierre ${hora} hs — ABIERTA</span>`;
+}
+
 async function loadReunion() {
   const rid = document.getElementById('sel-reunion').value;
-  if (!rid) { document.getElementById('content').innerHTML='<div class="empty-state"><div class="icon">✅</div><h3>Seleccionar una reunión</h3></div>'; document.getElementById('turno-nav').classList.remove('visible'); return; }
+  if (!rid) {
+    document.getElementById('content').innerHTML='<div class="empty-state"><div class="icon">✅</div><h3>Seleccionar una reunión</h3></div>';
+    document.getElementById('turno-nav').classList.remove('visible');
+    document.getElementById('cierre-status').textContent='';
+    isCerrada=false; currentReunion=null;
+    return;
+  }
   document.getElementById('content').innerHTML='<div class="loading-state"><div class="spinner"></div> Cargando datos de ratificación…</div>';
+  currentReunion = reuniones.find(r => r.id === rid) || null;
+  isCerrada = calcCierreStatus(currentReunion);
+  renderCierreStatus(currentReunion);
   const { data: carIds } = await sb.from('carreras').select('id').eq('reunion_id', rid);
   const ids = (carIds||[]).map(c=>c.id);
   const [{ data: cars }, inscResult] = await Promise.all([
@@ -285,22 +322,26 @@ function renderAll(carreras, inscripciones) {
       const isRat = i.estado==='ratificado';
       const isForf = i.estado==='forfait';
       const isMalInsc = i.estado==='mal_inscrito';
+      const dc = 'disabled title="Ratificación cerrada" style="opacity:0.4;cursor:not-allowed;"';
       return `<tr id="row-${i.id}" data-carrera="${car.id}" data-jockey="${i.jockey_titular_id||''}" class="${isRat?'':'no-ratificado'}">
         <td class="num-part print-hide">${i.numero_partidor||'—'}</td>
         <td><div class="spc-name">${spc?.nombre||i.spc_id}</div></td>
         <td style="font-size:12px;color:var(--muted)">${cab?.nombre||'—'}</td>
-        <td>${buildJockeySelect(i)}</td>
+        <td class="jockey-cell">${buildJockeySelect(i)}</td>
         <td class="col-peso-display">${i.peso_final?`<strong>${i.peso_final} kg</strong>`:i.peso_declarado?`${i.peso_declarado} kg`:'—'}</td>
-        <td><input class="peso-input print-hide" type="number" id="peso-${i.id}" value="${i.peso_final||i.peso_declarado||''}" min="40" max="80" step="0.1" placeholder="kg"></td>
+        <td><input class="peso-input print-hide" type="number" id="peso-${i.id}" value="${i.peso_final||i.peso_declarado||''}" min="40" max="80" step="0.1" placeholder="kg"${isCerrada?' disabled':''}></td>
         <td><span class="badge badge-${i.estado}" id="badge-${i.id}">${i.estado?.replace('_',' ')||'—'}</span></td>
         <td class="action-btns print-hide">
-          ${!isRat&&!isForf&&!isMalInsc?(i.jockey_titular_id
-            ?`<button class="btn-sm btn-rat" onclick="ratificar('${i.id}')">✅ Ratificar</button>`
-            :`<button class="btn-sm btn-rat" disabled title="Sin jockey asignado — asignarlo primero en Inscripciones" style="opacity:0.4;cursor:not-allowed;">✅ Ratificar</button>`)
+          ${!isRat&&!isForf&&!isMalInsc?(
+            isCerrada
+              ?`<button class="btn-sm btn-rat" ${dc}>✅ Ratificar</button>`
+              :i.jockey_titular_id
+                ?`<button class="btn-sm btn-rat" onclick="ratificar('${i.id}')">✅ Ratificar</button>`
+                :`<button class="btn-sm btn-rat" disabled title="Sin jockey asignado — asignarlo primero en Inscripciones" style="opacity:0.4;cursor:not-allowed;">✅ Ratificar</button>`)
           :''}
-          ${isRat||isMalInsc?`<button class="btn-sm btn-volver" onclick="volverInscripto('${i.id}')">↩ Volver</button>`:''}
-          ${!isForf&&!isMalInsc?`<button class="btn-sm btn-fort" onclick="openForfait('${i.id}')">❌ Forfait</button>`:''}
-          ${!isRat&&!isForf&&!isMalInsc?`<button class="btn-sm btn-malinsc" onclick="openMalInscrito('${i.id}')">⚠ Mal inscripto</button>`:''}
+          ${isRat||isMalInsc?`<button class="btn-sm btn-volver" ${isCerrada?dc:`onclick="volverInscripto('${i.id}')"`}>↩ Volver</button>`:''}
+          ${!isForf&&!isMalInsc?`<button class="btn-sm btn-fort" ${isCerrada?dc:`onclick="openForfait('${i.id}')"`}>❌ Forfait</button>`:''}
+          ${!isRat&&!isForf&&!isMalInsc?`<button class="btn-sm btn-malinsc" ${isCerrada?dc:`onclick="openMalInscrito('${i.id}')"`}>⚠ Mal inscripto</button>`:''}
         </td>
       </tr>`;
     }).join('');
@@ -376,7 +417,7 @@ function buildJockeySelect(i) {
   const selVacio = !i.jockey_titular_id ? ' selected' : '';
   opts += `<option value=""${selVacio}>XX — Sin asignar</option>`;
   const missing = !i.jockey_titular_id;
-  return `<select class="jockey-select${missing?' jockey-missing':''}" data-insc="${i.id}" onchange="onJockeyChange(this)">${opts}</select>`;
+  return `<select class="jockey-select${missing?' jockey-missing':''}" data-insc="${i.id}"${isCerrada?' disabled':' onchange="onJockeyChange(this)"'}>${opts}</select>`;
 }
 
 async function onJockeyChange(sel) {
