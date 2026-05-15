@@ -42,6 +42,8 @@
     .cstat-conf { background: rgba(76,175,130,0.15); color: var(--success); }
     .cstat-fort { background: rgba(224,82,82,0.1); color: var(--danger); }
     .cstat-pre { background: rgba(116,176,247,0.1); color: var(--info); }
+    .insc-counter { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; }
+    .insc-counter-sub { font-size: 12px; color: var(--muted); font-weight: 400; }
     .expand-icon { color: var(--muted); font-size: 12px; transition: transform 0.2s; }
     .carrera-section.open .expand-icon { transform: rotate(180deg); }
     .inscr-table { width: 100%; border-collapse: collapse; }
@@ -258,12 +260,13 @@ function renderAll(carreras, inscripciones) {
     const rat = insc.filter(i=>i.estado==='ratificado').length;
     const fort = insc.filter(i=>i.estado==='forfait').length;
     const pre = insc.filter(i=>i.estado==='inscripto').length;
+    const activos = rat + pre;
     const rows = insc.map(i => {
       const spc = getSpc(i.spc_id);
       const cab = getCab(i.caballeriza_id);
       const isRat = i.estado==='ratificado';
       const isForf = i.estado==='forfait';
-      return `<tr id="row-${i.id}" class="${isRat?'':'no-ratificado'}">
+      return `<tr id="row-${i.id}" data-carrera="${car.id}" class="${isRat?'':'no-ratificado'}">
         <td class="num-part print-hide">${i.numero_partidor||'—'}</td>
         <td><div class="spc-name">${spc?.nombre||i.spc_id}</div><div class="spc-sub">${cab?.nombre||'—'}</div></td>
         <td>${i.peso_final?`<strong>${i.peso_final} kg</strong>`:i.peso_declarado?`${i.peso_declarado} kg`:'—'}</td>
@@ -280,11 +283,7 @@ function renderAll(carreras, inscripciones) {
       <div class="carrera-header" onclick="toggleSection('${car.id}')">
         <div class="carrera-num">${car.numero_turno}</div>
         <div class="carrera-title">${car.nombre||`Premio Turno ${car.numero_turno}`} — ${car.distancia_metros}m</div>
-        <div class="carrera-stats">
-          <span class="cstat cstat-rat">${rat} rat.</span>
-          ${fort?`<span class="cstat cstat-fort">${fort} forfait</span>`:''}
-          ${pre?`<span class="cstat cstat-pre">${pre} pre</span>`:''}
-        </div>
+        <div class="insc-counter" id="counter-${car.id}">${activos} inscriptos<span class="insc-counter-sub"> · ${rat} ratificados</span></div>
         <span class="expand-icon">▼</span>
       </div>
       <table class="inscr-table">
@@ -305,6 +304,19 @@ function renderAll(carreras, inscripciones) {
 
 function toggleSection(id) {
   document.getElementById(`csec-${id}`).classList.toggle('open');
+}
+
+function updateCounter(inscId) {
+  const carreraId = document.getElementById(`row-${inscId}`)?.dataset.carrera;
+  if (!carreraId) return;
+  let activos = 0, rat = 0;
+  document.querySelectorAll(`#csec-${carreraId} tbody .badge`).forEach(b => {
+    if (b.classList.contains('badge-forfait')) return;
+    activos++;
+    if (b.classList.contains('badge-ratificado')) rat++;
+  });
+  const counter = document.getElementById(`counter-${carreraId}`);
+  if (counter) counter.innerHTML = `${activos} inscriptos<span class="insc-counter-sub"> · ${rat} ratificados</span>`;
 }
 
 async function ratificar(inscId) {
@@ -329,6 +341,7 @@ async function ratificar(inscId) {
       actionCell.prepend(volverBtn);
     }
   }
+  updateCounter(inscId);
 }
 
 async function volverInscripto(inscId) {
@@ -349,6 +362,7 @@ async function volverInscripto(inscId) {
       `;
     }
   }
+  updateCounter(inscId);
 }
 
 function openForfait(inscId) {
@@ -367,6 +381,7 @@ async function confirmForfait() {
   if (badge) { badge.className='badge badge-forfait'; badge.textContent='forfait'; }
   const row = document.getElementById(`row-${pendingInscId}`);
   if (row) { row.classList.add('no-ratificado'); row.querySelector('.action-btns').innerHTML=''; }
+  updateCounter(pendingInscId);
   closeMini('modal-forfait');
 }
 
