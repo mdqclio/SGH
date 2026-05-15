@@ -11,8 +11,22 @@
 - Carta de llamados: turnos, bonos, premios, publicar/bloquear
 - Inscripciones: buscador SPCs, jockey titular/suplente, peón/capataz/sereno, estado mal_inscrito, marcar carrera reabierta/anulada. Header compacto, dropdown Estado inline, contador inscriptos.
 - PDF inscriptos estilo Palermo: CSS columns 4-col, bloques por turno, condición abreviada, banda REABIERTA, lista alfabética con (H) y ●, matriz consolidada ORDEN DE LARGADA al pie. 2 páginas A4 landscape.
-- Ratificación: inscripto ↔ ratificado, forfait
-- Programa hípico con PDF
+- Ratificación (ratificacion.html) — feature-complete (15/05/2026):
+  - Columnas separadas: SPC | Caballeriza | Jockey | Peso | Estado | Acciones
+  - Jockey editable inline: select con suplente como primera opción, XX en rojo si NULL, save on change, actualiza botón Ratificar sin re-render
+  - Tercer estado `mal_inscrito`: botón ⚠, modal compartido con forfait, badge naranja, excluido del contador de activos
+  - Barra de navegación por turnos: botones numéricos, click expande + colapsa otros + scroll suave
+  - Validación bloqueante al ratificar: requiere jockey_titular_id
+  - Cierre por hora: campo `reuniones.hora_cierre_ratificacion TIME DEFAULT '12:00:00'`. Badge ABIERTA/CERRADA. Cuando cerrada: UI read-only completa.
+  - Congelamiento de peso: al cargar reunión cerrada, copia peso_declarado → peso_final para ratificadas sin peso_final
+  - Alerta de colisión de jockey: filas con mismo jockey en carrera se marcan ⚠ dup. (visual, no bloqueante)
+  - `motivo_forfait` renombrado a `motivo_estado` en DB y frontend (inscripciones.html, portal.html, ratificacion.html)
+- Programa hípico (programa.html) — Bloque D sub-tanda 1 completa (15/05/2026):
+  - Solo inscripciones ratificadas. Columnas: # | SPC | Caballeriza | Propietario | Entrenador | Jockey | Peso | Últimas 5 performances
+  - Header con logo (si existe), nombre hipódromo, número y fecha de reunión
+  - Condiciones crudas por carrera (sin composer — D.2)
+  - Bolsa y distribución de premios por puesto
+  - CSS @media print A4 landscape. Pendiente: D.2 (composer), D.3 (logo configurable), D.4 (postponed/H)
 - Stud Book, profesionales, jockeys, propietarios, caballerizas (con modelo relacional de responsables)
 - Sanciones compartidas, resoluciones
 - Gestión de usuarios por hipódromo
