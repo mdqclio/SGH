@@ -69,6 +69,9 @@
     .btn-volver:hover { background: rgba(116,176,247,0.2); }
     .btn-fort { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
     .btn-fort:hover { background: rgba(224,82,82,0.2); }
+    .btn-malinsc { background: rgba(245,158,11,0.1); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+    .btn-malinsc:hover { background: rgba(245,158,11,0.2); }
+    .badge-mal_inscrito { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
     .empty-state { text-align: center; padding: 40px 20px; }
     .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
     .empty-state h3 { font-size: 16px; color: var(--muted); }
@@ -161,16 +164,16 @@
   <div class="empty-state"><div class="icon">✅</div><h3>Seleccionar una reunión para comenzar la ratificación</h3></div>
 </div>
 
-<!-- MINI MODAL FORFAIT -->
-<div class="mini-modal" id="modal-forfait">
+<!-- MINI MODAL FORFAIT / MAL INSCRIPTO (compartido) -->
+<div class="mini-modal" id="modal-motivo">
   <div class="mini-box">
-    <h3>Dar Forfait</h3>
+    <h3 id="modal-motivo-title">Dar Forfait</h3>
     <div class="mini-form">
-      <div><label>Motivo del forfait *</label><input type="text" id="forfait-motivo" placeholder="Ej: Lesión, decisión del propietario…" style="margin-top:4px;"></div>
+      <div><label>Motivo *</label><input type="text" id="motivo-input" placeholder="Ej: Lesión, decisión del propietario…" style="margin-top:4px;"></div>
     </div>
     <div class="mini-footer">
-      <button class="btn-secondary" onclick="closeMini('modal-forfait')">Cancelar</button>
-      <button class="btn-primary" onclick="confirmForfait()">Confirmar Forfait</button>
+      <button class="btn-secondary" onclick="closeMini('modal-motivo')">Cancelar</button>
+      <button class="btn-primary" onclick="confirmMotivo()">Confirmar</button>
     </div>
   </div>
 </div>
@@ -183,6 +186,7 @@ function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html
 
 let spcs=[], profesionales=[], caballerizas=[];
 let pendingInscId=null;
+let pendingAction=null;
 let reuniones=[];
 
 function toast(msg,type='success') {
@@ -190,7 +194,7 @@ function toast(msg,type='success') {
   document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),3500);
 }
 
-function closeMini(id) { document.getElementById(id).classList.remove('open'); pendingInscId=null; }
+function closeMini(id) { document.getElementById(id).classList.remove('open'); pendingInscId=null; pendingAction=null; }
 
 function showPrintDialog() { document.getElementById('modal-print').classList.add('open'); }
 function doPrint() {
@@ -267,6 +271,7 @@ function renderAll(carreras, inscripciones) {
       const cab = getCab(i.caballeriza_id);
       const isRat = i.estado==='ratificado';
       const isForf = i.estado==='forfait';
+      const isMalInsc = i.estado==='mal_inscrito';
       return `<tr id="row-${i.id}" data-carrera="${car.id}" data-jockey="${i.jockey_titular_id||''}" class="${isRat?'':'no-ratificado'}">
         <td class="num-part print-hide">${i.numero_partidor||'—'}</td>
         <td><div class="spc-name">${spc?.nombre||i.spc_id}</div><div class="spc-sub">${cab?.nombre||'—'}</div></td>
@@ -274,12 +279,13 @@ function renderAll(carreras, inscripciones) {
         <td><input class="peso-input print-hide" type="number" id="peso-${i.id}" value="${i.peso_final||i.peso_declarado||''}" min="40" max="80" step="0.1" placeholder="kg"></td>
         <td><span class="badge badge-${i.estado}" id="badge-${i.id}">${i.estado?.replace('_',' ')||'—'}</span></td>
         <td class="action-btns print-hide">
-          ${!isRat&&!isForf?(i.jockey_titular_id
+          ${!isRat&&!isForf&&!isMalInsc?(i.jockey_titular_id
             ?`<button class="btn-sm btn-rat" onclick="ratificar('${i.id}')">✅ Ratificar</button>`
             :`<button class="btn-sm btn-rat" disabled title="Sin jockey asignado — asignarlo primero en Inscripciones" style="opacity:0.4;cursor:not-allowed;">✅ Ratificar</button>`)
           :''}
-          ${isRat?`<button class="btn-sm btn-volver" onclick="volverInscripto('${i.id}')">↩ Volver</button>`:''}
-          ${!isForf?`<button class="btn-sm btn-fort" onclick="openForfait('${i.id}')">❌ Forfait</button>`:''}
+          ${isRat||isMalInsc?`<button class="btn-sm btn-volver" onclick="volverInscripto('${i.id}')">↩ Volver</button>`:''}
+          ${!isForf&&!isMalInsc?`<button class="btn-sm btn-fort" onclick="openForfait('${i.id}')">❌ Forfait</button>`:''}
+          ${!isRat&&!isForf&&!isMalInsc?`<button class="btn-sm btn-malinsc" onclick="openMalInscrito('${i.id}')">⚠ Mal inscripto</button>`:''}
         </td>
       </tr>`;
     }).join('');
@@ -315,7 +321,7 @@ function updateCounter(inscId) {
   if (!carreraId) return;
   let activos = 0, rat = 0;
   document.querySelectorAll(`#csec-${carreraId} tbody .badge`).forEach(b => {
-    if (b.classList.contains('badge-forfait')) return;
+    if (b.classList.contains('badge-forfait') || b.classList.contains('badge-mal_inscrito')) return;
     activos++;
     if (b.classList.contains('badge-ratificado')) rat++;
   });
@@ -368,7 +374,7 @@ async function volverInscripto(inscId) {
       const btnRat = tieneJockey
         ? `<button class="btn-sm btn-rat" onclick="ratificar('${inscId}')">✅ Ratificar</button>`
         : `<button class="btn-sm btn-rat" disabled title="Sin jockey asignado — asignarlo primero en Inscripciones" style="opacity:0.4;cursor:not-allowed;">✅ Ratificar</button>`;
-      actionCell.innerHTML = `${btnRat}<button class="btn-sm btn-fort" onclick="openForfait('${inscId}')">❌ Forfait</button>`;
+      actionCell.innerHTML = `${btnRat}<button class="btn-sm btn-fort" onclick="openForfait('${inscId}')">❌ Forfait</button><button class="btn-sm btn-malinsc" onclick="openMalInscrito('${inscId}')">⚠ Mal inscripto</button>`;
     }
   }
   updateCounter(inscId);
@@ -376,25 +382,47 @@ async function volverInscripto(inscId) {
 
 function openForfait(inscId) {
   pendingInscId = inscId;
-  document.getElementById('forfait-motivo').value = '';
-  document.getElementById('modal-forfait').classList.add('open');
+  pendingAction = 'forfait';
+  document.getElementById('modal-motivo-title').textContent = 'Dar Forfait';
+  document.getElementById('motivo-input').value = '';
+  document.getElementById('motivo-input').placeholder = 'Ej: Lesión, decisión del propietario…';
+  document.getElementById('modal-motivo').classList.add('open');
 }
 
-async function confirmForfait() {
-  const motivo = document.getElementById('forfait-motivo').value.trim();
-  if (!motivo) { toast('Ingresar motivo del forfait','error'); return; }
-  const { error } = await sb.from('inscripciones').update({ estado:'forfait', motivo_forfait: motivo }).eq('id', pendingInscId);
+function openMalInscrito(inscId) {
+  pendingInscId = inscId;
+  pendingAction = 'mal_inscrito';
+  document.getElementById('modal-motivo-title').textContent = 'Mal inscripto';
+  document.getElementById('motivo-input').value = '';
+  document.getElementById('motivo-input').placeholder = 'Motivo (condición incumplida, error de carga…)';
+  document.getElementById('modal-motivo').classList.add('open');
+}
+
+async function confirmMotivo() {
+  const motivo = document.getElementById('motivo-input').value.trim();
+  if (!motivo) { toast('Ingresar motivo','error'); return; }
+  const nuevoEstado = pendingAction;
+  const { error } = await sb.from('inscripciones').update({ estado: nuevoEstado, motivo_forfait: motivo }).eq('id', pendingInscId);
   if (error) { toast(error.message,'error'); return; }
-  toast('Forfait registrado');
+  toast(nuevoEstado === 'forfait' ? 'Forfait registrado' : 'Mal inscripto registrado');
   const badge = document.getElementById(`badge-${pendingInscId}`);
-  if (badge) { badge.className='badge badge-forfait'; badge.textContent='forfait'; }
-  const row = document.getElementById(`row-${pendingInscId}`);
-  if (row) { row.classList.add('no-ratificado'); row.querySelector('.action-btns').innerHTML=''; }
-  updateCounter(pendingInscId);
-  closeMini('modal-forfait');
+  if (badge) { badge.className=`badge badge-${nuevoEstado}`; badge.textContent=nuevoEstado.replace('_',' '); }
+  const savedId = pendingInscId;
+  const row = document.getElementById(`row-${savedId}`);
+  if (row) {
+    row.classList.add('no-ratificado');
+    const actionCell = row.querySelector('.action-btns');
+    if (actionCell) {
+      actionCell.innerHTML = nuevoEstado === 'forfait'
+        ? ''
+        : `<button class="btn-sm btn-volver" onclick="volverInscripto('${savedId}')">↩ Volver</button>`;
+    }
+  }
+  updateCounter(savedId);
+  closeMini('modal-motivo');
 }
 
-document.getElementById('modal-forfait').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeMini('modal-forfait'); });
+document.getElementById('modal-motivo').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeMini('modal-motivo'); });
 document.getElementById('modal-print').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeMini('modal-print'); });
 (async()=>{if(await initAuth())init();})();
 </script>
