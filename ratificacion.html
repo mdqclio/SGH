@@ -72,6 +72,9 @@
     .btn-malinsc { background: rgba(245,158,11,0.1); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
     .btn-malinsc:hover { background: rgba(245,158,11,0.2); }
     .badge-mal_inscrito { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+    .jockey-select { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 12px; outline: none; width: 100%; max-width: 190px; cursor: pointer; }
+    .jockey-select:focus { border-color: var(--accent); }
+    .jockey-select.jockey-missing { border-color: var(--danger); color: var(--danger); font-weight: 700; }
     .empty-state { text-align: center; padding: 40px 20px; }
     .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
     .empty-state h3 { font-size: 16px; color: var(--muted); }
@@ -282,15 +285,11 @@ function renderAll(carreras, inscripciones) {
       const isRat = i.estado==='ratificado';
       const isForf = i.estado==='forfait';
       const isMalInsc = i.estado==='mal_inscrito';
-      const jkey = getProf(i.jockey_titular_id);
-      const jkeyCell = jkey
-        ? `${jkey.apellido}, ${jkey.nombre}`
-        : `<span style="color:var(--danger);font-weight:700;">XX</span>`;
       return `<tr id="row-${i.id}" data-carrera="${car.id}" data-jockey="${i.jockey_titular_id||''}" class="${isRat?'':'no-ratificado'}">
         <td class="num-part print-hide">${i.numero_partidor||'—'}</td>
         <td><div class="spc-name">${spc?.nombre||i.spc_id}</div></td>
         <td style="font-size:12px;color:var(--muted)">${cab?.nombre||'—'}</td>
-        <td>${jkeyCell}</td>
+        <td>${buildJockeySelect(i)}</td>
         <td class="col-peso-display">${i.peso_final?`<strong>${i.peso_final} kg</strong>`:i.peso_declarado?`${i.peso_declarado} kg`:'—'}</td>
         <td><input class="peso-input print-hide" type="number" id="peso-${i.id}" value="${i.peso_final||i.peso_declarado||''}" min="40" max="80" step="0.1" placeholder="kg"></td>
         <td><span class="badge badge-${i.estado}" id="badge-${i.id}">${i.estado?.replace('_',' ')||'—'}</span></td>
@@ -360,6 +359,64 @@ function updateCounter(inscId) {
   });
   const counter = document.getElementById(`counter-${carreraId}`);
   if (counter) counter.innerHTML = `${activos} inscriptos<span class="insc-counter-sub"> · ${rat} ratificados</span>`;
+}
+
+function buildJockeySelect(i) {
+  const jockeys = profesionales.filter(p => p.tipo === 'jockey');
+  const supl = i.jockey_suplente_id ? profesionales.find(p => p.id === i.jockey_suplente_id) : null;
+  let opts = '';
+  if (supl) {
+    const sel = i.jockey_titular_id === supl.id ? ' selected' : '';
+    opts += `<option value="${supl.id}"${sel}>${supl.apellido}, ${supl.nombre} (suplente)</option>`;
+  }
+  jockeys.filter(p => !supl || p.id !== supl.id).forEach(p => {
+    const sel = i.jockey_titular_id === p.id ? ' selected' : '';
+    opts += `<option value="${p.id}"${sel}>${p.apellido}, ${p.nombre}</option>`;
+  });
+  const selVacio = !i.jockey_titular_id ? ' selected' : '';
+  opts += `<option value=""${selVacio}>XX — Sin asignar</option>`;
+  const missing = !i.jockey_titular_id;
+  return `<select class="jockey-select${missing?' jockey-missing':''}" data-insc="${i.id}" onchange="onJockeyChange(this)">${opts}</select>`;
+}
+
+async function onJockeyChange(sel) {
+  const inscId = sel.dataset.insc;
+  const jockeyId = sel.value || null;
+  const { error } = await sb.from('inscripciones').update({ jockey_titular_id: jockeyId }).eq('id', inscId);
+  if (error) { toast(error.message, 'error'); return; }
+  if (jockeyId) {
+    const prof = profesionales.find(p => p.id === jockeyId);
+    toast(`Jockey asignado: ${prof ? prof.apellido + ', ' + prof.nombre : ''}`);
+  } else {
+    toast('Jockey removido');
+  }
+  sel.classList.toggle('jockey-missing', !jockeyId);
+  const row = document.getElementById(`row-${inscId}`);
+  if (row) {
+    row.dataset.jockey = jockeyId || '';
+    const badge = row.querySelector('.badge');
+    const isRat = badge?.classList.contains('badge-ratificado');
+    const isForf = badge?.classList.contains('badge-forfait');
+    const isMalInsc = badge?.classList.contains('badge-mal_inscrito');
+    if (!isRat && !isForf && !isMalInsc) {
+      const btnRat = row.querySelector('.btn-rat');
+      if (btnRat) {
+        if (jockeyId) {
+          btnRat.disabled = false;
+          btnRat.removeAttribute('title');
+          btnRat.style.opacity = '';
+          btnRat.style.cursor = '';
+          btnRat.onclick = () => ratificar(inscId);
+        } else {
+          btnRat.disabled = true;
+          btnRat.title = 'Sin jockey asignado — asignarlo primero en Inscripciones';
+          btnRat.style.opacity = '0.4';
+          btnRat.style.cursor = 'not-allowed';
+          btnRat.onclick = null;
+        }
+      }
+    }
+  }
 }
 
 async function ratificar(inscId) {
