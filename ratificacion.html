@@ -282,9 +282,15 @@ function renderAll(carreras, inscripciones) {
       const isRat = i.estado==='ratificado';
       const isForf = i.estado==='forfait';
       const isMalInsc = i.estado==='mal_inscrito';
+      const jkey = getProf(i.jockey_titular_id);
+      const jkeyCell = jkey
+        ? `${jkey.apellido}, ${jkey.nombre}`
+        : `<span style="color:var(--danger);font-weight:700;">XX</span>`;
       return `<tr id="row-${i.id}" data-carrera="${car.id}" data-jockey="${i.jockey_titular_id||''}" class="${isRat?'':'no-ratificado'}">
         <td class="num-part print-hide">${i.numero_partidor||'—'}</td>
-        <td><div class="spc-name">${spc?.nombre||i.spc_id}</div><div class="spc-sub">${cab?.nombre||'—'}</div></td>
+        <td><div class="spc-name">${spc?.nombre||i.spc_id}</div></td>
+        <td style="font-size:12px;color:var(--muted)">${cab?.nombre||'—'}</td>
+        <td>${jkeyCell}</td>
         <td class="col-peso-display">${i.peso_final?`<strong>${i.peso_final} kg</strong>`:i.peso_declarado?`${i.peso_declarado} kg`:'—'}</td>
         <td><input class="peso-input print-hide" type="number" id="peso-${i.id}" value="${i.peso_final||i.peso_declarado||''}" min="40" max="80" step="0.1" placeholder="kg"></td>
         <td><span class="badge badge-${i.estado}" id="badge-${i.id}">${i.estado?.replace('_',' ')||'—'}</span></td>
@@ -308,14 +314,16 @@ function renderAll(carreras, inscripciones) {
       </div>
       <table class="inscr-table">
         <thead><tr>
-          <th class="print-hide">#</th>
-          <th>SPC / Caballeriza</th>
+          <th class="print-hide" style="width:38px">#</th>
+          <th>SPC</th>
+          <th>Caballeriza</th>
+          <th>Jockey</th>
           <th class="col-peso-display">Peso (impreso)</th>
-          <th class="print-hide">Peso</th>
+          <th class="print-hide" style="width:90px">Peso</th>
           <th>Estado</th>
           <th class="print-hide">Acciones</th>
         </tr></thead>
-        <tbody>${rows||`<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)">Sin inscriptos</td></tr>`}</tbody>
+        <tbody>${rows||`<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--muted)">Sin inscriptos</td></tr>`}</tbody>
       </table>
     </div>`;
   }).join('');
