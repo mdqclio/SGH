@@ -115,6 +115,8 @@
     .print-orient-bar { display:none; }
     @media print { .print-orient-bar { display:none; } }
 
+    tr.jockey-duplicado td { background: rgba(245,158,11,0.06) !important; }
+    .badge-jockey-dup { display: inline-block; margin-left: 4px; font-size: 10px; font-weight: 700; color: #f59e0b; vertical-align: middle; }
     .cierre-status { font-size: 13px; font-weight: 600; margin-left: auto; white-space: nowrap; }
     .cierre-abierta { color: var(--success); }
     .cierre-cerrada { color: var(--danger); }
@@ -330,18 +332,21 @@ function renderAll(carreras, inscripciones) {
     const fort = insc.filter(i=>i.estado==='forfait').length;
     const pre = insc.filter(i=>i.estado==='inscripto').length;
     const activos = rat + pre;
+    const jockeyCount = {};
+    insc.forEach(i => { if (i.jockey_titular_id) jockeyCount[i.jockey_titular_id] = (jockeyCount[i.jockey_titular_id]||0)+1; });
     const rows = insc.map(i => {
       const spc = getSpc(i.spc_id);
       const cab = getCab(i.caballeriza_id);
       const isRat = i.estado==='ratificado';
       const isForf = i.estado==='forfait';
       const isMalInsc = i.estado==='mal_inscrito';
+      const hasColision = !isCerrada && !!i.jockey_titular_id && jockeyCount[i.jockey_titular_id] >= 2;
       const dc = 'disabled title="Ratificación cerrada" style="opacity:0.4;cursor:not-allowed;"';
-      return `<tr id="row-${i.id}" data-carrera="${car.id}" data-jockey="${i.jockey_titular_id||''}" class="${isRat?'':'no-ratificado'}">
+      return `<tr id="row-${i.id}" data-carrera="${car.id}" data-jockey="${i.jockey_titular_id||''}" class="${isRat?'':'no-ratificado'}${hasColision?' jockey-duplicado':''}">
         <td class="num-part print-hide">${i.numero_partidor||'—'}</td>
         <td><div class="spc-name">${spc?.nombre||i.spc_id}</div></td>
         <td style="font-size:12px;color:var(--muted)">${cab?.nombre||'—'}</td>
-        <td class="jockey-cell">${buildJockeySelect(i)}</td>
+        <td class="jockey-cell">${buildJockeySelect(i)}${hasColision?'<span class="badge-jockey-dup">⚠ dup.</span>':''}</td>
         <td class="col-peso-display">${i.peso_final?`<strong>${i.peso_final} kg</strong>`:i.peso_declarado?`${i.peso_declarado} kg`:'—'}</td>
         <td><input class="peso-input print-hide" type="number" id="peso-${i.id}" value="${i.peso_final||i.peso_declarado||''}" min="40" max="80" step="0.1" placeholder="kg"${isCerrada?' disabled':''}></td>
         <td><span class="badge badge-${i.estado}" id="badge-${i.id}">${i.estado?.replace('_',' ')||'—'}</span></td>
@@ -416,6 +421,31 @@ function updateCounter(inscId) {
   if (counter) counter.innerHTML = `${activos} inscriptos<span class="insc-counter-sub"> · ${rat} ratificados</span>`;
 }
 
+function recalcJockeyColisiones(carreraId) {
+  const sec = document.getElementById(`csec-${carreraId}`);
+  if (!sec) return;
+  const conteo = {};
+  sec.querySelectorAll('.jockey-select').forEach(sel => {
+    if (sel.value) conteo[sel.value] = (conteo[sel.value]||0)+1;
+  });
+  sec.querySelectorAll('.jockey-select').forEach(sel => {
+    const row = sel.closest('tr');
+    const cell = sel.closest('.jockey-cell');
+    if (!row || !cell) return;
+    const hasColision = !!sel.value && conteo[sel.value] >= 2;
+    row.classList.toggle('jockey-duplicado', hasColision);
+    let badge = cell.querySelector('.badge-jockey-dup');
+    if (hasColision && !badge) {
+      badge = document.createElement('span');
+      badge.className = 'badge-jockey-dup';
+      badge.textContent = '⚠ dup.';
+      cell.appendChild(badge);
+    } else if (!hasColision && badge) {
+      badge.remove();
+    }
+  });
+}
+
 function buildJockeySelect(i) {
   const jockeys = profesionales.filter(p => p.tipo === 'jockey');
   const supl = i.jockey_suplente_id ? profesionales.find(p => p.id === i.jockey_suplente_id) : null;
@@ -446,6 +476,8 @@ async function onJockeyChange(sel) {
     toast('Jockey removido');
   }
   sel.classList.toggle('jockey-missing', !jockeyId);
+  const carreraId = document.getElementById(`row-${inscId}`)?.dataset.carrera;
+  if (carreraId) recalcJockeyColisiones(carreraId);
   const row = document.getElementById(`row-${inscId}`);
   if (row) {
     row.dataset.jockey = jockeyId || '';
