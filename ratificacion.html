@@ -36,8 +36,7 @@
     .carrera-header { padding: 14px 18px; display: flex; align-items: center; gap: 14px; cursor: pointer; background: rgba(0,0,0,0.15); }
     .carrera-header:hover { background: rgba(0,0,0,0.25); }
     .carrera-num { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: var(--accent); min-width: 36px; }
-    .carrera-title { font-size: 15px; font-weight: 600; }
-    .carrera-title-block { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+    .carrera-title { font-size: 15px; font-weight: 600; flex: 1; }
     .carrera-stats { display: flex; gap: 8px; }
     .cstat { font-size: 12px; padding: 3px 9px; border-radius: 6px; font-weight: 600; }
     .cstat-rat { background: rgba(201,168,76,0.15); color: var(--accent); }
@@ -137,8 +136,8 @@
     .cierre-abierta { color: var(--success); }
     .cierre-cerrada { color: var(--danger); }
     .peso-input:disabled { opacity: 0.5; cursor: not-allowed; }
-    .carrera-programa { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; font-size: 12px; color: var(--muted); }
-    .carrera-programa label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+    .turno-nav-inputs { display: flex; gap: 14px; align-items: center; margin-left: auto; flex-wrap: wrap; }
+    .turno-nav-inputs label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); margin-right: 0; }
     .input-prog, .input-hora { padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 12px; outline: none; }
     .input-prog { width: 54px; text-align: center; }
     .input-hora { width: 92px; }
@@ -211,6 +210,7 @@ let pendingAction=null;
 let reuniones=[];
 let isCerrada=false;
 let currentReunion=null;
+let currentCarreraId=null;
 
 function toast(msg,type='success') {
   const t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
@@ -381,6 +381,20 @@ async function updateHoraEstimada(carreraId, value) {
   toast(hora ? `Hora ${hora} guardada` : 'Hora limpiada', 'success');
 }
 
+async function onChangeNumeroCarreraNav(value) {
+  if (!currentCarreraId) return;
+  await updateNumeroCarreraPrograma(currentCarreraId, value);
+  const btn = document.querySelector('.btn-turno.active');
+  if (btn) btn.dataset.numeroPrograma = value;
+}
+
+async function onChangeHoraNav(value) {
+  if (!currentCarreraId) return;
+  await updateHoraEstimada(currentCarreraId, value);
+  const btn = document.querySelector('.btn-turno.active');
+  if (btn) btn.dataset.hora = value;
+}
+
 async function init() {
   const [{ data: reuns }, { data: profs }, { data: sprcs }, { data: cabs }] = await Promise.all([
     sb.from('reuniones').select('id,numero,fecha,estado,hora_cierre_ratificacion,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
@@ -523,13 +537,7 @@ function renderAll(carreras, inscripciones) {
     return `<div class="carrera-section open${idx === 0 ? ' visible' : ''}" id="csec-${car.id}">
       <div class="carrera-header" onclick="toggleSection('${car.id}')">
         <div class="carrera-num">${car.numero_turno}</div>
-        <div class="carrera-title-block">
-          <div class="carrera-title">Turno ${car.numero_turno} — ${car.distancia_metros}m</div>
-          <div class="carrera-programa" onclick="event.stopPropagation()">
-            <label>Número de carrera: <input type="number" min="1" max="99" value="${car.numero_carrera_programa||''}" onblur="updateNumeroCarreraPrograma('${car.id}', this.value)" class="input-prog"${isCerrada?' disabled':''}></label>
-            <label>Hora: <input type="time" value="${car.hora_estimada||''}" onblur="updateHoraEstimada('${car.id}', this.value)" class="input-hora"${isCerrada?' disabled':''}></label>
-          </div>
-        </div>
+        <div class="carrera-title">Turno ${car.numero_turno} — ${car.distancia_metros}m</div>
         <div class="insc-counter" id="counter-${car.id}">${buildCounterHtml(insc.length, rat, pre, fort, mal)}</div>
         <span class="expand-icon">▼</span>
       </div>
@@ -551,9 +559,23 @@ function renderAll(carreras, inscripciones) {
   document.getElementById('content').innerHTML = html;
   const nav = document.getElementById('turno-nav');
   nav.innerHTML = '<label>Turno:</label>' + carreras.map((car, idx) =>
-    `<button class="btn-turno${idx===0?' active':''}" onclick="goToTurno('${car.id}',this)">${car.numero_turno}</button>`
-  ).join('');
+    `<button class="btn-turno${idx===0?' active':''}" onclick="goToTurno('${car.id}',this)" data-numero-programa="${car.numero_carrera_programa||''}" data-hora="${car.hora_estimada||''}">${car.numero_turno}</button>`
+  ).join('') +
+    `<div class="turno-nav-inputs">
+      <label>Número de carrera: <input type="number" min="1" max="99" id="nav-numero-carrera" class="input-prog" onblur="onChangeNumeroCarreraNav(this.value)"${isCerrada?' disabled':''}></label>
+      <label>Hora: <input type="time" id="nav-hora" class="input-hora" onblur="onChangeHoraNav(this.value)"${isCerrada?' disabled':''}></label>
+    </div>`;
   nav.classList.add('visible');
+  if (carreras.length > 0) {
+    currentCarreraId = carreras[0].id;
+    const firstBtn = nav.querySelector('.btn-turno');
+    if (firstBtn) {
+      const navProg = document.getElementById('nav-numero-carrera');
+      const navHora = document.getElementById('nav-hora');
+      if (navProg) navProg.value = firstBtn.dataset.numeroPrograma || '';
+      if (navHora) navHora.value = firstBtn.dataset.hora || '';
+    }
+  }
 }
 
 function goToTurno(carreraId, btnEl) {
@@ -562,6 +584,11 @@ function goToTurno(carreraId, btnEl) {
   document.querySelectorAll('.carrera-section').forEach(sec => {
     sec.classList.toggle('visible', sec.id === `csec-${carreraId}`);
   });
+  currentCarreraId = carreraId;
+  const navProg = document.getElementById('nav-numero-carrera');
+  const navHora = document.getElementById('nav-hora');
+  if (navProg && btnEl) navProg.value = btnEl.dataset.numeroPrograma || '';
+  if (navHora && btnEl) navHora.value = btnEl.dataset.hora || '';
 }
 
 function toggleSection(id) {
