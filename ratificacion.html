@@ -233,12 +233,15 @@ async function printRatificados() {
 
   const [{ data: carsData }, { data: clubData }] = await Promise.all([
     sb.from('carreras')
-      .select('id,numero_turno,nombre,bolsa_total,distancia_metros,tipo_pista,edad_minima_anos,edad_maxima_anos,condicion_sexo,condicion_handicap,estado')
-      .eq('reunion_id', reunionId)
-      .order('numero_turno'),
+      .select('id,numero_turno,numero_carrera_programa,hora_estimada,nombre,bolsa_total,distancia_metros,tipo_pista,edad_minima_anos,edad_maxima_anos,condicion_sexo,condicion_handicap,estado')
+      .eq('reunion_id', reunionId),
     sb.from('clubs').select('logo_url, localidad').eq('id', CLUB_ID).single(),
   ]);
-  const allCars = carsData || [];
+  const allCars = (carsData || []).sort((a, b) => {
+    const aNum = a.numero_carrera_programa != null ? a.numero_carrera_programa : (a.numero_turno + 10000);
+    const bNum = b.numero_carrera_programa != null ? b.numero_carrera_programa : (b.numero_turno + 10000);
+    return aNum - bNum;
+  });
   if (!allCars.length) { toast('No hay turnos en esta reunión', 'error'); return; }
 
   const { data: inscsData } = await sb.from('inscripciones')
@@ -299,9 +302,11 @@ async function printRatificados() {
     const bolsaStr = formatBolsa(car.bolsa_total);
     const condStr = buildCondAbr(car);
     const esCesped = (car.tipo_pista || '').toLowerCase() === 'cesped';
-    const turnoBand = car.nombre
-      ? `TURNO ${car.numero_turno} — ${car.nombre.toUpperCase()}`
-      : `TURNO ${car.numero_turno}`;
+    const numCarrera = car.numero_carrera_programa || car.numero_turno;
+    const horaStr = car.hora_estimada ? ` — ${car.hora_estimada}` : '';
+    const carreraBand = car.nombre
+      ? `CARRERA ${numCarrera}${horaStr} — ${car.nombre.toUpperCase()}`
+      : `CARRERA ${numCarrera}${horaStr}`;
     const listaHtml = items.map(i => {
       const nombre = (i.spcs?.nombre || '—').toUpperCase();
       const esH = esMixta && (i.spcs?.sexo || '').toLowerCase() === 'hembra';
@@ -310,8 +315,8 @@ async function printRatificados() {
       return `<div class="pi-row"><span class="pi-spc-name">${prefix}${nombre}${esH ? '<span class="pi-h-sfx"> (H)</span>' : ''}</span>${noCert ? '<span class="pi-nocert">●</span>' : ''}</div>`;
     }).join('');
     const tituloHtml = bolsaStr
-      ? `<div class="pi-titulo"><span class="pi-bolsa-inline">${bolsaStr}</span> · ${turnoBand}</div>`
-      : `<div class="pi-titulo">${turnoBand}</div>`;
+      ? `<div class="pi-titulo"><span class="pi-bolsa-inline">${bolsaStr}</span> · ${carreraBand}</div>`
+      : `<div class="pi-titulo">${carreraBand}</div>`;
     const condHtml = (condStr || esCesped)
       ? `<div class="pi-condiciones">${condStr || ''}${esCesped ? `${condStr ? ' · ' : ''}<span class="pi-cesped-inline">CESPED</span>` : ''}</div>`
       : '';
