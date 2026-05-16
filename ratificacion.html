@@ -135,6 +135,13 @@
     .cierre-abierta { color: var(--success); }
     .cierre-cerrada { color: var(--danger); }
     .peso-input:disabled { opacity: 0.5; cursor: not-allowed; }
+    .carrera-programa { display: flex; gap: 14px; align-items: center; font-size: 12px; color: var(--muted); margin-left: 8px; }
+    .carrera-programa label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+    .input-prog, .input-hora { padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 12px; outline: none; }
+    .input-prog { width: 54px; text-align: center; }
+    .input-hora { width: 92px; }
+    .input-prog:focus, .input-hora:focus { border-color: var(--accent); }
+    @media print { .carrera-programa { display: none !important; } }
     .turno-nav { background: var(--card); border-bottom: 1px solid var(--border); padding: 10px 24px; display: none; gap: 8px; align-items: center; flex-wrap: wrap; }
     .turno-nav.visible { display: flex; }
     .turno-nav label { font-size: 12px; color: var(--muted); margin-right: 4px; }
@@ -354,6 +361,24 @@ async function printRatificados() {
   window.print();
 }
 
+async function updateNumeroCarreraPrograma(carreraId, value) {
+  const numero = value !== '' ? parseInt(value, 10) : null;
+  if (value !== '' && (isNaN(numero) || numero < 1)) {
+    toast('Número de carrera inválido', 'error');
+    return;
+  }
+  const { error } = await sb.from('carreras').update({ numero_carrera_programa: numero }).eq('id', carreraId);
+  if (error) { toast('Error guardando N° carrera: ' + error.message, 'error'); return; }
+  toast(numero ? `N° carrera ${numero} guardado` : 'N° carrera limpiado', 'success');
+}
+
+async function updateHoraEstimada(carreraId, value) {
+  const hora = value || null;
+  const { error } = await sb.from('carreras').update({ hora_estimada: hora }).eq('id', carreraId);
+  if (error) { toast('Error guardando hora: ' + error.message, 'error'); return; }
+  toast(hora ? `Hora ${hora} guardada` : 'Hora limpiada', 'success');
+}
+
 async function init() {
   const [{ data: reuns }, { data: profs }, { data: sprcs }, { data: cabs }] = await Promise.all([
     sb.from('reuniones').select('id,numero,fecha,estado,hora_cierre_ratificacion,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
@@ -498,6 +523,10 @@ function renderAll(carreras, inscripciones) {
       <div class="carrera-header" onclick="toggleSection('${car.id}')">
         <div class="carrera-num">${car.numero_turno}</div>
         <div class="carrera-title">Turno ${car.numero_turno} — ${car.distancia_metros}m</div>
+        <div class="carrera-programa" onclick="event.stopPropagation()">
+          <label>N°: <input type="number" min="1" max="99" value="${car.numero_carrera_programa||''}" onblur="updateNumeroCarreraPrograma('${car.id}', this.value)" class="input-prog"${isCerrada?' disabled':''}></label>
+          <label>Hora: <input type="time" value="${car.hora_estimada||''}" onblur="updateHoraEstimada('${car.id}', this.value)" class="input-hora"${isCerrada?' disabled':''}></label>
+        </div>
         <div class="insc-counter" id="counter-${car.id}">${activos} inscriptos<span class="insc-counter-sub"> · ${rat} ratificados</span></div>
         <span class="expand-icon">▼</span>
       </div>
