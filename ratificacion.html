@@ -487,6 +487,7 @@ function renderAll(carreras, inscripciones) {
     const rat = insc.filter(i=>i.estado==='ratificado').length;
     const fort = insc.filter(i=>i.estado==='forfait').length;
     const pre = insc.filter(i=>i.estado==='inscripto').length;
+    const mal = insc.filter(i=>i.estado==='mal_inscrito').length;
     const activos = rat + pre;
     const jockeyCount = {};
     insc.forEach(i => { if (i.jockey_titular_id) jockeyCount[i.jockey_titular_id] = (jockeyCount[i.jockey_titular_id]||0)+1; });
@@ -530,7 +531,7 @@ function renderAll(carreras, inscripciones) {
             <label>Hora: <input type="time" value="${car.hora_estimada||''}" onblur="updateHoraEstimada('${car.id}', this.value)" class="input-hora"${isCerrada?' disabled':''}></label>
           </div>
         </div>
-        <div class="insc-counter" id="counter-${car.id}">${activos} inscriptos<span class="insc-counter-sub"> · ${rat} ratificados</span></div>
+        <div class="insc-counter" id="counter-${car.id}">${buildCounterHtml(insc.length, rat, pre, fort, mal)}</div>
         <span class="expand-icon">▼</span>
       </div>
       <table class="inscr-table">
@@ -570,17 +571,29 @@ function toggleSection(id) {
   document.getElementById(`csec-${id}`).classList.toggle('open');
 }
 
+function buildCounterHtml(total, rat, pre, fort, mal) {
+  const subs = [];
+  if (rat > 0) subs.push(`${rat} ratificados`);
+  if (pre > 0) subs.push(`${pre} inscriptos`);
+  if (fort > 0) subs.push(`${fort} forfait`);
+  if (mal > 0) subs.push(`${mal} mal inscritos`);
+  const subText = subs.length ? ` · ${subs.join(' · ')}` : '';
+  return `${total} caballos<span class="insc-counter-sub">${subText}</span>`;
+}
+
 function updateCounter(inscId) {
   const carreraId = document.getElementById(`row-${inscId}`)?.dataset.carrera;
   if (!carreraId) return;
-  let activos = 0, rat = 0;
+  let total = 0, rat = 0, pre = 0, fort = 0, mal = 0;
   document.querySelectorAll(`#csec-${carreraId} tbody .badge`).forEach(b => {
-    if (b.classList.contains('badge-forfait') || b.classList.contains('badge-mal_inscrito')) return;
-    activos++;
+    total++;
     if (b.classList.contains('badge-ratificado')) rat++;
+    else if (b.classList.contains('badge-inscripto')) pre++;
+    else if (b.classList.contains('badge-forfait')) fort++;
+    else if (b.classList.contains('badge-mal_inscrito')) mal++;
   });
   const counter = document.getElementById(`counter-${carreraId}`);
-  if (counter) counter.innerHTML = `${activos} inscriptos<span class="insc-counter-sub"> · ${rat} ratificados</span>`;
+  if (counter) counter.innerHTML = buildCounterHtml(total, rat, pre, fort, mal);
 }
 
 function recalcJockeyColisiones(carreraId) {
