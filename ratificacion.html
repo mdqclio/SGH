@@ -35,7 +35,8 @@
     .carrera-header { padding: 14px 18px; display: flex; align-items: center; gap: 14px; cursor: pointer; background: rgba(0,0,0,0.15); }
     .carrera-header:hover { background: rgba(0,0,0,0.25); }
     .carrera-num { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: var(--accent); min-width: 36px; }
-    .carrera-title { font-size: 15px; font-weight: 600; flex: 1; }
+    .carrera-title { font-size: 15px; font-weight: 600; }
+    .carrera-title-block { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
     .carrera-stats { display: flex; gap: 8px; }
     .cstat { font-size: 12px; padding: 3px 9px; border-radius: 6px; font-weight: 600; }
     .cstat-rat { background: rgba(201,168,76,0.15); color: var(--accent); }
@@ -135,7 +136,7 @@
     .cierre-abierta { color: var(--success); }
     .cierre-cerrada { color: var(--danger); }
     .peso-input:disabled { opacity: 0.5; cursor: not-allowed; }
-    .carrera-programa { display: flex; gap: 14px; align-items: center; font-size: 12px; color: var(--muted); margin-left: 8px; }
+    .carrera-programa { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; font-size: 12px; color: var(--muted); }
     .carrera-programa label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
     .input-prog, .input-hora { padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 12px; outline: none; }
     .input-prog { width: 54px; text-align: center; }
@@ -522,10 +523,12 @@ function renderAll(carreras, inscripciones) {
     return `<div class="carrera-section open" id="csec-${car.id}">
       <div class="carrera-header" onclick="toggleSection('${car.id}')">
         <div class="carrera-num">${car.numero_turno}</div>
-        <div class="carrera-title">Turno ${car.numero_turno} — ${car.distancia_metros}m</div>
-        <div class="carrera-programa" onclick="event.stopPropagation()">
-          <label>N°: <input type="number" min="1" max="99" value="${car.numero_carrera_programa||''}" onblur="updateNumeroCarreraPrograma('${car.id}', this.value)" class="input-prog"${isCerrada?' disabled':''}></label>
-          <label>Hora: <input type="time" value="${car.hora_estimada||''}" onblur="updateHoraEstimada('${car.id}', this.value)" class="input-hora"${isCerrada?' disabled':''}></label>
+        <div class="carrera-title-block">
+          <div class="carrera-title">Turno ${car.numero_turno} — ${car.distancia_metros}m</div>
+          <div class="carrera-programa" onclick="event.stopPropagation()">
+            <label>N°: <input type="number" min="1" max="99" value="${car.numero_carrera_programa||''}" onblur="updateNumeroCarreraPrograma('${car.id}', this.value)" class="input-prog"${isCerrada?' disabled':''}></label>
+            <label>Hora: <input type="time" value="${car.hora_estimada||''}" onblur="updateHoraEstimada('${car.id}', this.value)" class="input-hora"${isCerrada?' disabled':''}></label>
+          </div>
         </div>
         <div class="insc-counter" id="counter-${car.id}">${activos} inscriptos<span class="insc-counter-sub"> · ${rat} ratificados</span></div>
         <span class="expand-icon">▼</span>
