@@ -31,8 +31,7 @@
     select:focus { border-color: var(--accent); }
     select option { background: #1a3d26; }
     .content { max-width: 1600px; margin: 0 auto; padding: 24px; }
-    .carrera-section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 16px; overflow: hidden; display: none; }
-    .carrera-section.visible { display: block; }
+    .carrera-section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 16px; overflow: hidden; }
     .carrera-header { padding: 14px 18px; display: flex; align-items: center; gap: 14px; cursor: pointer; background: rgba(0,0,0,0.15); }
     .carrera-header:hover { background: rgba(0,0,0,0.25); }
     .carrera-num { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: var(--accent); min-width: 36px; }
@@ -521,7 +520,7 @@ function renderAll(carreras, inscripciones) {
         </td>
       </tr>`;
     }).join('');
-    return `<div class="carrera-section open${idx === 0 ? ' visible' : ''}" id="csec-${car.id}">
+    return `<div class="carrera-section open" id="csec-${car.id}">
       <div class="carrera-header" onclick="toggleSection('${car.id}')">
         <div class="carrera-num">${car.numero_turno}</div>
         <div class="carrera-title">Turno ${car.numero_turno} — ${car.distancia_metros}m</div>
@@ -560,10 +559,9 @@ function renderAll(carreras, inscripciones) {
 function goToTurno(carreraId, btnEl) {
   document.querySelectorAll('.btn-turno').forEach(b => b.classList.remove('active'));
   if (btnEl) btnEl.classList.add('active');
-  document.querySelectorAll('.carrera-section').forEach(sec => {
-    sec.classList.toggle('visible', sec.id === `csec-${carreraId}`);
-  });
   currentCarreraId = carreraId;
+  const target = document.getElementById(`csec-${carreraId}`);
+  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function toggleSection(id) {
