@@ -526,7 +526,7 @@ function renderAll(carreras, inscripciones) {
         <div class="carrera-title-block">
           <div class="carrera-title">Turno ${car.numero_turno} — ${car.distancia_metros}m</div>
           <div class="carrera-programa" onclick="event.stopPropagation()">
-            <label>N°: <input type="number" min="1" max="99" value="${car.numero_carrera_programa||''}" onblur="updateNumeroCarreraPrograma('${car.id}', this.value)" class="input-prog"${isCerrada?' disabled':''}></label>
+            <label>Número de carrera: <input type="number" min="1" max="99" value="${car.numero_carrera_programa||''}" onblur="updateNumeroCarreraPrograma('${car.id}', this.value)" class="input-prog"${isCerrada?' disabled':''}></label>
             <label>Hora: <input type="time" value="${car.hora_estimada||''}" onblur="updateHoraEstimada('${car.id}', this.value)" class="input-hora"${isCerrada?' disabled':''}></label>
           </div>
         </div>
