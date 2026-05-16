@@ -136,16 +136,16 @@
     .cierre-abierta { color: var(--success); }
     .cierre-cerrada { color: var(--danger); }
     .peso-input:disabled { opacity: 0.5; cursor: not-allowed; }
-    .turno-nav-inputs { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; flex-basis: 100%; }
-    .turno-nav-inputs label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); margin-right: 0; }
     .input-prog, .input-hora { padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 12px; outline: none; }
     .input-prog { width: 54px; text-align: center; }
     .input-hora { width: 92px; }
     .input-prog:focus, .input-hora:focus { border-color: var(--accent); }
     @media print { .carrera-programa { display: none !important; } }
-    .turno-nav { background: var(--card); border-bottom: 1px solid var(--border); padding: 10px 24px; display: none; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .turno-nav { background: var(--card); border-bottom: 1px solid var(--border); padding: 10px 24px; display: none; gap: 6px; align-items: stretch; flex-wrap: wrap; }
     .turno-nav.visible { display: flex; }
-    .turno-nav label { font-size: 12px; color: var(--muted); margin-right: 4px; }
+    .nav-labels { display: flex; flex-direction: column; gap: 4px; justify-content: space-around; padding-right: 10px; align-items: flex-end; }
+    .nav-labels span { font-size: 12px; color: var(--muted); white-space: nowrap; line-height: 1.6; }
+    .turno-col { display: flex; flex-direction: column; gap: 4px; align-items: center; }
     .btn-turno { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 5px 14px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
     .btn-turno:hover { border-color: var(--accent); color: var(--accent); }
     .btn-turno.active { background: rgba(201,168,76,0.15); border-color: var(--accent); color: var(--accent); font-weight: 600; }
@@ -381,19 +381,6 @@ async function updateHoraEstimada(carreraId, value) {
   toast(hora ? `Hora ${hora} guardada` : 'Hora limpiada', 'success');
 }
 
-async function onChangeNumeroCarreraNav(value) {
-  if (!currentCarreraId) return;
-  await updateNumeroCarreraPrograma(currentCarreraId, value);
-  const btn = document.querySelector('.btn-turno.active');
-  if (btn) btn.dataset.numeroPrograma = value;
-}
-
-async function onChangeHoraNav(value) {
-  if (!currentCarreraId) return;
-  await updateHoraEstimada(currentCarreraId, value);
-  const btn = document.querySelector('.btn-turno.active');
-  if (btn) btn.dataset.hora = value;
-}
 
 async function init() {
   const [{ data: reuns }, { data: profs }, { data: sprcs }, { data: cabs }] = await Promise.all([
@@ -558,24 +545,16 @@ function renderAll(carreras, inscripciones) {
   }).join('');
   document.getElementById('content').innerHTML = html;
   const nav = document.getElementById('turno-nav');
-  nav.innerHTML = '<label>Turno:</label>' + carreras.map((car, idx) =>
-    `<button class="btn-turno${idx===0?' active':''}" onclick="goToTurno('${car.id}',this)" data-numero-programa="${car.numero_carrera_programa||''}" data-hora="${car.hora_estimada||''}">${car.numero_turno}</button>`
-  ).join('') +
-    `<div class="turno-nav-inputs">
-      <label>Número de carrera: <input type="number" min="1" max="99" id="nav-numero-carrera" class="input-prog" onblur="onChangeNumeroCarreraNav(this.value)"${isCerrada?' disabled':''}></label>
-      <label>Hora: <input type="time" id="nav-hora" class="input-hora" onblur="onChangeHoraNav(this.value)"${isCerrada?' disabled':''}></label>
-    </div>`;
+  nav.innerHTML = '<div class="nav-labels"><span>Turno:</span><span>N° carrera:</span><span>Hora:</span></div>' +
+    carreras.map((car, idx) =>
+      `<div class="turno-col">
+        <button class="btn-turno${idx===0?' active':''}" onclick="goToTurno('${car.id}',this)">${car.numero_turno}</button>
+        <input type="number" min="1" max="99" value="${car.numero_carrera_programa||''}" class="input-prog" onblur="updateNumeroCarreraPrograma('${car.id}', this.value)"${isCerrada?' disabled':''}>
+        <input type="time" value="${car.hora_estimada||''}" class="input-hora" onblur="updateHoraEstimada('${car.id}', this.value)"${isCerrada?' disabled':''}>
+      </div>`
+    ).join('');
   nav.classList.add('visible');
-  if (carreras.length > 0) {
-    currentCarreraId = carreras[0].id;
-    const firstBtn = nav.querySelector('.btn-turno');
-    if (firstBtn) {
-      const navProg = document.getElementById('nav-numero-carrera');
-      const navHora = document.getElementById('nav-hora');
-      if (navProg) navProg.value = firstBtn.dataset.numeroPrograma || '';
-      if (navHora) navHora.value = firstBtn.dataset.hora || '';
-    }
-  }
+  if (carreras.length > 0) currentCarreraId = carreras[0].id;
 }
 
 function goToTurno(carreraId, btnEl) {
@@ -585,10 +564,6 @@ function goToTurno(carreraId, btnEl) {
     sec.classList.toggle('visible', sec.id === `csec-${carreraId}`);
   });
   currentCarreraId = carreraId;
-  const navProg = document.getElementById('nav-numero-carrera');
-  const navHora = document.getElementById('nav-hora');
-  if (navProg && btnEl) navProg.value = btnEl.dataset.numeroPrograma || '';
-  if (navHora && btnEl) navHora.value = btnEl.dataset.hora || '';
 }
 
 function toggleSection(id) {
