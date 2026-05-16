@@ -207,7 +207,12 @@ async function loadPrograma() {
   if (!rid) { document.getElementById('content').innerHTML='<div class="empty-state"><div class="icon">📰</div><h3>Seleccionar una reunión</h3></div>'; return; }
   document.getElementById('content').innerHTML='<div class="loading-state"><div class="spinner"></div> Generando programa…</div>';
   const { data: reunion } = await sb.from('reuniones').select('*,hipodromos(nombre,sigla,localidad,provincia)').eq('id',rid).single();
-  const { data: carreras, error } = await sb.from('carreras').select('*').eq('reunion_id', rid).order('numero_turno');
+  const { data: carrerasRaw, error } = await sb.from('carreras').select('*').eq('reunion_id', rid);
+  const carreras = (carrerasRaw || []).sort((a, b) => {
+    const aNum = a.numero_carrera_programa != null ? a.numero_carrera_programa : (a.numero_turno + 10000);
+    const bNum = b.numero_carrera_programa != null ? b.numero_carrera_programa : (b.numero_turno + 10000);
+    return aNum - bNum;
+  });
   if (error) { toast(error.message,'error'); return; }
   const carIds = (carreras||[]).map(c=>c.id);
   let inscripciones = [];
@@ -310,9 +315,9 @@ function renderPrograma(reunion, carreras, inscripciones) {
       html += `<div class="carrera-block">
         <div class="carrera-block-header">
           <div class="carrera-block-title">
-            <div class="car-num">${car.numero_turno}</div>
+            <div class="car-num">${car.numero_carrera_programa || car.numero_turno}</div>
             <div>
-              <div class="car-name">${car.nombre||`Turno ${car.numero_turno}`}</div>
+              <div class="car-name">${car.nombre||`Turno ${car.numero_carrera_programa || car.numero_turno}`}</div>
               <div class="car-cat">${cat?`${cat.nombre}${cat.codigo?` (${cat.codigo})`:''}`:'—'}</div>
             </div>
           </div>
