@@ -110,7 +110,7 @@
       .pi-wrapper { display: block; width: 100%; break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid; margin-bottom: 8pt; }
       .pi-bloque { display: flex; flex-direction: column; width: fit-content; max-width: 100%; }
       .pi-car-head { background: #e8e8e8; padding: 3px 7px; border: 1px solid #000; text-align: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .pi-titulo { font-size: 8pt; font-weight: 900; text-transform: uppercase; line-height: 1.2; }
+      .pi-titulo { font-size: 8pt; font-weight: 900; line-height: 1.3; }
       .pi-bolsa-inline { font-size: 9pt; font-weight: 900; }
       .pi-condiciones { font-size: 7pt; color: #222; margin-top: 1px; line-height: 1.25; }
       .pi-cesped-inline { font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; }
@@ -303,10 +303,10 @@ async function printRatificados() {
     const condStr = buildCondAbr(car);
     const esCesped = (car.tipo_pista || '').toLowerCase() === 'cesped';
     const numCarrera = car.numero_carrera_programa || car.numero_turno;
-    const horaStr = car.hora_estimada ? ` — ${car.hora_estimada}` : '';
-    const carreraBand = car.nombre
-      ? `CARRERA ${numCarrera}${horaStr} — ${car.nombre.toUpperCase()}`
-      : `CARRERA ${numCarrera}${horaStr}`;
+    const horaHHMM = (car.hora_estimada || '').slice(0, 5);
+    const horaLine = horaHHMM ? `<br>${horaHHMM}` : '';
+    const nombreLine = car.nombre ? `<br>${car.nombre.toUpperCase()}` : '';
+    const carreraBand = `Carrera ${numCarrera}${horaLine}${nombreLine}`;
     const listaHtml = items.map(i => {
       const nombre = (i.spcs?.nombre || '—').toUpperCase();
       const esH = esMixta && (i.spcs?.sexo || '').toLowerCase() === 'hembra';
@@ -314,9 +314,7 @@ async function printRatificados() {
       const prefix = isAnulada ? '• ' : '';
       return `<div class="pi-row"><span class="pi-spc-name">${prefix}${nombre}${esH ? '<span class="pi-h-sfx"> (H)</span>' : ''}</span>${noCert ? '<span class="pi-nocert">●</span>' : ''}</div>`;
     }).join('');
-    const tituloHtml = bolsaStr
-      ? `<div class="pi-titulo"><span class="pi-bolsa-inline">${bolsaStr}</span> · ${carreraBand}</div>`
-      : `<div class="pi-titulo">${carreraBand}</div>`;
+    const tituloHtml = `<div class="pi-titulo">${carreraBand}</div>`;
     const condHtml = (condStr || esCesped)
       ? `<div class="pi-condiciones">${condStr || ''}${esCesped ? `${condStr ? ' · ' : ''}<span class="pi-cesped-inline">CESPED</span>` : ''}</div>`
       : '';
