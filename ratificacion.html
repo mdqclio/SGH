@@ -327,14 +327,15 @@ function renderAll(carreras, inscripciones) {
     return;
   }
   const html = carreras.map(car => {
-    const insc = inscripciones.filter(i=>i.carrera_id===car.id);
+    const insc = inscripciones.filter(i=>i.carrera_id===car.id)
+      .sort((a,b) => (getSpc(a.spc_id)?.nombre||'').localeCompare(getSpc(b.spc_id)?.nombre||'', 'es'));
     const rat = insc.filter(i=>i.estado==='ratificado').length;
     const fort = insc.filter(i=>i.estado==='forfait').length;
     const pre = insc.filter(i=>i.estado==='inscripto').length;
     const activos = rat + pre;
     const jockeyCount = {};
     insc.forEach(i => { if (i.jockey_titular_id) jockeyCount[i.jockey_titular_id] = (jockeyCount[i.jockey_titular_id]||0)+1; });
-    const rows = insc.map(i => {
+    const rows = insc.map((i, idx) => {
       const spc = getSpc(i.spc_id);
       const cab = getCab(i.caballeriza_id);
       const isRat = i.estado==='ratificado';
@@ -343,7 +344,7 @@ function renderAll(carreras, inscripciones) {
       const hasColision = !isCerrada && !!i.jockey_titular_id && jockeyCount[i.jockey_titular_id] >= 2;
       const dc = 'disabled title="Ratificación cerrada" style="opacity:0.4;cursor:not-allowed;"';
       return `<tr id="row-${i.id}" data-carrera="${car.id}" data-jockey="${i.jockey_titular_id||''}" class="${isRat?'':'no-ratificado'}${hasColision?' jockey-duplicado':''}">
-        <td class="num-part print-hide">${i.numero_partidor||'—'}</td>
+        <td class="num-part print-hide">${idx + 1}</td>
         <td><div class="spc-name">${spc?.nombre||i.spc_id}</div></td>
         <td style="font-size:12px;color:var(--muted)">${cab?.nombre||'—'}</td>
         <td class="jockey-cell">${buildJockeySelect(i)}${hasColision?'<span class="badge-jockey-dup">⚠ dup.</span>':''}</td>
