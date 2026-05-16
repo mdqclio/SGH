@@ -158,7 +158,7 @@
   <h1>Ratificados y forfait</h1>
   <span class="user-name" id="user-name"></span>
   <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
-  <button class="btn-outline" onclick="showPrintDialog()">🖨️ Imprimir PDF</button>
+  <button class="btn-outline" onclick="printRatificados()">🖨️ Imprimir PDF</button>
 </div>
 
 
@@ -210,11 +210,147 @@ function toast(msg,type='success') {
 
 function closeMini(id) { document.getElementById(id).classList.remove('open'); pendingInscId=null; pendingAction=null; }
 
-function showPrintDialog() { document.getElementById('modal-print').classList.add('open'); }
-function doPrint() {
-  const orient = document.getElementById('print-orient').value;
-  document.getElementById('print-orient-style').textContent = `@media print { @page { size: A4 ${orient}; margin: 12mm; } }`;
-  closeMini('modal-print');
+async function printRatificados() {
+  const reunionId = document.getElementById('sel-reunion').value;
+  if (!reunionId) { toast('Seleccionar una reunión para imprimir', 'error'); return; }
+  const reunion = reuniones.find(r => r.id === reunionId);
+  const f = reunion?.fecha ? new Date(reunion.fecha + 'T12:00:00') : new Date();
+  const DIAS  = ['DOMINGO','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO'];
+  const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+  const fechaStr = `${DIAS[f.getDay()]} ${f.getDate()} DE ${MESES[f.getMonth()]} DE ${f.getFullYear()}`;
+  const hipRaw = (reunion?.hipodromos?.nombre || '').toUpperCase();
+  const hipNombre = hipRaw.replace(/^HIP[ÓO]DROMO DE /i, '').trim() || 'SGH';
+
+  const [{ data: carsData }, { data: clubData }] = await Promise.all([
+    sb.from('carreras')
+      .select('id,numero_turno,nombre,bolsa_total,distancia_metros,tipo_pista,edad_minima_anos,edad_maxima_anos,condicion_sexo,condicion_handicap,estado')
+      .eq('reunion_id', reunionId)
+      .order('numero_turno'),
+    sb.from('clubs').select('logo_url, localidad').eq('id', CLUB_ID).single(),
+  ]);
+  const allCars = carsData || [];
+  if (!allCars.length) { toast('No hay turnos en esta reunión', 'error'); return; }
+
+  const { data: inscsData } = await sb.from('inscripciones')
+    .select('carrera_id, spc_id, estado, certificado_correr, spcs(nombre, sexo)')
+    .in('carrera_id', allCars.map(c => c.id))
+    .in('estado', ['inscripto', 'ratificado', 'mal_inscrito', 'forfait']);
+  const inscs = inscsData || [];
+
+  const inscsByCarrera = new Map();
+  allCars.forEach(car => {
+    inscsByCarrera.set(car.id, inscs
+      .filter(i => i.carrera_id === car.id)
+      .sort((a, b) => (a.spcs?.nombre || '').localeCompare(b.spcs?.nombre || '', 'es')));
+  });
+
+  function buildCondAbr(car) {
+    const sexoMap = { machos: 'Cab', hembras: 'Yeg', machos_castrados: 'Cas', ambos: 'Todo caballo' };
+    const sexoAbr = sexoMap[car.condicion_sexo] || '';
+    const usaEspacios = sexoAbr.includes(' ');
+    const sep = usaEspacios ? ' ' : '.';
+    const parts = [];
+    if (sexoAbr) parts.push(sexoAbr);
+    const emin = car.edad_minima_anos, emax = car.edad_maxima_anos;
+    if (emin && emax) {
+      parts.push(emin === emax
+        ? (usaEspacios ? `${emin} a` : `${emin}a`)
+        : (usaEspacios ? `${emin} - ${emax} a` : `${emin}-${emax}a`));
+    } else if (emin) {
+      parts.push(usaEspacios ? `${emin} a +` : `${emin}a+`);
+    }
+    let hc = (car.condicion_handicap || '').trim();
+    if (usaEspacios && hc) {
+      hc = hc.replace(/^todo\s+caballo\s+(de\s+)?/i, '').trim();
+      hc = hc.replace(/^\d+\s*(a|años?)\s*(y\s*\d+\s*(a|años?)?)?\s*/i, '').trim();
+    }
+    if (hc) {
+      const hcLow = hc.toLowerCase();
+      const condAbr = /\bperdedor(es)?\b/.test(hcLow) ? 'perd'
+        : /\bganadores? de 1 carrera\b/.test(hcLow) ? 'g.1c'
+        : /\bganadores? de 2 carreras\b/.test(hcLow) ? 'g.2c'
+        : hc.length > 18 ? hc.slice(0, 18) + '…' : hc;
+      parts.push(condAbr);
+    }
+    let result = parts.join(sep);
+    if (car.distancia_metros) result += (result ? ' ' : '') + `${car.distancia_metros} mts`;
+    return result;
+  }
+
+  function formatBolsa(num) {
+    if (!num) return '';
+    const n = Math.round(parseFloat(num));
+    return '$' + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '.-';
+  }
+
+  function renderBloqueCarrera(car, items, isAnulada) {
+    if (!items.length) return '';
+    const esMixta = car.condicion_sexo === 'ambos';
+    const bolsaStr = formatBolsa(car.bolsa_total);
+    const condStr = buildCondAbr(car);
+    const esCesped = (car.tipo_pista || '').toLowerCase() === 'cesped';
+    const turnoBand = car.nombre
+      ? `TURNO ${car.numero_turno} — ${car.nombre.toUpperCase()}`
+      : `TURNO ${car.numero_turno}`;
+    const listaHtml = items.map(i => {
+      const nombre = (i.spcs?.nombre || '—').toUpperCase();
+      const esH = esMixta && (i.spcs?.sexo || '').toLowerCase() === 'hembra';
+      const noCert = !i.certificado_correr;
+      const prefix = isAnulada ? '• ' : '';
+      return `<div class="pi-row"><span class="pi-spc-name">${prefix}${nombre}${esH ? '<span class="pi-h-sfx"> (H)</span>' : ''}</span>${noCert ? '<span class="pi-nocert">●</span>' : ''}</div>`;
+    }).join('');
+    const tituloHtml = bolsaStr
+      ? `<div class="pi-titulo"><span class="pi-bolsa-inline">${bolsaStr}</span> · ${turnoBand}</div>`
+      : `<div class="pi-titulo">${turnoBand}</div>`;
+    const condHtml = (condStr || esCesped)
+      ? `<div class="pi-condiciones">${condStr || ''}${esCesped ? `${condStr ? ' · ' : ''}<span class="pi-cesped-inline">CESPED</span>` : ''}</div>`
+      : '';
+    const bandaHtml = isAnulada ? '<div class="pi-banda-anulada">Anulada</div>' : '';
+    const footHtml = isAnulada
+      ? '<div class="pi-car-foot" style="font-size:7pt;">PREMIO ANULADO</div>'
+      : `<div class="pi-car-foot">${items.length}</div>`;
+    return `<div class="pi-wrapper">
+      <div class="pi-bloque">
+        <div class="pi-car-head">${tituloHtml}${condHtml}</div>
+        ${bandaHtml}
+        <div class="pi-lista">${listaHtml}</div>
+        ${footHtml}
+      </div>
+    </div>`;
+  }
+
+  let totalRatificados = 0;
+  const bloquesHtml = allCars.map(car => {
+    const inscsCar = inscsByCarrera.get(car.id) || [];
+    const esAnulada = car.estado === 'anulada' || car.estado === 'reabierta';
+    if (esAnulada) return renderBloqueCarrera(car, inscsCar, true);
+    const ratificados = inscsCar.filter(i => i.estado === 'ratificado');
+    if (!ratificados.length) return '';
+    totalRatificados += ratificados.length;
+    return renderBloqueCarrera(car, ratificados, false);
+  }).join('');
+
+  const logoHtml = clubData?.logo_url
+    ? `<img src="${clubData.logo_url}" class="pi-footer-logo" alt="">` : '';
+
+  document.getElementById('print-only').innerHTML = `
+    <div class="pi-header">
+      <div class="pi-title">RATIFICADOS</div>
+      <div class="pi-sub">HIPÓDROMO DE ${hipNombre} — REUNIÓN N° ${reunion?.numero || '—'} DEL DÍA ${fechaStr}</div>
+    </div>
+    <div class="pi-cols">${bloquesHtml}</div>
+    <div class="pi-footer">
+      <div class="pi-footer-left">
+        <span><strong>H</strong> = Hembra (en carrera mixta)</span>
+        <span><strong>●</strong> = Falta certificado para correr</span>
+        <span style="font-weight:900;margin-top:2px;">TOTAL DE RATIFICADOS: ${totalRatificados} SPC</span>
+      </div>
+      <div class="pi-footer-right">
+        ${logoHtml}
+        <span>${fechaStr}</span>
+      </div>
+    </div>`;
+
   window.print();
 }
 
@@ -594,7 +730,6 @@ async function confirmMotivo() {
 }
 
 document.getElementById('modal-motivo').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeMini('modal-motivo'); });
-document.getElementById('modal-print').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeMini('modal-print'); });
 (async()=>{if(await initAuth())init();})();
 </script>
 <div id="print-only"></div>
