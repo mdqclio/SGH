@@ -307,7 +307,7 @@ async function printRatificados() {
       : '';
     const bandaHtml = isAnulada ? '<div class="pi-banda-anulada">Anulada</div>' : '';
     const footHtml = isAnulada
-      ? '<div class="pi-car-foot" style="font-size:7pt;">PREMIO ANULADO</div>'
+      ? ''
       : `<div class="pi-car-foot">${items.length}</div>`;
     return `<div class="pi-wrapper">
       <div class="pi-bloque">
