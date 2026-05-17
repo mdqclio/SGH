@@ -71,6 +71,14 @@
     .btn-fort:hover { background: rgba(224,82,82,0.2); }
     .btn-malinsc { background: rgba(245,158,11,0.1); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
     .btn-malinsc:hover { background: rgba(245,158,11,0.2); }
+    .btn-anular { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+    .btn-anular:hover { background: rgba(224,82,82,0.2); }
+    .btn-confirmar { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .btn-confirmar:hover { background: rgba(76,175,130,0.3); }
+    .btn-reabrir { background: rgba(160,160,160,0.15); color: var(--muted); border: 1px solid rgba(160,160,160,0.3); }
+    .btn-reabrir:hover { background: rgba(160,160,160,0.3); }
+    .badge-confirmada { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .estado-carrera-actions { display: flex; gap: 6px; align-items: center; margin-left: 12px; }
     .badge-mal_inscrito { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
     .jockey-select { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 12px; outline: none; width: 100%; max-width: 190px; cursor: pointer; }
     .jockey-select:focus { border-color: var(--accent); }
@@ -495,6 +503,7 @@ function renderAll(carreras, inscripciones) {
     const pre = insc.filter(i=>i.estado==='inscripto').length;
     const mal = insc.filter(i=>i.estado==='mal_inscrito').length;
     const activos = rat + pre;
+    const carCerrada = isCerrada || car.estado === 'confirmada';
     const jockeyCount = {};
     insc.forEach(i => { if (i.jockey_titular_id) jockeyCount[i.jockey_titular_id] = (jockeyCount[i.jockey_titular_id]||0)+1; });
     const rows = insc.map((i, idx) => {
@@ -503,25 +512,25 @@ function renderAll(carreras, inscripciones) {
       const isRat = i.estado==='ratificado';
       const isForf = i.estado==='forfait';
       const isMalInsc = i.estado==='mal_inscrito';
-      const hasColision = !isCerrada && !!i.jockey_titular_id && jockeyCount[i.jockey_titular_id] >= 2;
-      const dc = 'disabled title="Ratificación cerrada" style="opacity:0.4;cursor:not-allowed;"';
+      const hasColision = !carCerrada && !!i.jockey_titular_id && jockeyCount[i.jockey_titular_id] >= 2;
+      const dc = `disabled title="${car.estado === 'confirmada' ? 'Carrera confirmada' : 'Ratificación cerrada'}" style="opacity:0.4;cursor:not-allowed;"`;
       return `<tr id="row-${i.id}" data-carrera="${car.id}" data-jockey="${i.jockey_titular_id||''}" class="${isRat?'':'no-ratificado'}${hasColision?' jockey-duplicado':''}">
         <td class="num-part print-hide">${idx + 1}</td>
         <td><div class="spc-name">${spc?.nombre||i.spc_id}</div></td>
         <td style="font-size:12px;color:var(--muted)">${cab?.nombre||'—'}</td>
         <td class="jockey-cell">${buildJockeySelect(i)}${hasColision?'<span class="badge-jockey-dup">⚠ dup.</span>':''}</td>
         <td class="col-peso-display">${i.peso_final?`<strong>${i.peso_final} kg</strong>`:i.peso_declarado?`${i.peso_declarado} kg`:'—'}</td>
-        <td><input class="peso-input print-hide" type="number" id="peso-${i.id}" value="${i.peso_final||i.peso_declarado||''}" min="40" max="80" step="0.1" placeholder="kg"${isCerrada?' disabled':''}></td>
+        <td><input class="peso-input print-hide" type="number" id="peso-${i.id}" value="${i.peso_final||i.peso_declarado||''}" min="40" max="80" step="0.1" placeholder="kg"${carCerrada?' disabled':''}></td>
         <td><span class="badge badge-${i.estado}" id="badge-${i.id}">${i.estado?.replace('_',' ')||'—'}</span></td>
         <td class="action-btns print-hide">
           ${!isRat&&!isForf&&!isMalInsc?(
-            isCerrada
+            carCerrada
               ?`<button class="btn-sm btn-rat" ${dc}>✅ Ratificar</button>`
               :`<button class="btn-sm btn-rat" onclick="ratificar('${i.id}')">✅ Ratificar</button>`)
           :''}
-          ${isRat||isMalInsc?`<button class="btn-sm btn-volver" ${isCerrada?dc:`onclick="volverInscripto('${i.id}')"`}>↩ Volver</button>`:''}
-          ${!isForf&&!isMalInsc?`<button class="btn-sm btn-fort" ${isCerrada?dc:`onclick="openForfait('${i.id}')"`}>❌ Forfait</button>`:''}
-          ${!isRat&&!isForf&&!isMalInsc?`<button class="btn-sm btn-malinsc" ${isCerrada?dc:`onclick="openMalInscrito('${i.id}')"`}>⚠ Mal inscripto</button>`:''}
+          ${isRat||isMalInsc?`<button class="btn-sm btn-volver" ${carCerrada?dc:`onclick="volverInscripto('${i.id}')"`}>↩ Volver</button>`:''}
+          ${!isForf&&!isMalInsc?`<button class="btn-sm btn-fort" ${carCerrada?dc:`onclick="openForfait('${i.id}')"`}>❌ Forfait</button>`:''}
+          ${!isRat&&!isForf&&!isMalInsc?`<button class="btn-sm btn-malinsc" ${carCerrada?dc:`onclick="openMalInscrito('${i.id}')"`}>⚠ Mal inscripto</button>`:''}
         </td>
       </tr>`;
     }).join('');
@@ -530,6 +539,7 @@ function renderAll(carreras, inscripciones) {
         <div class="carrera-num">${car.numero_turno}</div>
         <div class="carrera-title">Turno ${car.numero_turno} — ${car.distancia_metros}m</div>
         <div class="insc-counter" id="counter-${car.id}">${buildCounterHtml(insc.length, rat, pre, fort, mal)}</div>
+        <div class="estado-carrera-actions" onclick="event.stopPropagation()">${renderEstadoCarreraActions(car)}</div>
         <span class="expand-icon">▼</span>
       </div>
       <table class="inscr-table">
@@ -571,6 +581,27 @@ function goToTurno(carreraId, btnEl) {
 
 function toggleSection(id) {
   document.getElementById(`csec-${id}`).classList.toggle('open');
+}
+
+function renderEstadoCarreraActions(car) {
+  const est = car.estado;
+  if (est === 'anulada') {
+    return `<span class="badge badge-anulada">ANULADA</span>
+            <button class="btn-sm btn-reabrir" onclick="updateEstadoCarrera('${car.id}', null)">↩ Reabrir</button>`;
+  }
+  if (est === 'confirmada') {
+    return `<span class="badge badge-confirmada">CONFIRMADA</span>
+            <button class="btn-sm btn-reabrir" onclick="updateEstadoCarrera('${car.id}', null)">↩ Reabrir</button>`;
+  }
+  return `<button class="btn-sm btn-anular" onclick="updateEstadoCarrera('${car.id}', 'anulada')">❌ Anular</button>
+          <button class="btn-sm btn-confirmar" onclick="updateEstadoCarrera('${car.id}', 'confirmada')">✅ Confirmar</button>`;
+}
+
+async function updateEstadoCarrera(carreraId, nuevoEstado) {
+  const { error } = await sb.from('carreras').update({ estado: nuevoEstado }).eq('id', carreraId);
+  if (error) { toast('Error: ' + error.message, 'error'); return; }
+  toast(nuevoEstado ? `Carrera ${nuevoEstado}` : 'Carrera reabierta', 'success');
+  await loadReunion();
 }
 
 function buildCounterHtml(total, rat, pre, fort, mal) {
