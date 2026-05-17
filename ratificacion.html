@@ -31,7 +31,7 @@
     select:focus { border-color: var(--accent); }
     select option { background: #1a3d26; }
     .content { max-width: 1600px; margin: 0 auto; padding: 24px; }
-    .carrera-section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 16px; overflow: hidden; scroll-margin-top: 240px; }
+    .carrera-section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 16px; overflow: hidden; }
     .carrera-header { padding: 14px 18px; display: flex; align-items: center; gap: 14px; cursor: pointer; background: rgba(0,0,0,0.15); }
     .carrera-header:hover { background: rgba(0,0,0,0.25); }
     .carrera-num { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: var(--accent); min-width: 36px; }
@@ -589,7 +589,11 @@ function goToTurno(carreraId, btnEl) {
   if (btnEl) btnEl.classList.add('active');
   currentCarreraId = carreraId;
   const target = document.getElementById(`csec-${carreraId}`);
-  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (!target) return;
+  const stickyHeader = document.querySelector('.sticky-header');
+  const headerHeight = stickyHeader ? stickyHeader.offsetHeight : 0;
+  const targetTop = target.getBoundingClientRect().top + window.scrollY;
+  window.scrollTo({ top: targetTop - headerHeight - 12, behavior: 'smooth' });
 }
 
 function toggleSection(id) {
