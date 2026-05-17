@@ -83,6 +83,11 @@
     .sel-estado-car-inline[data-est=""]           { background: rgba(76,175,130,0.15); color: var(--success); border-color: rgba(76,175,130,0.3); }
     .sel-estado-car-inline[data-est="confirmada"] { background: rgba(201,168,76,0.15); color: var(--accent);  border-color: rgba(201,168,76,0.3); }
     .sel-estado-car-inline[data-est="anulada"]    { background: rgba(160,160,160,0.15); color: var(--muted);  border-color: rgba(160,160,160,0.3); }
+    .sel-categoria-inline { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 3px 8px; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; outline: none; letter-spacing: 0.5px; margin-left: 8px; vertical-align: middle; }
+    .sel-categoria-inline[data-cat="OC"]  { background: rgba(37,99,235,0.15);  color: #2563EB; border-color: rgba(37,99,235,0.3); }
+    .sel-categoria-inline[data-cat="ONC"] { background: rgba(124,58,237,0.15); color: #7C3AED; border-color: rgba(124,58,237,0.3); }
+    .sel-categoria-inline[data-cat="NO"]  { background: rgba(217,119,6,0.15);  color: #D97706; border-color: rgba(217,119,6,0.3); }
+    .sel-categoria-inline[data-cat="CC"]  { background: rgba(5,150,105,0.15);  color: #059669; border-color: rgba(5,150,105,0.3); }
     .badge-mal_inscrito { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
     .jockey-select { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 12px; outline: none; width: 100%; max-width: 190px; cursor: pointer; }
     .jockey-select:focus { border-color: var(--accent); }
@@ -126,6 +131,7 @@
       .pi-titulo-row { display: flex; justify-content: space-between; align-items: baseline; font-weight: 900; font-size: 8pt; gap: 8pt; }
       .pi-titulo-bolsa { font-size: 7.5pt; font-weight: 700; text-align: center; margin-top: 1pt; }
       .pi-titulo-cond { font-size: 7pt; font-weight: 500; color: #222; text-align: center; line-height: 1.25; margin-top: 1pt; }
+      .pi-titulo-oficial { font-size: 6.5pt; font-weight: 600; text-align: center; font-style: italic; color: #444; margin-top: 1pt; letter-spacing: 0.5pt; text-transform: uppercase; }
       .pi-bolsa-inline { font-size: 9pt; font-weight: 900; }
       .pi-condiciones { font-size: 7pt; color: #222; margin-top: 1px; line-height: 1.25; }
       .pi-cesped-inline { font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; }
@@ -220,7 +226,7 @@ let sb, CLUB_ID, currentUser;
 async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
-let spcs=[], profesionales=[], caballerizas=[];
+let spcs=[], profesionales=[], caballerizas=[], categoriasCarrera=[];
 let pendingInscId=null;
 let pendingAction=null;
 let reuniones=[];
@@ -248,7 +254,7 @@ async function printRatificados() {
 
   const [{ data: carsData }, { data: clubData }] = await Promise.all([
     sb.from('carreras')
-      .select('id,numero_turno,numero_carrera_programa,hora_estimada,nombre,bolsa_total,distancia_metros,tipo_pista,edad_minima_anos,edad_maxima_anos,condicion_sexo,condicion_handicap,estado')
+      .select('id,numero_turno,numero_carrera_programa,hora_estimada,nombre,bolsa_total,distancia_metros,tipo_pista,edad_minima_anos,edad_maxima_anos,condicion_sexo,condicion_handicap,estado,categoria_id,categorias_carrera(nombre,es_oficial,es_computable)')
       .eq('reunion_id', reunionId),
     sb.from('clubs').select('logo_url, localidad').eq('id', CLUB_ID).single(),
   ]);
@@ -329,12 +335,19 @@ async function printRatificados() {
       const prefix = isAnulada ? '• ' : '';
       return `<div class="pi-row"><span class="pi-spc-name">${prefix}${nombre}${esH ? '<span class="pi-h-sfx"> (H)</span>' : ''}</span>${noCert ? '<span class="pi-nocert">●</span>' : ''}</div>`;
     }).join('');
+    const cat = car.categorias_carrera;
+    const oficialLabel = cat
+      ? (cat.es_oficial
+          ? (cat.es_computable ? 'OFICIAL COMPUTABLE' : 'OFICIAL NO COMPUTABLE')
+          : (cat.nombre || '').toUpperCase())
+      : '';
     const tituloHtml = isAnulada
       ? ''
       : `<div class="pi-titulo">
           <div class="pi-titulo-row"><span>Carrera ${numCarrera}</span>${horaHHMM ? `<span>${horaHHMM}</span>` : ''}</div>
           ${bolsaStr ? `<div class="pi-titulo-bolsa">Bolsa : ${bolsaStr}</div>` : ''}
           ${condContent ? `<div class="pi-titulo-cond">${condContent}</div>` : ''}
+          ${oficialLabel ? `<div class="pi-titulo-oficial">${oficialLabel}</div>` : ''}
         </div>`;
     const condHtml = isAnulada && condContent
       ? `<div class="pi-condiciones">${condContent}</div>`
@@ -408,16 +421,18 @@ async function updateHoraEstimada(carreraId, value) {
 
 
 async function init() {
-  const [{ data: reuns }, { data: profs }, { data: sprcs }, { data: cabs }] = await Promise.all([
+  const [{ data: reuns }, { data: profs }, { data: sprcs }, { data: cabs }, { data: cats }] = await Promise.all([
     sb.from('reuniones').select('id,numero,fecha,estado,hora_cierre_ratificacion,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
     sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID).eq('activo', true).order('apellido'),
     sb.from('spcs').select('id,nombre').order('nombre'),
     sb.from('caballerizas').select('id,nombre').eq('club_id', CLUB_ID).eq('activo', true).order('nombre'),
+    sb.from('categorias_carrera').select('id,nombre,codigo,es_oficial,es_computable').eq('club_id', CLUB_ID).eq('activo', true).order('orden_display'),
   ]);
   reuniones = reuns||[];
   profesionales = profs||[];
   spcs = sprcs||[];
   caballerizas = cabs||[];
+  categoriasCarrera = cats||[];
 
   const sel = document.getElementById('sel-reunion');
   sel.innerHTML = '<option value="">— Seleccionar —</option>' + reuniones.map(r=>`<option value="${r.id}">Reunión ${r.numero||''} — ${new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR')} — ${r.hipodromos?.nombre||''}</option>`).join('');
@@ -550,7 +565,7 @@ function renderAll(carreras, inscripciones) {
     return `<div class="carrera-section open" id="csec-${car.id}">
       <div class="carrera-header" onclick="toggleSection('${car.id}')">
         <div class="carrera-num">${car.numero_turno}</div>
-        <div class="carrera-title">Turno ${car.numero_turno} — ${buildCondAbr(car) || (car.distancia_metros + 'm')}</div>
+        <div class="carrera-title">Turno ${car.numero_turno} — ${buildCondCompleta(car)}${renderCategoriaSelect(car)}</div>
         <div class="insc-counter" id="counter-${car.id}">${buildCounterHtml(insc.length, rat, pre, fort, mal)}</div>
         <div class="estado-carrera-actions" onclick="event.stopPropagation()">${renderEstadoCarreraActions(car)}</div>
         <span class="expand-icon">▼</span>
@@ -631,6 +646,35 @@ function buildCondAbr(car) {
   let result = parts.join(sep);
   if (car.distancia_metros) result += (result ? ' ' : '') + `${car.distancia_metros} mts`;
   return result;
+}
+
+function buildCondCompleta(car) {
+  const hc = (car.condicion_handicap || '').trim();
+  if (hc) {
+    return car.distancia_metros ? `${hc} ${car.distancia_metros} mts` : hc;
+  }
+  return buildCondAbr(car) || (car.distancia_metros ? `${car.distancia_metros} m` : '');
+}
+
+function renderCategoriaSelect(car) {
+  const cat = categoriasCarrera.find(c => c.id === car.categoria_id);
+  const codigoActual = cat?.codigo || '';
+  const opts = categoriasCarrera.map(c =>
+    `<option value="${c.id}"${car.categoria_id === c.id ? ' selected' : ''}>${c.codigo} — ${c.nombre}</option>`
+  ).join('');
+  return `<select class="sel-categoria-inline" data-cat="${codigoActual}" onclick="event.stopPropagation()" onchange="updateCategoria('${car.id}', this.value)" title="Categoría de carrera">
+    <option value=""${!car.categoria_id ? ' selected' : ''}>— CAT —</option>
+    ${opts}
+  </select>`;
+}
+
+async function updateCategoria(carreraId, categoriaId) {
+  const valor = categoriaId === '' ? null : categoriaId;
+  const { error } = await sb.from('carreras').update({ categoria_id: valor }).eq('id', carreraId);
+  if (error) { toast('Error: ' + error.message, 'error'); return; }
+  const cat = categoriasCarrera.find(c => c.id === valor);
+  toast(cat ? `Categoría: ${cat.nombre}` : 'Categoría removida', 'success');
+  await loadReunion();
 }
 
 function renderEstadoCarreraActions(car) {
