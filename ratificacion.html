@@ -106,8 +106,8 @@
       .pi-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 8px; }
       .pi-title { font-family: 'Playfair Display', Georgia, serif; font-size: 14pt; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
       .pi-sub { font-size: 9pt; font-weight: 700; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
-      .pi-cols { column-count: 5; column-gap: 10pt; column-fill: balance; }
-      .pi-wrapper { display: block; width: 100%; break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid; margin-bottom: 8pt; }
+      .pi-cols { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10pt; }
+      .pi-wrapper { display: block; width: 100%; page-break-inside: avoid; }
       .pi-bloque { display: flex; flex-direction: column; width: fit-content; max-width: 100%; }
       .pi-car-head { background: #e8e8e8; padding: 3px 7px; border: 1px solid #000; text-align: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .pi-titulo { font-size: 8pt; font-weight: 900; line-height: 1.3; }
