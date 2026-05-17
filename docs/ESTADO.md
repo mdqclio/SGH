@@ -74,3 +74,25 @@
 - 14 profesionales extra detectados
 - 7 propietarios de prueba detectados
 - Todos identificados pero no borrados (esperar UI de baja)
+
+---
+
+## Snapshot — 16/05/2026 (cierre de sesión)
+
+**Reunión activa**: Reunión 5 — 17/5/2026 — Hipódromo de Dolores (11 turnos).
+
+**Validación de Fede**: pendiente en producción. Sesión cerrada con feature-complete según interpretación de las directivas iterativas (WhatsApp + audios).
+
+**Schema relevante** (estado actual de tablas tocadas):
+- `carreras.estado`: nullable, default 'programada'. Valores en uso: NULL/'programada' (ABIERTA), 'confirmada' (CERRADA), 'anulada' (ANULADA), 'reabierta' (legacy, tratado como anulada en algunos lugares).
+- `carreras.condicion_adicional`: usado para "Peso del jockey".
+- `carreras.numero_carrera_programa`: INTEGER nullable, para asignar orden post-ratificación.
+- `carreras.hora_estimada`: TIME nullable.
+- `carreras.categoria_id`: FK a `categorias_carrera` (4 cats por club: OC, ONC, NO, CC).
+- `reuniones.observaciones`: text, se renderiza en pie del PDF.
+
+**Archivos modificados en esta sesión**:
+- ratificacion.html (mayor parte de los cambios)
+- carta-llamados.html (label del peso jockey)
+- inscripciones.html (estado 'confirmada' en select)
+- programa.html (no se tocó hoy)

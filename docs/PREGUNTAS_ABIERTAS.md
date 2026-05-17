@@ -92,3 +92,16 @@ Cuando entre el segundo hipódromo: considerar Supabase Pro + selector de club p
 
 ### 14. ¿Deprecar módulo Propietarios?
 Si propietarios y caballerizas son el mismo concepto en Dolores, evaluar deprecar propietarios.html. Consultar con Fede.
+
+## Pendientes al cierre del 16/05/2026
+
+- **Forfait sin motivo obligatorio**: cuando declara forfait NO debe pedir motivo (mal_inscrito sí lo requiere). Pendiente de implementar.
+- **Forfaits en PDF**: revertir decisión inicial, SÍ incluirlos al lado de los ratificados como columna paralela estilo Palermo manual de Dolores.
+- **Cierre automático a las 12 hs**: los que NO declararon forfait pasan AUTOMÁTICAMENTE a ratificado (modelo opt-out). Override admin (Fede) puede modificar post-cierre.
+- **Sorteo automático de gateras**: SISTEMA AUTOMÁTICO, ÚNICO para toda la reunión, se genera al pedir el PDF de ratificación y queda persistido para programa. Clarificar: ¿cómo se mapea cada caballo a su gatera específica? Hipótesis: orden alfabético del SPC dentro de carrera → SORTEO 1..N → GATERA según permutación fija de la reunión.
+- **Pantalla de reorden de carreras post-ratificación**: renumerar + horarios manuales cada 30/35/40/45 min sugeridos.
+- **Bloque C Liquidaciones**: bloqueado por validación Fede de Bloque B con reunión real Dolores.
+- **Programa Oficial estilo revista**: PDF fancy con tapa, comisión de carreras, apuestas especiales, doblete, columnas extra (Stud, 4 Últimas, Padre-Madre, Entrenador). Requiere ALTER de varias tablas y agregar UI de carga para los campos nuevos.
+- **Limpieza menor**: las funciones `renderCategoriaSelect` y `updateCategoria` en ratificacion.html quedan declaradas pero sin uso (después de migrar a badge solo lectura). Limpiar en una tanda futura.
+- **Limpieza menor**: `buildCondAbr` está duplicado (local dentro de printRatificados + global). Mover todo a global y borrar la local.
+- **Pregunta abierta**: ¿el contador del header debe detectar carrera anulada en DB y mostrar banda "ANULADA" + deshabilitar acciones? Hoy hay inconsistencia entre PDF (sí muestra anulada) y pantalla operativa (no la marca visualmente con banda, pero ya bloquea acciones desde la tanda del 16/05).
