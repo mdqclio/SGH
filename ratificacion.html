@@ -31,7 +31,7 @@
     select:focus { border-color: var(--accent); }
     select option { background: #1a3d26; }
     .content { max-width: 1600px; margin: 0 auto; padding: 24px; }
-    .carrera-section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 16px; overflow: hidden; }
+    .carrera-section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 16px; overflow: hidden; scroll-margin-top: 240px; }
     .carrera-header { padding: 14px 18px; display: flex; align-items: center; gap: 14px; cursor: pointer; background: rgba(0,0,0,0.15); }
     .carrera-header:hover { background: rgba(0,0,0,0.25); }
     .carrera-num { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: var(--accent); min-width: 36px; }
@@ -516,7 +516,7 @@ function renderAll(carreras, inscripciones) {
     const pre = insc.filter(i=>i.estado==='inscripto').length;
     const mal = insc.filter(i=>i.estado==='mal_inscrito').length;
     const activos = rat + pre;
-    const carCerrada = isCerrada || car.estado === 'confirmada';
+    const carCerrada = isCerrada || car.estado === 'confirmada' || car.estado === 'anulada';
     const jockeyCount = {};
     insc.forEach(i => { if (i.jockey_titular_id) jockeyCount[i.jockey_titular_id] = (jockeyCount[i.jockey_titular_id]||0)+1; });
     const rows = insc.map((i, idx) => {
@@ -526,7 +526,7 @@ function renderAll(carreras, inscripciones) {
       const isForf = i.estado==='forfait';
       const isMalInsc = i.estado==='mal_inscrito';
       const hasColision = !carCerrada && !!i.jockey_titular_id && jockeyCount[i.jockey_titular_id] >= 2;
-      const dc = `disabled title="${car.estado === 'confirmada' ? 'Carrera confirmada' : 'Ratificación cerrada'}" style="opacity:0.4;cursor:not-allowed;"`;
+      const dc = `disabled title="${car.estado === 'confirmada' ? 'Carrera cerrada' : car.estado === 'anulada' ? 'Carrera anulada' : 'Ratificación cerrada'}" style="opacity:0.4;cursor:not-allowed;"`;
       return `<tr id="row-${i.id}" data-carrera="${car.id}" data-jockey="${i.jockey_titular_id||''}" class="${isRat?'':'no-ratificado'}${hasColision?' jockey-duplicado':''}">
         <td class="num-part print-hide">${idx + 1}</td>
         <td><div class="spc-name">${spc?.nombre||i.spc_id}</div></td>
@@ -550,7 +550,7 @@ function renderAll(carreras, inscripciones) {
     return `<div class="carrera-section open" id="csec-${car.id}">
       <div class="carrera-header" onclick="toggleSection('${car.id}')">
         <div class="carrera-num">${car.numero_turno}</div>
-        <div class="carrera-title">Turno ${car.numero_turno} — ${car.distancia_metros}m</div>
+        <div class="carrera-title">Turno ${car.numero_turno} — ${buildCondAbr(car) || (car.distancia_metros + 'm')}</div>
         <div class="insc-counter" id="counter-${car.id}">${buildCounterHtml(insc.length, rat, pre, fort, mal)}</div>
         <div class="estado-carrera-actions" onclick="event.stopPropagation()">${renderEstadoCarreraActions(car)}</div>
         <span class="expand-icon">▼</span>
@@ -594,6 +594,39 @@ function goToTurno(carreraId, btnEl) {
 
 function toggleSection(id) {
   document.getElementById(`csec-${id}`).classList.toggle('open');
+}
+
+function buildCondAbr(car) {
+  const sexoMap = { machos: 'Cab', hembras: 'Yeg', machos_castrados: 'Cas', ambos: 'Todo caballo' };
+  const sexoAbr = sexoMap[car.condicion_sexo] || '';
+  const usaEspacios = sexoAbr.includes(' ');
+  const sep = usaEspacios ? ' ' : '.';
+  const parts = [];
+  if (sexoAbr) parts.push(sexoAbr);
+  const emin = car.edad_minima_anos, emax = car.edad_maxima_anos;
+  if (emin && emax) {
+    parts.push(emin === emax
+      ? (usaEspacios ? `${emin} a` : `${emin}a`)
+      : (usaEspacios ? `${emin} - ${emax} a` : `${emin}-${emax}a`));
+  } else if (emin) {
+    parts.push(usaEspacios ? `${emin} a +` : `${emin}a+`);
+  }
+  let hc = (car.condicion_handicap || '').trim();
+  if (usaEspacios && hc) {
+    hc = hc.replace(/^todo\s+caballo\s+(de\s+)?/i, '').trim();
+    hc = hc.replace(/^\d+\s*(a|años?)\s*(y\s*\d+\s*(a|años?)?)?\s*/i, '').trim();
+  }
+  if (hc) {
+    const hcLow = hc.toLowerCase();
+    const condAbr = /\bperdedor(es)?\b/.test(hcLow) ? 'perd'
+      : /\bganadores? de 1 carrera\b/.test(hcLow) ? 'g.1c'
+      : /\bganadores? de 2 carreras\b/.test(hcLow) ? 'g.2c'
+      : hc.length > 18 ? hc.slice(0, 18) + '…' : hc;
+    parts.push(condAbr);
+  }
+  let result = parts.join(sep);
+  if (car.distancia_metros) result += (result ? ' ' : '') + `${car.distancia_metros} mts`;
+  return result;
 }
 
 function renderEstadoCarreraActions(car) {
