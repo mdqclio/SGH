@@ -79,6 +79,10 @@
     .btn-reabrir:hover { background: rgba(160,160,160,0.3); }
     .badge-confirmada { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
     .estado-carrera-actions { display: flex; gap: 6px; align-items: center; margin-left: 12px; }
+    .sel-estado-car-inline { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 4px 10px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; outline: none; letter-spacing: 0.5px; }
+    .sel-estado-car-inline[data-est=""]           { background: rgba(76,175,130,0.15); color: var(--success); border-color: rgba(76,175,130,0.3); }
+    .sel-estado-car-inline[data-est="confirmada"] { background: rgba(201,168,76,0.15); color: var(--accent);  border-color: rgba(201,168,76,0.3); }
+    .sel-estado-car-inline[data-est="anulada"]    { background: rgba(160,160,160,0.15); color: var(--muted);  border-color: rgba(160,160,160,0.3); }
     .badge-mal_inscrito { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
     .jockey-select { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 12px; outline: none; width: 100%; max-width: 190px; cursor: pointer; }
     .jockey-select:focus { border-color: var(--accent); }
@@ -527,7 +531,7 @@ function renderAll(carreras, inscripciones) {
         <td class="num-part print-hide">${idx + 1}</td>
         <td><div class="spc-name">${spc?.nombre||i.spc_id}</div></td>
         <td style="font-size:12px;color:var(--muted)">${cab?.nombre||'—'}</td>
-        <td class="jockey-cell">${buildJockeySelect(i)}${hasColision?'<span class="badge-jockey-dup">⚠ dup.</span>':''}</td>
+        <td class="jockey-cell">${buildJockeySelect(i, carCerrada)}${hasColision?'<span class="badge-jockey-dup">⚠ dup.</span>':''}</td>
         <td class="col-peso-display">${i.peso_final?`<strong>${i.peso_final} kg</strong>`:i.peso_declarado?`${i.peso_declarado} kg`:'—'}</td>
         <td><input class="peso-input print-hide" type="number" id="peso-${i.id}" value="${i.peso_final||i.peso_declarado||''}" min="40" max="80" step="0.1" placeholder="kg"${carCerrada?' disabled':''}></td>
         <td><span class="badge badge-${i.estado}" id="badge-${i.id}">${i.estado?.replace('_',' ')||'—'}</span></td>
@@ -593,23 +597,20 @@ function toggleSection(id) {
 }
 
 function renderEstadoCarreraActions(car) {
-  const est = car.estado;
-  if (est === 'anulada') {
-    return `<span class="badge badge-anulada">ANULADA</span>
-            <button class="btn-sm btn-reabrir" onclick="updateEstadoCarrera('${car.id}', null)">↩ Reabrir</button>`;
-  }
-  if (est === 'confirmada') {
-    return `<span class="badge badge-confirmada">CONFIRMADA</span>
-            <button class="btn-sm btn-reabrir" onclick="updateEstadoCarrera('${car.id}', null)">↩ Reabrir</button>`;
-  }
-  return `<button class="btn-sm btn-anular" onclick="updateEstadoCarrera('${car.id}', 'anulada')">❌ Anular</button>
-          <button class="btn-sm btn-confirmar" onclick="updateEstadoCarrera('${car.id}', 'confirmada')">✅ Confirmar</button>`;
+  const est = (car.estado === 'confirmada' || car.estado === 'anulada') ? car.estado : '';
+  return `<select class="sel-estado-car-inline" data-est="${est}" onclick="event.stopPropagation()" onchange="updateEstadoCarrera('${car.id}', this.value)">
+    <option value=""${est === '' ? ' selected' : ''}>ABIERTA</option>
+    <option value="confirmada"${est === 'confirmada' ? ' selected' : ''}>CERRADA</option>
+    <option value="anulada"${est === 'anulada' ? ' selected' : ''}>ANULADA</option>
+  </select>`;
 }
 
 async function updateEstadoCarrera(carreraId, nuevoEstado) {
-  const { error } = await sb.from('carreras').update({ estado: nuevoEstado }).eq('id', carreraId);
+  const valor = nuevoEstado === '' ? null : nuevoEstado;
+  const { error } = await sb.from('carreras').update({ estado: valor }).eq('id', carreraId);
   if (error) { toast('Error: ' + error.message, 'error'); return; }
-  toast(nuevoEstado ? `Carrera ${nuevoEstado}` : 'Carrera reabierta', 'success');
+  const label = valor === 'confirmada' ? 'cerrada' : (valor === 'anulada' ? 'anulada' : 'abierta');
+  toast(`Carrera ${label}`, 'success');
   await loadReunion();
 }
 
@@ -663,7 +664,7 @@ function recalcJockeyColisiones(carreraId) {
   });
 }
 
-function buildJockeySelect(i) {
+function buildJockeySelect(i, carCerrada) {
   const jockeys = profesionales.filter(p => p.tipo === 'jockey');
   const supl = i.jockey_suplente_id ? profesionales.find(p => p.id === i.jockey_suplente_id) : null;
   let opts = '';
@@ -678,7 +679,7 @@ function buildJockeySelect(i) {
   const selVacio = !i.jockey_titular_id ? ' selected' : '';
   opts += `<option value=""${selVacio}>XX — Sin asignar</option>`;
   const missing = !i.jockey_titular_id;
-  return `<select class="jockey-select${missing?' jockey-missing':''}" data-insc="${i.id}"${isCerrada?' disabled':' onchange="onJockeyChange(this)"'}>${opts}</select>`;
+  return `<select class="jockey-select${missing?' jockey-missing':''}" data-insc="${i.id}"${carCerrada?' disabled':' onchange="onJockeyChange(this)"'}>${opts}</select>`;
 }
 
 async function onJockeyChange(sel) {
