@@ -88,6 +88,11 @@
     .sel-categoria-inline[data-cat="ONC"] { background: rgba(124,58,237,0.15); color: #7C3AED; border-color: rgba(124,58,237,0.3); }
     .sel-categoria-inline[data-cat="NO"]  { background: rgba(217,119,6,0.15);  color: #D97706; border-color: rgba(217,119,6,0.3); }
     .sel-categoria-inline[data-cat="CC"]  { background: rgba(5,150,105,0.15);  color: #059669; border-color: rgba(5,150,105,0.3); }
+    .cat-badge { display: inline-block; margin-left: 10px; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; vertical-align: middle; border: 1px solid; letter-spacing: 0.3px; }
+    .cat-badge[data-cat="OC"]  { background: rgba(37,99,235,0.15);  color: #2563EB; border-color: rgba(37,99,235,0.3); }
+    .cat-badge[data-cat="ONC"] { background: rgba(124,58,237,0.15); color: #7C3AED; border-color: rgba(124,58,237,0.3); }
+    .cat-badge[data-cat="NO"]  { background: rgba(217,119,6,0.15);  color: #D97706; border-color: rgba(217,119,6,0.3); }
+    .cat-badge[data-cat="CC"]  { background: rgba(5,150,105,0.15);  color: #059669; border-color: rgba(5,150,105,0.3); }
     .badge-mal_inscrito { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
     .jockey-select { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 12px; outline: none; width: 100%; max-width: 190px; cursor: pointer; }
     .jockey-select:focus { border-color: var(--accent); }
@@ -565,7 +570,7 @@ function renderAll(carreras, inscripciones) {
     return `<div class="carrera-section open" id="csec-${car.id}">
       <div class="carrera-header" onclick="toggleSection('${car.id}')">
         <div class="carrera-num">${car.numero_turno}</div>
-        <div class="carrera-title">Turno ${car.numero_turno} — ${buildCondCompleta(car)}${renderCategoriaSelect(car)}</div>
+        <div class="carrera-title">Turno ${car.numero_turno} — ${buildCondCompleta(car)}${renderCategoriaBadge(car)}</div>
         <div class="insc-counter" id="counter-${car.id}">${buildCounterHtml(insc.length, rat, pre, fort, mal)}</div>
         <div class="estado-carrera-actions" onclick="event.stopPropagation()">${renderEstadoCarreraActions(car)}</div>
         <span class="expand-icon">▼</span>
@@ -654,6 +659,12 @@ function buildCondCompleta(car) {
     return car.distancia_metros ? `${hc} ${car.distancia_metros} mts` : hc;
   }
   return buildCondAbr(car) || (car.distancia_metros ? `${car.distancia_metros} m` : '');
+}
+
+function renderCategoriaBadge(car) {
+  const cat = categoriasCarrera.find(c => c.id === car.categoria_id);
+  if (!cat) return '';
+  return `<span class="cat-badge" data-cat="${cat.codigo}">${cat.nombre}</span>`;
 }
 
 function renderCategoriaSelect(car) {
