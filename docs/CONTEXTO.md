@@ -28,3 +28,10 @@ Desarrollado para Fede (amigo de Leonardo), quien lo venderá como producto a hi
 - **profesional**: entrenador con portal propio (global)
 - **propietario**: dueño de caballeriza con portal propio (global)
 - **publico**: solo lectura, sin login
+
+## Flujo de trabajo
+- No hay entorno local ni build: todo el proyecto es HTML estático servido por GitHub Pages desde la rama main.
+- Cada cambio se commitea y pushea directo a main; el deploy es automático y tarda 30-60 segundos.
+- La validación se hace siempre en producción: mdqclio.github.io/SGH/ con refresh.
+- Backend: Supabase (proyecto unlhcuanfrtpatoipwve). Cambios de schema/policies/funciones se aplican manualmente vía SQL Editor del panel de Supabase. Documentar el SQL ejecutado en la sesión correspondiente (docs/SESION_YYYY-MM-DD.md).
+- Cliente piloto único hoy: Hipódromo de Dolores. Probar contra reuniones de Dolores.
