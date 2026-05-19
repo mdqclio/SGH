@@ -139,6 +139,7 @@
     /* PRINT — documento separado generado por renderPrint() */
     #print-only { display: none; }
     @media print {
+      html, body, #print-only, #print-only * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
       body > *:not(#print-only) { display: none !important; }
       #print-only {
         display: block !important;
@@ -164,10 +165,18 @@
       /* ── Cada carrera ── */
       .p-carrera { border: 2px solid #245033; margin-bottom: 7px; page-break-inside: avoid; }
       .p-carrera-head {
-        background: #245033 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        background: #245033;
         color: #c9a84c; padding: 6px 10px;
         display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
       }
+      .p-carrera[data-cat="OC"]  { border-color: #1E40AF; }
+      .p-carrera[data-cat="OC"]  .p-carrera-head { background: #1E40AF; }
+      .p-carrera[data-cat="ONC"] { border-color: #6D28D9; }
+      .p-carrera[data-cat="ONC"] .p-carrera-head { background: #6D28D9; }
+      .p-carrera[data-cat="NO"]  { border-color: #B45309; }
+      .p-carrera[data-cat="NO"]  .p-carrera-head { background: #B45309; }
+      .p-carrera[data-cat="CC"]  { border-color: #047857; }
+      .p-carrera[data-cat="CC"]  .p-carrera-head { background: #047857; }
       .p-head-text { font-size: 11px; font-weight: 700; flex: 1; line-height: 1.35; }
       .p-head-hora { font-size: 10px; font-weight: 600; white-space: nowrap; color: rgba(201,168,76,0.8); }
       .p-head-dist { font-size: 19px; font-weight: 900; color: #c9a84c; white-space: nowrap; flex-shrink: 0; }
@@ -192,7 +201,7 @@
 <div class="topbar">
   <a href="reuniones.html" class="btn-back">← Reuniones</a>
   <h1 id="topbar-title">Carta de Llamados</h1>
-  <button class="btn-outline" onclick="window.print()">🖨️ Imprimir PDF</button>
+  <button class="btn-outline" onclick="window.print()">🖨️ Guardar / Imprimir PDF</button>
   <button class="btn-outline" id="btn-publicar" onclick="publicarCarta()" style="display:none;border-color:var(--success);color:var(--success);">📢 Publicar carta</button>
   <button class="btn-primary" id="btn-nueva-carrera" onclick="openModal()">+ Nuevo Turno</button>
 </div>
@@ -636,7 +645,7 @@ function renderPrint() {
       if (bonoPosH && bonoPosMon) bolsaLine += ` &mdash; BONO ${bonoPosD}°-${bonoPosH}° $${formatMonto(bonoPosMon)}/puesto`;
     }
 
-    return `<div class="p-carrera">
+    return `<div class="p-carrera" data-cat="${cat?.codigo||''}">
       <div class="p-carrera-head">
         <span class="p-head-text">${headText}</span>
         ${c.hora_estimada ? `<span class="p-head-hora">${c.hora_estimada} hs &nbsp;</span>` : ''}
