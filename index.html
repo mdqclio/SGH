@@ -127,6 +127,7 @@
         <h1>Sistema de Gestión Hípica</h1>
       </div>
       <div class="user-bar">
+        <select id="club-selector" onchange="selectClub(this.value)" style="display:none;background:rgba(0,0,0,0.3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;"></select>
         <span class="club-badge" id="club-name">Cargando...</span>
         <span class="user-name" id="user-name"></span>
         <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
@@ -156,8 +157,27 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 let sb, CLUB_ID, currentUser;
-async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
+async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
+
+async function selectClub(clubId) {
+  if (clubId) {
+    localStorage.setItem('sgh_selected_club_id', clubId);
+  } else {
+    localStorage.removeItem('sgh_selected_club_id');
+  }
+  window.location.reload();
+}
+async function loadClubSelector() {
+  if (currentUser?.rol !== 'super_admin') return;
+  const { data: clubs } = await sb.from('clubs').select('id,nombre,sigla').order('nombre');
+  if (!clubs?.length) return;
+  const sel = document.getElementById('club-selector');
+  const active = CLUB_ID || '';
+  sel.innerHTML = '<option value="">— Elegir club —</option>' +
+    clubs.map(c => `<option value="${c.id}" ${c.id===active?'selected':''}>${c.nombre}${c.sigla?` (${c.sigla})`:''}</option>`).join('');
+  sel.style.display = 'inline-block';
+}
 
 function toast(msg, type = 'success') {
   const t = document.createElement('div');
@@ -371,6 +391,7 @@ function buildUI(rol) {
   if(await initAuth()){
     buildUI(currentUser.rol);
     loadDashboard();
+    loadClubSelector();
   }
 })();
 </script>

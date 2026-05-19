@@ -144,6 +144,9 @@
       .pi-banda-anulada { background: #ddd; color: #333; text-align: center; font-size: 8pt; font-weight: 700; padding: 3px 0; text-transform: uppercase; letter-spacing: 1px; font-style: italic; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .pi-row { display: flex; align-items: baseline; padding: 1px 4px; border-bottom: 1px solid #eee; line-height: 1.4; }
       .pi-row:last-child { border-bottom: none; }
+      .pi-forfaits { margin-top: 3pt; padding: 2pt 4pt; border-top: 1px dashed #999; }
+      .pi-forfaits-h { font-size: 6.5pt; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5pt; margin-bottom: 1pt; }
+      .pi-forfait-row { font-size: 7.5pt; font-style: italic; color: #555; text-transform: uppercase; line-height: 1.3; }
       .pi-spc-name { font-size: 8pt; font-weight: 700; text-transform: uppercase; flex: 1; min-width: 0; white-space: nowrap; }
       .pi-h-sfx { font-size: 7pt; font-weight: 400; }
       .pi-nocert { font-size: 8pt; font-weight: 900; margin-left: 3px; flex-shrink: 0; }
@@ -229,7 +232,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 let sb, CLUB_ID, currentUser;
-async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
+async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
 let spcs=[], profesionales=[], caballerizas=[], categoriasCarrera=[];
@@ -323,8 +326,8 @@ async function printRatificados() {
     return '$' + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '.-';
   }
 
-  function renderBloqueCarrera(car, items, isAnulada) {
-    if (!items.length) return '';
+  function renderBloqueCarrera(car, items, isAnulada, forfaits = []) {
+    if (!items.length && !forfaits.length) return '';
     const esMixta = car.condicion_sexo === 'ambos';
     const bolsaStr = formatBolsa(car.bolsa_total);
     const condStr = buildCondAbr(car);
@@ -362,11 +365,18 @@ async function printRatificados() {
     const footHtml = isAnulada
       ? ''
       : `<div class="pi-car-foot">${items.length}</div>`;
+    const forfaitsHtml = (!isAnulada && forfaits.length)
+      ? `<div class="pi-forfaits"><div class="pi-forfaits-h">FORFAITS</div>${forfaits.map(i => {
+          const nombre = (i.spcs?.nombre || '—').toUpperCase();
+          return `<div class="pi-forfait-row">${nombre}</div>`;
+        }).join('')}</div>`
+      : '';
     return `<div class="pi-wrapper">
       <div class="pi-bloque">
         <div class="pi-car-head">${tituloHtml}${condHtml}</div>
         ${bandaHtml}
         <div class="pi-lista">${listaHtml}</div>
+        ${forfaitsHtml}
         ${footHtml}
       </div>
     </div>`;
@@ -378,9 +388,10 @@ async function printRatificados() {
     const esAnulada = car.estado === 'anulada' || car.estado === 'reabierta';
     if (esAnulada) return renderBloqueCarrera(car, inscsCar, true);
     const ratificados = inscsCar.filter(i => i.estado === 'ratificado');
-    if (!ratificados.length) return '';
+    const forfaits    = inscsCar.filter(i => i.estado === 'forfait');
+    if (!ratificados.length && !forfaits.length) return '';
     totalRatificados += ratificados.length;
-    return renderBloqueCarrera(car, ratificados, false);
+    return renderBloqueCarrera(car, ratificados, false, forfaits);
   }).join('');
 
   const logoHtml = clubData?.logo_url
@@ -873,7 +884,7 @@ function openForfait(inscId) {
   pendingAction = 'forfait';
   document.getElementById('modal-motivo-title').textContent = 'Dar Forfait';
   document.getElementById('motivo-input').value = '';
-  document.getElementById('motivo-input').placeholder = 'Ej: Lesión, decisión del propietario…';
+  document.getElementById('motivo-input').placeholder = 'Motivo (opcional) — ej: lesión, decisión del propietario…';
   document.getElementById('modal-motivo').classList.add('open');
 }
 
@@ -888,7 +899,7 @@ function openMalInscrito(inscId) {
 
 async function confirmMotivo() {
   const motivo = document.getElementById('motivo-input').value.trim();
-  if (!motivo) { toast('Ingresar motivo','error'); return; }
+  if (pendingAction === 'mal_inscrito' && !motivo) { toast('Ingresar motivo','error'); return; }
   const nuevoEstado = pendingAction;
   const { error } = await sb.from('inscripciones').update({ estado: nuevoEstado, motivo_estado: motivo }).eq('id', pendingInscId);
   if (error) { toast(error.message,'error'); return; }
