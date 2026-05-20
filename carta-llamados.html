@@ -512,7 +512,7 @@ async function load() {
     sb.from('carreras').select('*').eq('reunion_id', reunionId).order('numero_turno'),
     sb.from('categorias_carrera').select('id,nombre,codigo,simbolo,color_hex').eq('club_id', CLUB_ID).eq('activo', true).order('orden_display'),
     sb.from('hipodromos').select('id,nombre,sigla').eq('club_id', CLUB_ID),
-    sb.from('clubs').select('logo_url, nombre, nombre_contacto, tel_contacto, website, instagram, facebook, tiktok, twitter_x, youtube, disclaimer_importante, disclaimer_nota, sponsors').eq('id', CLUB_ID).single(),
+    sb.from('clubs').select('logo_url, nombre, website, instagram, facebook, tiktok, twitter_x, youtube, disclaimer_importante, disclaimer_nota, sponsors').eq('id', CLUB_ID).single(),
   ]);
   if (er) { toast(er.message,'error'); return; }
   reunion = r; carreras = cars||[]; categorias = cats||[]; hipodromos = hips||[]; clubData = club||null;
