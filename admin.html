@@ -352,7 +352,7 @@ function renderTable() {
       </td>
       <td>
         <div style="font-size:13px">${loc}</div>
-        ${c.direccion?`<div class="cell-sub">${c.direccion}</div>`:''}
+        ${c.domicilio?`<div class="cell-sub">${c.domicilio}</div>`:''}
       </td>
       <td>
         <div style="font-size:13px">${contacto}</div>
@@ -417,7 +417,7 @@ async function saveCreate(){
       sigla:     document.getElementById('c-sigla').value.trim()||null,
       localidad: document.getElementById('c-localidad').value.trim()||null,
       provincia: document.getElementById('c-provincia').value.trim()||null,
-      direccion: document.getElementById('c-direccion').value.trim()||null,
+      domicilio: document.getElementById('c-direccion').value.trim()||null,
       logo_url:  document.getElementById('c-logo-url').value.trim()||null,
       telefono_contacto: document.getElementById('c-telefono').value.trim()||null,
       email_contacto:    document.getElementById('c-email-inst').value.trim()||null,
@@ -507,7 +507,7 @@ function openEdit(id){
   document.getElementById('e-sigla').value=c.sigla||'';
   document.getElementById('e-localidad').value=c.localidad||'';
   document.getElementById('e-provincia').value=c.provincia||'';
-  document.getElementById('e-direccion').value=c.direccion||'';
+  document.getElementById('e-direccion').value=c.domicilio||'';
   document.getElementById('e-logo-url').value=c.logo_url||'';
   document.getElementById('e-telefono').value=c.telefono_contacto||'';
   document.getElementById('e-email-inst').value=c.email_contacto||'';
@@ -536,7 +536,7 @@ async function saveEdit(){
     sigla:             document.getElementById('e-sigla').value.trim()||null,
     localidad:         document.getElementById('e-localidad').value.trim()||null,
     provincia:         document.getElementById('e-provincia').value.trim()||null,
-    direccion:         document.getElementById('e-direccion').value.trim()||null,
+    domicilio:         document.getElementById('e-direccion').value.trim()||null,
     logo_url:          document.getElementById('e-logo-url').value.trim()||null,
     telefono_contacto: document.getElementById('e-telefono').value.trim()||null,
     email_contacto:    document.getElementById('e-email-inst').value.trim()||null,
