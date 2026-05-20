@@ -212,6 +212,18 @@
           <label>Observaciones</label>
           <textarea id="f-observaciones" placeholder="Notas adicionales…"></textarea>
         </div>
+        <div class="form-group full">
+          <label>Fechas de inscripciones y montas</label>
+          <textarea id="f-fechas-inscripciones" rows="2" placeholder="Ej: DESDE EL LUNES 04/05 HASTA EL VIERNES 08/05 - DE 8:30 A 12:00 h"></textarea>
+        </div>
+        <div class="form-group full">
+          <label>Fechas de forfaits</label>
+          <textarea id="f-fechas-forfaits" rows="2" placeholder="Ej: LUNES 11/05 DE 8:30 A 12:00 h"></textarea>
+        </div>
+        <div class="form-group full">
+          <label>Fechas de compromiso de montas</label>
+          <textarea id="f-fechas-compromiso" rows="2" placeholder="Ej: LUNES 11/05 HASTA LAS 12:00 h"></textarea>
+        </div>
       </div>
 
       <div class="section-divider">Apuestas combinadas</div>
@@ -363,6 +375,9 @@ function openModal(rec=null) {
   document.getElementById('f-observaciones').value = rec?.observaciones || '';
   document.getElementById('r-apcomb-list').innerHTML = '';
   (Array.isArray(rec?.apuestas_combinadas) ? rec.apuestas_combinadas : []).forEach(a => renderApCombRow(a.nombre, a.carreras));
+  document.getElementById('f-fechas-inscripciones').value = rec?.fechas_inscripciones || '';
+  document.getElementById('f-fechas-forfaits').value      = rec?.fechas_forfaits || '';
+  document.getElementById('f-fechas-compromiso').value    = rec?.fechas_compromiso_montas || '';
   document.getElementById('modal').classList.add('open');
 }
 
@@ -402,7 +417,10 @@ async function saveRecord() {
     condicion_pista: document.getElementById('f-condicion').value || null,
     tiempo_clima: document.getElementById('f-clima').value.trim() || null,
     observaciones: document.getElementById('f-observaciones').value.trim() || null,
-    apuestas_combinadas: readApCombFromForm(),
+    apuestas_combinadas:     readApCombFromForm(),
+    fechas_inscripciones:    document.getElementById('f-fechas-inscripciones').value.trim() || null,
+    fechas_forfaits:         document.getElementById('f-fechas-forfaits').value.trim() || null,
+    fechas_compromiso_montas:document.getElementById('f-fechas-compromiso').value.trim() || null,
     estado: id ? undefined : 'borrador',
   };
   if (!id) payload.estado = 'borrador';

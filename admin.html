@@ -296,6 +296,46 @@
       <div class="section-divider">Apuestas simples ofrecidas</div>
       <div id="e-apuestas-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       <button type="button" class="btn-secondary" onclick="addApuestaRow()" style="margin-top:8px;align-self:flex-start;">+ Agregar apuesta</button>
+
+      <div class="section-divider">Leyendas para el PDF</div>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Texto IMPORTANTE (aparece al pie del PDF de carta de llamados)</label>
+          <textarea id="e-disclaimer-importante" rows="3" placeholder="Ej: Quedarán ratificados los ejemplares que cuenten con el certificado de correr emitido por el Stud Book Argentino…"></textarea>
+        </div>
+        <div class="form-group full">
+          <label>Texto NOTA</label>
+          <textarea id="e-disclaimer-nota" rows="3" placeholder="Ej: Los tratamientos autorizados deberán ser declarados al momento de ratificar…"></textarea>
+        </div>
+      </div>
+
+      <div class="section-divider">Web y Redes Sociales</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Sitio web</label>
+          <input type="text" id="e-website" placeholder="www.hipodromodolores.com">
+        </div>
+        <div class="form-group">
+          <label>Instagram</label>
+          <input type="text" id="e-instagram" placeholder="@hipodromodolores">
+        </div>
+        <div class="form-group">
+          <label>Facebook</label>
+          <input type="text" id="e-facebook" placeholder="@hipodromodolores">
+        </div>
+        <div class="form-group">
+          <label>TikTok</label>
+          <input type="text" id="e-tiktok" placeholder="@hipodromodolores">
+        </div>
+        <div class="form-group">
+          <label>Twitter / X</label>
+          <input type="text" id="e-twitter-x" placeholder="@hipodromodol">
+        </div>
+        <div class="form-group">
+          <label>YouTube</label>
+          <input type="text" id="e-youtube" placeholder="@hipodromodolores">
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeEdit()">Cancelar</button>
@@ -543,6 +583,14 @@ function openEdit(id){
   (Array.isArray(c.comision_carreras) ? c.comision_carreras : []).forEach(m => renderComisionRow(m.cargo, m.nombre));
   (Array.isArray(c.sponsors)          ? c.sponsors          : []).forEach(s => renderSponsorRow(s.nombre, s.logo_url));
   (Array.isArray(c.apuestas_simples)  ? c.apuestas_simples  : []).forEach(a => renderApuestaRow(a));
+  document.getElementById('e-disclaimer-importante').value = c.disclaimer_importante || '';
+  document.getElementById('e-disclaimer-nota').value       = c.disclaimer_nota || '';
+  document.getElementById('e-website').value   = c.website   || '';
+  document.getElementById('e-instagram').value = c.instagram || '';
+  document.getElementById('e-facebook').value  = c.facebook  || '';
+  document.getElementById('e-tiktok').value    = c.tiktok    || '';
+  document.getElementById('e-twitter-x').value = c.twitter_x || '';
+  document.getElementById('e-youtube').value   = c.youtube   || '';
   document.getElementById('modal-edit').classList.add('open');
 }
 function closeEdit(){ document.getElementById('modal-edit').classList.remove('open'); }
@@ -567,6 +615,14 @@ async function saveEdit(){
     comision_carreras: readComisionFromForm(),
     sponsors:          readSponsorsFromForm(),
     apuestas_simples:  readApuestasFromForm(),
+    disclaimer_importante: document.getElementById('e-disclaimer-importante').value.trim() || null,
+    disclaimer_nota:       document.getElementById('e-disclaimer-nota').value.trim() || null,
+    website:   document.getElementById('e-website').value.trim()   || null,
+    instagram: document.getElementById('e-instagram').value.trim() || null,
+    facebook:  document.getElementById('e-facebook').value.trim()  || null,
+    tiktok:    document.getElementById('e-tiktok').value.trim()    || null,
+    twitter_x: document.getElementById('e-twitter-x').value.trim() || null,
+    youtube:   document.getElementById('e-youtube').value.trim()   || null,
   }).eq('id',id);
   btn.disabled=false; btn.textContent='Guardar cambios';
   if(error){toast(error.message,'error');return;}
