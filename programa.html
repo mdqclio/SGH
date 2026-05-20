@@ -132,8 +132,6 @@
   <h1 id="topbar-title">Programa Hípico</h1>
   <span class="user-name" id="user-name"></span>
   <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
-  <button class="btn-outline" onclick="openComisionModal()">👥 Comisión de Carreras</button>
-  <button class="btn-outline" onclick="openApuestasModal()">🎯 Apuestas</button>
   <button class="btn-outline" onclick="window.print()">🖨️ Imprimir Programa</button>
 </div>
 
@@ -142,6 +140,8 @@
   <select id="sel-reunion" onchange="loadPrograma()">
     <option value="">— Seleccionar reunión —</option>
   </select>
+  <button class="btn-outline" onclick="openComisionModal()">👥 Comisión de Carreras</button>
+  <button class="btn-outline" onclick="openApuestasModal()">🎯 Apuestas</button>
 </div>
 
 <div class="content" id="content">
