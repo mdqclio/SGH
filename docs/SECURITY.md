@@ -118,3 +118,20 @@ FROM pg_policies
 WHERE schemaname = 'public'
 ORDER BY tablename, policyname;
 ```
+
+
+## Cambio 2026-05-20 — apertura de UPDATE de clubs a su propio admin
+
+**Contexto:** Los usuarios con rol `secretario_carreras` / `operador` necesitan poder editar los datos blandos de su propio club (comisión, sponsors, apuestas, disclaimers, redes sociales) sin depender del `super_admin`.
+
+**Cambio de policy:**
+```sql
+DROP POLICY IF EXISTS "clubs_update" ON clubs;
+DROP POLICY IF EXISTS "clubs_update_super_admin" ON clubs;
+DROP POLICY IF EXISTS "clubs_update_self_or_admin" ON clubs;
+CREATE POLICY "clubs_update_self_or_admin" ON clubs FOR UPDATE TO authenticated
+  USING       (fn_is_super_admin() OR id = fn_get_user_club_id())
+  WITH CHECK  (fn_is_super_admin() OR id = fn_get_user_club_id());
+```
+
+**Protección en frontend:** `saveEdit()` en admin.html omite `nombre` y `sigla` del payload cuando `CURRENT_ROLE !== 'super_admin'`, garantizando que los datos institucionales solo los modifique el super_admin aunque la policy de BD lo permitiera técnicamente.

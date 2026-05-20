@@ -346,8 +346,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-let sb, CLUB_ID, currentUser;
-async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(!usr){await sb.auth.signOut();window.location.replace('login.html');return false;}if(usr.rol!=='super_admin'){window.location.replace('index.html');return false;}CLUB_ID=usr.club_id||null;currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
+let sb, CLUB_ID, currentUser, CURRENT_ROLE = 'super_admin';
+async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(!usr){await sb.auth.signOut();window.location.replace('login.html');return false;}if(usr.rol!=='super_admin'&&!usr.club_id){window.location.replace('index.html');return false;}CLUB_ID=usr.club_id||null;CURRENT_ROLE=usr.rol;currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
 function toast(msg,type='success'){const t=document.createElement('div');t.className=`toast toast-${type}`;t.textContent=msg;document.getElementById('toast-container').appendChild(t);setTimeout(()=>t.remove(),4000);}
@@ -359,6 +359,16 @@ async function load() {
   const {data:clubs,error}=await sb.from('clubs').select('*').order('nombre');
   if(error){toast(error.message,'error');return;}
   allClubs=clubs||[];
+
+  if (CURRENT_ROLE !== 'super_admin') {
+    document.querySelector('.topbar h1').textContent = '🏠 Mi Hipódromo';
+    document.getElementById('pendientes-section').style.display = 'none';
+    document.querySelector('.stats-row').style.display = 'none';
+    document.querySelector('.toolbar').style.display = 'none';
+    document.getElementById('list-container').style.display = 'none';
+    if (CLUB_ID) openEdit(CLUB_ID);
+    return;
+  }
 
   const [{data:usuarios},{data:reuniones},{data:spcs}]=await Promise.all([
     sb.from('usuarios').select('club_id').eq('activo',true),
@@ -591,6 +601,9 @@ function openEdit(id){
   document.getElementById('e-tiktok').value    = c.tiktok    || '';
   document.getElementById('e-twitter-x').value = c.twitter_x || '';
   document.getElementById('e-youtube').value   = c.youtube   || '';
+  const roInst = CURRENT_ROLE !== 'super_admin';
+  document.getElementById('e-nombre').readOnly = roInst;
+  document.getElementById('e-sigla').readOnly  = roInst;
   document.getElementById('modal-edit').classList.add('open');
 }
 function closeEdit(){ document.getElementById('modal-edit').classList.remove('open'); }
@@ -601,9 +614,9 @@ async function saveEdit(){
   if(!nombre){toast('El nombre es requerido','error');return;}
   const btn=document.getElementById('btn-edit-save');
   btn.disabled=true; btn.textContent='Guardando…';
+  const isSuperAdmin = CURRENT_ROLE === 'super_admin';
   const {error}=await sb.from('clubs').update({
-    nombre,
-    sigla:             document.getElementById('e-sigla').value.trim()||null,
+    ...(isSuperAdmin ? { nombre, sigla: document.getElementById('e-sigla').value.trim()||null } : {}),
     localidad:         document.getElementById('e-localidad').value.trim()||null,
     provincia:         document.getElementById('e-provincia').value.trim()||null,
     domicilio:         document.getElementById('e-direccion').value.trim()||null,
