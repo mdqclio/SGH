@@ -97,6 +97,7 @@
     .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
     .toast-info { background: #1a2d4a; border: 1px solid var(--info); color: var(--text); }
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .user-system { display: inline-block; padding: 2px 8px; border-radius: 6px; background: rgba(148,163,184,0.15); color: #94a3b8; font-size: 11px; font-weight: 600; font-style: italic; }
     #auth-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; align-items: center; justify-content: center; }
   </style>
 </head>
@@ -374,7 +375,9 @@ function renderEventos(pageSize) {
   document.getElementById('stats-row').style.display = 'flex';
   const rows = eventos.map((e, idx) => {
     const u = usuariosCache[e.usuario_id];
-    const userLabel = u ? escapeHtml(u.nombre_completo || u.email) : (e.usuario_id ? `<span class="reg-cell-uuid">${shortId(e.usuario_id)}…</span>` : '—');
+    const userLabel = u
+      ? escapeHtml(u.nombre_completo || u.email)
+      : (e.usuario_id ? '<span class="user-system">Sistema</span>' : '—');
     const regLabel = getRegistroLabel(e);
     const regCell = regLabel ? `<span class="reg-cell-label">${escapeHtml(regLabel)}</span>` : `<span class="reg-cell-uuid">${shortId(e.registro_id)}…</span>`;
     return `<tr onclick="showDetalle(${idx})">
@@ -421,7 +424,7 @@ function showDetalle(idx) {
   const e = eventos[idx];
   if (!e) return;
   const u = usuariosCache[e.usuario_id];
-  const userLabel = u ? (u.nombre_completo || u.email) : (e.usuario_id || '— sin usuario —');
+  const userLabel = u ? (u.nombre_completo || u.email) : (e.usuario_id ? 'Sistema (cambio externo a la app)' : '— sin usuario —');
   const regLabel = getRegistroLabel(e);
   document.getElementById('modal-title').textContent = `${e.tabla} · ${e.accion}`;
   document.getElementById('modal-meta').innerHTML = `<span class="badge badge-${e.accion}">${e.accion}</span> · ${formatTs(e.created_at)}`;
@@ -512,7 +515,7 @@ function exportCSV() {
       e.registro_id || '',
       getRegistroLabel(e) || '',
       e.usuario_id || '',
-      u ? (u.nombre_completo || u.email || '') : '',
+      (usuariosCache[e.usuario_id] ? (usuariosCache[e.usuario_id].nombre_completo || usuariosCache[e.usuario_id].email) : (e.usuario_id ? 'Sistema' : '')),
       e.club_id || '',
       e.datos_antes ? JSON.stringify(e.datos_antes) : '',
       e.datos_despues ? JSON.stringify(e.datos_despues) : ''
