@@ -289,6 +289,10 @@
       <div id="e-comision-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       <button type="button" class="btn-secondary" onclick="addComisionRow()" style="margin-top:8px;align-self:flex-start;">+ Agregar miembro</button>
 
+      <div class="section-divider">Comisariato (stewards del hipódromo)</div>
+      <div id="e-comisariato-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <button type="button" class="btn-secondary" onclick="addComisariatoRow()" style="margin-top:8px;align-self:flex-start;">+ Agregar integrante</button>
+
       <div class="section-divider">Sponsors</div>
       <div id="e-sponsors-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       <button type="button" class="btn-secondary" onclick="addSponsorRow()" style="margin-top:8px;align-self:flex-start;">+ Agregar sponsor</button>
@@ -522,6 +526,24 @@ function renderComisionRow(cargo, nombre) {
 }
 function addComisionRow(){ renderComisionRow('',''); }
 
+function renderComisariatoRow(cargo, nombre) {
+  const row = document.createElement('div');
+  row.style.cssText = 'display:grid;grid-template-columns:1fr 2fr auto;gap:8px;align-items:center;';
+  row.innerHTML = `
+    <input type="text" class="cm-cargo" placeholder="Cargo (ej: Presidente del Comisariato, Vocal, Cronometrista)" value="${(cargo||'').replace(/"/g,'&quot;')}">
+    <input type="text" class="cm-nombre" placeholder="Nombre y apellido" value="${(nombre||'').replace(/"/g,'&quot;')}">
+    <button type="button" class="btn-sm btn-delete" onclick="this.parentElement.remove()" title="Quitar">✕</button>
+  `;
+  document.getElementById('e-comisariato-list').appendChild(row);
+}
+function addComisariatoRow(){ renderComisariatoRow('',''); }
+function readComisariatoFromForm() {
+  return Array.from(document.querySelectorAll('#e-comisariato-list > div')).map(row => ({
+    cargo:  row.querySelector('.cm-cargo').value.trim(),
+    nombre: row.querySelector('.cm-nombre').value.trim()
+  })).filter(x => x.cargo || x.nombre);
+}
+
 function renderSponsorRow(nombre, logo_url) {
   const row = document.createElement('div');
   row.style.cssText = 'display:grid;grid-template-columns:1fr 2fr 40px auto;gap:8px;align-items:center;';
@@ -568,8 +590,10 @@ function openEdit(id){
   const img=document.getElementById('e-logo-img');
   if(c.logo_url){ img.src=c.logo_url; prev.style.display='block'; } else { prev.style.display='none'; }
   document.getElementById('e-comision-list').innerHTML = '';
+  document.getElementById('e-comisariato-list').innerHTML = '';
   document.getElementById('e-sponsors-list').innerHTML = '';
   (Array.isArray(c.comision_carreras) ? c.comision_carreras : []).forEach(m => renderComisionRow(m.cargo, m.nombre));
+  (Array.isArray(c.comisariato)       ? c.comisariato       : []).forEach(m => renderComisariatoRow(m.cargo, m.nombre));
   (Array.isArray(c.sponsors)          ? c.sponsors          : []).forEach(s => renderSponsorRow(s.nombre, s.logo_url));
   document.getElementById('e-disclaimer-importante').value = c.disclaimer_importante || '';
   document.getElementById('e-disclaimer-nota').value       = c.disclaimer_nota || '';
@@ -604,6 +628,7 @@ async function saveEdit(){
     // TODO: campo no persistido — definir si crear columna nombre_contacto o eliminar input
     // TODO: campo no persistido — definir si crear columna tel_contacto o eliminar input
     comision_carreras: readComisionFromForm(),
+    comisariato:       readComisariatoFromForm(),
     sponsors:          readSponsorsFromForm(),
     disclaimer_importante: document.getElementById('e-disclaimer-importante').value.trim() || null,
     disclaimer_nota:       document.getElementById('e-disclaimer-nota').value.trim() || null,

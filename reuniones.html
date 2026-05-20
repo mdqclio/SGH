@@ -234,9 +234,6 @@
       <div id="r-apcomb-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       <button type="button" class="btn-secondary" onclick="addApCombRow()" style="margin-top:8px;">+ Agregar apuesta combinada</button>
 
-      <div class="section-divider">Comisariato (stewards de esta reunión)</div>
-      <div id="r-comisariato-list" style="display:flex;flex-direction:column;gap:8px;"></div>
-      <button type="button" class="btn-secondary" onclick="addComisariatoRow()" style="margin-top:8px;">+ Agregar integrante</button>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
@@ -384,8 +381,7 @@ function openModal(rec=null) {
   document.getElementById('f-observaciones').value = rec?.observaciones || '';
   document.getElementById('r-apcomb-list').innerHTML = '';
   (Array.isArray(rec?.apuestas_combinadas) ? rec.apuestas_combinadas : []).forEach(a => renderApCombRow(a.nombre, a.carreras));
-  document.getElementById('r-comisariato-list').innerHTML = '';
-  (Array.isArray(rec?.comisariato) ? rec.comisariato : []).forEach(m => renderComisariatoRow(m.cargo, m.nombre));
+
   document.getElementById('f-fechas-inscripciones').value = rec?.fechas_inscripciones || '';
   document.getElementById('f-fechas-forfaits').value      = rec?.fechas_forfaits || '';
   document.getElementById('f-fechas-compromiso').value    = rec?.fechas_compromiso_montas || '';
@@ -403,23 +399,6 @@ function renderApCombRow(nombre, carreras) {
   document.getElementById('r-apcomb-list').appendChild(row);
 }
 function addApCombRow(){ renderApCombRow('',''); }
-function renderComisariatoRow(cargo, nombre) {
-  const row = document.createElement('div');
-  row.style.cssText = 'display:grid;grid-template-columns:1fr 2fr auto;gap:8px;align-items:center;';
-  row.innerHTML = `
-    <input type="text" class="cm-cargo" placeholder="Cargo (ej: Presidente del Comisariato, Vocal, Cronometrista)" value="${(cargo||'').replace(/"/g,'&quot;')}">
-    <input type="text" class="cm-nombre" placeholder="Nombre y apellido" value="${(nombre||'').replace(/"/g,'&quot;')}">
-    <button type="button" class="btn-sm btn-delete" onclick="this.parentElement.remove()" title="Quitar">✕</button>
-  `;
-  document.getElementById('r-comisariato-list').appendChild(row);
-}
-function addComisariatoRow() { renderComisariatoRow('',''); }
-function readComisariatoFromForm() {
-  return Array.from(document.querySelectorAll('#r-comisariato-list > div')).map(row => ({
-    cargo:  row.querySelector('.cm-cargo').value.trim(),
-    nombre: row.querySelector('.cm-nombre').value.trim()
-  })).filter(x => x.cargo || x.nombre);
-}
 function readApCombFromForm() {
   return Array.from(document.querySelectorAll('#r-apcomb-list > div')).map(row => ({
     nombre:   row.querySelector('.apc-nombre').value.trim(),
@@ -447,7 +426,6 @@ async function saveRecord() {
     tiempo_clima: document.getElementById('f-clima').value.trim() || null,
     observaciones: document.getElementById('f-observaciones').value.trim() || null,
     apuestas_combinadas:     readApCombFromForm(),
-    comisariato:             readComisariatoFromForm(),
     fechas_inscripciones:    document.getElementById('f-fechas-inscripciones').value.trim() || null,
     fechas_forfaits:         document.getElementById('f-fechas-forfaits').value.trim() || null,
     fechas_compromiso_montas:document.getElementById('f-fechas-compromiso').value.trim() || null,
