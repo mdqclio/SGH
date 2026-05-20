@@ -344,7 +344,7 @@ function renderTable() {
       ?`<button class="btn-sm btn-toggle-on" onclick="toggleActivo('${c.id}',false)">Desactivar</button>`
       :`<button class="btn-sm btn-toggle-off" onclick="toggleActivo('${c.id}',true)">Activar</button>`;
     const loc=[c.localidad,c.provincia].filter(Boolean).join(', ')||'—';
-    const contacto=c.nombre_contacto||c.email_contacto||'—';
+    const contacto=c.email||'—';
     return `<tr>
       <td>
         <div class="cell-name">${c.nombre}</div>
@@ -356,7 +356,7 @@ function renderTable() {
       </td>
       <td>
         <div style="font-size:13px">${contacto}</div>
-        ${c.telefono_contacto?`<div class="cell-sub">${c.telefono_contacto}</div>`:''}
+        ${c.telefono?`<div class="cell-sub">${c.telefono}</div>`:''}
       </td>
       <td><span class="badge badge-${activo?'activo':'inactivo'}">${activo?'Activo':'Inactivo'}</span></td>
       <td class="count-cell"><div class="count-val">${st.u}</div><div class="count-lbl">Usuarios</div></td>
@@ -419,9 +419,9 @@ async function saveCreate(){
       provincia: document.getElementById('c-provincia').value.trim()||null,
       domicilio: document.getElementById('c-direccion').value.trim()||null,
       logo_url:  document.getElementById('c-logo-url').value.trim()||null,
-      telefono_contacto: document.getElementById('c-telefono').value.trim()||null,
-      email_contacto:    document.getElementById('c-email-inst').value.trim()||null,
-      nombre_contacto:   document.getElementById('c-nombre-contacto').value.trim()||null,
+      telefono: document.getElementById('c-telefono').value.trim()||null,
+      email:    document.getElementById('c-email-inst').value.trim()||null,
+      // TODO: campo no persistido — definir si crear columna nombre_contacto o eliminar input
       activo: true,
     }).select('id').single();
     if(clubErr) throw new Error('Error al crear hipódromo: '+clubErr.message);
@@ -509,8 +509,8 @@ function openEdit(id){
   document.getElementById('e-provincia').value=c.provincia||'';
   document.getElementById('e-direccion').value=c.domicilio||'';
   document.getElementById('e-logo-url').value=c.logo_url||'';
-  document.getElementById('e-telefono').value=c.telefono_contacto||'';
-  document.getElementById('e-email-inst').value=c.email_contacto||'';
+  document.getElementById('e-telefono').value=c.telefono||'';
+  document.getElementById('e-email-inst').value=c.email||'';
   document.getElementById('e-nombre-contacto').value=c.nombre_contacto||'';
   document.getElementById('e-tel-contacto').value=c.tel_contacto||'';
   // Preview del logo actual
@@ -538,10 +538,10 @@ async function saveEdit(){
     provincia:         document.getElementById('e-provincia').value.trim()||null,
     domicilio:         document.getElementById('e-direccion').value.trim()||null,
     logo_url:          document.getElementById('e-logo-url').value.trim()||null,
-    telefono_contacto: document.getElementById('e-telefono').value.trim()||null,
-    email_contacto:    document.getElementById('e-email-inst').value.trim()||null,
-    nombre_contacto:   document.getElementById('e-nombre-contacto').value.trim()||null,
-    tel_contacto:      document.getElementById('e-tel-contacto').value.trim()||null,
+    telefono: document.getElementById('e-telefono').value.trim()||null,
+    email:    document.getElementById('e-email-inst').value.trim()||null,
+    // TODO: campo no persistido — definir si crear columna nombre_contacto o eliminar input
+    // TODO: campo no persistido — definir si crear columna tel_contacto o eliminar input
     comision_carreras: readComisionFromForm(),
     sponsors:          readSponsorsFromForm(),
   }).eq('id',id);
