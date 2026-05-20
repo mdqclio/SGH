@@ -186,6 +186,9 @@
       /* Bolsa y distribución */
       .p-linea3 { font-size: 11px; font-weight: 700; border-top: 1px solid #ccc; padding-top: 4px; margin-top: 2px; }
       @page { size: A4 portrait; margin: 12mm; }
+      .p-observaciones { margin-top: 8mm; padding: 6px 10px; border: 1px solid #245033; border-radius: 4px; page-break-inside: avoid; }
+      .p-obs-title { font-size: 10px; font-weight: 900; letter-spacing: 1.5px; color: #245033; text-transform: uppercase; margin-bottom: 4px; border-bottom: 1px solid #245033; padding-bottom: 3px; }
+      .p-obs-body { font-size: 10px; line-height: 1.4; color: #222; white-space: pre-wrap; }
     }
     #auth-overlay { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center; }
     .btn-logout { background:none;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;transition:all 0.2s; }
@@ -218,6 +221,12 @@
     <span id="carreras-count" style="font-size:13px;color:var(--muted);">—</span>
   </div>
   <div id="list-container"></div>
+
+  <div class="section-header" style="margin-top:24px;">
+    <h2>Observaciones para la carta</h2>
+    <span id="obs-status" style="font-size:12px;color:var(--muted);">—</span>
+  </div>
+  <textarea id="f-observaciones-carta" placeholder="Novedades, bonos especiales, notas importantes que aparecerán al pie del PDF de la carta de llamados…" style="width:100%;min-height:120px;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.5;resize:vertical;" onblur="saveObservaciones()"></textarea>
 </div>
 
 <!-- SOLO IMPRESIÓN -->
@@ -465,6 +474,8 @@ async function load() {
   ]);
   if (er) { toast(er.message,'error'); return; }
   reunion = r; carreras = cars||[]; categorias = cats||[]; hipodromos = hips||[]; clubData = club||null;
+  const obsEl = document.getElementById('f-observaciones-carta');
+  if (obsEl) obsEl.value = reunion?.observaciones || '';
   renderHeader();
   populateCategorias();
   renderCarreras();
@@ -686,7 +697,31 @@ function renderPrint() {
     </div>`;
   }).join('');
 
-  document.getElementById('print-only').innerHTML = header + carrerasHtml;
+  const obsTxt = (reunion?.observaciones || '').trim();
+  const obsHtml = obsTxt
+    ? `<div class="p-observaciones">
+         <div class="p-obs-title">OBSERVACIONES</div>
+         <div class="p-obs-body">${obsTxt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}</div>
+       </div>`
+    : '';
+  document.getElementById('print-only').innerHTML = header + carrerasHtml + obsHtml;
+}
+
+async function saveObservaciones() {
+  if (!reunionId) return;
+  const valor = document.getElementById('f-observaciones-carta').value.trim() || null;
+  const statusEl = document.getElementById('obs-status');
+  statusEl.textContent = 'Guardando…';
+  const { error } = await sb.from('reuniones').update({ observaciones: valor }).eq('id', reunionId);
+  if (error) {
+    statusEl.textContent = 'Error al guardar';
+    toast(error.message, 'error');
+    return;
+  }
+  reunion.observaciones = valor;
+  statusEl.textContent = 'Guardado ✓';
+  setTimeout(() => { statusEl.textContent = '—'; }, 2000);
+  renderPrint();
 }
 
 function openModal(rec=null) {
