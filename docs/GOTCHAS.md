@@ -105,5 +105,17 @@ El motor de liquidaciones no había funcionado nunca por este motivo: queries qu
 ## 29. Mismatch silencioso entre código y schema (14/05/2026)
 `resultados.html` escribía `apuestas` y `motivo_descalificacion` mientras la DB tenía `dividendos` y `motivo_desc`. Sin verbose error handling, el INSERT/UPDATE silenciaba el fallo y los campos quedaban NULL durante meses sin que nadie lo notara. Patrón de riesgo: usar nombres de campo de memoria o de mockups sin verificar contra el schema real. Solución: ante cualquier campo que no persiste como se espera, correr `SELECT column_name FROM information_schema.columns WHERE table_name = 'X'` en el SQL Editor para confirmar nombres exactos.
 
+## 30. Modelo de apuestas: no asumir apuestas_combinadas ni apuestas_simples (19/05/2026)
+El modelo sufrió varios refactors en la misma sesión y quedó así:
+- `carreras.apuestas TEXT[]` — lista de apuestas habilitadas POR CARRERA (ej: `['Ganador','Placé']`).
+- `clubs.apuestas_simples` — ELIMINADA (fue agregada y dropeada en la misma sesión).
+- `reuniones.apuestas_combinadas` — ELIMINADA (fue agregada y dropeada en la misma sesión).
+No buscar ni usar esas columnas eliminadas; no existen en la DB.
+
+## 31. comisariato está en clubs, no en reuniones (19/05/2026)
+`clubs.comisariato JSONB` — es club-level (stewards fijos del hipódromo).
+`reuniones.comisariato` — NO EXISTE; fue agregada y dropeada en la misma sesión del 19/05.
+Tanto comisariato como comision_carreras se leen desde `clubData` en programa.html y son read-only.
+
 ## 26. Funciones helper de RLS deben ser SECURITY DEFINER (12/05/2026)
 Si `fn_get_user_club_id()` o `fn_is_super_admin()` fueran SECURITY INVOKER (default), al ser invocadas desde una policy sobre la tabla `usuarios` (que ya tiene RLS), la función intentaría leer `usuarios` con los permisos del usuario llamante — que a su vez pasan por la misma RLS, causando recursión infinita o devolviendo NULL. SECURITY DEFINER hace que la función se ejecute con permisos del owner de la función, bypasseando la RLS de la tabla destino. Combinado siempre con `SET search_path = public` para evitar path injection via search_path hijacking.

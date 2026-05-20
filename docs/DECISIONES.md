@@ -111,6 +111,21 @@ Justificación: Reutiliza la infraestructura de comisiones ya existente y permit
 Decisión: Los porcentajes base de distribución de premios (70% prop, 10% entr, 10% jockey, 4% peón, 3% capataz, 1% sereno) son constantes en el código. `comision_config` solo aplica descuentos adicionales (`descuento_fondo_solidario_pct`, `descuento_incentivo_pct`).
 Justificación: Estos son porcentajes nacionales de la hípica argentina regulados federativamente; no varían por hipódromo. `comision_config` cubre la variabilidad operativa (montas, incentivos).
 
+## ADR-028: Apuestas per-carrera en TEXT[] (19/05/2026)
+Decisión: `carreras.apuestas TEXT[]` — cada carrera declara qué apuestas habilita (ej: `['Ganador','Placé','Exacta']`).
+Justificación: Las apuestas simples son específicas de cada carrera; no todas habilitan los mismos mercados. Confirmado por Fede vía WhatsApp. Las apuestas combinadas (doblete, triple, etc.) se descartaron del modelo — si aplican se mencionan en el texto libre de la carrera.
+Implementación: se editan desde el modal 🎯 Apuestas de programa.html (input por carrera, guardado bulk). Eliminadas: `clubs.apuestas_simples` y `reuniones.apuestas_combinadas`.
+
+## ADR-029: Comisariato y Comisión de Carreras como datos club-level (19/05/2026)
+Decisión: tanto `clubs.comision_carreras` como `clubs.comisariato` son JSONB en la tabla clubs.
+Justificación: ambos son fijos del hipódromo — no cambian por reunión. El comisariato tuvo un ciclo: se creó como `reuniones.comisariato`, se validó que es estable, y se migró a `clubs.comisariato` en la misma sesión.
+Edición: desde Admin "Mi Hipódromo" (secretario/admin del club). Visualización: read-only en el modal de Comisión de programa.html.
+
+## ADR-030: Reunión activa centralizada en localStorage (19/05/2026)
+Decisión: `localStorage.getItem('sgh_active_reunion_id')` como fuente canónica de la reunión activa para pantallas operativas.
+Justificación: las pantallas operativas (programa, carta-llamados, etc.) necesitan saber qué reunión trabajar sin requerir parámetro explícito en URL en cada salto de pantalla. Prioridad: URL param > localStorage > próxima reunión por fecha.
+Implementación: el usuario fija la reunión activa desde reuniones.html con el botón 📍 Activar, que escribe en localStorage. Las pantallas sin reunion_id en URL leen localStorage y si tampoco hay nada saltan a la reunión con fecha más próxima a hoy.
+
 ## ADR-010: Montos en DB sin formato, UI en formato argentino
 Decisión: Guardar números DECIMAL planos en Postgres. En UI mostrar siempre $1.234.567,89 (punto miles, coma decimal, 2 decimales fijos).
 Funciones: formatMonto() y parseMonto() en SNIPPETS.md.

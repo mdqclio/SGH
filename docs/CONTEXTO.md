@@ -35,3 +35,13 @@ Desarrollado para Fede (amigo de Leonardo), quien lo venderá como producto a hi
 - La validación se hace siempre en producción: mdqclio.github.io/SGH/ con refresh.
 - Backend: Supabase (proyecto unlhcuanfrtpatoipwve). Cambios de schema/policies/funciones se aplican manualmente vía SQL Editor del panel de Supabase. Documentar el SQL ejecutado en la sesión correspondiente (docs/SESION_YYYY-MM-DD.md).
 - Cliente piloto único hoy: Hipódromo de Dolores. Probar contra reuniones de Dolores.
+
+## Reunión activa (19/05/2026)
+
+Las pantallas operativas (programa.html, carta-llamados.html, etc.) usan un concepto de "reunión activa" para no requerir parámetro en URL en cada salto. La prioridad de resolución es:
+
+1. `?reunion_id=UUID` en la URL (explícito, máxima prioridad)
+2. `localStorage.getItem('sgh_active_reunion_id')` (persistido entre sesiones)
+3. Próxima reunión con fecha ≥ hoy del club del usuario (fallback automático)
+
+El usuario puede fijar la reunión activa desde **reuniones.html** con el botón 📍 **Activar**, que escribe el UUID en localStorage bajo la clave `sgh_active_reunion_id`. Esto permite a la secretaría trabajar en una reunión específica sin necesidad de navegar por URL.

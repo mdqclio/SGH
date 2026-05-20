@@ -7,7 +7,10 @@
 ## Tablas principales
 
 ### clubs
-id UUID PK, nombre VARCHAR(150), sigla VARCHAR(10) UNIQUE, razon_social, cuit, domicilio, localidad, provincia, telefono, email, logo_url TEXT, activo BOOLEAN DEFAULT TRUE, created_at, updated_at, auditoria_retencion_meses INTEGER DEFAULT 12
+id UUID PK, nombre VARCHAR(150), sigla VARCHAR(10) UNIQUE, razon_social, cuit, domicilio, localidad, provincia, pais VARCHAR DEFAULT 'Argentina', telefono, email, logo_url TEXT, activo BOOLEAN DEFAULT TRUE, created_at, updated_at, auditoria_retencion_meses INTEGER DEFAULT 12, comision_carreras JSONB DEFAULT '[]', sponsors JSONB DEFAULT '[]', comisariato JSONB DEFAULT '[]', disclaimer_importante TEXT, disclaimer_nota TEXT, website TEXT, instagram TEXT, facebook TEXT, tiktok TEXT, twitter_x TEXT, youtube TEXT
+NOTA comision_carreras: `[{"cargo":"Presidente","nombre":"Juan Pérez"}, ...]` — board del hipódromo, editable desde Admin "Mi Hipódromo"
+NOTA comisariato: `[{"cargo":"Presidente del Comisariato","nombre":"..."}, ...]` — stewards del hipódromo, editable desde Admin "Mi Hipódromo". Club-level (no cambia por reunión).
+NOTA sponsors: `[{"nombre":"YPF","logo_url":"https://..."}, ...]`
 
 ### hipodromos
 id UUID PK, club_id FK clubs, nombre, sigla, localidad, provincia, tipo_pista, activo, cantidad_gateras INTEGER DEFAULT 12
@@ -50,16 +53,17 @@ id UUID PK, spc_id FK spcs, propietario_id FK propietarios, porcentaje DECIMAL D
 id UUID PK, club_id FK nullable, entidad_tipo ENUM(profesional/spc/propietario/caballeriza), entidad_id UUID, tipo_sancion, motivo, codigo_resolucion, fecha_inicio DATE, fecha_fin DATE, alcance DEFAULT 'club', estado ENUM(activa/cumplida/apelada/revocada), resolucion_url, notas, creado_por FK usuarios
 
 ### reuniones
-id UUID PK, club_id FK clubs, hipodromo_id FK hipodromos, numero INTEGER, fecha DATE, tipo ENUM(oficial/extraoficial/especial/nocturna), estado ENUM(borrador/programada/publicada/en_curso/finalizada/cancelada/suspendida), condicion_pista, tiempo_clima, observaciones, creado_por FK usuarios
+id UUID PK, club_id FK clubs, hipodromo_id FK hipodromos, numero INTEGER, fecha DATE, tipo ENUM(oficial/extraoficial/especial/nocturna), estado ENUM(borrador/programada/publicada/en_curso/finalizada/cancelada/suspendida), condicion_pista, tiempo_clima, observaciones, creado_por FK usuarios, hora_cierre_ratificacion TIME NOT NULL DEFAULT '12:00:00', fechas_inscripciones TEXT, fechas_forfaits TEXT, fechas_compromiso_montas TEXT
+COLUMNAS ELIMINADAS (19/05/2026): apuestas_combinadas JSONB (existió brevemente, dropped en refactor final), comisariato JSONB (migrado a clubs.comisariato)
 
 ### carreras
-id UUID PK, reunion_id FK reuniones, numero_turno INTEGER, nombre, categoria_id FK categorias_carrera, tipo_pista ENUM(cesped/arena/tierra/sintetica), distancia_metros INTEGER, edad_minima_anos, edad_maxima_anos, condicion_sexo ENUM(ambos/machos/hembras/machos_castrados), condicion_handicap, condicion_adicional, bolsa_total DECIMAL, bolsa_bonos DECIMAL DEFAULT 0, premio_minimo DECIMAL DEFAULT 0, distribucion_premios JSONB, cupo_maximo, hora_estimada TIME, apertura_inscripcion, cierre_inscripcion, apertura_ratificacion, cierre_ratificacion, estado VARCHAR DEFAULT 'programada'
+id UUID PK, reunion_id FK reuniones, numero_turno INTEGER, nombre, categoria_id FK categorias_carrera, tipo_pista ENUM(cesped/arena/tierra/sintetica), distancia_metros INTEGER, edad_minima_anos, edad_maxima_anos, condicion_sexo ENUM(ambos/machos/hembras/machos_castrados), condicion_handicap, condicion_adicional, bolsa_total DECIMAL, bolsa_bonos DECIMAL DEFAULT 0, premio_minimo DECIMAL DEFAULT 0, distribucion_premios JSONB, cupo_maximo, hora_estimada TIME, apertura_inscripcion, cierre_inscripcion, apertura_ratificacion, cierre_ratificacion, estado VARCHAR DEFAULT 'programada', numero_carrera_programa INTEGER, apuestas TEXT[] DEFAULT '{}'
 UNIQUE (reunion_id, numero_turno)
 NOTA condicion: condicion_handicap es la condición principal en texto libre. condicion_adicional es nota extra ("Peso x impresion" en casos especiales).
 NOTA estado: campo VARCHAR libre (sin ENUM). Valores especiales usados en UI: 'reabierta' (cupo no completado, se reabre), 'anulada' (cancelada). NULL = sin marca especial.
 
 ### inscripciones
-id UUID PK, carrera_id FK carreras, spc_id FK spcs, propietario_id FK, entrenador_id FK, jockey_titular_id FK, jockey_suplente_id FK, caballeriza_id FK, peon VARCHAR, capataz VARCHAR, sereno VARCHAR, numero_partidor, peso_declarado, peso_final, estado ENUM(pre_inscripto/inscripto/confirmado/ratificado/forfait/no_presentado/mal_inscrito) DEFAULT 'inscripto', canal DEFAULT 'manual', motivo_forfait, info_adicional, certificado_correr BOOLEAN, inscripto_por FK usuarios, ratificado_por FK usuarios
+id UUID PK, carrera_id FK carreras, spc_id FK spcs, propietario_id FK, entrenador_id FK, jockey_titular_id FK, jockey_suplente_id FK, caballeriza_id FK, peon VARCHAR, capataz VARCHAR, sereno VARCHAR, numero_partidor, peso_declarado, peso_final, estado ENUM(pre_inscripto/inscripto/confirmado/ratificado/forfait/no_presentado/mal_inscrito) DEFAULT 'inscripto', canal DEFAULT 'manual', motivo_estado VARCHAR, info_adicional, certificado_correr BOOLEAN, inscripto_por FK usuarios, ratificado_por FK usuarios
 UNIQUE (carrera_id, spc_id)
 ESTADOS VISIBLES EN UI: inscripto / mal_inscrito / ratificado / forfait. mal_inscrito agregado en sesión may-2026.
 CRÍTICO: estado es ENUM rígido (estado_inscripcion). Para agregar valores usar ALTER TYPE ADD VALUE, NO migrar a VARCHAR (v_inscriptos_carrera depende del ENUM).
@@ -160,6 +164,27 @@ CREATE TABLE IF NOT EXISTS resultado_log (
 );
 ALTER TABLE resultado_log ENABLE ROW LEVEL SECURITY;
 -- RLS resultado_log: Fase 2B via fn_club_de_resultado
+-- Sesión 19/05/2026 (apuestas, comisariato, carta-llamados, navegación):
+ALTER TABLE clubs ADD COLUMN IF NOT EXISTS comision_carreras JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE clubs ADD COLUMN IF NOT EXISTS sponsors JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE clubs ADD COLUMN IF NOT EXISTS disclaimer_importante TEXT;
+ALTER TABLE clubs ADD COLUMN IF NOT EXISTS disclaimer_nota TEXT;
+ALTER TABLE clubs ADD COLUMN IF NOT EXISTS website TEXT;
+ALTER TABLE clubs ADD COLUMN IF NOT EXISTS instagram TEXT;
+ALTER TABLE clubs ADD COLUMN IF NOT EXISTS facebook TEXT;
+ALTER TABLE clubs ADD COLUMN IF NOT EXISTS tiktok TEXT;
+ALTER TABLE clubs ADD COLUMN IF NOT EXISTS twitter_x TEXT;
+ALTER TABLE clubs ADD COLUMN IF NOT EXISTS youtube TEXT;
+ALTER TABLE clubs ADD COLUMN IF NOT EXISTS comisariato JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE reuniones ADD COLUMN IF NOT EXISTS fechas_inscripciones TEXT;
+ALTER TABLE reuniones ADD COLUMN IF NOT EXISTS fechas_forfaits TEXT;
+ALTER TABLE reuniones ADD COLUMN IF NOT EXISTS fechas_compromiso_montas TEXT;
+ALTER TABLE carreras ADD COLUMN IF NOT EXISTS apuestas TEXT[] DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE carreras ADD COLUMN IF NOT EXISTS numero_carrera_programa INTEGER;
+-- Columnas agregadas y eliminadas en la misma sesión (refactor):
+-- clubs.apuestas_simples TEXT[]  -- agregada y luego eliminada (movida a carreras.apuestas)
+-- reuniones.apuestas_combinadas JSONB  -- agregada y luego eliminada (simplificación modelo)
+-- reuniones.comisariato JSONB  -- agregada y luego eliminada (migrado a clubs.comisariato)
 ```
 
 ## Storage Supabase

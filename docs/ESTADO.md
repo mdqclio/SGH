@@ -32,12 +32,15 @@
 - Gestión de usuarios por hipódromo
 - Calendario anual de reuniones
 - PWA instalable
+- **Admin "Mi Hipódromo"** (19/05/2026): ABM de Comisión de Carreras, Sponsors y Comisariato (club-level). Campos disclaimer_importante, disclaimer_nota, redes sociales (website/instagram/facebook/tiktok/twitter_x/youtube). Rol admin-de-hipódromo puede editar sus propios datos (no requiere super_admin).
+- **Carta de llamados** (19/05/2026): rediseño completo del PDF estilo Dolores — cajas de carrera con caption de categoría, bono inline en rojo, bloques de novedades editables (textarea con auto-save), disclaimers, fechas operativas, secretaría con redes sociales, logos de sponsors.
+- **Apuestas por carrera** (19/05/2026): `carreras.apuestas TEXT[]`. Modal 🎯 Apuestas en programa.html muestra lista de inputs por carrera — guardado bulk vía Promise.all. Las apuestas combinadas fueron descartadas.
+- **Reunión activa centralizada** (19/05/2026): `sgh_active_reunion_id` en localStorage. programa.html y otras pantallas operativas usan este valor; si no existe, saltan a la próxima reunión por fecha. Fijable desde reuniones.html con botón 📍 Activar.
 - **RLS multi-tenant por club_id** — 26 tablas endurecidas, aislamiento cross-club verificado, ISSUE-017 cerrado (14/05/2026)
 - **Sistema de auditoría** — UI completa con paginación, filtros, diff visual, export CSV (12/05/2026)
 
 ## En desarrollo
 - Resultados: rediseñado — pendiente testing manual end-to-end por Fede (checklist en PLAN_LIQUIDACIONES.md)
-- Carta de llamados: diseño final del PDF en ajuste; falta Carrera→Turno en PDF
 - Liquidaciones: Bloques A (schema fixes + resultados) y B (motor de cálculo) completos (14/05/2026). Motor ejecutado vs. data sintética: 11 liquidaciones generadas, montos verificados. Pendiente: testing Fede → correr contra reunión real de Dolores → Bloque C (montas perdidas)
 
 ## Pendiente de construir
@@ -74,6 +77,31 @@
 - 14 profesionales extra detectados
 - 7 propietarios de prueba detectados
 - Todos identificados pero no borrados (esperar UI de baja)
+
+---
+
+## Snapshot — 19/05/2026 (cierre de sesión)
+
+**Reunión activa**: Reunión 5 — 17/5/2026 — Hipódromo de Dolores (11 turnos). Fijada en localStorage.
+
+**Validación de Fede**: pendiente en producción.
+
+**Schema relevante** (columnas nuevas o eliminadas en esta sesión):
+- `clubs.comision_carreras` JSONB DEFAULT '[]' — board del hipódromo.
+- `clubs.sponsors` JSONB DEFAULT '[]' — sponsors para carta de llamados.
+- `clubs.comisariato` JSONB DEFAULT '[]' — stewards (movido de reuniones a clubs en refactor).
+- `clubs.disclaimer_importante`, `clubs.disclaimer_nota` TEXT — textos legales en carta.
+- `clubs.website`, `clubs.instagram`, `clubs.facebook`, `clubs.tiktok`, `clubs.twitter_x`, `clubs.youtube` TEXT.
+- `reuniones.fechas_inscripciones`, `reuniones.fechas_forfaits`, `reuniones.fechas_compromiso_montas` TEXT.
+- `carreras.apuestas` TEXT[] DEFAULT '{}' — apuestas habilitadas por carrera.
+- `carreras.numero_carrera_programa` INTEGER — orden post-ratificación.
+- ELIMINADAS: `clubs.apuestas_simples`, `reuniones.apuestas_combinadas`, `reuniones.comisariato`.
+
+**Archivos modificados en esta sesión**:
+- admin.html (ABM comisión, sponsors, comisariato, disclaimers, redes; acceso para admin-de-hipódromo)
+- carta-llamados.html (rediseño completo PDF, novedades editables)
+- programa.html (modal apuestas por carrera, modal comisión read-only, reunión activa en localStorage)
+- reuniones.html (hora_cierre_ratificacion, fechas operativas; eliminadas apuestas_combinadas y comisariato)
 
 ---
 
