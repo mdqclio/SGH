@@ -368,21 +368,57 @@ function renderPrograma(reunion, carreras, inscripciones) {
 function closeMini(id) { document.getElementById(id).classList.remove('open'); }
 
 function openComisionModal() {
-  const lista = Array.isArray(clubData?.comision_carreras) ? clubData.comision_carreras : [];
+  if (!currentReunion) { toast('Seleccioná primero una reunión','error'); return; }
+  const comision    = Array.isArray(clubData?.comision_carreras) ? clubData.comision_carreras : [];
+  const comisariato = Array.isArray(currentReunion?.comisariato) ? currentReunion.comisariato : [];
+  const comisionHtml = comision.length
+    ? comision.map(m => `<div class="comision-row"><span class="cargo">${(m.cargo||'').replace(/</g,'&lt;')}</span><span class="nombre">${(m.nombre||'').replace(/</g,'&lt;')}</span></div>`).join('')
+    : `<div style="color:var(--muted);font-size:13px;padding:8px 0;">No hay miembros de comisión cargados.</div>`;
   const body = document.getElementById('modal-comision-body');
-  if (!lista.length) {
-    body.innerHTML = `
-      <div style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center;">No hay miembros de comisión cargados.</div>
-      <div class="aviso-info">📝 Para editar la comisión, buscá <strong>"Mi Hipódromo"</strong> en el menú principal.</div>
-    `;
-  } else {
-    body.innerHTML = `
-      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">${clubData?.nombre || 'Hipódromo'}</div>
-      ${lista.map(m => `<div class="comision-row"><span class="cargo">${(m.cargo||'').replace(/</g,'&lt;')}</span><span class="nombre">${(m.nombre||'').replace(/</g,'&lt;')}</span></div>`).join('')}
-      <div class="aviso-info">📝 Para editar la comisión, buscá <strong>"Mi Hipódromo"</strong> en el menú principal.</div>
-    `;
-  }
+  body.innerHTML = `
+    <div style="margin-bottom:18px;">
+      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Comisión del hipódromo (no editable aquí)</div>
+      ${comisionHtml}
+      <div class="aviso-info" style="margin-top:10px;">Para editar la comisión del hipódromo, ir a <strong>"Mi Hipódromo"</strong> en el menú principal.</div>
+    </div>
+    <div>
+      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Comisariato de esta reunión</div>
+      <div id="comisariato-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <button type="button" class="btn-secondary" onclick="addComisariatoRow()" style="margin-top:10px;">+ Agregar integrante</button>
+    </div>
+  `;
+  const lista = document.getElementById('comisariato-list');
+  lista.innerHTML = '';
+  comisariato.forEach(m => renderComisariatoRow(m.cargo, m.nombre));
   document.getElementById('modal-comision').classList.add('open');
+}
+
+function renderComisariatoRow(cargo, nombre) {
+  const row = document.createElement('div');
+  row.style.cssText = 'display:grid;grid-template-columns:1fr 2fr auto;gap:8px;align-items:center;';
+  row.innerHTML = `
+    <input type="text" class="com-cargo" placeholder="Cargo (ej: Presidente del Comisariato, Cronometrista)" value="${(cargo||'').replace(/"/g,'&quot;')}">
+    <input type="text" class="com-nombre" placeholder="Nombre y apellido" value="${(nombre||'').replace(/"/g,'&quot;')}">
+    <button type="button" class="btn-sm btn-delete" onclick="this.parentElement.remove()" title="Quitar">✕</button>
+  `;
+  document.getElementById('comisariato-list').appendChild(row);
+}
+function addComisariatoRow() { renderComisariatoRow('',''); }
+
+async function saveComisariato() {
+  if (!currentReunion) return;
+  const rows = Array.from(document.querySelectorAll('#comisariato-list > div')).map(row => ({
+    cargo:  row.querySelector('.com-cargo').value.trim(),
+    nombre: row.querySelector('.com-nombre').value.trim()
+  })).filter(x => x.cargo || x.nombre);
+  const btn = document.getElementById('btn-save-comisariato');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  const { error } = await sb.from('reuniones').update({ comisariato: rows }).eq('id', currentReunion.id);
+  btn.disabled = false; btn.textContent = 'Guardar Comisariato';
+  if (error) { toast(error.message,'error'); return; }
+  currentReunion.comisariato = rows;
+  toast('Comisariato guardado');
+  closeMini('modal-comision');
 }
 
 function openApuestasModal() {
@@ -452,14 +488,15 @@ async function saveApuestasCombinadas() {
 </script>
 
 <div class="modal-overlay" id="modal-comision">
-  <div class="modal" style="max-width:520px;">
+  <div class="modal" style="max-width:580px;">
     <div class="modal-header">
-      <h2>Comisión de Carreras</h2>
+      <h2>Comisión de Carreras y Comisariato</h2>
       <button class="btn-close" onclick="closeMini('modal-comision')">✕</button>
     </div>
     <div class="modal-body" id="modal-comision-body">—</div>
     <div class="modal-footer">
-      <button class="btn-secondary" onclick="closeMini('modal-comision')">Cerrar</button>
+      <button class="btn-secondary" onclick="closeMini('modal-comision')">Cancelar</button>
+      <button class="btn-primary" id="btn-save-comisariato" onclick="saveComisariato()">Guardar Comisariato</button>
     </div>
   </div>
 </div>
