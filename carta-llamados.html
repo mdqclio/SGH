@@ -140,6 +140,8 @@
     #print-only { display: none; }
     @media print {
       html, body, #print-only, #print-only * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+      html, body { background: #fff !important; }
+      .p-doc-header { background: #fff !important; }
       body > *:not(#print-only) { display: none !important; }
       #print-only {
         display: block !important;
