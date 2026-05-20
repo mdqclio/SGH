@@ -440,12 +440,12 @@ function openApuestasModal() {
   const body = document.getElementById('modal-apuestas-body');
   body.innerHTML = `
     <div style="margin-bottom:18px;">
-      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Apuestas combinadas de esta reunión</div>
+      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Apuestas combinadas de esta reunión (editables aquí)</div>
       <div id="apuestas-comb-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       <button type="button" class="btn-secondary" onclick="addApuestaCombRow()" style="margin-top:10px;">+ Agregar apuesta combinada</button>
     </div>
     <div>
-      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Apuestas por carrera (no editables aquí)</div>
+      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Apuestas por carrera (se editan desde Carta de Llamados)</div>
       ${porCarreraHtml}${sinDatosHtml}
       <div class="aviso-info" style="margin-top:10px;">Para editar las apuestas de cada carrera, ir a <strong>Carta de Llamados</strong> y editar el turno correspondiente.</div>
     </div>
