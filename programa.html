@@ -194,19 +194,23 @@ async function init() {
   const sel = document.getElementById('sel-reunion');
   sel.innerHTML = '<option value="">— Seleccionar —</option>' + (reuns||[]).map(r=>`<option value="${r.id}">Reunión ${r.numero||''} — ${new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR')} — ${r.hipodromos?.nombre||''}</option>`).join('');
   const params = new URLSearchParams(location.search);
-  const rid = params.get('reunion_id');
+  let rid = params.get('reunion_id');
+  if (!rid) {
+    try { rid = localStorage.getItem('sgh_active_reunion_id'); } catch(_) { rid = null; }
+    if (rid && !(reuns||[]).some(r => r.id === rid)) rid = null;
+  }
   if (rid) {
     sel.value = rid;
+    try { localStorage.setItem('sgh_active_reunion_id', rid); } catch(_) {}
     await loadPrograma();
   } else {
-    // Prioridad: publicada más antigua → primera programada → primera borrador → ninguna
+    // Fallback: publicada más antigua → primera programada → primera borrador → ninguna
     const { data: pub } = await sb.from('reuniones')
       .select('id')
       .eq('club_id', CLUB_ID)
       .eq('estado', 'publicada')
       .order('fecha', { ascending: true })
       .limit(1);
-
     let reunionASeleccionar = null;
     if (pub?.length) {
       reunionASeleccionar = pub[0].id;
@@ -215,9 +219,9 @@ async function init() {
                     || (reuns||[]).find(r => r.estado === 'borrador');
       if (fallback) reunionASeleccionar = fallback.id;
     }
-
     if (reunionASeleccionar) {
       sel.value = reunionASeleccionar;
+      try { localStorage.setItem('sgh_active_reunion_id', reunionASeleccionar); } catch(_) {}
       await loadPrograma();
     }
   }
@@ -226,6 +230,7 @@ async function init() {
 async function loadPrograma() {
   const rid = document.getElementById('sel-reunion').value;
   if (!rid) { document.getElementById('content').innerHTML='<div class="empty-state"><div class="icon">📰</div><h3>Seleccionar una reunión</h3></div>'; return; }
+  try { localStorage.setItem('sgh_active_reunion_id', rid); } catch(_) {}
   document.getElementById('content').innerHTML='<div class="loading-state"><div class="spinner"></div> Generando programa…</div>';
   const { data: reunion } = await sb.from('reuniones').select('*,hipodromos(nombre,sigla,localidad,provincia)').eq('id',rid).single();
   currentReunion = reunion;

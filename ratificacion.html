@@ -460,6 +460,7 @@ async function init() {
 
   const params = new URLSearchParams(location.search);
   const rid = params.get('reunion_id');
+  if (rid) { try { localStorage.setItem('sgh_active_reunion_id', rid); } catch(_) {} }
   if (rid) {
     sel.value=rid; await loadReunion();
   } else {

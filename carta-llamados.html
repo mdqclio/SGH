@@ -409,6 +409,7 @@ function imprimirCarta() {
 
 const params = new URLSearchParams(location.search);
 let reunionId = params.get('reunion_id');
+if (reunionId) { try { localStorage.setItem('sgh_active_reunion_id', reunionId); } catch(_) {} }
 let reunion=null, carreras=[], categorias=[], hipodromos=[], clubData=null;
 
 function toast(msg, type='success') {
@@ -506,6 +507,7 @@ async function load() {
     }
     reunionId = elegida.id;
     history.replaceState(null, '', `?reunion_id=${reunionId}`);
+    try { localStorage.setItem('sgh_active_reunion_id', reunionId); } catch(_) {}
   }
   const [{ data: r, error: er }, { data: cars }, { data: cats }, { data: hips }, { data: club }] = await Promise.all([
     sb.from('reuniones').select('*, hipodromos(nombre,sigla,localidad)').eq('id', reunionId).single(),
