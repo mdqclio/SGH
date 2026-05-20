@@ -360,12 +360,6 @@
             </div>
           </div>
         </div>
-        <div class="section-lbl">Apuestas habilitadas</div>
-        <div class="form-group full">
-          <label>Apuestas para esta carrera (ej: Ganador, Placé, Exacta, Trifecta…)</label>
-          <div id="f-apuestas-list" style="display:flex;flex-direction:column;gap:6px;"></div>
-          <button type="button" class="btn-secondary" onclick="addApuestaCarreraRow()" style="margin-top:6px;align-self:flex-start;">+ Agregar apuesta</button>
-        </div>
         <div class="section-lbl">Inscripciones</div>
         <div class="form-group">
           <label>Apertura inscripción</label>
@@ -835,22 +829,6 @@ async function saveObservaciones() {
   renderPrint();
 }
 
-function renderApuestaCarreraRow(nombre) {
-  const row = document.createElement('div');
-  row.style.cssText = 'display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;';
-  row.innerHTML = `
-    <input type="text" class="apc-nombre" placeholder="Nombre de la apuesta" value="${(nombre||'').replace(/"/g,'&quot;')}">
-    <button type="button" class="btn-sm btn-delete" onclick="this.parentElement.remove()" title="Quitar">✕</button>
-  `;
-  document.getElementById('f-apuestas-list').appendChild(row);
-}
-function addApuestaCarreraRow() { renderApuestaCarreraRow(''); }
-function readApuestasCarreraFromForm() {
-  return Array.from(document.querySelectorAll('#f-apuestas-list > div'))
-    .map(row => row.querySelector('.apc-nombre').value.trim())
-    .filter(Boolean);
-}
-
 function openModal(rec=null) {
   document.getElementById('modal-title').textContent = rec ? `Editar Turno ${rec.numero_turno}` : 'Nuevo Turno';
   document.getElementById('f-id').value = rec?.id||'';
@@ -878,8 +856,6 @@ function openModal(rec=null) {
   document.getElementById('f-ci-insc').value = rec?.cierre_inscripcion ? rec.cierre_inscripcion.slice(0,16) : '';
   document.getElementById('f-ap-rat').value = rec?.apertura_ratificacion ? rec.apertura_ratificacion.slice(0,16) : '';
   document.getElementById('f-ci-rat').value = rec?.cierre_ratificacion ? rec.cierre_ratificacion.slice(0,16) : '';
-  document.getElementById('f-apuestas-list').innerHTML = '';
-  (Array.isArray(rec?.apuestas) ? rec.apuestas : []).forEach(a => renderApuestaCarreraRow(a));
   document.getElementById('modal').classList.add('open');
 }
 
@@ -921,7 +897,6 @@ async function saveRecord() {
     bolsa_total: document.getElementById('f-bolsa').value ? parseMonto(document.getElementById('f-bolsa').value) : null,
     cupo_maximo: document.getElementById('f-cupo').value ? parseInt(document.getElementById('f-cupo').value) : null,
     distribucion_premios: distribucion,
-    apuestas: readApuestasCarreraFromForm(),
     apertura_inscripcion: document.getElementById('f-ap-insc').value || null,
     cierre_inscripcion: document.getElementById('f-ci-insc').value || null,
     apertura_ratificacion: document.getElementById('f-ap-rat').value || null,

@@ -154,7 +154,7 @@ let sb, CLUB_ID, currentUser;
 async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
-let spcs={}, profesionales={}, propietarios={}, categorias={}, performances={}, caballerizas={}, clubData=null, currentReunion=null, currentCarreras=[];
+let spcs={}, profesionales={}, propietarios={}, categorias={}, performances={}, caballerizas={}, clubData=null, currentReunion=null, currentCarreras=[], currentInscripciones=[];
 
 function formatMonto(num) {
   if (num === null || num === undefined || isNaN(num)) return '$0,00';
@@ -251,7 +251,8 @@ async function loadPrograma() {
     (perfs||[]).forEach(p => { if (!performances[p.spc_id]) performances[p.spc_id]=[]; if (performances[p.spc_id].length<5) performances[p.spc_id].push(p); });
   }
   currentCarreras = carreras||[];
-  renderPrograma(reunion, currentCarreras, inscripciones);
+  currentInscripciones = inscripciones;
+  renderPrograma(reunion, currentCarreras, currentInscripciones);
 }
 
 function calcEdad(fecha) {
@@ -390,65 +391,51 @@ function openComisionModal() {
 
 function openApuestasModal() {
   if (!currentReunion) { toast('Seleccioná primero una reunión','error'); return; }
-  const combinadas = Array.isArray(currentReunion?.apuestas_combinadas) ? currentReunion.apuestas_combinadas : [];
-  const porCarreraHtml = (currentCarreras||[])
-    .filter(c => Array.isArray(c.apuestas) && c.apuestas.length)
-    .sort((a,b) => {
-      const aN = a.numero_carrera_programa != null ? a.numero_carrera_programa : (a.numero_turno + 10000);
-      const bN = b.numero_carrera_programa != null ? b.numero_carrera_programa : (b.numero_turno + 10000);
-      return aN - bN;
-    })
-    .map(c => {
-      const num = c.numero_carrera_programa || c.numero_turno;
-      const tags = c.apuestas.map(a => `<span style="display:inline-block;background:rgba(201,168,76,0.15);color:var(--accent);padding:3px 9px;border-radius:6px;font-size:12px;font-weight:600;margin:2px 4px 2px 0;">${(a||'').replace(/</g,'&lt;')}</span>`).join('');
-      return `<div style="padding:8px 0;border-bottom:1px solid var(--border);"><div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Carrera ${num}</div><div>${tags}</div></div>`;
-    }).join('');
-  const sinDatosHtml = porCarreraHtml ? '' : `<div style="color:var(--muted);font-size:13px;padding:12px 0;">No hay apuestas cargadas para las carreras de esta reunión.</div>`;
+  if (!currentCarreras || !currentCarreras.length) { toast('Esta reunión no tiene carreras cargadas','error'); return; }
+  const ordenadas = [...currentCarreras].sort((a,b) => {
+    const aN = a.numero_carrera_programa != null ? a.numero_carrera_programa : (a.numero_turno + 10000);
+    const bN = b.numero_carrera_programa != null ? b.numero_carrera_programa : (b.numero_turno + 10000);
+    return aN - bN;
+  });
+  const filas = ordenadas.map(c => {
+    const num = c.numero_carrera_programa || c.numero_turno;
+    const valor = Array.isArray(c.apuestas) ? c.apuestas.join(', ') : '';
+    return `
+      <div class="apuestas-row" style="display:grid;grid-template-columns:60px 1fr;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="font-weight:700;color:var(--accent);font-size:15px;">N° ${num}</div>
+        <input type="text" class="apuestas-input" data-carrera-id="${c.id}" placeholder="Ej: Ganador, Placé, Exacta, Trifecta" value="${valor.replace(/"/g,'&quot;')}">
+      </div>`;
+  }).join('');
   const body = document.getElementById('modal-apuestas-body');
   body.innerHTML = `
-    <div style="margin-bottom:18px;">
-      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Apuestas combinadas de esta reunión (editables aquí)</div>
-      <div id="apuestas-comb-list" style="display:flex;flex-direction:column;gap:8px;"></div>
-      <button type="button" class="btn-secondary" onclick="addApuestaCombRow()" style="margin-top:10px;">+ Agregar apuesta combinada</button>
-    </div>
-    <div>
-      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Apuestas por carrera (se editan desde Carta de Llamados)</div>
-      ${porCarreraHtml}${sinDatosHtml}
-      <div class="aviso-info" style="margin-top:10px;">Para editar las apuestas de cada carrera, ir a <strong>Carta de Llamados</strong> y editar el turno correspondiente.</div>
-    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Cargá las apuestas habilitadas en cada carrera separadas por coma. Ej: <em>Ganador, Placé, Exacta, Trifecta</em></div>
+    <div>${filas}</div>
   `;
-  const lista = document.getElementById('apuestas-comb-list');
-  lista.innerHTML = '';
-  combinadas.forEach(a => renderApuestaCombRow(a.nombre, a.carreras));
   document.getElementById('modal-apuestas').classList.add('open');
 }
 
-function renderApuestaCombRow(nombre, carreras) {
-  const row = document.createElement('div');
-  row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center;';
-  row.innerHTML = `
-    <input type="text" class="apc-nombre" placeholder="Nombre (ej: Doblete)" value="${(nombre||'').replace(/"/g,'&quot;')}">
-    <input type="text" class="apc-carreras" placeholder="Carreras (ej: 3 y 4)" value="${(carreras||'').replace(/"/g,'&quot;')}">
-    <button type="button" class="btn-sm btn-delete" onclick="this.parentElement.remove()" title="Quitar">✕</button>
-  `;
-  document.getElementById('apuestas-comb-list').appendChild(row);
-}
-function addApuestaCombRow() { renderApuestaCombRow('',''); }
-
-async function saveApuestasCombinadas() {
-  if (!currentReunion) return;
-  const rows = Array.from(document.querySelectorAll('#apuestas-comb-list > div')).map(row => ({
-    nombre:   row.querySelector('.apc-nombre').value.trim(),
-    carreras: row.querySelector('.apc-carreras').value.trim()
-  })).filter(x => x.nombre || x.carreras);
+async function saveApuestas() {
+  const inputs = Array.from(document.querySelectorAll('#modal-apuestas-body .apuestas-input'));
   const btn = document.getElementById('btn-save-apuestas');
   btn.disabled = true; btn.textContent = 'Guardando…';
-  const { error } = await sb.from('reuniones').update({ apuestas_combinadas: rows }).eq('id', currentReunion.id);
-  btn.disabled = false; btn.textContent = 'Guardar apuestas combinadas';
-  if (error) { toast(error.message,'error'); return; }
-  currentReunion.apuestas_combinadas = rows;
-  toast('Apuestas combinadas guardadas');
+  const promesas = inputs.map(inp => {
+    const id = inp.dataset.carreraId;
+    const arr = inp.value.split(',').map(s => s.trim()).filter(Boolean);
+    return sb.from('carreras').update({ apuestas: arr }).eq('id', id);
+  });
+  const results = await Promise.all(promesas);
+  const err = results.find(r => r.error);
+  btn.disabled = false; btn.textContent = 'Guardar apuestas';
+  if (err) { toast(err.error.message,'error'); return; }
+  inputs.forEach(inp => {
+    const id = inp.dataset.carreraId;
+    const arr = inp.value.split(',').map(s => s.trim()).filter(Boolean);
+    const car = currentCarreras.find(c => c.id === id);
+    if (car) car.apuestas = arr;
+  });
+  toast('Apuestas guardadas');
   closeMini('modal-apuestas');
+  renderPrograma(currentReunion, currentCarreras, currentInscripciones);
 }
 
 (async()=>{if(await initAuth())init();})();
@@ -468,15 +455,15 @@ async function saveApuestasCombinadas() {
 </div>
 
 <div class="modal-overlay" id="modal-apuestas">
-  <div class="modal" style="max-width:640px;">
+  <div class="modal" style="max-width:720px;">
     <div class="modal-header">
       <h2>Apuestas</h2>
       <button class="btn-close" onclick="closeMini('modal-apuestas')">✕</button>
     </div>
     <div class="modal-body" id="modal-apuestas-body">—</div>
     <div class="modal-footer">
-      <button class="btn-secondary" onclick="closeMini('modal-apuestas')">Cancelar</button>
-      <button class="btn-primary" id="btn-save-apuestas" onclick="saveApuestasCombinadas()">Guardar apuestas combinadas</button>
+      <button class="btn-secondary" onclick="closeMini('modal-apuestas')">Cerrar</button>
+      <button class="btn-primary" id="btn-save-apuestas" onclick="saveApuestas()">Guardar apuestas</button>
     </div>
   </div>
 </div>

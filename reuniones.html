@@ -230,10 +230,6 @@
         </div>
       </div>
 
-      <div class="section-divider">Apuestas combinadas</div>
-      <div id="r-apcomb-list" style="display:flex;flex-direction:column;gap:8px;"></div>
-      <button type="button" class="btn-secondary" onclick="addApCombRow()" style="margin-top:8px;">+ Agregar apuesta combinada</button>
-
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
@@ -379,32 +375,12 @@ function openModal(rec=null) {
   document.getElementById('f-condicion').value = rec?.condicion_pista || '';
   document.getElementById('f-clima').value = rec?.tiempo_clima || '';
   document.getElementById('f-observaciones').value = rec?.observaciones || '';
-  document.getElementById('r-apcomb-list').innerHTML = '';
-  (Array.isArray(rec?.apuestas_combinadas) ? rec.apuestas_combinadas : []).forEach(a => renderApCombRow(a.nombre, a.carreras));
-
   document.getElementById('f-fechas-inscripciones').value = rec?.fechas_inscripciones || '';
   document.getElementById('f-fechas-forfaits').value      = rec?.fechas_forfaits || '';
   document.getElementById('f-fechas-compromiso').value    = rec?.fechas_compromiso_montas || '';
   document.getElementById('modal').classList.add('open');
 }
 
-function renderApCombRow(nombre, carreras) {
-  const row = document.createElement('div');
-  row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center;';
-  row.innerHTML = `
-    <input type="text" class="apc-nombre" placeholder="Nombre (ej: Doblete, Quíntuple)" value="${(nombre||'').replace(/"/g,'&quot;')}">
-    <input type="text" class="apc-carreras" placeholder="Carreras (ej: 3 y 4, o 2 a 6)" value="${(carreras||'').replace(/"/g,'&quot;')}">
-    <button type="button" class="btn-sm btn-delete" onclick="this.parentElement.remove()" title="Quitar">✕</button>
-  `;
-  document.getElementById('r-apcomb-list').appendChild(row);
-}
-function addApCombRow(){ renderApCombRow('',''); }
-function readApCombFromForm() {
-  return Array.from(document.querySelectorAll('#r-apcomb-list > div')).map(row => ({
-    nombre:   row.querySelector('.apc-nombre').value.trim(),
-    carreras: row.querySelector('.apc-carreras').value.trim()
-  })).filter(x => x.nombre || x.carreras);
-}
 
 function closeModal() { document.getElementById('modal').classList.remove('open'); }
 
@@ -425,7 +401,6 @@ async function saveRecord() {
     condicion_pista: document.getElementById('f-condicion').value || null,
     tiempo_clima: document.getElementById('f-clima').value.trim() || null,
     observaciones: document.getElementById('f-observaciones').value.trim() || null,
-    apuestas_combinadas:     readApCombFromForm(),
     fechas_inscripciones:    document.getElementById('f-fechas-inscripciones').value.trim() || null,
     fechas_forfaits:         document.getElementById('f-fechas-forfaits').value.trim() || null,
     fechas_compromiso_montas:document.getElementById('f-fechas-compromiso').value.trim() || null,
