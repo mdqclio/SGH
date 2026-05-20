@@ -290,7 +290,7 @@
         <div class="section-lbl">Premio</div>
         <div class="form-group two">
           <label>Bolsa total ($)</label>
-          <input type="text" id="f-bolsa" placeholder="0" oninput="fmtInput(this);updPct()">
+          <input type="text" id="f-bolsa" placeholder="0" oninput="fmtInput(this);updPct()" onfocus="fmtInputFocus(this)" onblur="fmtInputBlur(this)">
         </div>
         <div class="form-group full">
           <label>Distribución por puesto (%)</label>
@@ -306,7 +306,7 @@
         </div>
         <div class="form-group">
           <label>Ganancia mínima por puesto ($)</label>
-          <input type="text" id="f-ganancia-minima" placeholder="0" oninput="fmtInput(this)">
+          <input type="text" id="f-ganancia-minima" placeholder="0" oninput="fmtInput(this)" onfocus="fmtInputFocus(this)" onblur="fmtInputBlur(this)">
         </div>
         <div class="form-group">
           <label>Cupo máximo</label>
@@ -317,7 +317,7 @@
             <div class="bono-block-title">🏆 Bono al ganador (1°)</div>
             <div class="premio-input" style="max-width:200px;">
               <label>Monto adicional ($)</label>
-              <input type="text" class="monto" id="bono-ganador" placeholder="0 = sin bono">
+              <input type="text" class="monto" id="bono-ganador" placeholder="0 = sin bono" oninput="fmtInput(this)" onfocus="fmtInputFocus(this)" onblur="fmtInputBlur(this)">
             </div>
           </div>
           <div class="bono-block">
@@ -329,7 +329,7 @@
               </div>
               <div class="premio-input">
                 <label>Monto por puesto ($)</label>
-                <input type="text" id="f-bono-pos-monto" placeholder="0" oninput="fmtInput(this)">
+                <input type="text" id="f-bono-pos-monto" placeholder="0" oninput="fmtInput(this)" onfocus="fmtInputFocus(this)" onblur="fmtInputBlur(this)">
               </div>
             </div>
           </div>
@@ -389,9 +389,34 @@ function parseMonto(str) {
   return parseFloat(s) || 0;
 }
 function fmtInput(el) {
-  if (el.value.match(/,\d{0,1}$/)) return;
+  let raw = el.value.replace(/\$/g, '').replace(/\s/g, '');
+  const commaIdx = raw.indexOf(',');
+  let intPart, decPart;
+  if (commaIdx >= 0) {
+    intPart = raw.substring(0, commaIdx).replace(/\D/g, '');
+    decPart = raw.substring(commaIdx + 1).replace(/\D/g, '').slice(0, 2);
+  } else {
+    intPart = raw.replace(/\D/g, '');
+    decPart = null;
+  }
+  intPart = intPart.replace(/^0+(?=\d)/, '');
+  const intFmt = intPart ? intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
+  if (decPart !== null) {
+    el.value = `${intFmt || '0'},${decPart}`;
+  } else if (commaIdx >= 0) {
+    el.value = `${intFmt || '0'},`;
+  } else {
+    el.value = intFmt;
+  }
+}
+
+function fmtInputBlur(el) {
   const v = parseMonto(el.value);
   el.value = v ? formatMonto(v) : '';
+}
+
+function fmtInputFocus(el) {
+  el.value = el.value.replace(/\$/g, '').trim();
 }
 
 function fmtDate(d) {
