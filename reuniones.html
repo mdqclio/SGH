@@ -93,6 +93,7 @@
     select option { background: #1a3d26; }
     .modal-footer { padding: 16px 24px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
     .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; }
+    .section-divider { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
     /* ESTADO MODAL */
     .estado-flow { display: flex; gap: 8px; flex-wrap: wrap; }
     .btn-flow { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 10px 16px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; }
@@ -212,6 +213,10 @@
           <textarea id="f-observaciones" placeholder="Notas adicionales…"></textarea>
         </div>
       </div>
+
+      <div class="section-divider">Apuestas combinadas</div>
+      <div id="r-apcomb-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <button type="button" class="btn-secondary" onclick="addApCombRow()" style="margin-top:8px;">+ Agregar apuesta combinada</button>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
@@ -356,7 +361,27 @@ function openModal(rec=null) {
   document.getElementById('f-condicion').value = rec?.condicion_pista || '';
   document.getElementById('f-clima').value = rec?.tiempo_clima || '';
   document.getElementById('f-observaciones').value = rec?.observaciones || '';
+  document.getElementById('r-apcomb-list').innerHTML = '';
+  (Array.isArray(rec?.apuestas_combinadas) ? rec.apuestas_combinadas : []).forEach(a => renderApCombRow(a.nombre, a.carreras));
   document.getElementById('modal').classList.add('open');
+}
+
+function renderApCombRow(nombre, carreras) {
+  const row = document.createElement('div');
+  row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center;';
+  row.innerHTML = `
+    <input type="text" class="apc-nombre" placeholder="Nombre (ej: Doblete, Quíntuple)" value="${(nombre||'').replace(/"/g,'&quot;')}">
+    <input type="text" class="apc-carreras" placeholder="Carreras (ej: 3 y 4, o 2 a 6)" value="${(carreras||'').replace(/"/g,'&quot;')}">
+    <button type="button" class="btn-sm btn-delete" onclick="this.parentElement.remove()" title="Quitar">✕</button>
+  `;
+  document.getElementById('r-apcomb-list').appendChild(row);
+}
+function addApCombRow(){ renderApCombRow('',''); }
+function readApCombFromForm() {
+  return Array.from(document.querySelectorAll('#r-apcomb-list > div')).map(row => ({
+    nombre:   row.querySelector('.apc-nombre').value.trim(),
+    carreras: row.querySelector('.apc-carreras').value.trim()
+  })).filter(x => x.nombre || x.carreras);
 }
 
 function closeModal() { document.getElementById('modal').classList.remove('open'); }
@@ -377,6 +402,7 @@ async function saveRecord() {
     condicion_pista: document.getElementById('f-condicion').value || null,
     tiempo_clima: document.getElementById('f-clima').value.trim() || null,
     observaciones: document.getElementById('f-observaciones').value.trim() || null,
+    apuestas_combinadas: readApCombFromForm(),
     estado: id ? undefined : 'borrador',
   };
   if (!id) payload.estado = 'borrador';

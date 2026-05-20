@@ -292,6 +292,10 @@
       <div class="section-divider">Sponsors</div>
       <div id="e-sponsors-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       <button type="button" class="btn-secondary" onclick="addSponsorRow()" style="margin-top:8px;align-self:flex-start;">+ Agregar sponsor</button>
+
+      <div class="section-divider">Apuestas simples ofrecidas</div>
+      <div id="e-apuestas-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <button type="button" class="btn-secondary" onclick="addApuestaRow()" style="margin-top:8px;align-self:flex-start;">+ Agregar apuesta</button>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeEdit()">Cancelar</button>
@@ -498,6 +502,22 @@ function readSponsorsFromForm() {
   })).filter(x => x.nombre || x.logo_url);
 }
 
+function renderApuestaRow(nombre) {
+  const row = document.createElement('div');
+  row.style.cssText = 'display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;';
+  row.innerHTML = `
+    <input type="text" class="ap-nombre" placeholder="Nombre de la apuesta (ej: Ganador, Placé, Exacta)" value="${(nombre||'').replace(/"/g,'&quot;')}">
+    <button type="button" class="btn-sm btn-delete" onclick="this.parentElement.remove()" title="Quitar">✕</button>
+  `;
+  document.getElementById('e-apuestas-list').appendChild(row);
+}
+function addApuestaRow(){ renderApuestaRow(''); }
+function readApuestasFromForm() {
+  return Array.from(document.querySelectorAll('#e-apuestas-list > div'))
+    .map(row => row.querySelector('.ap-nombre').value.trim())
+    .filter(Boolean);
+}
+
 /* ---- EDITAR ---- */
 function openEdit(id){
   const c=allClubs.find(x=>x.id===id);
@@ -519,8 +539,10 @@ function openEdit(id){
   if(c.logo_url){ img.src=c.logo_url; prev.style.display='block'; } else { prev.style.display='none'; }
   document.getElementById('e-comision-list').innerHTML = '';
   document.getElementById('e-sponsors-list').innerHTML = '';
+  document.getElementById('e-apuestas-list').innerHTML = '';
   (Array.isArray(c.comision_carreras) ? c.comision_carreras : []).forEach(m => renderComisionRow(m.cargo, m.nombre));
   (Array.isArray(c.sponsors)          ? c.sponsors          : []).forEach(s => renderSponsorRow(s.nombre, s.logo_url));
+  (Array.isArray(c.apuestas_simples)  ? c.apuestas_simples  : []).forEach(a => renderApuestaRow(a));
   document.getElementById('modal-edit').classList.add('open');
 }
 function closeEdit(){ document.getElementById('modal-edit').classList.remove('open'); }
@@ -544,6 +566,7 @@ async function saveEdit(){
     // TODO: campo no persistido — definir si crear columna tel_contacto o eliminar input
     comision_carreras: readComisionFromForm(),
     sponsors:          readSponsorsFromForm(),
+    apuestas_simples:  readApuestasFromForm(),
   }).eq('id',id);
   btn.disabled=false; btn.textContent='Guardar cambios';
   if(error){toast(error.message,'error');return;}
