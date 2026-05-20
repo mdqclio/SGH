@@ -184,6 +184,10 @@
           <input type="number" id="f-numero" min="1" placeholder="Nro de reunión">
         </div>
         <div class="form-group">
+          <label>Hora cierre ratificación</label>
+          <input type="time" id="f-hora-cierre-rat">
+        </div>
+        <div class="form-group">
           <label>Tipo</label>
           <select id="f-tipo-r">
             <option value="oficial">Oficial</option>
@@ -370,6 +374,7 @@ function openModal(rec=null) {
   document.getElementById('f-fecha').value = rec?.fecha || '';
   document.getElementById('f-numero').value = rec?.numero || '';
   document.getElementById('f-tipo-r').value = rec?.tipo || 'oficial';
+  document.getElementById('f-hora-cierre-rat').value = rec?.hora_cierre_ratificacion ? String(rec.hora_cierre_ratificacion).slice(0,5) : '';
   document.getElementById('f-condicion').value = rec?.condicion_pista || '';
   document.getElementById('f-clima').value = rec?.tiempo_clima || '';
   document.getElementById('f-observaciones').value = rec?.observaciones || '';
@@ -414,6 +419,7 @@ async function saveRecord() {
     fecha,
     numero: document.getElementById('f-numero').value ? parseInt(document.getElementById('f-numero').value) : null,
     tipo: document.getElementById('f-tipo-r').value,
+    hora_cierre_ratificacion: document.getElementById('f-hora-cierre-rat').value || null,
     condicion_pista: document.getElementById('f-condicion').value || null,
     tiempo_clima: document.getElementById('f-clima').value.trim() || null,
     observaciones: document.getElementById('f-observaciones').value.trim() || null,
