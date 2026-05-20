@@ -154,7 +154,7 @@ let sb, CLUB_ID, currentUser;
 async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
-let spcs={}, profesionales={}, propietarios={}, categorias={}, performances={}, caballerizas={}, clubData=null, currentReunion=null;
+let spcs={}, profesionales={}, propietarios={}, categorias={}, performances={}, caballerizas={}, clubData=null, currentReunion=null, currentCarreras=[];
 
 function formatMonto(num) {
   if (num === null || num === undefined || isNaN(num)) return '$0,00';
@@ -183,7 +183,7 @@ async function init() {
     sb.from('spcs').select('id,nombre,sexo,color,fecha_nacimiento,padrillo_nombre,madre_nombre').order('nombre'),
     sb.from('categorias_carrera').select('id,nombre,codigo,simbolo').eq('club_id', CLUB_ID),
     sb.from('caballerizas').select('id,nombre').eq('club_id', CLUB_ID).eq('activo', true).order('nombre'),
-    sb.from('clubs').select('logo_url, nombre, comision_carreras, apuestas_simples').eq('id', CLUB_ID).single(),
+    sb.from('clubs').select('logo_url, nombre, comision_carreras').eq('id', CLUB_ID).single(),
   ]);
   clubData = club||null;
   (profs||[]).forEach(p=>{ profesionales[p.id]=p; });
@@ -230,6 +230,7 @@ async function loadPrograma() {
   const { data: reunion } = await sb.from('reuniones').select('*,hipodromos(nombre,sigla,localidad,provincia)').eq('id',rid).single();
   currentReunion = reunion;
   const { data: carrerasRaw, error } = await sb.from('carreras').select('*').eq('reunion_id', rid);
+
   const carreras = (carrerasRaw || []).sort((a, b) => {
     const aNum = a.numero_carrera_programa != null ? a.numero_carrera_programa : (a.numero_turno + 10000);
     const bNum = b.numero_carrera_programa != null ? b.numero_carrera_programa : (b.numero_turno + 10000);
@@ -249,7 +250,8 @@ async function loadPrograma() {
     performances = {};
     (perfs||[]).forEach(p => { if (!performances[p.spc_id]) performances[p.spc_id]=[]; if (performances[p.spc_id].length<5) performances[p.spc_id].push(p); });
   }
-  renderPrograma(reunion, carreras||[], inscripciones);
+  currentCarreras = carreras||[];
+  renderPrograma(reunion, currentCarreras, inscripciones);
 }
 
 function calcEdad(fecha) {
@@ -385,22 +387,31 @@ function openComisionModal() {
 
 function openApuestasModal() {
   if (!currentReunion) { toast('Seleccioná primero una reunión','error'); return; }
-  const simples    = Array.isArray(clubData?.apuestas_simples)             ? clubData.apuestas_simples             : [];
-  const combinadas = Array.isArray(currentReunion?.apuestas_combinadas)    ? currentReunion.apuestas_combinadas    : [];
-  const simplesHtml = simples.length
-    ? simples.map(s => `<span style="display:inline-block;background:rgba(201,168,76,0.15);color:var(--accent);padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;margin:3px 4px 3px 0;">${(s||'').replace(/</g,'&lt;')}</span>`).join('')
-    : `<span style="color:var(--muted);font-size:13px;">No hay apuestas simples configuradas.</span>`;
+  const combinadas = Array.isArray(currentReunion?.apuestas_combinadas) ? currentReunion.apuestas_combinadas : [];
+  const porCarreraHtml = (currentCarreras||[])
+    .filter(c => Array.isArray(c.apuestas) && c.apuestas.length)
+    .sort((a,b) => {
+      const aN = a.numero_carrera_programa != null ? a.numero_carrera_programa : (a.numero_turno + 10000);
+      const bN = b.numero_carrera_programa != null ? b.numero_carrera_programa : (b.numero_turno + 10000);
+      return aN - bN;
+    })
+    .map(c => {
+      const num = c.numero_carrera_programa || c.numero_turno;
+      const tags = c.apuestas.map(a => `<span style="display:inline-block;background:rgba(201,168,76,0.15);color:var(--accent);padding:3px 9px;border-radius:6px;font-size:12px;font-weight:600;margin:2px 4px 2px 0;">${(a||'').replace(/</g,'&lt;')}</span>`).join('');
+      return `<div style="padding:8px 0;border-bottom:1px solid var(--border);"><div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Carrera ${num}</div><div>${tags}</div></div>`;
+    }).join('');
+  const sinDatosHtml = porCarreraHtml ? '' : `<div style="color:var(--muted);font-size:13px;padding:12px 0;">No hay apuestas cargadas para las carreras de esta reunión.</div>`;
   const body = document.getElementById('modal-apuestas-body');
   body.innerHTML = `
     <div style="margin-bottom:18px;">
-      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Apuestas simples del hipódromo (no editables aquí)</div>
-      <div>${simplesHtml}</div>
-      <div class="aviso-info" style="margin-top:10px;">Para editar las apuestas simples del hipódromo, ir a <strong>"Mi Hipódromo"</strong> en el menú principal.</div>
-    </div>
-    <div>
       <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Apuestas combinadas de esta reunión</div>
       <div id="apuestas-comb-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       <button type="button" class="btn-secondary" onclick="addApuestaCombRow()" style="margin-top:10px;">+ Agregar apuesta combinada</button>
+    </div>
+    <div>
+      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Apuestas por carrera (no editables aquí)</div>
+      ${porCarreraHtml}${sinDatosHtml}
+      <div class="aviso-info" style="margin-top:10px;">Para editar las apuestas de cada carrera, ir a <strong>Carta de Llamados</strong> y editar el turno correspondiente.</div>
     </div>
   `;
   const lista = document.getElementById('apuestas-comb-list');
