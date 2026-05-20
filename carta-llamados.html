@@ -445,13 +445,23 @@ function updPct() {
 
 async function load() {
   if (!reunionId) {
-    const { data: ultima } = await sb.from('reuniones')
-      .select('id')
+    const { data: activas } = await sb.from('reuniones')
+      .select('id, fecha, estado')
       .eq('club_id', CLUB_ID)
-      .order('fecha', { ascending: false })
-      .limit(1)
-      .single();
-    if (!ultima) {
+      .in('estado', ['borrador', 'programada', 'publicada'])
+      .order('fecha', { ascending: true })
+      .limit(1);
+    let elegida = activas?.[0];
+    if (!elegida) {
+      const { data: ultima } = await sb.from('reuniones')
+        .select('id')
+        .eq('club_id', CLUB_ID)
+        .order('fecha', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      elegida = ultima;
+    }
+    if (!elegida) {
       document.getElementById('reunion-info').innerHTML = '';
       document.getElementById('list-container').innerHTML = `
         <div class="empty-state">
@@ -462,7 +472,7 @@ async function load() {
         </div>`;
       return;
     }
-    reunionId = ultima.id;
+    reunionId = elegida.id;
     history.replaceState(null, '', `?reunion_id=${reunionId}`);
   }
   const [{ data: r, error: er }, { data: cars }, { data: cats }, { data: hips }, { data: club }] = await Promise.all([
