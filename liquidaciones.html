@@ -479,7 +479,7 @@ async function generarLiquidaciones() {
 
   // Cargar datos
   const [{ data: cars }, { data: comCfg }] = await Promise.all([
-    sb.from('carreras').select('id,numero_turno,bolsa_total,distribucion_premios,premio_minimo').eq('reunion_id', rid),
+    sb.from('carreras').select('id,numero_turno,bolsa_total,distribucion_premios').eq('reunion_id', rid),
     sb.from('comision_config').select('*').eq('club_id', CLUB_ID).eq('activo', true),
   ]);
   const carIds = (cars||[]).map(c => c.id);
@@ -509,7 +509,7 @@ async function generarLiquidaciones() {
         posicion >= dist.bono_posicion_desde && posicion <= dist.bono_posicion_hasta) {
       p += parseFloat(dist.bono_posicion_monto);
     }
-    const minimo = parseFloat(car.premio_minimo) || 0;
+    const minimo = parseFloat(dist.ganancia_minima) || 0;
     return minimo > 0 && p < minimo ? minimo : p;
   };
 

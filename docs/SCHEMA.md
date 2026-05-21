@@ -57,7 +57,7 @@ id UUID PK, club_id FK clubs, hipodromo_id FK hipodromos, numero INTEGER, fecha 
 COLUMNAS ELIMINADAS (19/05/2026): apuestas_combinadas JSONB (existió brevemente, dropped en refactor final), comisariato JSONB (migrado a clubs.comisariato)
 
 ### carreras
-id UUID PK, reunion_id FK reuniones, numero_turno INTEGER, nombre, categoria_id FK categorias_carrera, tipo_pista ENUM(cesped/arena/tierra/sintetica), distancia_metros INTEGER, edad_minima_anos, edad_maxima_anos, condicion_sexo ENUM(ambos/machos/hembras/machos_castrados), condicion_handicap, condicion_adicional, bolsa_total DECIMAL, bolsa_bonos DECIMAL DEFAULT 0, premio_minimo DECIMAL DEFAULT 0, distribucion_premios JSONB, cupo_maximo, hora_estimada TIME, apertura_inscripcion, cierre_inscripcion, apertura_ratificacion, cierre_ratificacion, estado VARCHAR DEFAULT 'programada', numero_carrera_programa INTEGER, apuestas TEXT[] DEFAULT '{}'
+id UUID PK, reunion_id FK reuniones, numero_turno INTEGER, nombre, categoria_id FK categorias_carrera, tipo_pista ENUM(cesped/arena/tierra/sintetica), distancia_metros INTEGER, edad_minima_anos, edad_maxima_anos, condicion_sexo ENUM(ambos/machos/hembras/machos_castrados), condicion_handicap, condicion_adicional, bolsa_total DECIMAL, bolsa_bonos DECIMAL DEFAULT 0, distribucion_premios JSONB (incluye ganancia_minima), cupo_maximo, hora_estimada TIME, apertura_inscripcion, cierre_inscripcion, apertura_ratificacion, cierre_ratificacion, estado VARCHAR DEFAULT 'programada', numero_carrera_programa INTEGER, apuestas TEXT[] DEFAULT '{}'
 UNIQUE (reunion_id, numero_turno)
 NOTA condicion: condicion_handicap es la condición principal en texto libre. condicion_adicional es nota extra ("Peso x impresion" en casos especiales).
 NOTA estado: campo VARCHAR libre (sin ENUM). Valores especiales usados en UI: 'reabierta' (cupo no completado, se reabre), 'anulada' (cancelada). NULL = sin marca especial.
@@ -117,7 +117,7 @@ ALTER TABLE inscripciones ADD COLUMN IF NOT EXISTS capataz VARCHAR(200);
 ALTER TABLE inscripciones ADD COLUMN IF NOT EXISTS sereno VARCHAR(200);
 ALTER TABLE inscripciones ADD COLUMN IF NOT EXISTS certificado_correr BOOLEAN DEFAULT FALSE;
 ALTER TABLE carreras ADD COLUMN IF NOT EXISTS bolsa_bonos DECIMAL(15,2) DEFAULT 0;
-ALTER TABLE carreras ADD COLUMN IF NOT EXISTS premio_minimo DECIMAL(15,2) DEFAULT 0;
+-- premio_minimo eliminada (21/05/2026): unificado en distribucion_premios.ganancia_minima
 ALTER TABLE resultados ADD COLUMN IF NOT EXISTS estado_pista VARCHAR(20);
 ALTER TABLE resultados ADD COLUMN IF NOT EXISTS apuestas JSONB;
 ALTER TABLE spcs ADD COLUMN IF NOT EXISTS certificado_correr BOOLEAN DEFAULT FALSE;

@@ -83,7 +83,7 @@ El siguiente paso es que un humano verifique desde el browser:
 
 **Fórmula implementada:**
 ```
-premio_puesto = max(bolsa * dist_premios[pos] / 100 + bonos, premio_minimo)
+premio_puesto = max(bolsa * dist_premios[pos] / 100 + bonos, ganancia_minima)
 share_actor   = premio_puesto * porcentaje_base
 descuento     = share_actor * (fondo_solidario_pct + incentivo_pct) / 100  [si comision_config activo]
 neto          = share_actor - descuento
