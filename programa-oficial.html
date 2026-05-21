@@ -293,13 +293,12 @@ function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
     <div class="carrera-meta">
       <div class="carrera-left">
         <div class="nro">${num}° Carrera</div>
-        <div class="hora">${hora} HS</div>
+        ${hora ? `<div class="hora">${hora} HS</div>` : ''}
         ${bonoGanador ? `<div class="bono">BONO ${formatMonto(bonoGanador)}<br>AL GANADOR</div>` : ''}
       </div>
       <div class="carrera-center">
-        <div class="premio">PREMIO: ${c.nombre || ''}</div>
+        ${c.nombre ? `<div class="premio">PREMIO: ${c.nombre}</div>` : ''}
         <div>${c.condicion_adicional || ''}${c.condicion_handicap ? ` — ${c.condicion_handicap}` : ''}</div>
-        <div>Peso: 57 kg Machos / Hembras descargo de 2 kg. Jockey aprendices sin descargo</div>
         <div class="bolsa">BOLSA: ${formatMonto(bolsa)}${desglose ? ` — ${desglose}` : ''}</div>
         ${apuestasText ? `<div><strong>APUESTAS:</strong> ${apuestasText}</div>` : ''}
       </div>
