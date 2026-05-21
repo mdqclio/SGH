@@ -249,7 +249,7 @@ async function crearCliente(){
       {nombre:'No Oficial',codigo:'NO',simbolo:'▲',color_hex:'#a0b8a0',es_computable:false,es_oficial:false,orden_display:3},
       {nombre:'Clásico Confirmado',codigo:'CC',simbolo:'⭐',color_hex:'#e8b84b',es_computable:true,es_oficial:true,orden_display:4},
     ].map(c=>({...c,club_id:newClubId,activo:true}));
-    const{error:catErr}=await sb.from('categorias').insert(cats);
+    const{error:catErr}=await sb.from('categorias_carrera').insert(cats);
     if(catErr) throw new Error('Hipódromo y usuario creados, pero error en categorías: '+catErr.message);
 
     // Todo OK
