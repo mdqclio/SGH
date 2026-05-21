@@ -242,6 +242,10 @@
           <input type="text" id="f-madre" placeholder="Nombre de la madre">
         </div>
         <div class="form-group">
+          <label>4 últimas performances</label>
+          <input type="text" id="f-ult-perf" placeholder="Ej: 5D5P3L  (deja vacío si no hay)">
+        </div>
+        <div class="form-group">
           <label>Abuela materna</label>
           <input type="text" id="f-abuela" placeholder="Nombre de la abuela materna">
         </div>
@@ -446,6 +450,7 @@ function openModal(rec=null) {
   document.getElementById('f-notas').value = rec?.notas || '';
   document.getElementById('f-padrillo').value = rec?.padrillo_nombre || '';
   document.getElementById('f-madre').value = rec?.madre_nombre || '';
+  document.getElementById('f-ult-perf').value = rec?.ult_performances || '';
   document.getElementById('f-abuela').value = rec?.abuela_materna || '';
   document.getElementById('f-pais').value = rec?.pais_origen || 'Argentina';
   // Propietarios tab
@@ -483,6 +488,7 @@ async function saveRecord() {
     notas: document.getElementById('f-notas').value.trim() || null,
     padrillo_nombre: document.getElementById('f-padrillo').value.trim() || null,
     madre_nombre: document.getElementById('f-madre').value.trim() || null,
+    ult_performances: document.getElementById('f-ult-perf').value.trim() || null,
     abuela_materna: document.getElementById('f-abuela').value.trim() || null,
     pais_origen: document.getElementById('f-pais').value.trim() || null,
   };

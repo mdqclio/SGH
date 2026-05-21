@@ -143,6 +143,7 @@
   </select>
   <button class="btn-outline" onclick="openComisionModal()">👥 Comisión de Carreras</button>
   <button class="btn-outline" onclick="openApuestasModal()">🎯 Apuestas</button>
+  <button class="btn-outline" onclick="abrirProgramaOficial()">📘 Programa Oficial</button>
 </div>
 
 <div class="content" id="content">
@@ -393,6 +394,11 @@ function openComisionModal() {
     <div class="aviso-info">Para editar comisión o comisariato, ir a <strong>"Mi Hipódromo"</strong> en el menú principal.</div>
   `;
   document.getElementById('modal-comision').classList.add('open');
+}
+
+function abrirProgramaOficial() {
+  if (!currentReunion) { toast('Seleccioná primero una reunión','error'); return; }
+  window.open(`programa-oficial.html?reunion_id=${currentReunion.id}`, '_blank');
 }
 
 function openApuestasModal() {

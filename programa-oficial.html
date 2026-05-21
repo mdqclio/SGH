@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8">
+<title>Programa Oficial</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  /* Reset al estilo newsprint B&N */
+  body { background: #fff; color: #000; font-family: 'Times New Roman', Times, serif; font-size: 11px; line-height: 1.3; margin: 0; padding: 20px; }
+  .auth-overlay, .topbar { display: none; }
+  .programa-page { max-width: 21cm; margin: 0 auto; }
+
+  .programa-header { display: grid; grid-template-columns: 1fr 1fr auto; gap: 20px; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 8px; }
+  .programa-header h3 { font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.3px; }
+  .programa-header .lista { font-size: 10px; line-height: 1.4; }
+  .programa-header .logo { text-align: right; }
+  .programa-header .logo img { max-width: 140px; max-height: 80px; }
+  .programa-header .logo .nombre-hipodromo { font-weight: 700; font-size: 14px; margin-top: 4px; }
+  .programa-reunion-titulo { text-align: center; font-size: 13px; font-weight: 700; margin: 6px 0 14px; }
+
+  .carrera-block { margin-bottom: 16px; page-break-inside: avoid; }
+  .carrera-meta { display: grid; grid-template-columns: 140px 1fr 100px; gap: 10px; align-items: flex-start; margin-bottom: 4px; }
+  .carrera-left { font-weight: 700; }
+  .carrera-left .nro { font-size: 14px; }
+  .carrera-left .hora { font-size: 12px; }
+  .carrera-left .bono { display: inline-block; background: #000; color: #fff; padding: 3px 6px; margin-top: 2px; font-size: 10px; font-weight: 700; }
+  .carrera-right { text-align: right; font-weight: 700; }
+  .carrera-right .metros { font-size: 13px; }
+  .carrera-right .categoria { font-size: 9px; margin-top: 2px; }
+  .carrera-center { font-size: 10px; line-height: 1.35; }
+  .carrera-center .premio { font-weight: 700; text-transform: uppercase; }
+  .carrera-center .bolsa { font-weight: 700; }
+
+  table.inscriptos { width: 100%; border-collapse: collapse; font-size: 9.5px; margin-top: 4px; }
+  table.inscriptos thead th { border-bottom: 1px solid #000; padding: 2px 4px; text-align: left; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+  table.inscriptos tbody td { padding: 2px 4px; vertical-align: top; }
+  table.inscriptos tbody tr { border-bottom: 1px dotted #999; }
+  table.inscriptos .col-numero { text-align: center; font-weight: 700; width: 24px; }
+  table.inscriptos .col-kesp { white-space: nowrap; }
+
+  .pagina-final { page-break-before: always; padding-top: 20px; }
+  .disclaimer { font-size: 10px; text-align: justify; line-height: 1.5; margin-bottom: 20px; }
+  .secretaria-info { font-size: 11px; line-height: 1.5; margin-bottom: 30px; }
+  .secretaria-info strong { font-weight: 700; }
+  .redes-info { display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #000; padding-top: 10px; font-size: 10px; }
+  .redes-info .redes-list { display: flex; gap: 12px; }
+
+  @media print {
+    body { padding: 0; }
+    .programa-page { max-width: none; }
+    .no-print { display: none !important; }
+    @page { size: A4; margin: 1.5cm; }
+  }
+  .toolbar { background: #eee; padding: 10px; text-align: center; margin-bottom: 20px; }
+  .toolbar button { background: #000; color: #fff; border: none; padding: 8px 16px; font-size: 13px; cursor: pointer; }
+</style>
+</head><body>
+
+<div class="toolbar no-print">
+  <button onclick="window.print()">🖨️ Imprimir Programa Oficial</button>
+</div>
+
+<div class="programa-page" id="programa-page">
+  <div style="text-align:center;padding:40px;">Cargando programa…</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const sb = supabase.createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');
+
+const params = new URLSearchParams(location.search);
+const reunionId = params.get('reunion_id');
+
+function formatMonto(n) {
+  if (n == null || isNaN(n)) return '$0';
+  return '$' + Math.round(parseFloat(n)).toLocaleString('es-AR').replace(/,/g, '.');
+}
+function calcEdad(fecha) {
+  if (!fecha) return '';
+  const hoy = new Date(), f = new Date(fecha);
+  let edad = hoy.getFullYear() - f.getFullYear();
+  if (hoy.getMonth() < f.getMonth() || (hoy.getMonth() === f.getMonth() && hoy.getDate() < f.getDate())) edad--;
+  return edad;
+}
+function pelajeCodigo(color) {
+  if (!color) return '';
+  const c = color.toLowerCase();
+  if (c.startsWith('zaino')) return 'Z';
+  if (c.startsWith('tordillo')) return 'T';
+  if (c.startsWith('alazán') || c.startsWith('alazan')) return 'A';
+  if (c.startsWith('colorado')) return 'C';
+  if (c.startsWith('negro')) return 'N';
+  if (c.startsWith('moro') || c.startsWith('mulato')) return 'M';
+  return color.charAt(0).toUpperCase();
+}
+function sexoCodigo(sexo) {
+  if (!sexo) return '';
+  const s = sexo.toLowerCase();
+  if (s.startsWith('castrado')) return 'C';
+  if (s.startsWith('macho')) return 'M';
+  if (s.startsWith('hembra')) return 'H';
+  return sexo.charAt(0).toUpperCase();
+}
+
+async function load() {
+  if (!reunionId) {
+    document.getElementById('programa-page').innerHTML = '<div style="padding:40px;text-align:center;">No hay reunión seleccionada.</div>';
+    return;
+  }
+
+  // 1) Reunión + hipódromo + club
+  const { data: reunion } = await sb.from('reuniones')
+    .select('*,hipodromos(nombre,sigla,localidad,provincia,club_id)')
+    .eq('id', reunionId).single();
+  if (!reunion) {
+    document.getElementById('programa-page').innerHTML = '<div style="padding:40px;text-align:center;">Reunión no encontrada.</div>';
+    return;
+  }
+  const clubId = reunion.hipodromos?.club_id || reunion.club_id;
+  const { data: club } = await sb.from('clubs').select('*').eq('id', clubId).single();
+
+  // 2) Carreras
+  const { data: carreras } = await sb.from('carreras').select('*').eq('reunion_id', reunionId);
+  const carIds = (carreras || []).map(c => c.id);
+
+  // 3) Inscripciones y entidades relacionadas
+  const { data: ins } = carIds.length
+    ? await sb.from('inscripciones').select('*').in('carrera_id', carIds)
+    : { data: [] };
+
+  const spcIds   = [...new Set((ins || []).map(i => i.spc_id).filter(Boolean))];
+  const jockIds  = [...new Set((ins || []).flatMap(i => [i.jockey_titular_id, i.jockey_suplente_id]).filter(Boolean))];
+  const propIds  = [...new Set((ins || []).map(i => i.propietario_id).filter(Boolean))];
+  const entrIds  = [...new Set((ins || []).map(i => i.entrenador_id).filter(Boolean))];
+  const cabaIds  = [...new Set((ins || []).map(i => i.caballeriza_id).filter(Boolean))];
+  const profIds  = [...new Set([...jockIds, ...entrIds])];
+
+  const EMPTY = ['00000000-0000-0000-0000-000000000000'];
+  const [{ data: spcs }, { data: profs }, { data: props }, { data: cabs }, { data: cats }] = await Promise.all([
+    sb.from('spcs').select('id,nombre,sexo,color,fecha_nacimiento,padrillo_nombre,madre_nombre,ult_performances').in('id', spcIds.length ? spcIds : EMPTY),
+    sb.from('profesionales').select('id,nombre,apellido').in('id', profIds.length ? profIds : EMPTY),
+    sb.from('propietarios').select('id,nombre').in('id', propIds.length ? propIds : EMPTY),
+    sb.from('caballerizas').select('id,nombre').in('id', cabaIds.length ? cabaIds : EMPTY),
+    sb.from('categorias_carrera').select('id,nombre,codigo').eq('club_id', clubId),
+  ]);
+
+  const spcMap  = Object.fromEntries((spcs  || []).map(s => [s.id, s]));
+  const profMap = Object.fromEntries((profs || []).map(p => [p.id, p]));
+  const propMap = Object.fromEntries((props || []).map(p => [p.id, p]));
+  const cabMap  = Object.fromEntries((cabs  || []).map(c => [c.id, c]));
+  const catMap  = Object.fromEntries((cats  || []).map(c => [c.id, c]));
+
+  const insByCarrera = {};
+  (ins || []).forEach(i => { (insByCarrera[i.carrera_id] ??= []).push(i); });
+
+  render(reunion, club, carreras || [], insByCarrera, { spcMap, profMap, propMap, cabMap, catMap });
+}
+
+function render(reunion, club, carreras, insByCarrera, maps) {
+  const { spcMap, profMap, propMap, cabMap, catMap } = maps;
+  const fechaStr = new Date(reunion.fecha + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const comision    = Array.isArray(club?.comision_carreras) ? club.comision_carreras : [];
+  const comisariato = Array.isArray(club?.comisariato)       ? club.comisariato       : [];
+
+  carreras.sort((a, b) => {
+    const aN = a.numero_carrera_programa != null ? a.numero_carrera_programa : (a.numero_turno + 10000);
+    const bN = b.numero_carrera_programa != null ? b.numero_carrera_programa : (b.numero_turno + 10000);
+    return aN - bN;
+  });
+
+  const html = `
+    <div class="programa-header">
+      <div>
+        <h3>Comisión de Carreras</h3>
+        <div class="lista">${comision.map(m => `<div><strong>${m.cargo}:</strong> ${m.nombre}</div>`).join('') || '<em>—</em>'}</div>
+      </div>
+      <div>
+        <h3>Comisariato</h3>
+        <div class="lista">${comisariato.map(m => `<div><strong>${m.cargo}:</strong> ${m.nombre}</div>`).join('') || '<em>—</em>'}</div>
+      </div>
+      <div class="logo">
+        ${club?.logo_url ? `<img src="${club.logo_url}" alt="logo">` : ''}
+        <div class="nombre-hipodromo">${reunion.hipodromos?.nombre || club?.nombre || ''}</div>
+      </div>
+    </div>
+    <div class="programa-reunion-titulo">Reunión N° ${reunion.numero || ''} — ${fechaStr}</div>
+
+    ${carreras.map(c => renderCarrera(c, insByCarrera[c.id] || [], spcMap, profMap, propMap, cabMap, catMap)).join('')}
+
+    <div class="pagina-final">
+      ${club?.disclaimer_importante ? `<div class="disclaimer">${club.disclaimer_importante.replace(/\n/g, '<br>')}</div>` : ''}
+      ${club?.disclaimer_nota ? `<div class="disclaimer"><strong>Nota:</strong> ${club.disclaimer_nota.replace(/\n/g, '<br>')}</div>` : ''}
+      <div class="secretaria-info">
+        ${reunion.fechas_inscripciones      ? `<div><strong>Inscripciones:</strong> ${reunion.fechas_inscripciones}</div>`           : ''}
+        ${reunion.fechas_forfaits           ? `<div><strong>Forfaits:</strong> ${reunion.fechas_forfaits}</div>`                     : ''}
+        ${reunion.fechas_compromiso_montas  ? `<div><strong>Compromiso de montas:</strong> ${reunion.fechas_compromiso_montas}</div>` : ''}
+      </div>
+      <div class="redes-info">
+        <div>${club?.website ? `<strong>${club.website}</strong>` : ''}</div>
+        <div class="redes-list">
+          ${club?.instagram ? `<span>IG: ${club.instagram}</span>`       : ''}
+          ${club?.facebook  ? `<span>FB: ${club.facebook}</span>`        : ''}
+          ${club?.twitter_x ? `<span>X: ${club.twitter_x}</span>`        : ''}
+          ${club?.tiktok    ? `<span>TikTok: ${club.tiktok}</span>`      : ''}
+          ${club?.youtube   ? `<span>YT: ${club.youtube}</span>`         : ''}
+        </div>
+        <div>${club?.nombre || ''}</div>
+      </div>
+    </div>
+  `;
+  document.getElementById('programa-page').innerHTML = html;
+  document.title = `Programa-Oficial-Reunion-${reunion.numero || ''}-${reunion.fecha || ''}`;
+}
+
+function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
+  const num  = c.numero_carrera_programa || c.numero_turno;
+  const hora = c.hora_estimada ? String(c.hora_estimada).slice(0, 5) : '';
+  const cat  = catMap[c.categoria_id];
+  const dist = c.distribucion_premios || {};
+  const bonoGanador  = dist.bono_ganador || 0;
+  const apuestasText = Array.isArray(c.apuestas) ? c.apuestas.join(' — ') : '';
+  const bolsa = parseFloat(c.bolsa_total) || 0;
+  const desglose = [1, 2, 3, 4, 5, 6].map(p => {
+    const pct = parseFloat(dist[String(p)]) || 0;
+    return pct > 0 ? `${p}° ${formatMonto(bolsa * pct / 100)}` : null;
+  }).filter(Boolean).join(' — ');
+
+  const filas = (ins || [])
+    .sort((a, b) => (a.numero_partidor || 999) - (b.numero_partidor || 999))
+    .map(i => {
+      const spc  = spcMap[i.spc_id]            || {};
+      const jock = profMap[i.jockey_titular_id];
+      const entr = profMap[i.entrenador_id];
+      const prop = propMap[i.propietario_id];
+      const cab  = cabMap[i.caballeriza_id];
+      const edad = calcEdad(spc.fecha_nacimiento);
+      const kesp = `${i.peso_declarado || ''} ${edad}${sexoCodigo(spc.sexo)} ${pelajeCodigo(spc.color)}`.trim();
+      const padreMadre = `${(spc.padrillo_nombre || '').toUpperCase()}${spc.madre_nombre ? ` — ${spc.madre_nombre.toUpperCase()}` : ''}`;
+      const caballeriza = (cab?.nombre || prop?.nombre || '').toUpperCase();
+      return `<tr>
+        <td>${caballeriza}</td>
+        <td>${spc.ult_performances || 'DEBUTA'}</td>
+        <td class="col-numero">${i.numero_partidor || ''}</td>
+        <td><strong>${(spc.nombre || '').toUpperCase()}</strong></td>
+        <td>${jock ? `${jock.apellido || ''} ${jock.nombre || ''}`.trim().toUpperCase() : 'XX'}</td>
+        <td class="col-kesp">${kesp}</td>
+        <td>${padreMadre}</td>
+        <td>${entr ? `${entr.apellido || ''} ${entr.nombre || ''}`.trim().toUpperCase() : ''}</td>
+      </tr>`;
+    }).join('');
+
+  return `<div class="carrera-block">
+    <div class="carrera-meta">
+      <div class="carrera-left">
+        <div class="nro">${num}° Carrera</div>
+        <div class="hora">${hora} HS</div>
+        ${bonoGanador ? `<div class="bono">BONO ${formatMonto(bonoGanador)}<br>AL GANADOR</div>` : ''}
+      </div>
+      <div class="carrera-center">
+        <div class="premio">PREMIO: ${c.nombre || ''}</div>
+        <div>${c.condicion_adicional || ''}${c.condicion_handicap ? ` — ${c.condicion_handicap}` : ''}</div>
+        <div>Peso: 57 kg Machos / Hembras descargo de 2 kg. Jockey aprendices sin descargo</div>
+        <div class="bolsa">BOLSA: ${formatMonto(bolsa)}${desglose ? ` — ${desglose}` : ''}</div>
+        ${apuestasText ? `<div><strong>APUESTAS:</strong> ${apuestasText}</div>` : ''}
+      </div>
+      <div class="carrera-right">
+        <div class="metros">${c.distancia_metros || ''} Metros</div>
+        <div class="categoria">${cat?.nombre || ''}</div>
+      </div>
+    </div>
+    <table class="inscriptos">
+      <thead><tr>
+        <th>CABALLERIZA</th><th>4 ULT. PERF.</th><th>N°</th><th>S.P.C.</th><th>JOCKEY</th><th>K E S P</th><th>PADRE — MADRE</th><th>ENTRENADOR</th>
+      </tr></thead>
+      <tbody>${filas || '<tr><td colspan="8" style="text-align:center;font-style:italic;">Sin inscriptos</td></tr>'}</tbody>
+    </table>
+  </div>`;
+}
+
+load();
+</script>
+</body></html>
