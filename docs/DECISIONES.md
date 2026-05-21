@@ -126,6 +126,33 @@ Decisión: `localStorage.getItem('sgh_active_reunion_id')` como fuente canónica
 Justificación: las pantallas operativas (programa, carta-llamados, etc.) necesitan saber qué reunión trabajar sin requerir parámetro explícito en URL en cada salto de pantalla. Prioridad: URL param > localStorage > próxima reunión por fecha.
 Implementación: el usuario fija la reunión activa desde reuniones.html con el botón 📍 Activar, que escribe en localStorage. Las pantallas sin reunion_id en URL leen localStorage y si tampoco hay nada saltan a la reunión con fecha más próxima a hoy.
 
+## ADR-031: Reunión activa centralizada vía helper active-reunion.js (20/05/2026)
+Decisión: refactorizar la lógica de resolución de "reunión activa" a un helper global `window.ActiveReunion` en `active-reunion.js`, incluido en todas las pantallas operativas.
+Justificación: antes de esta sesión, cada pantalla duplicaba ~30 líneas de lógica para resolver reunión activa (URL param → localStorage → próxima por fecha). El helper centraliza esa lógica y provee `.resolve()`, `.set()`, `.clear()`. Aplicado en 6 pantallas: programa, carta-llamados, inscripciones, ratificacion, resultados, liquidaciones.
+El botón 📍 Activar en reuniones.html llama a `ActiveReunion.set(id)`.
+
+## ADR-032: Hipódromo activo para super_admin via club-switcher.js (20/05/2026)
+Decisión: `club-switcher.js` inyecta un `<select id="topbar-club-switcher">` en el topbar de todas las páginas operativas/de gestión, solo para `rol === 'super_admin'`.
+Justificación: el super_admin no tiene club_id propio asignado y necesita poder cambiar de hipódromo sin ir al dashboard. El selector persiste en `localStorage.sgh_selected_club_id`. Al cambiar de hipódromo limpia `sgh_active_reunion_id` para evitar apuntar a una reunión de otro club.
+Implementación: script externo que hace polling de `typeof currentUser !== 'undefined'` (no `window.currentUser` — los `let` top-level no son propiedades de window) y se inyecta en 16 páginas. Excluye login/registro/index.
+
+## ADR-033: Programa Oficial separado de programa.html (20/05/2026)
+Decisión: nueva página `programa-oficial.html` standalone para impresión, separada de `programa.html` (la vista operativa de secretaría).
+Justificación: programa.html tiene auth, topbar, modales de edición y estado mutable. El programa oficial es un documento de impresión público (sin auth, sin estado) que debe verse idéntico en cualquier contexto. Separar ambas responsabilidades evita interferencia visual. Se accede vía botón 📘 en programa.html que abre nueva pestaña con `?reunion_id=UUID`.
+
+## ADR-034: ult_performances ingreso manual hasta API Stud Book (20/05/2026)
+Decisión: `spcs.ult_performances TEXT` — texto libre editable por secretaría.
+Justificación: la API del Stud Book Argentino no está disponible aún. Las performances se ingresan manualmente en formato de código (ej: `5D5P3L`). El empty state en el programa es celda en blanco, no "DEBUTA" — ese texto se agrega solo cuando el caballo realmente debuta.
+
+## ADR-035: sponsor_destacado separado de clubs.sponsors[] (20/05/2026)
+Decisión: `clubs.sponsor_destacado JSONB {nombre, subtitulo, foto_url, direccion, contacto}` — objeto único, no array.
+Justificación: el sponsor destacado es el aviso heroico del programa (bloque B&N a media página, foto a la derecha). Es conceptualmente diferente a los logos pequeños en `clubs.sponsors[]`. Estructura propia permite campo `foto_url` para la imagen, `subtitulo` para la bajada, y `contacto`/`direccion` para los datos operativos. Editado desde Admin → Mi Hipódromo.
+
+## ADR-036: K E S P asumido como Kilos/Edad/Sexo/Pelaje (20/05/2026)
+Decisión: la columna "K E S P" en el programa oficial se construye como `${peso} ${edad}${sexoCodigo}${pelajeCodigo}` (ej: `57 4MA` = 57kg, 4 años, Macho, Alazán).
+Justificación: convención del manual impreso de Dolores. Los códigos de pelaje usados: Z=Zaino, T=Tordillo, A=Alazán, C=Colorado, N=Negro, M=Moro/Mulato. Sexo: M=Macho, H=Hembra, C=Castrado.
+Estado: PENDIENTE CONFIRMACIÓN CON FEDE — si el orden o los códigos difieren, actualizar `pelajeCodigo()` y `sexoCodigo()` en programa-oficial.html.
+
 ## ADR-010: Montos en DB sin formato, UI en formato argentino
 Decisión: Guardar números DECIMAL planos en Postgres. En UI mostrar siempre $1.234.567,89 (punto miles, coma decimal, 2 decimales fijos).
 Funciones: formatMonto() y parseMonto() en SNIPPETS.md.

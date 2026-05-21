@@ -35,7 +35,12 @@
 - **Admin "Mi Hipódromo"** (19/05/2026): ABM de Comisión de Carreras, Sponsors y Comisariato (club-level). Campos disclaimer_importante, disclaimer_nota, redes sociales (website/instagram/facebook/tiktok/twitter_x/youtube). Rol admin-de-hipódromo puede editar sus propios datos (no requiere super_admin).
 - **Carta de llamados** (19/05/2026): rediseño completo del PDF estilo Dolores — cajas de carrera con caption de categoría, bono inline en rojo, bloques de novedades editables (textarea con auto-save), disclaimers, fechas operativas, secretaría con redes sociales, logos de sponsors.
 - **Apuestas por carrera** (19/05/2026): `carreras.apuestas TEXT[]`. Modal 🎯 Apuestas en programa.html muestra lista de inputs por carrera — guardado bulk vía Promise.all. Las apuestas combinadas fueron descartadas.
-- **Reunión activa centralizada** (19/05/2026): `sgh_active_reunion_id` en localStorage. programa.html y otras pantallas operativas usan este valor; si no existe, saltan a la próxima reunión por fecha. Fijable desde reuniones.html con botón 📍 Activar.
+- **Reunión activa centralizada** (19/05/2026 → helper 20/05/2026): `sgh_active_reunion_id` en localStorage. Refactorizado a `active-reunion.js` helper global `window.ActiveReunion` aplicado en 6 pantallas (programa, carta-llamados, inscripciones, ratificacion, resultados, liquidaciones). Fijable desde reuniones.html con botón 📍 Activar.
+- **Selector de hipódromo para super_admin** (20/05/2026): `club-switcher.js` inyecta dropdown en el topbar de las 16 pantallas operativas/de gestión. Persiste en `sgh_selected_club_id`. Al cambiar de hipódromo borra `sgh_active_reunion_id` para evitar apuntar a reunión de otro club. Excluye login/registro/index (index ya tiene su propio selector).
+- **Bug alta de hipódromos** (20/05/2026): corregido INSERT de categorías por defecto que usaba tabla `categorias` → `categorias_carrera`. Backfill aplicado para hipódromos existentes sin categorías.
+- **Premio mínimo unificado** (20/05/2026): eliminada columna huérfana `premio_minimo` en liquidaciones. Unificado en `distribucion_premios.ganancia_minima` que ya existía.
+- **Programa Oficial Fases 4.1–4.3** (20/05/2026): nueva página `programa-oficial.html` standalone para impresión. Estilo newsprint B&N, tipografía EB Garamond/Inter. Header comisión/comisariato/logo. Bloque por carrera con tabla 8 columnas (CABALLERIZA, 4 ULT.PERF., N°, SPC, JOCKEY, KESP, PADRE-MADRE, ENTRENADOR). Sponsors grid B&W, banner próxima reunión, sponsor destacado a media página (foto + datos). Secretaría y teléfono de inscripciones en el pie. Paginación @page Chrome/Edge. Accesible desde botón 📘 en programa.html.
+- **Campo ult_performances en SPCs** (20/05/2026): `spcs.ult_performances TEXT`, editable desde el modal de edición en tab Origen. Celda en blanco si no hay datos.
 - **RLS multi-tenant por club_id** — 26 tablas endurecidas, aislamiento cross-club verificado, ISSUE-017 cerrado (14/05/2026)
 - **Sistema de auditoría** — UI completa con paginación, filtros, diff visual, export CSV (12/05/2026)
 
@@ -48,7 +53,9 @@
 - Auto-registro de profesionales (registro-profesional.html)
 - API con Stud Book nacional (en gestión de acceso)
 - Emails automáticos (pendiente Resend/SendGrid)
-- Selector de hipódromo para super_admin sin club_id
+- Cargar datos de sponsor destacado, secretaría y teléfono en Admin → Mi Hipódromo para Dolores
+- Programa Oficial Fase 4.4: página de combos (Triplo, Cuaterna, Doble) — bloqueada hasta confirmar modelo de apuestas combinadas con Fede
+- Confirmar con Fede el formato exacto de K E S P (asumido como Kilos/Edad/Sexo/Pelaje, códigos Z/T/A/C/N/M)
 
 ## Clientes activos
 | Hipódromo | Sigla | Estado | club_id |
@@ -77,6 +84,32 @@
 - 14 profesionales extra detectados
 - 7 propietarios de prueba detectados
 - Todos identificados pero no borrados (esperar UI de baja)
+
+---
+
+## Snapshot — 20/05/2026 (cierre de sesión)
+
+**Reunión activa**: Reunión 5 — 17/5/2026 — Hipódromo de Dolores (11 turnos).
+
+**Validación de Fede**: pendiente en producción — primer render del Programa Oficial pendiente con datos reales.
+
+**Schema nuevo en esta sesión**:
+- `spcs.ult_performances` TEXT — performances manuales hasta API Stud Book.
+- `clubs.secretaria_carreras_nombre` TEXT — nombre de la secretaria para el pie del programa.
+- `clubs.inscripciones_telefono` TEXT — teléfono de inscripciones para el pie.
+- `clubs.sponsor_destacado` JSONB `{nombre, subtitulo, foto_url, direccion, contacto}` — bloque heroico de publicidad en el programa.
+
+**Archivos nuevos en esta sesión**:
+- `active-reunion.js` — helper `window.ActiveReunion` (resolve/set/clear).
+- `club-switcher.js` — dropdown de hipódromo para super_admin, inyectado en 16 páginas.
+- `programa-oficial.html` — vista de impresión estilo manual de Dolores.
+
+**Archivos modificados en esta sesión**:
+- `spcs.html` (campo ult_performances)
+- `programa.html` (botón 📘 Programa Oficial + función abrirProgramaOficial)
+- `admin.html` (secciones Secretaría e inscripciones + Sponsor destacado en modal Mi Hipódromo)
+- `carta-llamados.html`, `inscripciones.html`, `ratificacion.html`, `resultados.html`, `liquidaciones.html` (active-reunion.js helper)
+- 16 pantallas operativas/de gestión (club-switcher.js tag al final del body)
 
 ---
 

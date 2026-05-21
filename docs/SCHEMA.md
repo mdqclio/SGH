@@ -7,7 +7,8 @@
 ## Tablas principales
 
 ### clubs
-id UUID PK, nombre VARCHAR(150), sigla VARCHAR(10) UNIQUE, razon_social, cuit, domicilio, localidad, provincia, pais VARCHAR DEFAULT 'Argentina', telefono, email, logo_url TEXT, activo BOOLEAN DEFAULT TRUE, created_at, updated_at, auditoria_retencion_meses INTEGER DEFAULT 12, comision_carreras JSONB DEFAULT '[]', sponsors JSONB DEFAULT '[]', comisariato JSONB DEFAULT '[]', disclaimer_importante TEXT, disclaimer_nota TEXT, website TEXT, instagram TEXT, facebook TEXT, tiktok TEXT, twitter_x TEXT, youtube TEXT
+id UUID PK, nombre VARCHAR(150), sigla VARCHAR(10) UNIQUE, razon_social, cuit, domicilio, localidad, provincia, pais VARCHAR DEFAULT 'Argentina', telefono, email, logo_url TEXT, activo BOOLEAN DEFAULT TRUE, created_at, updated_at, auditoria_retencion_meses INTEGER DEFAULT 12, comision_carreras JSONB DEFAULT '[]', sponsors JSONB DEFAULT '[]', comisariato JSONB DEFAULT '[]', disclaimer_importante TEXT, disclaimer_nota TEXT, website TEXT, instagram TEXT, facebook TEXT, tiktok TEXT, twitter_x TEXT, youtube TEXT, secretaria_carreras_nombre TEXT, inscripciones_telefono TEXT, sponsor_destacado JSONB
+NOTA sponsor_destacado: `{"nombre":"AGENCIA HIPICA DOLORES","subtitulo":"PALERMO – SAN ISIDRO – LA PLATA","foto_url":"https://...","direccion":"Sarmiento 274, Dolores","contacto":"Juga xWhatsApp 116361-0222"}` — sponsor heroico en el programa oficial (bloque B&N a media página). Separado de sponsors[] que son los logos pequeños.
 NOTA comision_carreras: `[{"cargo":"Presidente","nombre":"Juan Pérez"}, ...]` — board del hipódromo, editable desde Admin "Mi Hipódromo"
 NOTA comisariato: `[{"cargo":"Presidente del Comisariato","nombre":"..."}, ...]` — stewards del hipódromo, editable desde Admin "Mi Hipódromo". Club-level (no cambia por reunión).
 NOTA sponsors: `[{"nombre":"YPF","logo_url":"https://..."}, ...]`
@@ -47,7 +48,8 @@ NOTA: categoria_jockey cambió de ENUM a VARCHAR(50) — sesión may-2026. Valor
 CORRECCIÓN: entrenadores NO son globales — tienen hipodromo_patente igual que jockeys (patente otorgada por un hipódromo específico).
 
 ### spcs (GLOBALES — club_id nullable)
-id UUID PK, club_id FK nullable, nombre, registro_stud_book, fecha_nacimiento DATE, sexo ENUM(macho/hembra/castrado), color, marcas, padrillo_nombre, madre_nombre, abuela_materna, pais_origen DEFAULT 'Argentina', caballeriza_id FK, entrenador_id FK, estado ENUM(activo/retirado/suspendido/fallecido/vendido) DEFAULT 'activo', notas, doc_url, foto_url, certificado_correr BOOLEAN DEFAULT FALSE
+id UUID PK, club_id FK nullable, nombre, registro_stud_book, fecha_nacimiento DATE, sexo ENUM(macho/hembra/castrado), color, marcas, padrillo_nombre, madre_nombre, abuela_materna, pais_origen DEFAULT 'Argentina', caballeriza_id FK, entrenador_id FK, estado ENUM(activo/retirado/suspendido/fallecido/vendido) DEFAULT 'activo', notas, doc_url, foto_url, certificado_correr BOOLEAN DEFAULT FALSE, ult_performances TEXT
+NOTA ult_performances: texto libre (ej: `5D5P3L`). Ingreso manual hasta disponer de API Stud Book. Editable en spcs.html tab Origen. Celda en blanco en el programa si no hay dato (no dice "DEBUTA" — ese texto se agrega manualmente si corresponde).
 CRÍTICO: usar .eq('estado','activo') NO .eq('activo',true) — columna activo no existe
 
 ### spc_propietarios
@@ -202,6 +204,11 @@ ALTER TABLE carreras ADD COLUMN IF NOT EXISTS numero_carrera_programa INTEGER;
 -- clubs.apuestas_simples TEXT[]  -- agregada y luego eliminada (movida a carreras.apuestas)
 -- reuniones.apuestas_combinadas JSONB  -- agregada y luego eliminada (simplificación modelo)
 -- reuniones.comisariato JSONB  -- agregada y luego eliminada (migrado a clubs.comisariato)
+-- Sesión 20/05/2026 (Programa Oficial + ult_performances):
+ALTER TABLE spcs ADD COLUMN IF NOT EXISTS ult_performances TEXT;
+ALTER TABLE clubs ADD COLUMN IF NOT EXISTS secretaria_carreras_nombre TEXT;
+ALTER TABLE clubs ADD COLUMN IF NOT EXISTS inscripciones_telefono TEXT;
+ALTER TABLE clubs ADD COLUMN IF NOT EXISTS sponsor_destacado JSONB;
 ```
 
 ## Vistas

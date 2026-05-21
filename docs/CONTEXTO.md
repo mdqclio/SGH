@@ -36,7 +36,7 @@ Desarrollado para Fede (amigo de Leonardo), quien lo venderá como producto a hi
 - Backend: Supabase (proyecto unlhcuanfrtpatoipwve). Cambios de schema/policies/funciones se aplican manualmente vía SQL Editor del panel de Supabase. Documentar el SQL ejecutado en la sesión correspondiente (docs/SESION_YYYY-MM-DD.md).
 - Cliente piloto único hoy: Hipódromo de Dolores. Probar contra reuniones de Dolores.
 
-## Reunión activa (19/05/2026)
+## Reunión activa (actualizado 20/05/2026)
 
 Las pantallas operativas (programa.html, carta-llamados.html, etc.) usan un concepto de "reunión activa" para no requerir parámetro en URL en cada salto. La prioridad de resolución es:
 
@@ -45,3 +45,23 @@ Las pantallas operativas (programa.html, carta-llamados.html, etc.) usan un conc
 3. Próxima reunión con fecha ≥ hoy del club del usuario (fallback automático)
 
 El usuario puede fijar la reunión activa desde **reuniones.html** con el botón 📍 **Activar**, que escribe el UUID en localStorage bajo la clave `sgh_active_reunion_id`. Esto permite a la secretaría trabajar en una reunión específica sin necesidad de navegar por URL.
+
+La lógica está centralizada en **`active-reunion.js`** (helper global `window.ActiveReunion`). Incluido en todas las pantallas operativas. Métodos: `.resolve(sb, clubId)` → UUID | null, `.set(id)`, `.clear()`.
+
+## Hipódromo activo para super_admin (20/05/2026)
+
+El `super_admin` no tiene `club_id` propio. Para que pueda operar en un hipódromo específico, **`club-switcher.js`** inyecta un dropdown en el topbar de todas las páginas operativas/de gestión. El hipódromo seleccionado se persiste en `localStorage.sgh_selected_club_id`. Al cambiar de hipódromo se borra `sgh_active_reunion_id`. Visible solo para `rol === 'super_admin'`.
+
+## Archivos JavaScript compartidos
+
+| Archivo | Propósito | Incluido en |
+|---|---|---|
+| `active-reunion.js` | Helper `window.ActiveReunion` — resuelve/persiste reunión activa | programa, carta-llamados, inscripciones, ratificacion, resultados, liquidaciones |
+| `club-switcher.js` | Dropdown de hipódromo para super_admin, inyectado en topbar | 16 páginas operativas/de gestión |
+
+## Páginas de impresión standalone
+
+| Página | Propósito | Auth |
+|---|---|---|
+| `programa-oficial.html` | Programa estilo manual de Dolores: newsprint B&N, 8 columnas por carrera, sponsors, pie institucional | No (pública) |
+| `carta-llamados.html` | Carta de llamados con cajas de carrera, novedades, disclaimers | No (pública) |

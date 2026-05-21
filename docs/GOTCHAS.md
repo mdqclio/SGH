@@ -117,5 +117,22 @@ No buscar ni usar esas columnas eliminadas; no existen en la DB.
 `reuniones.comisariato` — NO EXISTE; fue agregada y dropeada en la misma sesión del 19/05.
 Tanto comisariato como comision_carreras se leen desde `clubData` en programa.html y son read-only.
 
+## 32. propietarios.nombre es el único campo de nombre — NO existe nombre_completo ni razon_social (20/05/2026)
+La tabla `propietarios` tiene columna `nombre` (VARCHAR). No existen `nombre_completo` ni `razon_social`.
+Varias sesiones anteriores y algún spec generado usaban esos nombres incorrectamente. El INSERT/UPDATE falla silenciosamente si se incluyen en el payload (Supabase los ignora), y el SELECT devuelve null en esos campos.
+Patrón correcto: `.select('id,nombre')`, referencia: `prop?.nombre`.
+
+## 33. carreras.numero_carrera_programa puede ser null — nunca sumar offset para ordenar (20/05/2026)
+`numero_carrera_programa` es nullable (no se asigna hasta la ratificación). Para ordenar carreras en display usar nullish coalescing con fallback a `numero_turno`:
+```javascript
+const aN = a.numero_carrera_programa ?? a.numero_turno ?? 999;
+```
+NO usar `(a.numero_turno + 10000)` como offset — mezcla números reales del programa con números inflados y hace imposible detectar cuándo llegó un valor real.
+
+## 34. Las dos keys de localStorage de navegación y cómo interactúan (20/05/2026)
+- `sgh_active_reunion_id` — reunión activa (UUID). Resuelto por `window.ActiveReunion.resolve()`.
+- `sgh_selected_club_id` — hipódromo activo para super_admin (UUID). Resuelto en `initAuth`.
+Al cambiar de hipódromo con el club-switcher, se borra automáticamente `sgh_active_reunion_id` para evitar que apunte a una reunión de otro club. Si se limpian manualmente las keys (DevTools → Application → LocalStorage), la UI hace fallback a la próxima reunión del club y al club_id del usuario respectivamente.
+
 ## 26. Funciones helper de RLS deben ser SECURITY DEFINER (12/05/2026)
 Si `fn_get_user_club_id()` o `fn_is_super_admin()` fueran SECURITY INVOKER (default), al ser invocadas desde una policy sobre la tabla `usuarios` (que ya tiene RLS), la función intentaría leer `usuarios` con los permisos del usuario llamante — que a su vez pasan por la misma RLS, causando recursión infinita o devolviendo NULL. SECURITY DEFINER hace que la función se ejecute con permisos del owner de la función, bypasseando la RLS de la tabla destino. Combinado siempre con `SET search_path = public` para evitar path injection via search_path hijacking.
