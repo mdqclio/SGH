@@ -61,6 +61,16 @@
   .sponsor-item { text-align:center; }
   .sponsor-item img { max-width:120px; max-height:60px; filter:grayscale(100%); }
   .sponsor-nombre { font-size:9px; margin-top:4px; }
+  .sponsor-destacado { display:grid; grid-template-columns:1fr 1.4fr; gap:0; margin:20px 0; page-break-inside:avoid; border:2px solid #000; background:#000; color:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; min-height:180px; }
+  .sponsor-destacado .sd-text { padding:20px; display:flex; flex-direction:column; justify-content:space-between; }
+  .sponsor-destacado .sd-nombre { font-family:'Inter','Helvetica Neue',Arial,sans-serif; font-size:22px; font-weight:700; letter-spacing:1px; line-height:1.1; }
+  .sponsor-destacado .sd-subtitulo { font-family:'Inter','Helvetica Neue',Arial,sans-serif; font-size:13px; letter-spacing:1px; margin-top:6px; opacity:0.9; }
+  .sponsor-destacado .sd-direccion { font-family:'Inter','Helvetica Neue',Arial,sans-serif; font-size:14px; font-weight:600; }
+  .sponsor-destacado .sd-contacto { font-family:'Inter','Helvetica Neue',Arial,sans-serif; font-size:14px; font-weight:600; text-align:right; margin-top:8px; }
+  .sponsor-destacado .sd-foto { background-size:cover; background-position:center; background-repeat:no-repeat; }
+  .sponsor-destacado .sd-foto.sin-foto { background:#1a1a1a; }
+  .secretaria-bloque { border-top:1px solid #000; padding-top:12px; margin-top:18px; font-size:11px; line-height:1.6; }
+  .secretaria-bloque strong { font-weight:700; }
   .toolbar { background: #eee; padding: 10px; text-align: center; margin-bottom: 20px; }
   .toolbar button { background: #000; color: #fff; border: none; padding: 8px 16px; font-size: 13px; cursor: pointer; }
 </style>
@@ -227,9 +237,31 @@ function render(reunion, club, carreras, insByCarrera, maps, proximaReunion) {
       </div>
     ` : ''}
 
+    ${club?.sponsor_destacado && club.sponsor_destacado.nombre ? `
+      <div class="sponsor-destacado">
+        <div class="sd-text">
+          <div>
+            <div class="sd-nombre">${club.sponsor_destacado.nombre}</div>
+            ${club.sponsor_destacado.subtitulo ? `<div class="sd-subtitulo">${club.sponsor_destacado.subtitulo}</div>` : ''}
+          </div>
+          <div>
+            ${club.sponsor_destacado.direccion ? `<div class="sd-direccion">${club.sponsor_destacado.direccion}</div>` : ''}
+            ${club.sponsor_destacado.contacto ? `<div class="sd-contacto">${club.sponsor_destacado.contacto}</div>` : ''}
+          </div>
+        </div>
+        <div class="sd-foto ${club.sponsor_destacado.foto_url ? '' : 'sin-foto'}" ${club.sponsor_destacado.foto_url ? `style="background-image:url('${club.sponsor_destacado.foto_url}');"` : ''}></div>
+      </div>
+    ` : ''}
+
     <div class="pagina-final">
       ${club?.disclaimer_importante ? `<div class="disclaimer">${club.disclaimer_importante.replace(/\n/g, '<br>')}</div>` : ''}
       ${club?.disclaimer_nota ? `<div class="disclaimer"><strong>Nota:</strong> ${club.disclaimer_nota.replace(/\n/g, '<br>')}</div>` : ''}
+      ${(club?.secretaria_carreras_nombre || club?.inscripciones_telefono) ? `
+        <div class="secretaria-bloque">
+          ${club.secretaria_carreras_nombre ? `<div><strong>Secretaría:</strong> ${club.secretaria_carreras_nombre}</div>` : ''}
+          ${club.inscripciones_telefono ? `<div><strong>INSCRIPCIONES:</strong> Secretaría de Carreras — Teléfonos: ${club.inscripciones_telefono}</div>` : ''}
+        </div>
+      ` : ''}
       <div class="secretaria-info">
         ${reunion.fechas_inscripciones      ? `<div><strong>Inscripciones:</strong> ${reunion.fechas_inscripciones}</div>`           : ''}
         ${reunion.fechas_forfaits           ? `<div><strong>Forfaits:</strong> ${reunion.fechas_forfaits}</div>`                     : ''}

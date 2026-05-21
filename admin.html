@@ -309,6 +309,42 @@
         </div>
       </div>
 
+      <div class="section-divider">Secretaría e inscripciones</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Secretaria de Carreras (nombre)</label>
+          <input type="text" id="e-secretaria-nombre" placeholder="Ej: Yésica Elías">
+        </div>
+        <div class="form-group">
+          <label>Teléfono de inscripciones</label>
+          <input type="text" id="e-inscripciones-tel" placeholder="Ej: 02245 - 15- 518054">
+        </div>
+      </div>
+
+      <div class="section-divider">Sponsor destacado (publicidad principal en el programa)</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nombre del sponsor</label>
+          <input type="text" id="e-sd-nombre" placeholder="Ej: AGENCIA HIPICA DOLORES">
+        </div>
+        <div class="form-group">
+          <label>Subtítulo</label>
+          <input type="text" id="e-sd-subtitulo" placeholder="Ej: PALERMO – SAN ISIDRO – LA PLATA">
+        </div>
+        <div class="form-group full">
+          <label>URL de la foto/imagen del aviso</label>
+          <input type="url" id="e-sd-foto" placeholder="https://...">
+        </div>
+        <div class="form-group">
+          <label>Dirección</label>
+          <input type="text" id="e-sd-direccion" placeholder="Ej: Sarmiento 274, Dolores">
+        </div>
+        <div class="form-group">
+          <label>Contacto</label>
+          <input type="text" id="e-sd-contacto" placeholder="Ej: Juga xWhatsApp 116361-0222">
+        </div>
+      </div>
+
       <div class="section-divider">Web y Redes Sociales</div>
       <div class="form-grid">
         <div class="form-group">
@@ -597,6 +633,14 @@ function openEdit(id){
   (Array.isArray(c.sponsors)          ? c.sponsors          : []).forEach(s => renderSponsorRow(s.nombre, s.logo_url));
   document.getElementById('e-disclaimer-importante').value = c.disclaimer_importante || '';
   document.getElementById('e-disclaimer-nota').value       = c.disclaimer_nota || '';
+  document.getElementById('e-secretaria-nombre').value = c.secretaria_carreras_nombre || '';
+  document.getElementById('e-inscripciones-tel').value = c.inscripciones_telefono || '';
+  const sd = c.sponsor_destacado || {};
+  document.getElementById('e-sd-nombre').value    = sd.nombre    || '';
+  document.getElementById('e-sd-subtitulo').value = sd.subtitulo || '';
+  document.getElementById('e-sd-foto').value      = sd.foto_url  || '';
+  document.getElementById('e-sd-direccion').value = sd.direccion || '';
+  document.getElementById('e-sd-contacto').value  = sd.contacto  || '';
   document.getElementById('e-website').value   = c.website   || '';
   document.getElementById('e-instagram').value = c.instagram || '';
   document.getElementById('e-facebook').value  = c.facebook  || '';
@@ -638,6 +682,19 @@ async function saveEdit(){
     tiktok:    document.getElementById('e-tiktok').value.trim()    || null,
     twitter_x: document.getElementById('e-twitter-x').value.trim() || null,
     youtube:   document.getElementById('e-youtube').value.trim()   || null,
+    secretaria_carreras_nombre: document.getElementById('e-secretaria-nombre').value.trim() || null,
+    inscripciones_telefono:     document.getElementById('e-inscripciones-tel').value.trim() || null,
+    sponsor_destacado: (function() {
+      const nombre = document.getElementById('e-sd-nombre').value.trim();
+      if (!nombre) return null;
+      return {
+        nombre,
+        subtitulo: document.getElementById('e-sd-subtitulo').value.trim() || null,
+        foto_url:  document.getElementById('e-sd-foto').value.trim()      || null,
+        direccion: document.getElementById('e-sd-direccion').value.trim() || null,
+        contacto:  document.getElementById('e-sd-contacto').value.trim()  || null,
+      };
+    })(),
   }).eq('id',id);
   btn.disabled=false; btn.textContent='Guardar cambios';
   if(error){toast(error.message,'error');return;}
