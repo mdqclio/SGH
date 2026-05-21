@@ -193,8 +193,8 @@ function render(reunion, club, carreras, insByCarrera, maps, proximaReunion) {
   const sponsors    = Array.isArray(club?.sponsors)          ? club.sponsors          : [];
 
   carreras.sort((a, b) => {
-    const aN = a.numero_carrera_programa != null ? a.numero_carrera_programa : (a.numero_turno + 10000);
-    const bN = b.numero_carrera_programa != null ? b.numero_carrera_programa : (b.numero_turno + 10000);
+    const aN = a.numero_carrera_programa ?? a.numero_turno ?? 999;
+    const bN = b.numero_carrera_programa ?? b.numero_turno ?? 999;
     return aN - bN;
   });
 
