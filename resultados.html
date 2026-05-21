@@ -142,6 +142,7 @@
       @page { size: A4 portrait; margin: 15mm; }
     }
   </style>
+  <script src="active-reunion.js"></script>
 </head>
 <body>
 <div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;"></div></div>
@@ -221,17 +222,17 @@ async function init() {
   const sel = document.getElementById('sel-reunion');
   sel.innerHTML = '<option value="">— Seleccionar —</option>' + reuniones.map(r=>`<option value="${r.id}">Reunión ${r.numero||''} — ${new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR')} — ${r.hipodromos?.nombre||''}</option>`).join('');
 
-  const params = new URLSearchParams(location.search);
-  const rid = params.get('reunion_id');
-  if (rid) { sel.value=rid; await loadReunion(); }
-  else {
-    const ultima = reuniones.find(r=>['programada','publicada','en_curso','borrador'].includes(r.estado)) || reuniones[0];
-    if (ultima) { sel.value=ultima.id; await loadReunion(); }
+  const rid = ActiveReunion.resolve(reuniones);
+  if (rid) {
+    sel.value = rid;
+    try { history.replaceState(null, '', `?reunion_id=${rid}`); } catch(_) {}
+    await loadReunion();
   }
 }
 
 async function loadReunion() {
   const rid = document.getElementById('sel-reunion').value;
+  if (rid) { ActiveReunion.set(rid); }
   if (!rid) { document.getElementById('main-container').innerHTML='<div class="empty-state"><div class="icon">🏁</div><h3>Seleccionar una reunión</h3></div>'; return; }
   document.getElementById('main-container').innerHTML='<div class="loading-state"><div class="spinner"></div> Cargando carreras…</div>';
   const { data: cars } = await sb.from('carreras').select('*').eq('reunion_id', rid).order('numero_turno');

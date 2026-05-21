@@ -113,7 +113,10 @@
     .btn-logout { background:none;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;transition:all 0.2s;margin-left:auto; }
     .btn-logout:hover { border-color:var(--danger);color:var(--danger); }
     .user-name { font-size:13px;color:var(--muted); }
+    .reunion-activa { border: 2px solid var(--accent) !important; box-shadow: 0 0 0 2px rgba(201,168,76,0.2); }
+    .badge-activa { display:inline-block;background:var(--accent);color:#000;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:0.5px;margin-left:6px; }
   </style>
+  <script src="active-reunion.js"></script>
 </head>
 <body>
 <div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;"></div></div>
@@ -317,10 +320,12 @@ function renderList(data) {
     document.getElementById('list-container').innerHTML = `<div class="empty-state"><div class="icon">📅</div><h3>Sin reuniones</h3><p>No se encontraron reuniones. Crea la primera con el botón +</p></div>`;
     return;
   }
+  const activeId = ActiveReunion.get();
   document.getElementById('list-container').innerHTML = `<div class="list">${data.map(r => {
     const f = new Date(r.fecha + 'T12:00:00');
     const hip = hipodromos.find(h=>h.id===r.hipodromo_id);
-    return `<div class="reunion-card ${r.estado}">
+    const isActive = activeId === r.id;
+    return `<div class="reunion-card ${r.estado} ${isActive ? 'reunion-activa' : ''}">
       <div class="fecha-col">
         <div class="fecha-dia">${String(f.getDate()).padStart(2,'0')}</div>
         <div class="fecha-mes">${MESES[f.getMonth()]}</div>
@@ -330,6 +335,7 @@ function renderList(data) {
       <div class="reunion-info">
         <div class="reunion-title">
           ${r.numero ? `Reunión N° ${r.numero} — ` : ''}${hip?.nombre || 'Hipódromo desconocido'}
+          ${isActive ? '<span class="badge-activa">ACTIVA</span>' : ''}
         </div>
         <div class="reunion-sub">${hip?.sigla ? `(${hip.sigla})` : ''} ${r.condicion_pista ? `• Pista: ${r.condicion_pista}` : ''} ${r.tiempo_clima ? `• ${r.tiempo_clima}` : ''}</div>
         <div class="badges">
@@ -338,6 +344,7 @@ function renderList(data) {
         </div>
       </div>
       <div class="reunion-actions" onclick="event.stopPropagation()">
+        <button class="btn-sm" onclick="activarReunion('${r.id}')" title="Marcar como reunión activa">📍 Activar</button>
         <button class="btn-sm btn-carta" onclick="window.location.href='carta-llamados.html?reunion_id=${r.id}'">📋 Carta llamados</button>
         <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(r)})'>✏️</button>
         <button class="btn-sm btn-estado" onclick='openEstadoModal("${r.id}","${r.estado}")'>⟳</button>
@@ -428,6 +435,11 @@ async function deleteRecord(id) {
 
 document.getElementById('modal').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeModal(); });
 document.getElementById('modal-estado').addEventListener('click', e=>{ if(e.target===e.currentTarget) document.getElementById('modal-estado').classList.remove('open'); });
+function activarReunion(id) {
+  ActiveReunion.set(id);
+  toast('Reunión marcada como activa');
+  load();
+}
 (async()=>{if(await initAuth())load();})();
 </script>
 </body>

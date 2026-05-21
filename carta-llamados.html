@@ -213,6 +213,7 @@
     .user-name { font-size:13px;color:var(--muted); }
     @media print { #auth-overlay, .btn-logout, .user-name { display:none !important; } }
   </style>
+  <script src="active-reunion.js"></script>
 </head>
 <body>
 <div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;"></div></div>
@@ -408,8 +409,8 @@ function imprimirCarta() {
 }
 
 const params = new URLSearchParams(location.search);
-let reunionId = params.get('reunion_id');
-if (reunionId) { try { localStorage.setItem('sgh_active_reunion_id', reunionId); } catch(_) {} }
+let reunionId = params.get('reunion_id') || ActiveReunion.get();
+if (reunionId) { ActiveReunion.set(reunionId); }
 let reunion=null, carreras=[], categorias=[], hipodromos=[], clubData=null;
 
 function toast(msg, type='success') {

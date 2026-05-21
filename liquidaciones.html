@@ -134,6 +134,7 @@
     .user-name { font-size:13px;color:var(--muted); }
     @media print { #auth-overlay, .btn-logout, .user-name { display:none !important; } }
   </style>
+  <script src="active-reunion.js"></script>
 </head>
 <body>
 <div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;"></div></div>
@@ -330,12 +331,15 @@ async function init() {
   club = clubData;
   const sel = document.getElementById('sel-reunion');
   sel.innerHTML = '<option value="">— Todas —</option>' + (reuns||[]).map(r=>`<option value="${r.id}">Reunión ${r.numero||''} — ${new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR')} — ${r.hipodromos?.nombre||''}</option>`).join('');
+  const rid = ActiveReunion.resolve(reuns||[]);
+  if (rid) { sel.value = rid; }
   loadLiquidaciones();
 }
 
 async function loadLiquidaciones() {
   document.getElementById('liq-container').innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando…</div>';
   const rid = document.getElementById('sel-reunion').value;
+  if (rid) { ActiveReunion.set(rid); }
   const estado = document.getElementById('f-estado-f').value;
   let q = sb.from('liquidaciones').select('*, liquidacion_detalle(*)').eq('club_id', CLUB_ID);
   if (rid) q = q.eq('reunion_id', rid);

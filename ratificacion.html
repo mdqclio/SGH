@@ -186,6 +186,7 @@
     .user-name { font-size:13px;color:var(--muted); }
     @media print { #auth-overlay, .btn-logout, .user-name { display:none !important; } }
   </style>
+  <script src="active-reunion.js"></script>
 </head>
 <body>
 <div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;"></div></div>
@@ -458,23 +459,11 @@ async function init() {
   const sel = document.getElementById('sel-reunion');
   sel.innerHTML = '<option value="">— Seleccionar —</option>' + reuniones.map(r=>`<option value="${r.id}">Reunión ${r.numero||''} — ${new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR')} — ${r.hipodromos?.nombre||''}</option>`).join('');
 
-  const params = new URLSearchParams(location.search);
-  const rid = params.get('reunion_id');
-  if (rid) { try { localStorage.setItem('sgh_active_reunion_id', rid); } catch(_) {} }
+  const rid = ActiveReunion.resolve(reuniones);
   if (rid) {
-    sel.value=rid; await loadReunion();
-  } else {
-    const hoy = new Date();
-    const conPrioridad = reuniones
-      .filter(r => ['publicada','en_curso','borrador','programada'].includes(r.estado))
-      .map(r => ({
-        ...r,
-        prioridad: ['publicada','en_curso'].includes(r.estado) ? 0 : 1,
-        diasAbs: Math.abs(new Date(r.fecha + 'T12:00:00') - hoy)
-      }));
-    conPrioridad.sort((a, b) => a.prioridad - b.prioridad || a.diasAbs - b.diasAbs);
-    const reunionDefault = conPrioridad[0];
-    if (reunionDefault) { sel.value = reunionDefault.id; await loadReunion(); }
+    sel.value = rid;
+    try { history.replaceState(null, '', `?reunion_id=${rid}`); } catch(_) {}
+    await loadReunion();
   }
 }
 
@@ -513,6 +502,7 @@ function renderCierreStatus(reunion) {
 
 async function loadReunion() {
   const rid = document.getElementById('sel-reunion').value;
+  if (rid) { ActiveReunion.set(rid); }
   if (!rid) {
     document.getElementById('content').innerHTML='<div class="empty-state"><div class="icon">✅</div><h3>Seleccionar una reunión</h3></div>';
     document.getElementById('turno-nav').classList.remove('visible');

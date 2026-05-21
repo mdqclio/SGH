@@ -163,6 +163,7 @@
     .user-name { font-size:13px;color:var(--muted); }
     @media print { #auth-overlay, .btn-logout, .user-name { display:none !important; } }
   </style>
+  <script src="active-reunion.js"></script>
 </head>
 <body>
 <div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;"></div></div>
@@ -354,25 +355,10 @@ async function loadAll() {
       await onCarreraChange();
     }
   } else {
-    // Prioridad: última publicada → última programada → última borrador → ninguna
-    const { data: pub } = await sb.from('reuniones')
-      .select('id, fecha')
-      .eq('club_id', CLUB_ID)
-      .eq('estado', 'publicada')
-      .order('fecha', { ascending: true })
-      .limit(1);
-
-    let reunionASeleccionar = null;
-    if (pub?.length) {
-      reunionASeleccionar = pub[0].id;
-    } else {
-      const fallback = reuniones.find(r => r.estado === 'programada')
-                    || reuniones.find(r => r.estado === 'borrador');
-      if (fallback) reunionASeleccionar = fallback.id;
-    }
-
-    if (reunionASeleccionar) {
-      selR.value = reunionASeleccionar;
+    const rid = ActiveReunion.resolve(reuniones);
+    if (rid) {
+      selR.value = rid;
+      try { history.replaceState(null, '', `?reunion_id=${rid}`); } catch(_) {}
       await onReunionChange();
       const firstCarrera = document.getElementById('sel-carrera').options[1];
       if (firstCarrera) {
@@ -386,6 +372,7 @@ async function loadAll() {
 
 async function onReunionChange() {
   const rid = document.getElementById('sel-reunion').value;
+  if (rid) { ActiveReunion.set(rid); }
   const selC = document.getElementById('sel-carrera');
   if (!rid) { selC.innerHTML='<option value="">— Seleccionar reunión primero —</option>'; return; }
   const { data: cars } = await sb.from('carreras').select('id,numero_turno,nombre,distancia_metros,condicion_handicap').eq('reunion_id', rid).order('numero_turno');
