@@ -17,8 +17,12 @@ id UUID PK, club_id FK clubs, nombre, sigla, localidad, provincia, tipo_pista, a
 UNIQUE (club_id, sigla)
 NOTA: cantidad_gateras = gateras físicas del hipódromo. Dolores: 16. Default 12 para nuevos hipódromos.
 
+### club_configuracion
+id UUID PK, club_id FK clubs NOT NULL, clave VARCHAR NOT NULL, valor TEXT nullable, descripcion TEXT nullable
+NOTA: tabla key-value de overrides de configuración por club (parámetros del sistema editables por administrador de club).
+
 ### usuarios
-id UUID PK, club_id FK clubs (NULLABLE), email, password_hash, nombre_completo, rol ENUM(super_admin/secretario_carreras/operador/profesional/propietario/publico), activo, telefono, estado TEXT DEFAULT 'activo', created_at
+id UUID PK, club_id FK clubs NOT NULL, email VARCHAR NOT NULL, password_hash TEXT NOT NULL, nombre_completo VARCHAR, rol ENUM(super_admin/secretario_carreras/operador/profesional/propietario/publico) NOT NULL DEFAULT 'operador', entidad_tipo VARCHAR, entidad_id UUID, activo BOOLEAN NOT NULL DEFAULT true, ultimo_login TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), telefono VARCHAR, estado VARCHAR DEFAULT 'activo'
 CRÍTICO: columna se llama nombre_completo NO nombre
 
 ### categorias_carrera
@@ -26,7 +30,7 @@ id UUID PK, club_id FK clubs, nombre, codigo, descripcion, es_computable BOOLEAN
 UNIQUE (club_id, codigo)
 
 ### propietarios (GLOBALES — club_id nullable)
-id UUID PK, club_id FK nullable, tipo (persona/sociedad), nombre, documento_tipo, documento_nro, domicilio, localidad, provincia, telefono, email, colores_desc, colores_img_url, nombre_stud VARCHAR(150), activo, estado VARCHAR(20) DEFAULT 'activo'
+id UUID PK, club_id FK nullable, tipo (persona/sociedad), nombre, documento_tipo, documento_nro, domicilio, localidad, provincia, telefono, email, colores_desc, colores_img_url, nombre_stud VARCHAR(150), activo, estado VARCHAR(20) DEFAULT 'activo', chaquetilla_descripcion VARCHAR, chaquetilla_url VARCHAR
 
 ### caballerizas
 id UUID PK, club_id FK nullable, nombre, responsable TEXT (autogenerado de caballeriza_responsables), domicilio, telefono, activo, notas, estado VARCHAR(20) DEFAULT 'activo', hipodromo_patente VARCHAR(50), chaquetilla_descripcion VARCHAR(500), chaquetilla_url VARCHAR(500)
@@ -49,12 +53,20 @@ CRÍTICO: usar .eq('estado','activo') NO .eq('activo',true) — columna activo n
 ### spc_propietarios
 id UUID PK, spc_id FK spcs, propietario_id FK propietarios, porcentaje DECIMAL DEFAULT 100, fecha_desde DATE, fecha_hasta DATE, activo
 
+### spc_entrenadores_hist
+id UUID PK, spc_id FK spcs NOT NULL, entrenador_id FK profesionales NOT NULL, fecha_desde DATE NOT NULL, fecha_hasta DATE nullable
+NOTA: historial de entrenadores por SPC; la fila sin fecha_hasta es el entrenador actualmente asignado.
+
 ### sanciones (COMPARTIDAS entre hipódromos)
 id UUID PK, club_id FK nullable, entidad_tipo ENUM(profesional/spc/propietario/caballeriza), entidad_id UUID, tipo_sancion, motivo, codigo_resolucion, fecha_inicio DATE, fecha_fin DATE, alcance DEFAULT 'club', estado ENUM(activa/cumplida/apelada/revocada), resolucion_url, notas, creado_por FK usuarios
 
 ### reuniones
 id UUID PK, club_id FK clubs, hipodromo_id FK hipodromos, numero INTEGER, fecha DATE, tipo ENUM(oficial/extraoficial/especial/nocturna), estado ENUM(borrador/programada/publicada/en_curso/finalizada/cancelada/suspendida), condicion_pista, tiempo_clima, observaciones, creado_por FK usuarios, hora_cierre_ratificacion TIME NOT NULL DEFAULT '12:00:00', fechas_inscripciones TEXT, fechas_forfaits TEXT, fechas_compromiso_montas TEXT
 COLUMNAS ELIMINADAS (19/05/2026): apuestas_combinadas JSONB (existió brevemente, dropped en refactor final), comisariato JSONB (migrado a clubs.comisariato)
+
+### novedades_reunion
+id UUID PK, reunion_id FK reuniones NOT NULL, carrera_id FK carreras nullable, spc_id FK spcs nullable, tipo_novedad VARCHAR NOT NULL, descripcion TEXT nullable, hora_novedad TIMESTAMPTZ NOT NULL DEFAULT now(), visibilidad VARCHAR NOT NULL DEFAULT 'interna', creado_por FK usuarios nullable
+NOTA: incidentes y novedades durante la reunión (scratches tardíos, cambios de jockey, etc.); visibilidad 'interna' o 'publica'.
 
 ### carreras
 id UUID PK, reunion_id FK reuniones, numero_turno INTEGER, nombre, categoria_id FK categorias_carrera, tipo_pista ENUM(cesped/arena/tierra/sintetica), distancia_metros INTEGER, edad_minima_anos, edad_maxima_anos, condicion_sexo ENUM(ambos/machos/hembras/machos_castrados), condicion_handicap, condicion_adicional, bolsa_total DECIMAL, bolsa_bonos DECIMAL DEFAULT 0, distribucion_premios JSONB (incluye ganancia_minima), cupo_maximo, hora_estimada TIME, apertura_inscripcion, cierre_inscripcion, apertura_ratificacion, cierre_ratificacion, estado VARCHAR DEFAULT 'programada', numero_carrera_programa INTEGER, apuestas TEXT[] DEFAULT '{}'
@@ -69,7 +81,7 @@ ESTADOS VISIBLES EN UI: inscripto / mal_inscrito / ratificado / forfait. mal_ins
 CRÍTICO: estado es ENUM rígido (estado_inscripcion). Para agregar valores usar ALTER TYPE ADD VALUE, NO migrar a VARCHAR (v_inscriptos_carrera depende del ENUM).
 
 ### resultados
-id UUID PK, carrera_id FK UNIQUE, estado ENUM(provisional/oficial/en_protesta), tiempo_ganador, estado_pista VARCHAR(20) CHECK (IN 'seca','buena','algo_pesada','pesada','muy_pesada'), dividendos JSONB, incidentes, observaciones, oficializado_por FK, oficializado_at
+id UUID PK, carrera_id FK UNIQUE, estado ENUM(provisional/oficial/en_protesta), tiempo_ganador, estado_pista VARCHAR(20) CHECK (IN 'seca','buena','algo_pesada','pesada','muy_pesada'), dividendos JSONB, incidentes, observaciones, oficializado_por FK, oficializado_at, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 
 ### resultado_posiciones
 id UUID PK, resultado_id FK resultados, inscripcion_id FK inscripciones, posicion INTEGER, tiempo, diferencia, descalificado BOOLEAN, motivo_desc, empate BOOLEAN DEFAULT false
@@ -79,11 +91,12 @@ CRÍTICO: borrar siempre antes de borrar inscripciones
 ### resultado_log
 id UUID PK, resultado_id FK, usuario_id FK, accion, datos_antes JSONB, datos_despues JSONB, created_at
 
-### comisiones_config
-id UUID PK, club_id FK, pct_propietario DEFAULT 70, pct_entrenador DEFAULT 10, pct_jockey DEFAULT 10, pct_peon DEFAULT 4, pct_capataz DEFAULT 3, pct_sereno DEFAULT 1, pct_fondo_solidario DEFAULT 2, monta_perdida_fija, monta_perdida_por_carrera, incentivo_entrenador
+### comision_config
+id UUID PK, club_id FK clubs NOT NULL, hipodromo_id FK hipodromos nullable, categoria_id FK categorias_carrera nullable, tipo_profesional ENUM nullable, tipo_cobro ENUM NOT NULL, porcentaje NUMERIC nullable, monto_fijo NUMERIC nullable, posicion_bono INTEGER nullable, monto_bono NUMERIC nullable, descuento_fondo_solidario_pct NUMERIC DEFAULT 0, descuento_incentivo_pct NUMERIC DEFAULT 0, otros_descuentos JSONB nullable, vigente_desde DATE NOT NULL, vigente_hasta DATE nullable, descripcion TEXT nullable, activo BOOLEAN NOT NULL DEFAULT true
+NOTA: diseño granular (reemplaza el modelo original de 7 porcentajes fijos). tipo_cobro determina si aplica porcentaje, monto_fijo o bono por posición.
 
 ### liquidaciones
-id UUID PK, club_id FK, reunion_id FK, profesional_id FK, propietario_id FK, total_bruto DECIMAL, total_descuentos DECIMAL, total_neto DECIMAL GENERATED ALWAYS AS (total_bruto - total_descuentos) STORED, estado ENUM(borrador/aprobada/pagada/anulada), numero_recibo, recibo_pdf_url, notas
+id UUID PK, club_id FK NOT NULL, reunion_id FK NOT NULL, profesional_id FK nullable, propietario_id FK nullable, periodo_desde DATE nullable, periodo_hasta DATE nullable, total_bruto DECIMAL NOT NULL DEFAULT 0, total_descuentos DECIMAL NOT NULL DEFAULT 0, total_neto DECIMAL GENERATED ALWAYS AS (total_bruto - total_descuentos) STORED, estado ENUM(borrador/aprobada/pagada/anulada) NOT NULL DEFAULT 'borrador', numero_recibo VARCHAR nullable, recibo_pdf_url TEXT nullable, aprobado_por FK usuarios nullable, pagado_at TIMESTAMPTZ nullable, notas TEXT nullable, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 CRÍTICO: total_neto es columna generada — no se puede actualizar directamente
 
 ### liquidacion_detalle
@@ -91,6 +104,10 @@ id UUID PK, liquidacion_id FK, carrera_id FK, concepto, descripcion, monto_bruto
 
 ### resoluciones
 id UUID PK, club_id FK, reunion_id FK, numero VARCHAR UNIQUE, fecha DATE, tipo, texto, documento_url, estado DEFAULT 'borrador', creado_por FK
+
+### resolucion_entidades
+id UUID PK, resolucion_id FK resoluciones NOT NULL, entidad_tipo VARCHAR NOT NULL, entidad_id UUID NOT NULL, descripcion TEXT nullable
+NOTA: tabla de detalle — entidades (profesional/SPC/propietario/caballeriza) afectadas por una resolución (relación N:1 con resoluciones).
 
 ### notificaciones
 id UUID PK, tipo, titulo, mensaje, leida BOOLEAN DEFAULT FALSE, usuario_id FK, created_at
@@ -119,7 +136,7 @@ ALTER TABLE inscripciones ADD COLUMN IF NOT EXISTS certificado_correr BOOLEAN DE
 ALTER TABLE carreras ADD COLUMN IF NOT EXISTS bolsa_bonos DECIMAL(15,2) DEFAULT 0;
 -- premio_minimo eliminada (21/05/2026): unificado en distribucion_premios.ganancia_minima
 ALTER TABLE resultados ADD COLUMN IF NOT EXISTS estado_pista VARCHAR(20);
-ALTER TABLE resultados ADD COLUMN IF NOT EXISTS apuestas JSONB;
+-- resultados.apuestas NUNCA se aplicó (columna inexistente en base). El modelo de apuestas vive en carreras.apuestas (TEXT[]).
 ALTER TABLE spcs ADD COLUMN IF NOT EXISTS certificado_correr BOOLEAN DEFAULT FALSE;
 ALTER TYPE tipo_pista ADD VALUE IF NOT EXISTS 'tierra';
 ALTER TYPE estado_reunion ADD VALUE IF NOT EXISTS 'programada';
@@ -186,6 +203,24 @@ ALTER TABLE carreras ADD COLUMN IF NOT EXISTS numero_carrera_programa INTEGER;
 -- reuniones.apuestas_combinadas JSONB  -- agregada y luego eliminada (simplificación modelo)
 -- reuniones.comisariato JSONB  -- agregada y luego eliminada (migrado a clubs.comisariato)
 ```
+
+## Vistas
+
+### v_inscriptos_carrera
+Tablas: inscripciones ⋈ spcs, LEFT JOIN propietarios, profesionales (entrenador), profesionales (jockey_titular), profesionales (jockey_suplente), caballerizas
+Propósito: listado completo de inscriptos con nombres resueltos (spc, propietario, entrenador, jockeys, caballeriza) para una carrera dada.
+
+### v_programa_reunion
+Tablas: reuniones ⋈ hipodromos ⋈ carreras ⋈ categorias_carrera, LEFT JOIN inscripciones
+Propósito: programa de una reunión con totales de inscriptos y forfaits por carrera (GROUP BY carrera).
+
+### v_sanciones_vigentes
+Tablas: sanciones (filtro: estado='activa' AND (fecha_fin IS NULL OR fecha_fin >= CURRENT_DATE))
+Propósito: sanciones activas y aún no vencidas; equivale a las sanciones aplicables a la fecha actual.
+
+### v_spcs_activos
+Tablas: spcs WHERE estado='activo', LEFT JOIN spc_propietarios (activo=true, fecha_hasta IS NULL), propietarios, profesionales (entrenador), caballerizas
+Propósito: SPCs en actividad con propietario principal, entrenador actual y caballeriza.
 
 ## Storage Supabase
 Bucket: **chaquetillas** (público, creado sesión may-2026)
