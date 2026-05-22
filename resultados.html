@@ -99,6 +99,13 @@
     .check-small input[type=checkbox] { width: 14px; height: 14px; accent-color: var(--danger); }
     .spc-name { font-weight: 600; color: var(--accent); }
     .spc-sub { font-size: 11px; color: var(--muted); }
+    .puesto-num { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--accent); font-weight: 700; min-width: 28px; }
+    .mandil-select { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 5px 8px; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 12px; outline: none; max-width: 200px; }
+    .mandil-select:focus { border-color: var(--accent); }
+    .auto-cell { font-size: 12px; color: var(--text); }
+    .auto-cell-muted { font-size: 11px; color: var(--muted); }
+    .div-input { width: 76px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 5px 8px; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 12px; outline: none; text-align: right; }
+    .div-input:focus { border-color: var(--accent); }
 
     /* APUESTAS */
     .apuestas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
@@ -179,19 +186,26 @@ let spcsMap={}, profsMap={}, cabsMap={};
 let currentCarreraId=null;
 
 const TIPOS_APUESTA = [
-  {key:'ganador', label:'Ganador'},
-  {key:'primero', label:'1° Puesto'},
-  {key:'segundo', label:'2° Puesto'},
-  {key:'tercero', label:'3° Puesto'},
-  {key:'exacta', label:'Exacta'},
-  {key:'imperfecta', label:'Imperfecta'},
-  {key:'doble', label:'Doble'},
-  {key:'trifecta', label:'Trifecta'},
-  {key:'cuatrifecta', label:'Cuatrifecta'},
-  {key:'triplo', label:'Triplo'},
-  {key:'cuaterna', label:'Cuaterna'},
-  {key:'quintuplo', label:'Quíntuplo'},
-  {key:'cadena', label:'Cadena'},
+  {key:'imperfecta',    label:'Imperfecta'},
+  {key:'exacta',        label:'Exacta'},
+  {key:'doble',         label:'Doble'},
+  {key:'doble_a_place', label:'Doble a Place'},
+  {key:'trifecta',      label:'Trifecta'},
+  {key:'cuatrifecta',   label:'Cuatrifecta'},
+  {key:'triplo',        label:'Triplo'},
+  {key:'cuaterna',      label:'Cuaterna'},
+  {key:'quintuplo',     label:'Quíntuplo'},
+  {key:'cadena',        label:'Cadena'},
+];
+
+const CUERPOS_OPCIONES = [
+  'empate', 'hocico', 'cabeza', 'pescuezo', 'cuello',
+  '1/4 cp', '1/2 cp', '3/4 cp',
+  '1 cp', '1 1/2 cps', '2 cps', '2 1/2 cps',
+  '3 cps', '3 1/2 cps', '4 cps', '4 1/2 cps',
+  '5 cps', '6 cps', '7 cps', '8 cps', '10 cps',
+  '15 cps', '20 cps', '25 cps', '30 cps',
+  'lejos', 'S.A.',
 ];
 
 function formatMonto(num) {
@@ -202,6 +216,25 @@ function formatMonto(num) {
   const enteroFmt = entero.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   return signo + '$' + enteroFmt + ',' + dec;
 }
+function onMandilChange(puesto) {
+  const inscId = document.getElementById(`mandil-${puesto}`)?.value;
+  const spcEl  = document.getElementById(`spc-${puesto}`);
+  const jockEl = document.getElementById(`jock-${puesto}`);
+  const pesoEl = document.getElementById(`peso-${puesto}`);
+  if (!inscId) {
+    if (spcEl)  spcEl.textContent = '';
+    if (jockEl) jockEl.textContent = '';
+    if (pesoEl) pesoEl.textContent = '';
+    return;
+  }
+  const insc = inscripciones.find(i => i.id === inscId);
+  const spc  = insc ? spcsMap[insc.spc_id]            : null;
+  const jock = insc ? profsMap[insc.jockey_titular_id] : null;
+  if (spcEl)  spcEl.textContent  = spc?.nombre || '';
+  if (jockEl) jockEl.textContent = jock ? (jock.apellido || '') : '';
+  if (pesoEl) pesoEl.textContent = insc?.peso_final || insc?.peso_declarado || '';
+}
+
 function toast(msg,type='success') {
   const t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
   document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),3500);
@@ -318,13 +351,16 @@ function renderResumenOficial(carrera, res, posiciones, insc) {
           ${posOrdenadas.map(p=>{
             const i = insc.find(x=>x.id===p.inscripcion_id);
             const spc = i ? spcsMap[i.spc_id] : null;
+            const jock = i ? profsMap[i.jockey_titular_id] : null;
+            const mandil = i?.numero_partidor ? `[${i.numero_partidor}] ` : '';
             return `<li>
               <div class="pos-num">${p.posicion||'—'}°</div>
-              <div>
-                <div class="pos-spc">${spc?.nombre||'—'}${p.descalificado?' <span style="color:var(--danger);font-size:11px">(DESC)</span>':''}</div>
+              <div style="flex:1;">
+                <div class="pos-spc">${mandil}${spc?.nombre||'—'}${p.descalificado?' <span style="color:var(--danger);font-size:11px">(DESC)</span>':''}</div>
+                <div class="pos-cuerpos">${jock?jock.apellido+' — ':''}</div>
                 ${p.diferencia?`<div class="pos-cuerpos">Dif: ${p.diferencia}</div>`:''}
-                ${p.empate?`<div class="pos-cuerpos" style="color:var(--accent)">Empate</div>`:''}
               </div>
+              ${p.dividendo!=null?`<div style="font-family:'Playfair Display',serif;color:var(--success);font-weight:600;font-size:15px;">${formatMonto(p.dividendo)}</div>`:''}
             </li>`;
           }).join('')}
         </ul>
@@ -347,43 +383,69 @@ function renderResumenOficial(carrera, res, posiciones, insc) {
 
 function renderFormulario(carrera, res, posiciones, insc) {
   const apuestas = res?.dividendos || {};
-  const getPosicion = (inscId) => posiciones.find(p=>p.inscripcion_id===inscId);
 
-  const inscRows = insc.map(i => {
-    const spc = spcsMap[i.spc_id];
-    const jock = profsMap[i.jockey_titular_id];
-    const pos = getPosicion(i.id);
-    const isForfait = i.estado==='forfait';
-    return `<tr class="${isForfait?'forfait-row':''}">
-      <td><div class="spc-name">${spc?.nombre||i.spc_id}</div>${jock?`<div class="spc-sub">${jock.apellido}</div>`:''}</td>
-      <td>${i.peso_final||i.peso_declarado||'—'}</td>
-      <td>${isForfait?'<span style="color:var(--danger);font-size:11px">FORFAIT</span>':`<input class="pos-input" type="number" id="pos-${i.id}" min="1" max="20" value="${pos?.posicion||''}" placeholder="—">`}</td>
-      <td>${isForfait?'':`<input class="cuerpos-input" type="text" id="cuerpos-${i.id}" value="${pos?.diferencia||''}" placeholder="1/2 cpo">`}</td>
-      <td>${isForfait?'':`<div class="check-small"><input type="checkbox" id="emp-${i.id}" ${pos?.empate?'checked':''}><label for="emp-${i.id}">Empate</label></div>`}</td>
-      <td>${isForfait?'':`<div class="check-small"><input type="checkbox" id="desc-${i.id}" ${pos?.descalificado?'checked':''}><label for="desc-${i.id}" style="color:var(--danger)">DESC</label></div>`}</td>
+  // Inscriptos disponibles ordenados por mandil; forfaits excluidos
+  const inscOpciones = insc
+    .filter(i => i.estado !== 'forfait')
+    .sort((a, b) => (a.numero_partidor || 999) - (b.numero_partidor || 999));
+
+  // Posiciones existentes indexadas por puesto
+  const posByPuesto = {};
+  posiciones.forEach(p => { if (p.posicion) posByPuesto[p.posicion] = p; });
+
+  // datalist de cuerpos (compartido por todas las filas)
+  const cuerposList = `<datalist id="dl-cuerpos">${CUERPOS_OPCIONES.map(o=>`<option value="${o}">`).join('')}</datalist>`;
+
+  // Una fila por puesto (N = total de inscriptos no-forfait)
+  const puestosFilas = inscOpciones.map((_, idx) => {
+    const puesto   = idx + 1;
+    const posData  = posByPuesto[puesto] || {};
+    const inscSel  = posData.inscripcion_id
+      ? inscOpciones.find(i => i.id === posData.inscripcion_id)
+      : null;
+
+    const opciones = `<option value="">— Mandil —</option>` + inscOpciones.map(i => {
+      const spc = spcsMap[i.spc_id];
+      return `<option value="${i.id}" ${inscSel?.id === i.id ? 'selected' : ''}>${i.numero_partidor || '?'} — ${spc?.nombre || ''}</option>`;
+    }).join('');
+
+    const spc  = inscSel ? spcsMap[inscSel.spc_id]              : null;
+    const jock = inscSel ? profsMap[inscSel.jockey_titular_id]  : null;
+    const peso = inscSel ? (inscSel.peso_final || inscSel.peso_declarado || '') : '';
+
+    return `<tr>
+      <td><span class="puesto-num">${puesto}°</span></td>
+      <td><select class="mandil-select" id="mandil-${puesto}" onchange="onMandilChange(${puesto})">${opciones}</select></td>
+      <td><span class="auto-cell" id="spc-${puesto}">${spc?.nombre || ''}</span></td>
+      <td><span class="auto-cell-muted" id="jock-${puesto}">${jock?.apellido || ''}</span></td>
+      <td><span class="auto-cell-muted" id="peso-${puesto}">${peso}</span></td>
+      <td><input class="cuerpos-input" list="dl-cuerpos" id="cuerpos-${puesto}" value="${posData.diferencia || ''}" placeholder="1/2 cp" style="width:90px;"></td>
+      <td><input class="div-input" type="number" id="div-${puesto}" value="${posData.dividendo != null ? posData.dividendo : ''}" placeholder="0.00" step="0.01" min="0"></td>
+      <td><div class="check-small"><input type="checkbox" id="desc-${puesto}" ${posData.descalificado ? 'checked' : ''}><label for="desc-${puesto}" style="color:var(--danger)">DESC</label></div></td>
     </tr>`;
   }).join('');
 
   const apuestasHtml = TIPOS_APUESTA.map(a => {
-    const dat = apuestas[a.key]||{};
+    const dat = apuestas[a.key] || {};
     return `<div class="apuesta-item">
       <div class="apuesta-label">${a.label}</div>
       <div class="apuesta-fields">
-        <input type="text" id="ap-comb-${a.key}" value="${dat.combinacion||''}" placeholder="ej: 5-2" style="flex:1;">
-        <input type="number" id="ap-div-${a.key}" value="${dat.dividendo||''}" placeholder="$" style="width:80px;" step="0.01">
+        <input type="text" id="ap-comb-${a.key}" value="${dat.combinacion || ''}" placeholder="ej: 5-2" style="flex:1;">
+        <input type="number" id="ap-div-${a.key}" value="${dat.dividendo || ''}" placeholder="$" style="width:80px;" step="0.01">
       </div>
     </div>`;
   }).join('');
 
   document.getElementById('main-container').innerHTML = `
+    ${cuerposList}
     <button class="btn-outline" onclick="renderCarrerasList()" style="margin-bottom:16px;">← Volver a carreras</button>
     <div class="res-panel">
       <div class="res-panel-header">
         <div>
-          <div class="res-panel-title">Turno ${carrera.numero_turno} — ${carrera.nombre||''}</div>
-          <div class="res-meta">${carrera.distancia_metros}m | ${carrera.tipo_pista||'—'}</div>
+          <div class="res-panel-title">Turno ${carrera.numero_turno} — ${carrera.nombre || ''}</div>
+          <div class="res-meta">${carrera.distancia_metros}m | ${carrera.tipo_pista || '—'}</div>
         </div>
-        <span class="badge badge-${res?.estado||'sin_resultado'}">${(res?.estado||'sin resultado').replace('_',' ')}</span>
+        <span class="badge badge-${res?.estado || 'sin_resultado'}">${(res?.estado || 'sin resultado').replace('_', ' ')}</span>
       </div>
 
       <div class="res-section">
@@ -393,19 +455,19 @@ function renderFormulario(carrera, res, posiciones, insc) {
             <label>Estado de pista</label>
             <select id="estado-pista" style="min-width:140px;">
               <option value="">— Seleccionar —</option>
-              <option value="seca" ${res?.estado_pista==='seca'?'selected':''}>Seca</option>
-              <option value="humeda" ${res?.estado_pista==='humeda'?'selected':''}>Húmeda</option>
-              <option value="fangosa" ${res?.estado_pista==='fangosa'?'selected':''}>Fangosa</option>
-              <option value="pesada" ${res?.estado_pista==='pesada'?'selected':''}>Pesada</option>
+              <option value="seca"    ${res?.estado_pista === 'seca'    ? 'selected' : ''}>Seca</option>
+              <option value="humeda"  ${res?.estado_pista === 'humeda'  ? 'selected' : ''}>Húmeda</option>
+              <option value="fangosa" ${res?.estado_pista === 'fangosa' ? 'selected' : ''}>Fangosa</option>
+              <option value="pesada"  ${res?.estado_pista === 'pesada'  ? 'selected' : ''}>Pesada</option>
             </select>
           </div>
           <div class="form-group">
             <label>Tiempo del ganador</label>
-            <input type="text" id="tiempo-ganador" value="${res?.tiempo_ganador||''}" placeholder="1:02.3" style="width:120px;">
+            <input type="text" id="tiempo-ganador" value="${res?.tiempo_ganador || ''}" placeholder="1:02.3" style="width:120px;">
           </div>
           <div class="form-group" style="flex:1;">
             <label>Incidentes / Observaciones</label>
-            <input type="text" id="incidentes" value="${res?.incidentes||''}" placeholder="Notas sobre la carrera…">
+            <input type="text" id="incidentes" value="${res?.incidentes || ''}" placeholder="Notas sobre la carrera…">
           </div>
         </div>
       </div>
@@ -413,13 +475,13 @@ function renderFormulario(carrera, res, posiciones, insc) {
       <div class="res-section">
         <div class="res-section-title">Posiciones</div>
         <table class="pos-table">
-          <thead><tr><th>SPC / Jockey</th><th>Peso</th><th>Posición</th><th>Cuerpos</th><th>Empate</th><th>Descalificado</th></tr></thead>
-          <tbody>${inscRows||'<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--muted)">Sin inscriptos</td></tr>'}</tbody>
+          <thead><tr><th>Puesto</th><th>Mandil</th><th>S.P.C.</th><th>Jockey</th><th>Peso</th><th>Cuerpos</th><th>Dividendo</th><th>DESC</th></tr></thead>
+          <tbody>${puestosFilas || '<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--muted)">Sin inscriptos</td></tr>'}</tbody>
         </table>
       </div>
 
       <div class="res-section">
-        <div class="res-section-title">Apuestas (dividendos)</div>
+        <div class="res-section-title">Dividendos compuestos</div>
         <div class="apuestas-grid">${apuestasHtml}</div>
       </div>
 
@@ -462,15 +524,29 @@ async function guardarResultado(carreraId, estado) {
     resultados[carreraId] = { ...resultados[carreraId], ...resPayload };
   }
 
-  // Upsert posiciones
-  const posData = insc.map(i => {
-    const posVal = document.getElementById(`pos-${i.id}`)?.value;
-    const cuerpVal = document.getElementById(`cuerpos-${i.id}`)?.value;
-    const empate = document.getElementById(`emp-${i.id}`)?.checked||false;
-    const desc = document.getElementById(`desc-${i.id}`)?.checked||false;
-    const motDesc = desc ? (prompt(`Motivo de descalificación para ${spcsMap[i.spc_id]?.nombre||'SPC'}:`)||null) : null;
-    return { resultado_id: resId, inscripcion_id: i.id, posicion: posVal?parseInt(posVal):null, diferencia: cuerpVal||null, empate, descalificado: desc, motivo_desc: motDesc };
-  }).filter(p=>p.posicion);
+  // Recolectar posiciones por puesto (una fila por puesto en el formulario)
+  const inscOpciones = insc
+    .filter(i => i.estado !== 'forfait')
+    .sort((a, b) => (a.numero_partidor || 999) - (b.numero_partidor || 999));
+  const posData = [];
+  for (let puesto = 1; puesto <= inscOpciones.length; puesto++) {
+    const inscId = document.getElementById(`mandil-${puesto}`)?.value;
+    if (!inscId) continue;
+    const cuerpos   = document.getElementById(`cuerpos-${puesto}`)?.value?.trim();
+    const dividendo = document.getElementById(`div-${puesto}`)?.value;
+    const desc      = document.getElementById(`desc-${puesto}`)?.checked || false;
+    const motDesc   = desc ? (prompt(`Motivo de descalificación para ${puesto}°:`) || null) : null;
+    posData.push({
+      resultado_id: resId,
+      inscripcion_id: inscId,
+      posicion: puesto,
+      diferencia: cuerpos || null,
+      dividendo: dividendo ? parseFloat(dividendo) : null,
+      descalificado: desc,
+      motivo_desc: motDesc,
+      empate: false,
+    });
+  }
 
   if (posData.length) {
     await sb.from('resultado_posiciones').delete().eq('resultado_id', resId);
