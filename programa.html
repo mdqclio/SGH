@@ -121,6 +121,7 @@
     <option value="">— Seleccionar reunión —</option>
   </select>
   <button class="btn-outline" onclick="openComisionModal()">👥 Comisión de Carreras</button>
+  <button class="btn-outline" onclick="openPremiosModal()">🏆 Premios</button>
   <button class="btn-outline" onclick="openApuestasModal()">🎯 Apuestas</button>
   <button class="btn-outline" onclick="abrirProgramaOficial()">📘 Programa Oficial</button>
 </div>
@@ -429,6 +430,55 @@ async function saveApuestas() {
   renderPrograma(currentReunion, currentCarreras, currentInscripciones);
 }
 
+function openPremiosModal() {
+  if (!currentReunion) { toast('Seleccioná primero una reunión','error'); return; }
+  if (!currentCarreras || !currentCarreras.length) { toast('Esta reunión no tiene carreras cargadas','error'); return; }
+  const ordenadas = [...currentCarreras].sort((a,b) => {
+    const aN = a.numero_carrera_programa != null ? a.numero_carrera_programa : (a.numero_turno + 10000);
+    const bN = b.numero_carrera_programa != null ? b.numero_carrera_programa : (b.numero_turno + 10000);
+    return aN - bN;
+  });
+  const filas = ordenadas.map(c => {
+    const num = c.numero_carrera_programa || c.numero_turno;
+    const valor = (c.nombre || '').replace(/"/g, '&quot;');
+    return `
+      <div class="premios-row" style="display:grid;grid-template-columns:60px 1fr;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="font-weight:700;color:var(--accent);font-size:15px;">N° ${num}</div>
+        <input type="text" class="premios-input" data-carrera-id="${c.id}" placeholder="Ej: Gran Premio Nacional" value="${valor}">
+      </div>`;
+  }).join('');
+  const body = document.getElementById('modal-premios-body');
+  body.innerHTML = `
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Cargá el nombre del premio de cada carrera. Aparece como "PREMIO: &lt;nombre&gt;" en el programa oficial. Dejá vacío si la carrera no tiene nombre asignado.</div>
+    <div>${filas}</div>
+  `;
+  document.getElementById('modal-premios').classList.add('open');
+}
+
+async function savePremios() {
+  const inputs = Array.from(document.querySelectorAll('#modal-premios-body .premios-input'));
+  const btn = document.getElementById('btn-save-premios');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  const promesas = inputs.map(inp => {
+    const id = inp.dataset.carreraId;
+    const valor = inp.value.trim() || null;
+    return sb.from('carreras').update({ nombre: valor }).eq('id', id);
+  });
+  const results = await Promise.all(promesas);
+  const err = results.find(r => r.error);
+  btn.disabled = false; btn.textContent = 'Guardar premios';
+  if (err) { toast(err.error.message,'error'); return; }
+  inputs.forEach(inp => {
+    const id = inp.dataset.carreraId;
+    const valor = inp.value.trim() || null;
+    const car = currentCarreras.find(c => c.id === id);
+    if (car) car.nombre = valor;
+  });
+  toast('Premios guardados');
+  closeMini('modal-premios');
+  renderPrograma(currentReunion, currentCarreras, currentInscripciones);
+}
+
 (async()=>{if(await initAuth())init();})();
 </script>
 
@@ -455,6 +505,20 @@ async function saveApuestas() {
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeMini('modal-apuestas')">Cerrar</button>
       <button class="btn-primary" id="btn-save-apuestas" onclick="saveApuestas()">Guardar apuestas</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-premios">
+  <div class="modal" style="max-width:720px;">
+    <div class="modal-header">
+      <h2>Nombres de premios</h2>
+      <button class="btn-close" onclick="closeMini('modal-premios')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-premios-body">—</div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeMini('modal-premios')">Cerrar</button>
+      <button class="btn-primary" id="btn-save-premios" onclick="savePremios()">Guardar premios</button>
     </div>
   </div>
 </div>
