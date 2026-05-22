@@ -178,9 +178,9 @@
       .p-carrera-wrap[data-cat="OC"]  .p-carrera-caption { color: #1E40AF; }
       .p-carrera-wrap[data-cat="OC"]  .p-carrera-box     { border-color: #1E40AF; }
       .p-carrera-wrap[data-cat="OC"]  .p-head-dist       { background: #1E40AF; }
-      .p-carrera-wrap[data-cat="ONC"] .p-carrera-caption { color: #6D28D9; }
-      .p-carrera-wrap[data-cat="ONC"] .p-carrera-box     { border-color: #6D28D9; }
-      .p-carrera-wrap[data-cat="ONC"] .p-head-dist       { background: #6D28D9; }
+      .p-carrera-wrap[data-cat="ONC"] .p-carrera-caption { color: #16A34A; }
+      .p-carrera-wrap[data-cat="ONC"] .p-carrera-box     { border-color: #16A34A; }
+      .p-carrera-wrap[data-cat="ONC"] .p-head-dist       { background: #16A34A; }
       .p-carrera-wrap[data-cat="NO"]  .p-carrera-caption { color: #B45309; }
       .p-carrera-wrap[data-cat="NO"]  .p-carrera-box     { border-color: #B45309; }
       .p-carrera-wrap[data-cat="NO"]  .p-head-dist       { background: #B45309; }
@@ -206,6 +206,30 @@
       .p-sponsors { margin-top: 8pt; padding-top: 6pt; border-top: 1px solid #ccc; display: flex; justify-content: space-around; align-items: center; gap: 10pt; page-break-inside: avoid; }
       .p-sponsor-logo { max-height: 30pt; max-width: 80pt; object-fit: contain; }
       @page { size: A4 portrait; margin: 12mm; }
+      /* Modo B/N — activado por body.print-bn */
+      body.print-bn .p-carrera-wrap[data-cat="OC"]  .p-carrera-caption,
+      body.print-bn .p-carrera-wrap[data-cat="ONC"] .p-carrera-caption,
+      body.print-bn .p-carrera-wrap[data-cat="NO"]  .p-carrera-caption,
+      body.print-bn .p-carrera-wrap[data-cat="CC"]  .p-carrera-caption {
+        color: #000 !important;
+      }
+      body.print-bn .p-carrera-wrap[data-cat="OC"]  .p-carrera-box,
+      body.print-bn .p-carrera-wrap[data-cat="ONC"] .p-carrera-box,
+      body.print-bn .p-carrera-wrap[data-cat="NO"]  .p-carrera-box,
+      body.print-bn .p-carrera-wrap[data-cat="CC"]  .p-carrera-box {
+        border-color: #555 !important;
+      }
+      body.print-bn .p-carrera-wrap[data-cat="OC"]  .p-head-dist,
+      body.print-bn .p-carrera-wrap[data-cat="ONC"] .p-head-dist,
+      body.print-bn .p-carrera-wrap[data-cat="NO"]  .p-head-dist,
+      body.print-bn .p-carrera-wrap[data-cat="CC"]  .p-head-dist {
+        background: #333 !important;
+        color: #fff !important;
+      }
+      body.print-bn .p-novedades { background: #f5f5f5 !important; border-left-color: #555 !important; }
+      body.print-bn .p-novedades-title { color: #000 !important; }
+      body.print-bn .p-fechas-block { background: #f5f5f5 !important; border-left-color: #555 !important; }
+      body.print-bn .p-fechas-h { color: #000 !important; }
     }
     #auth-overlay { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center; }
     .btn-logout { background:none;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;transition:all 0.2s; }
@@ -223,7 +247,9 @@
 <div class="topbar">
   <a href="reuniones.html" class="btn-back">← Reuniones</a>
   <h1 id="topbar-title">Carta de Llamados</h1>
-  <button class="btn-outline" onclick="imprimirCarta()">🖨️ Guardar / Imprimir PDF</button>
+  <button class="btn-outline" onclick="guardarCartaPDF()">💾 Guardar PDF</button>
+  <button class="btn-outline" onclick="imprimirCartaColor()">🖨️ Imprimir Color</button>
+  <button class="btn-outline" onclick="imprimirCartaBN()">🖨️ Imprimir B/N</button>
   <button class="btn-outline" id="btn-publicar" onclick="publicarCarta()" style="display:none;border-color:var(--success);color:var(--success);">📢 Publicar carta</button>
   <button class="btn-primary" id="btn-nueva-carrera" onclick="openModal()">+ Nuevo Turno</button>
 </div>
@@ -394,7 +420,7 @@ let sb, CLUB_ID, currentUser;
 async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
-function imprimirCarta() {
+function _prepararTituloCarta() {
   const _origTitle = document.title;
   if (reunion?.fecha) {
     const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -406,6 +432,22 @@ function imprimirCarta() {
     document.title = `Carta-de-Llamado${num?'-Reunion-'+num:''}-${dia}-${mes}-${anio}`;
   }
   window.addEventListener('afterprint', () => { document.title = _origTitle; }, { once: true });
+}
+
+function guardarCartaPDF() {
+  _prepararTituloCarta();
+  window.print();
+}
+
+function imprimirCartaColor() {
+  _prepararTituloCarta();
+  window.print();
+}
+
+function imprimirCartaBN() {
+  _prepararTituloCarta();
+  document.body.classList.add('print-bn');
+  window.addEventListener('afterprint', () => { document.body.classList.remove('print-bn'); }, { once: true });
   window.print();
 }
 
@@ -762,15 +804,6 @@ function renderPrint() {
        </div>`
     : '';
 
-  const impTxt  = (clubData?.disclaimer_importante || '').trim();
-  const notaTxt = (clubData?.disclaimer_nota || '').trim();
-  const disclaimersHtml = (impTxt || notaTxt)
-    ? `<div class="p-disclaimer">
-         ${impTxt  ? `<div><span class="p-disclaimer-h">IMPORTANTE:</span> ${escapeHtml(impTxt)}</div>` : ''}
-         ${notaTxt ? `<div style="margin-top:4pt"><span class="p-disclaimer-h">NOTA:</span> ${escapeHtml(notaTxt)}</div>` : ''}
-       </div>`
-    : '';
-
   const fInsc = (reunion?.fechas_inscripciones || '').trim();
   const fForf = (reunion?.fechas_forfaits || '').trim();
   const fComp = (reunion?.fechas_compromiso_montas || '').trim();
@@ -782,40 +815,7 @@ function renderPrint() {
        </div>`
     : '';
 
-  const contactoNombre = (clubData?.nombre_contacto || '').trim();
-  const contactoTel    = (clubData?.tel_contacto || '').trim();
-  const web = (clubData?.website   || '').trim();
-  const ig  = (clubData?.instagram || '').trim();
-  const fb  = (clubData?.facebook  || '').trim();
-  const tk  = (clubData?.tiktok    || '').trim();
-  const tw  = (clubData?.twitter_x || '').trim();
-  const yt  = (clubData?.youtube   || '').trim();
-  const redes = [
-    ig ? `📷 ${ig}` : '',
-    fb ? `📘 ${fb}` : '',
-    tk ? `🎵 ${tk}` : '',
-    tw ? `𝕏 ${tw}`  : '',
-    yt ? `▶ ${yt}`  : '',
-  ].filter(Boolean).join('  ·  ');
-  const secretariaHtml = (contactoNombre || contactoTel || web || redes)
-    ? `<div class="p-secretaria">
-         <div class="p-sec-left">
-           <div class="p-sec-h">Secretaría de Carreras</div>
-           <div>${escapeHtml(contactoNombre)}${contactoTel ? ' · ' + escapeHtml(contactoTel) : ''}</div>
-         </div>
-         <div class="p-sec-right">
-           ${web   ? `<div>${escapeHtml(web)}</div>` : ''}
-           ${redes ? `<div class="p-redes">${escapeHtml(redes)}</div>` : ''}
-         </div>
-       </div>`
-    : '';
-
-  const sponsors = Array.isArray(clubData?.sponsors) ? clubData.sponsors : [];
-  const sponsorsHtml = sponsors.length
-    ? `<div class="p-sponsors">${sponsors.filter(s => s.logo_url).map(s => `<img class="p-sponsor-logo" src="${s.logo_url}" alt="${escapeHtml(s.nombre || '')}">`).join('')}</div>`
-    : '';
-
-  document.getElementById('print-only').innerHTML = header + carrerasHtml + novedadesHtml + disclaimersHtml + fechasHtml + secretariaHtml + sponsorsHtml;
+  document.getElementById('print-only').innerHTML = header + carrerasHtml + novedadesHtml + fechasHtml;
 }
 
 async function saveObservaciones() {
