@@ -125,6 +125,7 @@
   <button class="btn-outline" onclick="openPremiosModal()">🏆 Premios</button>
   <button class="btn-outline" onclick="openApuestasModal()">🎯 Apuestas</button>
   <button class="btn-outline" onclick="abrirProgramaOficial()">📘 Programa Oficial</button>
+  <button class="btn-outline" onclick="abrirProgramaOficialColor()">📕 Programa Oficial Color</button>
 </div>
 
 <div class="content" id="content">
@@ -380,6 +381,11 @@ function openComisionModal() {
 function abrirProgramaOficial() {
   if (!currentReunion) { toast('Seleccioná primero una reunión','error'); return; }
   window.open(`programa-oficial.html?reunion_id=${currentReunion.id}`, '_blank');
+}
+
+function abrirProgramaOficialColor() {
+  if (!currentReunion) { toast('Seleccioná primero una reunión','error'); return; }
+  window.open(`programa-oficial-color.html?reunion_id=${currentReunion.id}`, '_blank');
 }
 
 function openApuestasModal() {
