@@ -44,6 +44,7 @@
     .carrera-block-title { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
     .car-num { font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; color: var(--accent); }
     .car-name { font-family: 'Playfair Display', serif; font-size: 18px; }
+    .car-premio { font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 600; color: var(--accent); margin-top: 2px; }
     .car-cat { font-size: 13px; color: var(--muted); }
     .car-conditions { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
     .car-conditions span { color: var(--text); }
@@ -329,7 +330,8 @@ function renderPrograma(reunion, carreras, inscripciones) {
           <div class="carrera-block-title">
             <div class="car-num">${car.numero_carrera_programa || car.numero_turno}</div>
             <div>
-              <div class="car-name">${car.nombre||`Turno ${car.numero_carrera_programa || car.numero_turno}`}</div>
+              <div class="car-name">${car.numero_carrera_programa || car.numero_turno}° Carrera${car.hora_estimada?` — ${String(car.hora_estimada).slice(0,5)} HS`:''}</div>
+              ${car.nombre?`<div class="car-premio">PREMIO: ${car.nombre}</div>`:''}
               <div class="car-cat">${cat?`${cat.nombre}${cat.codigo?` (${cat.codigo})`:''}`:'—'}</div>
             </div>
           </div>
@@ -339,7 +341,6 @@ function renderPrograma(reunion, carreras, inscripciones) {
             ${car.condicion_sexo?`<div>Sexo <span>${car.condicion_sexo}</span></div>`:''}
             ${car.edad_minima_anos||car.edad_maxima_anos?`<div>Edad <span>${car.edad_minima_anos||'?'}–${car.edad_maxima_anos||'?'} años</span></div>`:''}
             ${car.condicion_handicap?`<div>Condición <span>${car.condicion_handicap}</span></div>`:''}
-            ${car.hora_estimada?`<div>Hora <span>${car.hora_estimada}</span></div>`:''}
           </div>
           ${bolsa?`<div class="car-prize">💰 Bolsa: ${formatMonto(Math.round(bolsaEfectiva))} — ${premioStr}</div>`:''}
         </div>
