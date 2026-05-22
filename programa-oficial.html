@@ -84,6 +84,7 @@
   <div style="text-align:center;padding:40px;">Cargando programa…</div>
 </div>
 
+<script src="premios-utils.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const sb = supabase.createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');
@@ -292,9 +293,10 @@ function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
   const bonoGanador  = dist.bono_ganador || 0;
   const apuestasText = Array.isArray(c.apuestas) ? c.apuestas.join(' — ') : '';
   const bolsa = parseFloat(c.bolsa_total) || 0;
+  const { puestos: puestosEfectivos, bolsaEfectiva } = calcPremiosConPiso(bolsa, dist);
   const desglose = [1, 2, 3, 4, 5, 6].map(p => {
-    const pct = parseFloat(dist[String(p)]) || 0;
-    return pct > 0 ? `${p}° ${formatMonto(bolsa * pct / 100)}` : null;
+    const monto = puestosEfectivos[String(p)];
+    return monto > 0 ? `${p}° ${formatMonto(monto)}` : null;
   }).filter(Boolean).join(' — ');
 
   const filas = (ins || [])
@@ -331,7 +333,7 @@ function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
       <div class="carrera-center">
         ${c.nombre ? `<div class="premio">PREMIO: ${c.nombre}</div>` : ''}
         ${(c.condicion_adicional || c.condicion_handicap) ? `<div>${[c.condicion_adicional, c.condicion_handicap].filter(Boolean).join(' — ')}</div>` : ''}
-        <div class="bolsa">BOLSA: ${formatMonto(bolsa)}${desglose ? ` — ${desglose}` : ''}</div>
+        <div class="bolsa">BOLSA: ${formatMonto(Math.round(bolsaEfectiva))}${desglose ? ` — ${desglose}` : ''}</div>
         ${apuestasText ? `<div><strong>APUESTAS:</strong> ${apuestasText}</div>` : ''}
       </div>
       <div class="carrera-right">

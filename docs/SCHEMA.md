@@ -119,6 +119,7 @@ id UUID PK, club_id FK, usuario_id FK, tabla, registro_id UUID, accion, datos_an
 
 ## JSONB distribucion_premios
 {"1": 60, "2": 19, "3": 12, "4": 6, "5": 3, "bono_ganador": 250000, "bono_posicion_desde": 6, "bono_posicion_hasta": 8, "bono_posicion_monto": 100000, "ganancia_minima": 100000}
+NOTA ganancia_minima: piso de premio por puesto. Si `bolsa * pct / 100 < ganancia_minima`, ese puesto se eleva al piso; los que superan el piso no se tocan. Display via `premios-utils.js#calcPremiosConPiso` (bolsa efectiva derivada al render); pago efectivo via `liquidaciones.html` (que aplica el Math.max incluyendo bonos). `carreras.bolsa_total` en DB es siempre la bolsa nominal — nunca se persiste la efectiva.
 
 ## ALTER TABLE ejecutados posteriormente
 ```sql

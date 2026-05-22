@@ -153,6 +153,12 @@ Decisión: la columna "K E S P" en el programa oficial se construye como `${peso
 Justificación: convención del manual impreso de Dolores. Los códigos de pelaje usados: Z=Zaino, T=Tordillo, A=Alazán, C=Colorado, N=Negro, M=Moro/Mulato. Sexo: M=Macho, H=Hembra, C=Castrado.
 Estado: PENDIENTE CONFIRMACIÓN CON FEDE — si el orden o los códigos difieren, actualizar `pelajeCodigo()` y `sexoCodigo()` en programa-oficial.html.
 
+## ADR-037: premios-utils.js como fuente de verdad para display de premios con piso (22/05/2026)
+Decisión: helper compartido `premios-utils.js` expone `calcPremiosConPiso(bolsaNominal, dist)` usado por carta-llamados, inscripciones, ratificacion, programa y programa-oficial para calcular la bolsa efectiva y los montos por puesto respetando `distribucion_premios.ganancia_minima`.
+Justificación: antes de este ADR, cada pantalla mostraba `bolsa * pct / 100` crudo sin aplicar el piso, creando inconsistencia entre lo que se anuncia y lo que paga liquidaciones.html (que ya aplicaba Math.max correctamente). El helper centraliza la lógica de display y garantiza coherencia.
+Excepción: `liquidaciones.html` mantiene su lógica propia porque aplica el piso al pago efectivo (calc + bonos individuales), distinto del display de distribución porcentual. No migrar a calcPremiosConPiso.
+Invariante: `carreras.bolsa_total` en DB es siempre la bolsa nominal. La bolsa efectiva (nominal + deltas de piso) es derivada al render y nunca se persiste.
+
 ## ADR-010: Montos en DB sin formato, UI en formato argentino
 Decisión: Guardar números DECIMAL planos en Postgres. En UI mostrar siempre $1.234.567,89 (punto miles, coma decimal, 2 decimales fijos).
 Funciones: formatMonto() y parseMonto() en SNIPPETS.md.

@@ -163,6 +163,7 @@
     .user-name { font-size:13px;color:var(--muted); }
     @media print { #auth-overlay, .btn-logout, .user-name { display:none !important; } }
   </style>
+  <script src="premios-utils.js"></script>
   <script src="active-reunion.js"></script>
 </head>
 <body>
@@ -664,7 +665,7 @@ async function printInscriptos() {
 
   const [{ data: carsData }, { data: clubData }, { data: reunionFullData }] = await Promise.all([
     sb.from('carreras')
-      .select('id,numero_turno,nombre,bolsa_total,distancia_metros,tipo_pista,edad_minima_anos,edad_maxima_anos,condicion_sexo,condicion_handicap,estado')
+      .select('id,numero_turno,nombre,bolsa_total,distribucion_premios,distancia_metros,tipo_pista,edad_minima_anos,edad_maxima_anos,condicion_sexo,condicion_handicap,estado')
       .eq('reunion_id', reunionId)
       .order('numero_turno'),
     sb.from('clubs').select('logo_url, localidad').eq('id', CLUB_ID).single(),
@@ -739,7 +740,8 @@ async function printInscriptos() {
     totalCaballos += inscsCar.length;
 
     const esMixta = car.condicion_sexo === 'ambos';
-    const bolsaStr = formatBolsa(car.bolsa_total);
+    const { bolsaEfectiva } = calcPremiosConPiso(car.bolsa_total, car.distribucion_premios);
+    const bolsaStr = formatBolsa(bolsaEfectiva);
     const condStr = buildCondAbr(car);
     const esCesped = (car.tipo_pista || '').toLowerCase() === 'cesped';
     const turnoBand = car.nombre

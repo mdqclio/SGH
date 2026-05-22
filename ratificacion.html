@@ -186,6 +186,7 @@
     .user-name { font-size:13px;color:var(--muted); }
     @media print { #auth-overlay, .btn-logout, .user-name { display:none !important; } }
   </style>
+  <script src="premios-utils.js"></script>
   <script src="active-reunion.js"></script>
 </head>
 <body>
@@ -264,7 +265,7 @@ async function printRatificados() {
 
   const [{ data: carsData }, { data: clubData }] = await Promise.all([
     sb.from('carreras')
-      .select('id,numero_turno,numero_carrera_programa,hora_estimada,nombre,bolsa_total,distancia_metros,tipo_pista,edad_minima_anos,edad_maxima_anos,condicion_sexo,condicion_handicap,estado,categoria_id,categorias_carrera(nombre,es_oficial,es_computable)')
+      .select('id,numero_turno,numero_carrera_programa,hora_estimada,nombre,bolsa_total,distribucion_premios,distancia_metros,tipo_pista,edad_minima_anos,edad_maxima_anos,condicion_sexo,condicion_handicap,estado,categoria_id,categorias_carrera(nombre,es_oficial,es_computable)')
       .eq('reunion_id', reunionId),
     sb.from('clubs').select('logo_url, localidad').eq('id', CLUB_ID).single(),
   ]);
@@ -330,7 +331,8 @@ async function printRatificados() {
   function renderBloqueCarrera(car, items, isAnulada, forfaits = []) {
     if (!items.length && !forfaits.length) return '';
     const esMixta = car.condicion_sexo === 'ambos';
-    const bolsaStr = formatBolsa(car.bolsa_total);
+    const { bolsaEfectiva } = calcPremiosConPiso(car.bolsa_total, car.distribucion_premios);
+    const bolsaStr = formatBolsa(bolsaEfectiva);
     const condStr = buildCondAbr(car);
     const esCesped = (car.tipo_pista || '').toLowerCase() === 'cesped';
     const numCarrera = car.numero_carrera_programa || car.numero_turno;
