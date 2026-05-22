@@ -173,6 +173,7 @@ ALTER TABLE clubs ADD COLUMN IF NOT EXISTS auditoria_retencion_meses INTEGER DEF
 -- Sesión 14/05/2026 (liquidaciones + resultados fixes):
 ALTER TABLE resultado_posiciones ADD COLUMN IF NOT EXISTS empate BOOLEAN DEFAULT false;
 ALTER TABLE resultado_posiciones ADD COLUMN IF NOT EXISTS dividendo NUMERIC(10,2); -- (22/05/2026) dividendo "a place" del puesto: pago de apuesta ganador/2°/3° por cada caballo según su posición
+ALTER TABLE resultados ADD COLUMN IF NOT EXISTS favorito_mandil INTEGER; -- (22/05/2026) número de partidor del caballo favorito antes de la carrera (para análisis de M.(F))
 ALTER TABLE resultados ADD COLUMN IF NOT EXISTS estado_pista VARCHAR(20) CHECK (estado_pista IN ('seca','buena','algo_pesada','pesada','muy_pesada'));
 CREATE TABLE IF NOT EXISTS resultado_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
