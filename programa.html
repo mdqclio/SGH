@@ -449,10 +449,7 @@ function openPremiosModal() {
       </div>`;
   }).join('');
   const body = document.getElementById('modal-premios-body');
-  body.innerHTML = `
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Cargá el nombre del premio de cada carrera. Aparece como "PREMIO: &lt;nombre&gt;" en el programa oficial. Dejá vacío si la carrera no tiene nombre asignado.</div>
-    <div>${filas}</div>
-  `;
+  body.innerHTML = `<div>${filas}</div>`;
   document.getElementById('modal-premios').classList.add('open');
 }
 
