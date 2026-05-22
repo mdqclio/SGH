@@ -151,7 +151,7 @@
     }
     table.divs tbody td.td-apu  { text-align: left; padding-left: 12px; font-weight: 700; color: var(--accent); font-size: 12px; }
     table.divs tbody td.td-r    { text-align: right; padding-right: 10px; font-variant-numeric: tabular-nums; color: var(--text); }
-    table.divs tbody td.td-comp { text-align: left; font-family: 'DM Mono', monospace, monospace; color: var(--text); }
+    table.divs tbody td.td-comp { text-align: left; font-family: 'DM Sans', sans-serif; color: var(--text); }
     table.divs tbody tr { cursor: pointer; transition: background 0.08s; }
     table.divs tbody tr:hover:not(.sel-row) { background: rgba(201,168,76,0.05); }
     table.divs tbody tr.sel-row { background: rgba(201,168,76,0.18); }
@@ -595,7 +595,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
               <button class="btn-outline" onclick="openModal(selIdx)">Cambiar</button>
             </div>
             <div class="actions-grp">
-              <button class="btn-primary" onclick="aplicar('${carrera.id}','provisional')">Guardar <kbd>F10</kbd></button>
+              <button class="btn-primary" onclick="aplicar('${carrera.id}','provisional')">Aplicar <kbd>F10</kbd></button>
               <button class="btn-outline" onclick="cancelar('${carrera.id}')">Cancelar <kbd>F9</kbd></button>
             </div>
           </div>
@@ -609,7 +609,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
           </div>
           <div class="status-bar">
             <span class="status-ok" id="status-ok"></span>
-            <span id="status-txt">${res ? 'Resultado cargado. Guardá con F10.' : 'Sin resultado previo. Cargá el marcador y apretá Guardar.'}</span>
+            <span id="status-txt">${res ? 'Resultado cargado. Aplicar con F10.' : 'Sin resultado previo. Cargá el marcador y apretá Aplicar.'}</span>
           </div>
         </div><!-- /det-col-right -->
       </div><!-- /det-cols -->
@@ -748,7 +748,7 @@ function confirmApuesta() {
   }
   closeModal();
   renderTabla();
-  setStatus(`${editIdx!==null?'Apuesta modificada':'Apuesta agregada'} — pendiente Guardar`);
+  setStatus(`${editIdx!==null?'Apuesta modificada':'Apuesta agregada'} — pendiente Aplicar`);
 }
 
 function deleteApuesta() {
@@ -758,7 +758,7 @@ function deleteApuesta() {
   pendingApuestas.splice(selIdx, 1);
   selIdx = Math.min(selIdx, pendingApuestas.length - 1);
   renderTabla();
-  setStatus('Apuesta eliminada — pendiente Guardar');
+  setStatus('Apuesta eliminada — pendiente Aplicar');
 }
 
 /* F8: recarga desde DB */
