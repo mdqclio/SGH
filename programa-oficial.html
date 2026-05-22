@@ -292,7 +292,12 @@ function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
   const cat  = catMap[c.categoria_id];
   const dist = c.distribucion_premios || {};
   const bonoGanador  = dist.bono_ganador || 0;
-  const apuestasText = Array.isArray(c.apuestas) ? c.apuestas.join(' — ') : '';
+  const apuestasText = Array.isArray(c.apuestas)
+    ? c.apuestas
+        .map(a => String(a).replace(/^\s*apuestas\s*:\s*/i, '').trim())
+        .filter(Boolean)
+        .join(', ')
+    : '';
   const bolsa = parseFloat(c.bolsa_total) || 0;
   const { puestos: puestosEfectivos, bolsaEfectiva } = calcPremiosConPiso(bolsa, dist);
   const desglose = [1, 2, 3, 4, 5, 6].map(p => {
