@@ -510,7 +510,7 @@ function renderCarreraColor(c, ins, maps, idx) {
     return m > 0 ? `${p}° ${formatMonto(m)}` : null;
   }).filter(Boolean).join(' — ');
 
-  const condiciones = [c.condicion_adicional, c.condicion_handicap].filter(Boolean).join(' — ');
+  const condiciones = [c.condicion_handicap, c.condicion_adicional].filter(Boolean).join(' — ');
 
   const filas = (ins || [])
     .sort((a, b) => (a.numero_partidor || 999) - (b.numero_partidor || 999))

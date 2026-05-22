@@ -337,7 +337,7 @@ function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
       </div>
       <div class="carrera-center">
         ${c.nombre ? `<div class="premio">PREMIO: ${c.nombre}</div>` : ''}
-        ${(c.condicion_adicional || c.condicion_handicap) ? `<div>${[c.condicion_adicional, c.condicion_handicap].filter(Boolean).join(' — ')}</div>` : ''}
+        ${(c.condicion_adicional || c.condicion_handicap) ? `<div>${[c.condicion_handicap, c.condicion_adicional].filter(Boolean).join(' — ')}</div>` : ''}
         <div class="bolsa">BOLSA: ${formatMonto(Math.round(bolsaEfectiva))}${desglose ? ` — ${desglose}` : ''}</div>
         ${apuestasText ? `<div><strong>APUESTAS:</strong> ${apuestasText}</div>` : ''}
       </div>
