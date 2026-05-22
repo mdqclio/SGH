@@ -8,18 +8,6 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0e2318">
   <title>Resultados — SGH</title>
-  <!--
-  SCHEMA CHANGES (v2 — 22/05/2026):
-    CREATE TABLE resultado_apuestas (id, resultado_id FK, tipo, val_apu, composicion,
-      pozo, vales, div_orig, div_inc, vacante, orden);
-    ALTER TABLE resultados ADD COLUMN redistribucion_legs JSONB;
-    ALTER TABLE resultados ADD COLUMN tiempo_clima VARCHAR(50);
-    ALTER TABLE resultados ADD CONSTRAINT estado_pista_check
-      CHECK (estado_pista IN ('normal','seca','humeda','fangosa','pesada'));
-
-  NOTA: redistribucion_legs semántica pendiente de validación con secretario de carreras.
-  Ver ADR en DECISIONES.md. Flagueado como "a confirmar".
-  -->
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -27,30 +15,37 @@
       --bg:      #0e2318; --card:   #1a3d26; --accent: #c9a84c;
       --text:    #f5f0e8; --muted:  #a0b8a0; --danger: #e05252;
       --success: #4caf82; --border: rgba(201,168,76,0.2); --input-bg: #0e2318;
-      --info:    #74b0f7; --sel:    rgba(201,168,76,0.18);
+      --info:    #74b0f7;
     }
     body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
     h1,h2,h3 { font-family: 'Playfair Display', serif; }
 
-    /* ── Topbar / Selector ── */
+    /* ── Topbar ── */
     .topbar { background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .topbar h1 { font-size: 18px; color: var(--accent); flex: 1; }
     .btn-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 7px 14px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s; }
     .btn-back:hover { border-color: var(--accent); color: var(--accent); }
-    .selector-bar { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .selector-bar { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; gap: 12px; align-items: center; }
     .selector-bar label { font-size: 12px; color: var(--muted); }
-    select, input[type=text], input[type=number] { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; }
-    select:focus, input:focus { border-color: var(--accent); }
-    select option { background: #1a3d26; }
     .content { max-width: 1200px; margin: 0 auto; padding: 24px; }
 
-    /* ── Botones genéricos ── */
-    .btn-primary  { background: var(--accent); color: #1a1a0a; border: none; padding: 8px 16px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+    /* ── Inputs / selects base ── */
+    select, input[type=text], input[type=number] {
+      background: var(--input-bg); border: 1px solid var(--border); color: var(--text);
+      padding: 8px 12px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none;
+    }
+    select:focus, input:focus { border-color: var(--accent); }
+    select option { background: #1a3d26; }
+
+    /* ── Botones ── */
+    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; white-space: nowrap; }
     .btn-primary:hover { opacity: 0.88; }
-    .btn-outline  { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 8px 16px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .btn-outline  { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
     .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
-    .btn-success  { background: var(--success); color: #0e2318; border: none; padding: 8px 16px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
-    .btn-danger   { background: rgba(224,82,82,0.15); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); padding: 8px 16px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; }
+    .btn-success  { background: var(--success); color: #0e2318; border: none; padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .btn-danger   { background: rgba(224,82,82,0.12); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; white-space: nowrap; }
+    .btn-danger:hover { background: rgba(224,82,82,0.2); }
+    kbd { display: inline-block; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; padding: 1px 5px; font-size: 10px; font-family: monospace; color: var(--muted); margin-left: 4px; vertical-align: middle; }
 
     /* ── Badges ── */
     .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
@@ -65,17 +60,17 @@
     .toast-error   { background: #4a1a1a; border: 1px solid var(--danger);  color: var(--text); }
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-    /* ── Loading / empty ── */
+    /* ── Estados vacíos / loading ── */
     .loading-state { display: flex; align-items: center; justify-content: center; padding: 60px; gap: 12px; color: var(--muted); }
     .spinner { width: 22px; height: 22px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .empty-state { text-align: center; padding: 60px 20px; }
     .empty-state .icon { font-size: 48px; margin-bottom: 14px; }
     .empty-state h3 { font-size: 17px; color: var(--muted); }
-    .warning-box { background: rgba(224,82,82,0.1); border: 1px solid rgba(224,82,82,0.3); border-radius: 10px; padding: 14px 16px; font-size: 13px; color: var(--danger); margin-bottom: 12px; }
+    .warning-box { background: rgba(224,82,82,0.1); border: 1px solid rgba(224,82,82,0.3); border-radius: 10px; padding: 12px 16px; font-size: 12px; color: var(--danger); }
 
     /* ── Lista de carreras ── */
-    .carreras-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 14px; margin-bottom: 24px; }
+    .carreras-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 14px; }
     .carrera-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; transition: border-color 0.2s; cursor: pointer; }
     .carrera-card:hover { border-color: rgba(201,168,76,0.4); }
     .carrera-card.oficial     { border-left: 4px solid var(--success); }
@@ -85,127 +80,123 @@
     .cc-meta { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
     .cc-status { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 
-    /* ═══════════════════════════════════════
-       VISTA DETALLE — Layout
-    ═══════════════════════════════════════ */
-    .det-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
-    .det-header h2 { font-size: 20px; color: var(--accent); flex: 1; }
+    /* ══════════════════════════════════════
+       PANEL DE RESULTADO
+    ══════════════════════════════════════ */
+    .res-panel { background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+    .res-panel-header { padding: 16px 22px; background: rgba(201,168,76,0.07); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .res-panel-title { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--accent); }
+    .res-meta { font-size: 12px; color: var(--muted); }
+    .res-section { padding: 14px 22px; border-bottom: 1px solid var(--border); }
+    .res-section-title { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .res-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group label { font-size: 12px; font-weight: 500; color: var(--muted); }
 
-    /* Barra superior de la carrera */
-    .det-topbar { display: flex; align-items: center; gap: 16px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; margin-bottom: 12px; flex-wrap: wrap; font-size: 13px; }
-    .det-topbar label { color: var(--muted); font-size: 12px; margin-right: 4px; }
-    .det-topbar input, .det-topbar select { padding: 4px 8px; height: 28px; font-size: 13px; border-radius: 6px; }
-    .det-topbar select { min-width: 110px; }
-    .borrados-val { font-weight: 600; color: var(--text); }
-
-    /* 2-column grid */
-    .det-main { display: grid; grid-template-columns: 290px 1fr; gap: 14px; align-items: start; }
+    /* ── 2 columnas: marcador + right ── */
+    .det-cols { display: grid; grid-template-columns: 300px 1fr; gap: 0; }
+    .det-col-left { border-right: 1px solid var(--border); padding: 14px 18px; }
+    .det-col-right { padding: 0; }
 
     /* ── Marcador ── */
-    .marcador-panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
-    .marcador-panel h3 { font-family: 'Playfair Display', serif; font-size: 17px; color: var(--accent); margin-bottom: 10px; }
-    .marc-grid { display: grid; grid-template-columns: 30px 36px 6px 56px 1fr; row-gap: 4px; column-gap: 6px; align-items: center; }
-    .marc-pos  { font-size: 12px; color: var(--muted); text-align: right; }
+    .marc-grid { display: grid; grid-template-columns: 30px 48px 10px 54px 1fr; row-gap: 5px; column-gap: 8px; align-items: center; }
+    .marc-pos { font-size: 12px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
     .marc-input {
-      width: 36px; height: 24px; background: var(--input-bg); border: 1px solid var(--border);
-      color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
-      text-align: center; border-radius: 5px; padding: 0 3px;
+      height: 32px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text);
+      border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+      text-align: center; padding: 0 6px; width: 100%; outline: none; transition: border-color 0.15s;
     }
-    .marc-input:focus { border-color: var(--accent); outline: none; }
+    .marc-input:focus { border-color: var(--accent); }
     .marc-leg-lbl { font-size: 11px; color: var(--muted); white-space: nowrap; }
-    .marc-leg-sel {
-      height: 24px; font-size: 11px; background: var(--input-bg); border: 1px solid var(--border);
-      color: var(--text); border-radius: 5px; width: 100%;
-    }
+    .marc-leg-sel { height: 32px; background: var(--input-bg); border: 1px solid var(--border); color: var(--muted); border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 11px; width: 100%; padding: 0 6px; outline: none; }
+    .marc-leg-sel:focus { border-color: var(--accent); }
 
-    /* ── Panel derecho ── */
-    .right-panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
-
-    /* Info block */
-    .info-block { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
-    .info-row { display: flex; align-items: center; gap: 8px; }
-    .info-row label { font-size: 12px; color: var(--muted); min-width: 72px; }
-    .info-row input { padding: 5px 8px; height: 28px; font-size: 13px; border-radius: 6px; flex: 1; }
-    .info-row input.fav { flex: 0 0 56px; text-align: center; }
-
-    /* M.(F) */
-    .mf-block { display: flex; align-items: flex-end; gap: 10px; }
-    .mf-lbl { font-family: 'Playfair Display', serif; font-size: 14px; font-weight: 700; color: var(--accent); white-space: nowrap; }
-    .mf-wrap {}
-    .mf-headers { display: grid; grid-template-columns: repeat(7, 34px); gap: 3px; margin-bottom: 3px; }
+    /* ── M.(F) ── */
+    .mf-block { display: flex; align-items: flex-end; gap: 12px; }
+    .mf-lbl { font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 700; color: var(--accent); white-space: nowrap; padding-bottom: 2px; }
+    .mf-headers { display: grid; grid-template-columns: repeat(7, 32px); gap: 3px; margin-bottom: 3px; }
     .mf-headers div { text-align: center; font-size: 11px; color: var(--muted); }
-    .mf-cells { display: grid; grid-template-columns: repeat(7, 34px); gap: 3px; }
-    .mf-cell { height: 28px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); text-align: center; font-weight: 700; font-size: 14px; line-height: 26px; border-radius: 4px; color: var(--text); }
-    .mf-cell.mf-yellow { background: #f4e842; color: #1a1a1a; border-color: #d4c820; }
-    .mf-cell.mf-green  { background: #1f7d1f; color: #fff;    border-color: #155015; }
-    .mf-cell.mf-red    { background: #d94a2a; color: #fff;    border-color: #b03a1e; }
+    .mf-cells { display: grid; grid-template-columns: repeat(7, 32px); gap: 3px; }
+    .mf-cell { height: 28px; border: 1px solid var(--border); background: rgba(255,255,255,0.04); text-align: center; font-weight: 700; font-size: 14px; line-height: 26px; border-radius: 6px; color: var(--text); transition: background 0.2s; }
+    /* Colores semánticos del negocio hípico, integrados con el dark teal */
+    .mf-2 { background: rgba(201,168,76,0.25); border-color: rgba(201,168,76,0.5); color: #e8d080; }  /* amarillo acento */
+    .mf-3 { background: rgba(76,175,130,0.25); border-color: rgba(76,175,130,0.5); color: var(--success); } /* verde */
+    .mf-4 { background: rgba(224,82,82,0.22);  border-color: rgba(224,82,82,0.45);  color: #e89090; }  /* rojo */
 
-    /* Tabs */
-    .tabs { display: flex; gap: 2px; }
-    .tab { padding: 5px 14px; border: 1px solid var(--border); border-bottom: none; font-size: 12px; cursor: pointer; color: var(--muted); border-radius: 6px 6px 0 0; background: rgba(0,0,0,0.15); }
-    .tab.active { background: var(--card); color: var(--text); font-weight: 600; border-color: var(--accent); }
+    /* ── Tabs ── */
+    .tabs { display: flex; gap: 2px; padding: 14px 22px 0; }
+    .tab { padding: 6px 16px; border: 1px solid var(--border); border-bottom: none; font-size: 12px; font-weight: 500; cursor: pointer; color: var(--muted); border-radius: 8px 8px 0 0; background: rgba(0,0,0,0.1); transition: all 0.15s; }
+    .tab.active { background: rgba(201,168,76,0.1); color: var(--accent); border-color: rgba(201,168,76,0.35); font-weight: 600; }
+    .tab:hover:not(.active) { color: var(--text); }
 
-    /* Tabla apuestas */
-    .table-wrap { border: 1px solid var(--border); border-radius: 0 6px 6px 6px; overflow: hidden; }
+    /* ═══ TABLA DENSA DE DIVIDENDOS ═══ */
+    .divs-outer { margin: 0 22px; border: 1px solid var(--border); border-radius: 0 8px 8px 8px; overflow: hidden; }
+    .divs-scroll { max-height: 360px; overflow-y: auto; }
+    .divs-scroll::-webkit-scrollbar { width: 6px; }
+    .divs-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.15); }
+    .divs-scroll::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3); border-radius: 3px; }
     table.divs { width: 100%; border-collapse: collapse; font-size: 12px; }
-    table.divs thead th { background: rgba(0,0,0,0.3); padding: 6px 8px; text-align: center; font-weight: 600; color: var(--muted); font-size: 11px; text-transform: uppercase; border-bottom: 1px solid var(--border); white-space: nowrap; }
-    table.divs thead th:first-child { text-align: left; padding-left: 12px; }
-    table.divs thead th.num  { text-align: right; }
-    table.divs thead th.comp { text-align: left; }
-    table.divs tbody td { padding: 4px 8px; border-bottom: 1px solid rgba(201,168,76,0.07); font-variant-numeric: tabular-nums; white-space: nowrap; }
-    table.divs tbody td.apu  { text-align: left; padding-left: 12px; font-weight: 600; color: var(--accent); }
-    table.divs tbody td.num  { text-align: right; }
-    table.divs tbody td.comp { text-align: left; font-family: monospace; }
-    table.divs tbody td.vac  { color: var(--danger); font-size: 11px; font-weight: 600; text-align: left; padding-left: 6px; }
-    table.divs tbody tr { cursor: pointer; transition: background 0.1s; }
-    table.divs tbody tr:hover  { background: rgba(201,168,76,0.07); }
-    table.divs tbody tr.sel-row { background: rgba(201,168,76,0.18) !important; }
+    table.divs thead { position: sticky; top: 0; z-index: 1; }
+    table.divs thead th {
+      background: rgba(0,0,0,0.4); padding: 7px 8px; font-weight: 600;
+      color: var(--muted); font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.5px; border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    table.divs thead th.th-l { text-align: left; padding-left: 12px; }
+    table.divs thead th.th-r { text-align: right; padding-right: 10px; }
+    table.divs tbody td {
+      padding: 3px 8px; border-bottom: 1px solid rgba(201,168,76,0.06);
+      height: 26px; white-space: nowrap; vertical-align: middle;
+    }
+    table.divs tbody td.td-apu  { text-align: left; padding-left: 12px; font-weight: 700; color: var(--accent); font-size: 12px; }
+    table.divs tbody td.td-r    { text-align: right; padding-right: 10px; font-variant-numeric: tabular-nums; color: var(--text); }
+    table.divs tbody td.td-comp { text-align: left; font-family: 'DM Mono', monospace, monospace; color: var(--text); }
+    table.divs tbody tr { cursor: pointer; transition: background 0.08s; }
+    table.divs tbody tr:hover:not(.sel-row) { background: rgba(201,168,76,0.05); }
+    table.divs tbody tr.sel-row { background: rgba(201,168,76,0.18); }
     table.divs tbody tr.sel-row td { color: var(--text); }
+    .badge-vac { display: inline-block; background: rgba(224,82,82,0.15); color: #e09090; border: 1px solid rgba(224,82,82,0.25); border-radius: 5px; padding: 1px 7px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
 
-    /* Navegador */
-    .nav-bar { display: flex; align-items: center; gap: 3px; background: rgba(0,0,0,0.2); border-top: 1px solid var(--border); padding: 4px 8px; }
-    .nav-btn { width: 24px; height: 22px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--muted); font-size: 11px; cursor: pointer; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
-    .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .nav-pos { background: var(--input-bg); border: 1px solid var(--border); color: var(--muted); width: 36px; height: 20px; text-align: center; font-size: 11px; border-radius: 4px; padding: 0 3px; }
-    .nav-total { font-size: 11px; color: var(--muted); margin-left: 4px; }
+    /* ── Navegador ── */
+    .nav-bar { display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.2); border-top: 1px solid var(--border); padding: 6px 12px; }
+    .nav-btn { width: 28px; height: 24px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: var(--accent); font-size: 15px; cursor: pointer; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; line-height: 1; }
+    .nav-btn:hover { background: rgba(201,168,76,0.15); border-color: rgba(201,168,76,0.5); }
+    .nav-info { font-size: 12px; color: var(--muted); min-width: 64px; text-align: center; font-variant-numeric: tabular-nums; }
 
-    /* Botones de acción */
-    .actions-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
-    .actions-bar .btn-group { display: flex; gap: 8px; }
-    .act-btn { min-width: 110px; height: 30px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; border-radius: 6px; padding: 0 12px; transition: all 0.15s; }
-    .act-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .act-btn.primary { background: rgba(201,168,76,0.15); border-color: rgba(201,168,76,0.5); color: var(--accent); font-weight: 700; }
-    .act-btn.primary:hover { background: rgba(201,168,76,0.25); }
-    .act-btn.success { background: rgba(76,175,130,0.15); border-color: rgba(76,175,130,0.4); color: var(--success); }
+    /* ── Barra de acciones ── */
+    .actions-bar { padding: 12px 22px; border-top: 1px solid var(--border); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+    .actions-grp { display: flex; gap: 8px; align-items: center; }
 
-    /* Status bar */
-    .status-bar { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; padding-top: 4px; }
-    .status-ok { color: var(--success); font-weight: 700; }
+    /* ── Status bar ── */
+    .status-bar { padding: 8px 22px 14px; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .status-ok { color: var(--success); }
 
-    /* Vista oficial (resumen) */
-    .pos-result-list { list-style: none; }
-    .pos-result-list li { display: flex; gap: 14px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    /* ── Resumen oficial — lista posiciones ── */
+    .pos-list { list-style: none; }
+    .pos-list li { display: flex; gap: 14px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border); }
     .pos-num { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--accent); min-width: 36px; }
-    .pos-spc { font-weight: 600; }
-    .pos-sub { font-size: 11px; color: var(--muted); }
+    .pos-spc { font-weight: 600; font-size: 14px; }
+    .pos-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .pos-div-badge { font-family: 'Playfair Display', serif; color: var(--success); font-weight: 600; font-size: 15px; margin-left: auto; }
 
-    /* Modal CRUD apuesta */
+    /* ── Modal CRUD ── */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; display: none; align-items: flex-start; justify-content: center; padding: 40px 20px; overflow-y: auto; }
     .modal-overlay.open { display: flex; }
-    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 14px; width: 100%; max-width: 500px; margin: auto; }
-    .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 520px; margin: auto; }
+    .modal-header { padding: 16px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
     .modal-header h3 { font-family: 'Playfair Display', serif; font-size: 17px; color: var(--accent); }
-    .btn-close { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; }
-    .modal-body { padding: 18px 20px; }
-    .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
-    .form-group-modal { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
-    .form-group-modal label { font-size: 12px; color: var(--muted); font-weight: 500; }
-    .form-group-modal input, .form-group-modal select { padding: 7px 10px; font-size: 13px; border-radius: 7px; }
-    .form-row-modal { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-top: 4px; }
-    .check-row input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--danger); }
+    .btn-close { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; padding: 0 4px; }
+    .modal-body { padding: 18px 22px; }
+    .modal-footer { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+    .mg { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+    .mg label { font-size: 12px; font-weight: 500; color: var(--muted); }
+    .mg input, .mg select { padding: 8px 12px; font-size: 13px; border-radius: 8px; }
+    .mg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .chk-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-top: 4px; }
+    .chk-row input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--danger); }
 
-    /* Auth overlay */
+    /* ── Auth overlay ── */
     #auth-overlay { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center; }
     .btn-logout { background:none;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;transition:all 0.2s; }
     .btn-logout:hover { border-color:var(--danger);color:var(--danger); }
@@ -214,7 +205,7 @@
     @media print {
       body { background:#fff!important; color:#000!important; }
       .topbar,.selector-bar,#toast-container,.no-print { display:none!important; }
-      .carrera-card,.det-main,.table-wrap { border-color:#ccc!important; background:#fff!important; }
+      .res-panel { border-color:#ccc!important; background:#fff!important; }
       @page { size: A4 portrait; margin: 15mm; }
     }
   </style>
@@ -233,9 +224,7 @@
 
 <div class="selector-bar">
   <label>Reunión:</label>
-  <select id="sel-reunion" onchange="loadReunion()">
-    <option value="">Cargando…</option>
-  </select>
+  <select id="sel-reunion" onchange="loadReunion()"><option value="">Cargando…</option></select>
 </div>
 
 <div class="content">
@@ -244,16 +233,16 @@
   </div>
 </div>
 
-<!-- Modal CRUD apuesta -->
+<!-- Modal: Agregar / Cambiar apuesta -->
 <div class="modal-overlay" id="modal-apuesta">
   <div class="modal">
     <div class="modal-header">
-      <h3 id="modal-apuesta-title">Agregar apuesta</h3>
-      <button class="btn-close" onclick="closeApuestaModal()">✕</button>
+      <h3 id="modal-title">Agregar apuesta</h3>
+      <button class="btn-close" onclick="closeModal()">✕</button>
     </div>
     <div class="modal-body">
-      <div class="form-row-modal">
-        <div class="form-group-modal">
+      <div class="mg-row">
+        <div class="mg">
           <label>Tipo</label>
           <select id="m-tipo">
             <option value="TE">TE — Tómbola Exacta</option>
@@ -268,42 +257,30 @@
             <option value="CAD">CAD — Cadena</option>
           </select>
         </div>
-        <div class="form-group-modal">
+        <div class="mg">
           <label>Val. Apuesta ($)</label>
           <input type="number" id="m-val-apu" value="100" step="0.01" min="0">
         </div>
       </div>
-      <div class="form-group-modal">
-        <label>Composición (ej: 2/4, 8/4/1)</label>
-        <input type="text" id="m-composicion" placeholder="ej: 2/4/5">
+      <div class="mg">
+        <label>Composición (ej: 2/4/5)</label>
+        <input type="text" id="m-comp" placeholder="mandiles separados por /">
       </div>
-      <div class="form-row-modal">
-        <div class="form-group-modal">
-          <label>Pozo ($)</label>
-          <input type="number" id="m-pozo" step="0.01" min="0" placeholder="0.00">
-        </div>
-        <div class="form-group-modal">
-          <label>Vales (boletos ganadores)</label>
-          <input type="number" id="m-vales" step="1" min="0" placeholder="0">
-        </div>
+      <div class="mg-row">
+        <div class="mg"><label>Pozo ($)</label><input type="number" id="m-pozo" step="0.01" min="0"></div>
+        <div class="mg"><label>Vales</label><input type="number" id="m-vales" step="1" min="0"></div>
       </div>
-      <div class="form-row-modal">
-        <div class="form-group-modal">
-          <label>Div. Original ($)</label>
-          <input type="number" id="m-div-orig" step="0.01" min="0" placeholder="0.00">
-        </div>
-        <div class="form-group-modal">
-          <label>Div. por Incidencia ($)</label>
-          <input type="number" id="m-div-inc" step="0.01" min="0" placeholder="0.00">
-        </div>
+      <div class="mg-row">
+        <div class="mg"><label>Div. Original ($)</label><input type="number" id="m-dorig" step="0.01" min="0"></div>
+        <div class="mg"><label>Div. por Incidencia ($)</label><input type="number" id="m-dinc" step="0.01" min="0"></div>
       </div>
-      <div class="check-row">
-        <input type="checkbox" id="m-vacante">
-        <label for="m-vacante">VACANTE (sin boleto ganador)</label>
+      <div class="chk-row">
+        <input type="checkbox" id="m-vac">
+        <label for="m-vac" style="color:var(--danger)">VACANTE — sin boleto ganador</label>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn-outline" onclick="closeApuestaModal()">Cancelar</button>
+      <button class="btn-outline" onclick="closeModal()">Cancelar</button>
       <button class="btn-primary" onclick="confirmApuesta()">Confirmar</button>
     </div>
   </div>
@@ -311,29 +288,28 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+/* ═══════════════════════════════════════════════
+   AUTH
+═══════════════════════════════════════════════ */
 let sb, CLUB_ID, currentUser;
-async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkb1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
-function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
+async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
+function logout(){ sb.auth.signOut().then(()=>window.location.replace('login.html')); }
 
-// ── Estado global ──
+/* ═══════════════════════════════════════════════
+   ESTADO GLOBAL
+═══════════════════════════════════════════════ */
 let reuniones=[], carreras=[], inscripciones=[], resultados={}, posicionesMap={}, apuestasMap={};
 let spcsMap={}, profsMap={};
 let currentCarreraId = null;
-let pendingApuestas  = [];    // copia local de resultado_apuestas para la carrera abierta
-let editingApuestaIdx = null; // null = agregar, N = editar índice en pendingApuestas
-let selectedRowIdx   = -1;
-let navIdx           = 0;
-let statusMsg        = '';
+let pendingApuestas  = [];     // copia local de resultado_apuestas (la edición)
+let editIdx          = null;   // null=agregar, N=índice en pendingApuestas
+let selIdx           = -1;     // fila seleccionada en la tabla
 
-// ── Formatters ──
-function formatMonto(num) {
-  if (num == null || isNaN(num)) return '';
-  const n = parseFloat(num);
-  const [ent, dec] = Math.abs(n).toFixed(2).split('.');
-  return (n<0?'-':'') + '$' + ent.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + dec;
-}
-function formatNum(n) {
-  if (n == null || n === '') return '';
+/* ═══════════════════════════════════════════════
+   FORMATTERS
+═══════════════════════════════════════════════ */
+function fNum(n) {
+  if (n == null || n === '' || isNaN(n)) return '';
   return parseFloat(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function toast(msg, type='success') {
@@ -341,19 +317,21 @@ function toast(msg, type='success') {
   t.className = `toast toast-${type}`;
   t.textContent = msg;
   document.getElementById('toast-container').appendChild(t);
-  setTimeout(() => t.remove(), 3500);
+  setTimeout(()=>t.remove(), 3500);
 }
 
-// ── Carga de datos ──
+/* ═══════════════════════════════════════════════
+   CARGA DE DATOS
+═══════════════════════════════════════════════ */
 async function init() {
-  const [{ data: reuns }, { data: profs }, { data: sprcs }] = await Promise.all([
+  const [{ data: reuns }, { data: profs }, { data: spcs }] = await Promise.all([
     sb.from('reuniones').select('id,numero,fecha,estado,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
     sb.from('profesionales').select('id,nombre,apellido').eq('club_id', CLUB_ID),
     sb.from('spcs').select('id,nombre').order('nombre'),
   ]);
   reuniones = reuns || [];
-  (profs || []).forEach(p => { profsMap[p.id] = p; });
-  (sprcs || []).forEach(s => { spcsMap[s.id] = s; });
+  (profs||[]).forEach(p => { profsMap[p.id] = p; });
+  (spcs ||[]).forEach(s => { spcsMap[s.id]  = s; });
 
   const sel = document.getElementById('sel-reunion');
   sel.innerHTML = '<option value="">— Seleccionar —</option>' +
@@ -368,696 +346,704 @@ async function loadReunion() {
   if (rid) ActiveReunion.set(rid);
   const mc = document.getElementById('main-container');
   if (!rid) { mc.innerHTML='<div class="empty-state"><div class="icon">🏁</div><h3>Seleccionar una reunión</h3></div>'; return; }
-  mc.innerHTML='<div class="loading-state"><div class="spinner"></div> Cargando carreras…</div>';
+  mc.innerHTML='<div class="loading-state"><div class="spinner"></div> Cargando…</div>';
 
   const { data: cars } = await sb.from('carreras').select('*').eq('reunion_id', rid).order('numero_turno');
   carreras = cars || [];
   if (!carreras.length) { mc.innerHTML='<div class="empty-state"><div class="icon">📋</div><h3>Sin carreras en esta reunión</h3></div>'; return; }
 
-  const carIds = carreras.map(c => c.id);
-
+  const carIds = carreras.map(c=>c.id);
   const [{ data: inscs }, { data: resData }] = await Promise.all([
     sb.from('inscripciones').select('*').in('carrera_id', carIds),
     sb.from('resultados').select('*').in('carrera_id', carIds),
   ]);
   inscripciones = inscs || [];
   resultados = {};
-  (resData || []).forEach(r => { resultados[r.carrera_id] = r; });
+  (resData||[]).forEach(r => { resultados[r.carrera_id] = r; });
 
-  const resIds = (resData || []).map(r => r.id);
+  const resIds = (resData||[]).map(r=>r.id);
   const [{ data: posData }, { data: apuData }] = await Promise.all([
     resIds.length ? sb.from('resultado_posiciones').select('*').in('resultado_id', resIds) : { data: [] },
     resIds.length ? sb.from('resultado_apuestas').select('*').in('resultado_id', resIds).order('orden') : { data: [] },
   ]);
   posicionesMap = {};
   apuestasMap   = {};
-  (posData || []).forEach(p => { (posicionesMap[p.resultado_id] ??= []).push(p); });
-  (apuData || []).forEach(a => { (apuestasMap[a.resultado_id]   ??= []).push(a); });
+  (posData||[]).forEach(p => { (posicionesMap[p.resultado_id] ??= []).push(p); });
+  (apuData||[]).forEach(a => { (apuestasMap[a.resultado_id]   ??= []).push(a); });
 
-  renderCarrerasList();
+  renderLista();
 }
 
-// ── Lista de carreras ──
-function renderCarrerasList() {
+/* ═══════════════════════════════════════════════
+   LISTA DE CARRERAS
+═══════════════════════════════════════════════ */
+function renderLista() {
   currentCarreraId = null;
-  const mc = document.getElementById('main-container');
-  mc.innerHTML = `<div class="carreras-grid">${
-    carreras.map(c => {
-      const res = resultados[c.id];
+  document.getElementById('main-container').innerHTML =
+    `<div class="carreras-grid">${carreras.map(c => {
+      const res   = resultados[c.id];
       const estado = res?.estado || 'sin_resultado';
       return `<div class="carrera-card ${estado}" onclick="abrirResultado('${c.id}')">
         <div class="cc-num">${c.numero_carrera_programa || c.numero_turno}</div>
         <div class="cc-name">${c.nombre || `Turno ${c.numero_turno}`}</div>
-        <div class="cc-meta">${c.distancia_metros}m · ${c.tipo_pista || '—'}</div>
-        <div class="cc-status">
-          <span class="badge badge-${estado}">${estado.replace('_',' ')}</span>
-        </div>
-        <button class="btn-outline" style="width:100%;font-size:12px;">
-          ${estado === 'sin_resultado' ? '✏️ Cargar resultado' : '🔍 Ver / editar'}
+        <div class="cc-meta">${c.distancia_metros}m · ${c.tipo_pista||'—'}</div>
+        <div class="cc-status"><span class="badge badge-${estado}">${estado.replace('_',' ')}</span></div>
+        <button class="btn-outline" style="width:100%;font-size:12px;margin-top:2px;">
+          ${estado==='sin_resultado'?'✏️ Cargar resultado':'🔍 Ver / editar'}
         </button>
       </div>`;
-    }).join('')
-  }</div>`;
+    }).join('')}</div>`;
 }
 
-// ── Abrir detalle ──
+/* ═══════════════════════════════════════════════
+   ABRIR CARRERA
+═══════════════════════════════════════════════ */
 function abrirResultado(carreraId) {
   currentCarreraId = carreraId;
-  const carrera  = carreras.find(c => c.id === carreraId);
-  const res      = resultados[carreraId];
-  const pos      = res ? (posicionesMap[res.id] || []) : [];
-  const apuestas = res ? (apuestasMap[res.id]   || []) : [];
-  const insc     = inscripciones.filter(i => i.carrera_id === carreraId);
-
-  if (res?.estado === 'oficial') {
-    renderResumenOficial(carrera, res, pos, apuestas, insc);
-  } else {
-    renderFormulario(carrera, res, pos, apuestas, insc);
-  }
+  const carrera = carreras.find(c=>c.id===carreraId);
+  const res     = resultados[carreraId];
+  const pos     = res ? (posicionesMap[res.id]||[]) : [];
+  const apus    = res ? (apuestasMap[res.id]  ||[]) : [];
+  const insc    = inscripciones.filter(i=>i.carrera_id===carreraId);
+  if (res?.estado==='oficial') renderOficial(carrera, res, pos, apus, insc);
+  else                          renderFormulario(carrera, res, pos, apus, insc);
 }
 
-// ── Render formulario (edición) ──
-function renderFormulario(carrera, res, pos, apuestas, insc) {
-  // Inicializar estado local
-  pendingApuestas   = apuestas.map(a => ({...a}));
-  selectedRowIdx    = -1;
-  navIdx            = 0;
-  editingApuestaIdx = null;
+/* ═══════════════════════════════════════════════
+   FORMULARIO DE CARGA
+═══════════════════════════════════════════════ */
+function renderFormulario(carrera, res, pos, apus, insc) {
+  pendingApuestas = apus.map(a=>({...a}));
+  selIdx   = -1;
+  editIdx  = null;
 
   // Borrados
-  const borradas = insc.filter(i => ['forfait','mal_inscrito'].includes(i.estado))
-                       .sort((a,b) => (a.numero_partidor||999)-(b.numero_partidor||999));
+  const borradas = insc.filter(i=>['forfait','mal_inscrito'].includes(i.estado))
+                       .sort((a,b)=>(a.numero_partidor||999)-(b.numero_partidor||999));
   const borradosTxt = borradas.length
-    ? `${borradas.map(i => i.numero_partidor).filter(Boolean).join('-')} (${insc.length})`
+    ? `${borradas.map(i=>i.numero_partidor).filter(Boolean).join('-')} (${insc.length})`
     : `Ninguno (${insc.length})`;
 
-  // Mandil por puesto (desde posicionesMap)
-  const mandilByPuesto = {};
+  // Mandil por puesto (desde posiciones guardadas)
+  const mbp = {};
   pos.forEach(p => {
-    const i = insc.find(x => x.id === p.inscripcion_id);
-    if (i?.numero_partidor) mandilByPuesto[p.posicion] = i.numero_partidor;
+    const i = insc.find(x=>x.id===p.inscripcion_id);
+    if (i?.numero_partidor) mbp[p.posicion] = i.numero_partidor;
   });
 
-  // Jockeys 1° y 2° desde posiciones guardadas
-  const jockeyNombre = (mandil) => {
-    const i = insc.find(x => x.numero_partidor === parseInt(mandil));
+  // Jockeys auto-derivados
+  const jockStr = (mandil) => {
+    const i = insc.find(x=>x.numero_partidor===parseInt(mandil));
     const p = i ? profsMap[i.jockey_titular_id] : null;
-    return p ? `${p.apellido || ''} ${p.nombre || ''}`.trim().toUpperCase() : '';
+    return p ? `${p.apellido||''} ${p.nombre||''}`.trim().toUpperCase() : '';
   };
-  const j1 = jockeyNombre(mandilByPuesto[1]);
-  const j2 = jockeyNombre(mandilByPuesto[2]);
 
-  // Legs de redistribución
+  // Selectores de leg
+  const legLabels = ['Gde','al 3°','al 4°','al 5°','al 6°'];
+  const legOpts   = [
+    {v:'',l:'—'},{v:'gde',l:'Gde (1)'},{v:'al2',l:'al 2°'},{v:'al3',l:'al 3°'},
+    {v:'al4',l:'al 4°'},{v:'al5',l:'al 5°'},{v:'al6',l:'al 6°'},{v:'al7',l:'al 7°'},
+  ];
+  const legSel = (n, legs) => legOpts.map(o=>`<option value="${o.v}" ${(legs[String(n)]||'')===o.v?'selected':''}>${o.l}</option>`).join('');
   const legs = res?.redistribucion_legs || {};
 
-  // Opciones de estado de pista
-  const pistOpts = ['normal','seca','humeda','fangosa','pesada'];
-  const pistSel = (v) => pistOpts.map(o => `<option value="${o}" ${(res?.estado_pista||'normal')===o?'selected':''}>${o.charAt(0).toUpperCase()+o.slice(1)}</option>`).join('');
-
-  // Opciones de legs
-  const legOpts = [
-    {v:'',    l:'—'},
-    {v:'gde', l:'Gde (1)'},
-    {v:'al2', l:'al 2°'},
-    {v:'al3', l:'al 3°'},
-    {v:'al4', l:'al 4°'},
-    {v:'al5', l:'al 5°'},
-    {v:'al6', l:'al 6°'},
-    {v:'al7', l:'al 7°'},
-  ];
-  const legSel = (idx) => legOpts.map(o => `<option value="${o.v}" ${(legs[String(idx)]||'')===(o.v)?'selected':''}>${o.l}</option>`).join('');
-  const legLabels = ['Gde','al 3°','al 4°','al 5°','al 6°'];
-
-  // Marcador HTML (20 filas)
-  const marcRows = Array.from({length:20}, (_,i) => {
-    const puesto = i + 1;
-    const val    = mandilByPuesto[puesto] || '';
-    const legHtml = i < 5
+  // Marcador HTML
+  const marcRows = Array.from({length:20},(_,i)=>{
+    const p   = i+1;
+    const val = mbp[p] || '';
+    const extra = i < 5
       ? `<div class="marc-leg-lbl">${legLabels[i]}:</div>
-         <select class="marc-leg-sel" id="leg-${i+1}" title="Redistribución pata ${i+1} — ver ADR pendiente">${legSel(i+1)}</select>`
+         <select class="marc-leg-sel" id="leg-${p}" title="Redistribución pata ${p} — semántica pendiente validación con secretaría">${legSel(p,legs)}</select>`
       : '<div></div><div></div>';
-    return `<div class="marc-pos">${puesto}°</div>
-      <input class="marc-input" id="marc-${puesto}" type="number" min="1" max="30" value="${val}" oninput="onMarcChange()">
-      <div></div>
-      ${legHtml}`;
+    return `<div class="marc-pos">${p}°</div>
+      <input class="marc-input" id="marc-${p}" type="number" min="1" max="30" value="${val}" oninput="onMarcInput()">
+      <div></div>${extra}`;
+  }).join('');
+
+  // Estado de pista options
+  const pistaOpts = ['normal','seca','humeda','fangosa','pesada'].map(v=>
+    `<option value="${v}" ${(res?.estado_pista||'normal')===v?'selected':''}>${v.charAt(0).toUpperCase()+v.slice(1)}</option>`
+  ).join('');
+
+  // M.(F) inicial
+  const mfCells = [1,2,3,4,5,6,7].map(p => {
+    const m = mbp[p]||'';
+    const cls = p===2?'mf-2': p===3?'mf-3': p===4?'mf-4':'';
+    return `<div class="mf-cell ${cls}" id="mf-${p}">${m}</div>`;
   }).join('');
 
   document.getElementById('main-container').innerHTML = `
-    <div class="det-header">
-      <button class="btn-outline no-print" onclick="renderCarrerasList()">← Carreras</button>
-      <h2>Turno ${carrera.numero_turno}${carrera.nombre?' — '+carrera.nombre:''}</h2>
-      <span class="badge badge-${res?.estado||'sin_resultado'}">${(res?.estado||'sin resultado').replace('_',' ')}</span>
-    </div>
-
-    <!-- Barra superior carrera -->
-    <div class="det-topbar">
-      <div><label>Tiempo</label>
-        <input type="text" id="tiempo-clima" value="${res?.tiempo_clima||''}" placeholder="BUENO" style="width:100px"></div>
-      <div><label>Pista</label>
-        <select id="estado-pista">${pistSel()}</select></div>
-      <div><label>T. ganador</label>
-        <input type="text" id="tiempo-ganador" value="${res?.tiempo_ganador||''}" placeholder="1:02.3" style="width:80px"></div>
-      <div style="margin-left:auto;">Borrados: <span class="borrados-val">${borradosTxt}</span></div>
-    </div>
-
-    <!-- Main 2-column -->
-    <div class="det-main">
-
-      <!-- Marcador -->
-      <div class="marcador-panel">
-        <h3>Marcador</h3>
-        <div class="marc-grid">${marcRows}</div>
+    <div class="res-panel">
+      <!-- Header del panel -->
+      <div class="res-panel-header">
+        <div>
+          <div class="res-panel-title">Turno ${carrera.numero_turno}${carrera.nombre?' — '+carrera.nombre:''}</div>
+          <div class="res-meta">${carrera.distancia_metros}m · ${carrera.tipo_pista||'—'}</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <span class="badge badge-${res?.estado||'sin_resultado'}">${(res?.estado||'sin resultado').replace('_',' ')}</span>
+          <button class="btn-outline no-print" onclick="renderLista()">← Carreras</button>
+        </div>
       </div>
 
-      <!-- Panel derecho -->
-      <div class="right-panel">
-
-        <!-- Info block -->
-        <div class="info-block">
-          <div class="info-row">
-            <label>Jockey 1°:</label>
-            <input type="text" id="jockey1-input" value="${j1}" placeholder="—">
+      <!-- Condiciones generales -->
+      <div class="res-section">
+        <div class="res-section-title">Condiciones de la carrera</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Tiempo (clima)</label>
+            <input type="text" id="tiempo-clima" value="${res?.tiempo_clima||''}" placeholder="BUENO" style="width:110px">
           </div>
-          <div class="info-row">
-            <label>Jockey 2°:</label>
-            <input type="text" id="jockey2-input" value="${j2}" placeholder="—">
+          <div class="form-group">
+            <label>Estado de pista</label>
+            <select id="estado-pista" style="min-width:120px;">${pistaOpts}</select>
           </div>
-          <div class="info-row">
-            <label>Tiempo:</label>
-            <input type="text" id="tiempo-ganador-r" value="${res?.tiempo_ganador||''}" placeholder="1:02.3" style="display:none">
-            <span style="font-size:13px;color:var(--muted)" id="tiempo-display">${res?.tiempo_ganador||'—'}</span>
+          <div class="form-group">
+            <label>Tiempo del ganador</label>
+            <input type="text" id="tiempo-ganador" value="${res?.tiempo_ganador||''}" placeholder="1:02.3" style="width:100px">
           </div>
-          <div class="info-row">
-            <label>Favorito:</label>
-            <input type="number" id="favorito-mandil" value="${res?.favorito_mandil||''}" placeholder="mandil" class="fav">
+          <div class="form-group">
+            <label>Incidentes</label>
+            <input type="text" id="incidentes" value="${res?.incidentes||''}" placeholder="Notas…" style="min-width:240px;flex:1">
+          </div>
+          <div class="form-group" style="margin-left:auto;font-size:13px;color:var(--muted);align-self:flex-end;">
+            Borrados: <strong style="color:var(--text)">${borradosTxt}</strong>
           </div>
         </div>
+      </div>
 
-        <!-- M.(F) -->
-        <div class="mf-block">
-          <span class="mf-lbl">M.(F)</span>
-          <div class="mf-wrap">
-            <div class="mf-headers"><div>1°</div><div>2°</div><div>3°</div><div>4°</div><div>5°</div><div>6°</div><div>7°</div></div>
-            <div class="mf-cells" id="mf-cells">
-              ${[1,2,3,4,5,6,7].map(p => {
-                const m = mandilByPuesto[p] || '';
-                const cls = p===2?'mf-yellow': p===3?'mf-green': p===4?'mf-red':'';
-                return `<div class="mf-cell ${cls}" id="mf-${p}">${m}</div>`;
-              }).join('')}
+      <!-- 2 columnas: marcador + datos + tabla -->
+      <div class="det-cols">
+
+        <!-- ─── MARCADOR ─── -->
+        <div class="det-col-left">
+          <div class="res-section-title" style="margin-bottom:12px;">Marcador</div>
+          <div class="marc-grid">${marcRows}</div>
+        </div>
+
+        <!-- ─── PANEL DERECHO ─── -->
+        <div class="det-col-right">
+
+          <!-- Jockey / Favorito -->
+          <div class="res-section">
+            <div class="res-section-title">Datos del resultado</div>
+            <div class="form-row">
+              <div class="form-group" style="flex:1;">
+                <label>Jockey 1°</label>
+                <input type="text" id="jockey1" value="${jockStr(mbp[1])}" placeholder="—">
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label>Jockey 2°</label>
+                <input type="text" id="jockey2" value="${jockStr(mbp[2])}" placeholder="—">
+              </div>
+              <div class="form-group">
+                <label>Favorito (mandil)</label>
+                <input type="number" id="favorito-mandil" value="${res?.favorito_mandil||''}" placeholder="—" style="width:80px">
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Tabs -->
-        <div class="tabs">
-          <div class="tab" id="tab-red" onclick="switchTab('red')">Vista Reducida</div>
-          <div class="tab active" id="tab-det" onclick="switchTab('det')">Vista Detallada</div>
-        </div>
-
-        <!-- Tabla de apuestas -->
-        <div class="table-wrap" id="apuestas-wrap">
-          <table class="divs">
-            <thead><tr>
-              <th class="apu" style="width:56px">Apu</th>
-              <th class="num" style="width:76px">Val.Apu</th>
-              <th class="comp" style="width:130px">Composición</th>
-              <th class="num" style="width:110px">Pozo</th>
-              <th class="num" style="width:64px">Vales</th>
-              <th class="num" style="width:96px">Div.Orig</th>
-              <th class="num" style="width:96px">Div.Inc</th>
-              <th style="width:80px"></th>
-            </tr></thead>
-            <tbody id="apu-tbody"></tbody>
-          </table>
-          <div class="nav-bar">
-            <button class="nav-btn" onclick="navFirst()" title="Primero">|◄</button>
-            <button class="nav-btn" onclick="navPrev()"  title="Anterior">◄</button>
-            <input  class="nav-pos" id="nav-pos-input" type="number" min="1" onchange="navGo(this.value)">
-            <button class="nav-btn" onclick="navNext()"  title="Siguiente">►</button>
-            <button class="nav-btn" onclick="navLast()"  title="Último">►|</button>
-            <span class="nav-total" id="nav-total">/ 0</span>
+          <!-- M.(F) -->
+          <div class="res-section">
+            <div class="mf-block">
+              <span class="mf-lbl">M.(F)</span>
+              <div>
+                <div class="mf-headers"><div>1°</div><div>2°</div><div>3°</div><div>4°</div><div>5°</div><div>6°</div><div>7°</div></div>
+                <div class="mf-cells">${mfCells}</div>
+              </div>
+            </div>
           </div>
-        </div>
 
-        <!-- Botones de acción -->
-        <div class="actions-bar no-print">
-          <div class="btn-group">
-            <button class="act-btn" onclick="f8Dividendos()">F8-Dividendos</button>
+          <!-- Tabs + tabla de dividendos -->
+          <div class="tabs">
+            <div class="tab" id="tab-red" onclick="switchTab('red')">Vista Reducida</div>
+            <div class="tab active" id="tab-det" onclick="switchTab('det')">Vista Detallada</div>
           </div>
-          <div class="btn-group">
-            <button class="act-btn" onclick="deleteApuesta()">Eliminar</button>
-            <button class="act-btn" onclick="openApuestaModal(null)">Agregar</button>
-            <button class="act-btn" onclick="openApuestaModal(selectedRowIdx)">Cambiar</button>
+          <div class="divs-outer">
+            <div class="divs-scroll">
+              <table class="divs">
+                <thead><tr>
+                  <th class="th-l" style="width:58px">Apu</th>
+                  <th class="th-r" style="width:78px">Val.Apu</th>
+                  <th class="th-l" style="width:130px">Composición</th>
+                  <th class="th-r" style="width:110px">Pozo</th>
+                  <th class="th-r" style="width:60px">Vales</th>
+                  <th class="th-r" style="width:96px">Div.Orig</th>
+                  <th class="th-r" style="width:96px">Div.Inc</th>
+                  <th style="width:88px"></th>
+                </tr></thead>
+                <tbody id="apu-tbody"></tbody>
+              </table>
+            </div>
+            <div class="nav-bar">
+              <button class="nav-btn" onclick="navFirst()" title="Primero">«</button>
+              <button class="nav-btn" onclick="navPrev()"  title="Anterior">‹</button>
+              <span class="nav-info" id="nav-info">0 / 0</span>
+              <button class="nav-btn" onclick="navNext()"  title="Siguiente">›</button>
+              <button class="nav-btn" onclick="navLast()"  title="Último">»</button>
+            </div>
           </div>
-          <div class="btn-group">
-            <button class="act-btn primary" onclick="aplicar('${carrera.id}','provisional')">F10-Aplicar</button>
-            <button class="act-btn" onclick="cancelarEdicion('${carrera.id}')">F9-Cancelar</button>
-          </div>
-        </div>
-        <div class="btn-group no-print" style="gap:8px;display:flex;margin-top:2px;">
-          <button class="btn-success" onclick="oficializar('${carrera.id}')">✅ Hacer oficial</button>
-        </div>
-        <div class="warning-box no-print" style="font-size:12px;margin-top:6px;">
-          ⚠️ <strong>Hacer oficial</strong> bloquea el resultado permanentemente.
-        </div>
 
-        <!-- Status bar -->
-        <div class="status-bar" id="status-bar">
-          <span class="status-ok" id="status-ok"></span>
-          <span id="status-txt">${res ? 'Resultado cargado. F10 para guardar cambios.' : 'Sin resultado previo. Cargá el marcador y apretá F10.'}</span>
-        </div>
-      </div>
-    </div>`;
+          <!-- Acciones -->
+          <div class="actions-bar no-print">
+            <div class="actions-grp">
+              <button class="btn-outline" onclick="f8Dividendos()">Dividendos <kbd>F8</kbd></button>
+            </div>
+            <div class="actions-grp">
+              <button class="btn-danger"  onclick="deleteApuesta()">Eliminar</button>
+              <button class="btn-outline" onclick="openModal(null)">Agregar</button>
+              <button class="btn-outline" onclick="openModal(selIdx)">Cambiar</button>
+            </div>
+            <div class="actions-grp">
+              <button class="btn-primary" onclick="aplicar('${carrera.id}','provisional')">Guardar <kbd>F10</kbd></button>
+              <button class="btn-outline" onclick="cancelar('${carrera.id}')">Cancelar <kbd>F9</kbd></button>
+            </div>
+          </div>
+          <div class="actions-bar no-print" style="border-top:none;padding-top:0;">
+            <div class="actions-grp">
+              <button class="btn-success" onclick="oficializar('${carrera.id}')">✅ Hacer oficial</button>
+            </div>
+            <div class="warning-box" style="font-size:11px;flex:1;">
+              ⚠️ Hacer oficial bloquea el resultado permanentemente.
+            </div>
+          </div>
+          <div class="status-bar">
+            <span class="status-ok" id="status-ok"></span>
+            <span id="status-txt">${res ? 'Resultado cargado. Guardá con F10.' : 'Sin resultado previo. Cargá el marcador y apretá Guardar.'}</span>
+          </div>
+        </div><!-- /det-col-right -->
+      </div><!-- /det-cols -->
+    </div><!-- /res-panel -->`;
 
-  // Renderizar tabla de apuestas + M.(F) inicial
-  setTimeout(() => { renderApuestasTable(); }, 0);
+  setTimeout(() => renderTabla(), 0);
 }
 
-// ── Cambio en marcador → actualiza M.(F) y Jockeys ──
-function onMarcChange() {
-  updateMF();
-  autoFillJockeys();
-}
+/* ── Cambios en el marcador ── */
+function onMarcInput() { updateMF(); autoJockeys(); }
 
 function updateMF() {
   [1,2,3,4,5,6,7].forEach(p => {
-    const cell = document.getElementById(`mf-${p}`);
-    if (!cell) return;
-    const inp = document.getElementById(`marc-${p}`);
-    cell.textContent = inp?.value?.trim() || '';
+    const c = document.getElementById(`mf-${p}`);
+    if (c) c.textContent = document.getElementById(`marc-${p}`)?.value?.trim() || '';
   });
 }
 
-function autoFillJockeys() {
-  const j1 = jockeyFromMandilInput(1);
-  const j2 = jockeyFromMandilInput(2);
-  const el1 = document.getElementById('jockey1-input');
-  const el2 = document.getElementById('jockey2-input');
+function autoJockeys() {
+  const jstr = (puesto) => {
+    const val = document.getElementById(`marc-${puesto}`)?.value?.trim();
+    if (!val) return '';
+    const mandil = parseInt(val);
+    const insc = inscripciones.find(i => i.carrera_id===currentCarreraId && i.numero_partidor===mandil);
+    const jock = insc ? profsMap[insc.jockey_titular_id] : null;
+    return jock ? `${jock.apellido||''} ${jock.nombre||''}`.trim().toUpperCase() : '';
+  };
+  const j1 = jstr(1), j2 = jstr(2);
+  const el1 = document.getElementById('jockey1'), el2 = document.getElementById('jockey2');
   if (el1 && j1) el1.value = j1;
   if (el2 && j2) el2.value = j2;
 }
 
-function jockeyFromMandilInput(puesto) {
-  const val = document.getElementById(`marc-${puesto}`)?.value?.trim();
-  if (!val) return '';
-  const mandil = parseInt(val);
-  const insc = inscripciones.find(i => i.carrera_id === currentCarreraId && i.numero_partidor === mandil);
-  const jock = insc ? profsMap[insc.jockey_titular_id] : null;
-  return jock ? `${jock.apellido||''} ${jock.nombre||''}`.trim().toUpperCase() : '';
-}
-
-// ── Tabs ──
+/* ── Tabs ── */
 function switchTab(tab) {
   document.getElementById('tab-red')?.classList.toggle('active', tab==='red');
   document.getElementById('tab-det')?.classList.toggle('active', tab==='det');
-  // TODO: Vista Reducida = mostrar solo filas no-vacante
-  // Por ahora ambas vistas muestran la misma tabla
+  // Vista Reducida: ocultar filas VACANTE — TODO sesión 3
+  renderTabla();
 }
 
-// ── Tabla de apuestas ──
-function renderApuestasTable() {
+function isReducida() {
+  return document.getElementById('tab-red')?.classList.contains('active');
+}
+
+/* ── Tabla de dividendos ── */
+function renderTabla() {
   const tbody = document.getElementById('apu-tbody');
   if (!tbody) return;
 
-  if (!pendingApuestas.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--muted)">Sin apuestas cargadas. Usá Agregar.</td></tr>';
-    document.getElementById('nav-total').textContent = '/ 0';
-    document.getElementById('nav-pos-input').value = '';
+  const filas = isReducida()
+    ? pendingApuestas.filter(a => !a.vacante)
+    : pendingApuestas;
+
+  if (!filas.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="padding:18px;text-align:center;color:var(--muted);">Sin apuestas cargadas. Usá Agregar.</td></tr>';
+    document.getElementById('nav-info').textContent = '0 / 0';
     return;
   }
 
-  tbody.innerHTML = pendingApuestas.map((a, i) => {
-    const sel = i === selectedRowIdx ? 'sel-row' : '';
-    return `<tr class="${sel}" onclick="selectApuestaRow(${i})">
-      <td class="apu">${a.tipo || ''}</td>
-      <td class="num">${a.val_apu != null ? formatNum(a.val_apu) : ''}</td>
-      <td class="comp">${a.composicion || ''}</td>
-      <td class="num">${a.pozo != null ? formatNum(a.pozo) : ''}</td>
-      <td class="num">${a.vales != null && a.vales !== '' ? a.vales : ''}</td>
-      <td class="num">${a.div_orig != null ? formatNum(a.div_orig) : ''}</td>
-      <td class="num">${a.div_inc  != null ? formatNum(a.div_inc)  : ''}</td>
-      <td class="vac">${a.vacante ? 'VACANTE' : ''}</td>
+  const pendingIdxForFila = (filaIdx) => {
+    if (!isReducida()) return filaIdx;
+    const fila = filas[filaIdx];
+    return pendingApuestas.indexOf(fila);
+  };
+
+  tbody.innerHTML = filas.map((a, fi) => {
+    const pidx = pendingIdxForFila(fi);
+    const sel  = pidx === selIdx ? 'sel-row' : '';
+    return `<tr class="${sel}" onclick="selectRow(${pidx})">
+      <td class="td-apu">${a.tipo||''}</td>
+      <td class="td-r">${a.val_apu!=null ? fNum(a.val_apu) : ''}</td>
+      <td class="td-comp">${a.composicion||''}</td>
+      <td class="td-r">${a.pozo!=null ? fNum(a.pozo) : ''}</td>
+      <td class="td-r">${a.vales!=null && a.vales!=='' ? a.vales : ''}</td>
+      <td class="td-r">${a.div_orig!=null ? fNum(a.div_orig) : ''}</td>
+      <td class="td-r">${a.div_inc!=null  ? fNum(a.div_inc)  : ''}</td>
+      <td style="text-align:left;padding-left:6px;">${a.vacante ? '<span class="badge-vac">VACANTE</span>' : ''}</td>
     </tr>`;
   }).join('');
 
-  const total = pendingApuestas.length;
-  document.getElementById('nav-total').textContent = `/ ${total}`;
-  document.getElementById('nav-pos-input').value = selectedRowIdx >= 0 ? selectedRowIdx + 1 : '';
-  // Scroll selected row into view
-  if (selectedRowIdx >= 0) {
-    tbody.children[selectedRowIdx]?.scrollIntoView({ block: 'nearest' });
+  document.getElementById('nav-info').textContent =
+    `${selIdx >= 0 ? selIdx+1 : '—'} / ${pendingApuestas.length}`;
+
+  if (selIdx >= 0 && selIdx < pendingApuestas.length) {
+    const pidx = pendingApuestas.indexOf(filas.find((_,fi)=>pendingIdxForFila(fi)===selIdx));
+    tbody.children[Math.max(0,pidx)]?.scrollIntoView({ block:'nearest' });
   }
 }
 
-function selectApuestaRow(idx) {
-  selectedRowIdx = idx;
-  navIdx = idx;
-  renderApuestasTable();
-}
+function selectRow(pidx) { selIdx = pidx; renderTabla(); }
 
-// Navegador
-function navFirst() { if (!pendingApuestas.length) return; selectApuestaRow(0); }
-function navLast()  { if (!pendingApuestas.length) return; selectApuestaRow(pendingApuestas.length - 1); }
-function navPrev()  { if (selectedRowIdx > 0) selectApuestaRow(selectedRowIdx - 1); else navFirst(); }
-function navNext()  { if (selectedRowIdx < pendingApuestas.length - 1) selectApuestaRow(selectedRowIdx + 1); else navLast(); }
-function navGo(v)   { const i = parseInt(v) - 1; if (i >= 0 && i < pendingApuestas.length) selectApuestaRow(i); }
+// Navegador — opera sobre pendingApuestas (no sobre la vista filtrada)
+function navFirst() { if (pendingApuestas.length) selectRow(0); }
+function navLast()  { if (pendingApuestas.length) selectRow(pendingApuestas.length-1); }
+function navPrev()  { selectRow(Math.max(0, selIdx-1)); }
+function navNext()  { selectRow(Math.min(pendingApuestas.length-1, selIdx+1)); }
 
-// ── Modal CRUD ──
-function openApuestaModal(idx) {
-  editingApuestaIdx = typeof idx === 'number' && idx >= 0 ? idx : null;
-  const a = editingApuestaIdx !== null ? pendingApuestas[editingApuestaIdx] : null;
-  document.getElementById('modal-apuesta-title').textContent = a ? 'Cambiar apuesta' : 'Agregar apuesta';
-  document.getElementById('m-tipo').value        = a?.tipo       || 'EX';
-  document.getElementById('m-val-apu').value     = a?.val_apu    ?? 100;
-  document.getElementById('m-composicion').value = a?.composicion || '';
-  document.getElementById('m-pozo').value        = a?.pozo        ?? '';
-  document.getElementById('m-vales').value       = a?.vales       ?? '';
-  document.getElementById('m-div-orig').value    = a?.div_orig    ?? '';
-  document.getElementById('m-div-inc').value     = a?.div_inc     ?? '';
-  document.getElementById('m-vacante').checked   = a?.vacante     || false;
+/* ── Modal CRUD ── */
+function openModal(idx) {
+  editIdx = (typeof idx === 'number' && idx >= 0 && idx < pendingApuestas.length) ? idx : null;
+  const a = editIdx !== null ? pendingApuestas[editIdx] : null;
+  document.getElementById('modal-title').textContent = a ? 'Cambiar apuesta' : 'Agregar apuesta';
+  document.getElementById('m-tipo').value   = a?.tipo       || 'EX';
+  document.getElementById('m-val-apu').value = a?.val_apu   ?? 100;
+  document.getElementById('m-comp').value   = a?.composicion || '';
+  document.getElementById('m-pozo').value   = a?.pozo        ?? '';
+  document.getElementById('m-vales').value  = a?.vales       ?? '';
+  document.getElementById('m-dorig').value  = a?.div_orig    ?? '';
+  document.getElementById('m-dinc').value   = a?.div_inc     ?? '';
+  document.getElementById('m-vac').checked  = a?.vacante     || false;
   document.getElementById('modal-apuesta').classList.add('open');
-  document.getElementById('m-composicion').focus();
+  document.getElementById('m-comp').focus();
 }
-function closeApuestaModal() { document.getElementById('modal-apuesta').classList.remove('open'); }
+function closeModal() { document.getElementById('modal-apuesta').classList.remove('open'); }
 
 function confirmApuesta() {
+  const tipo = document.getElementById('m-tipo').value.trim();
+  if (!tipo) { toast('Seleccioná un tipo', 'error'); return; }
   const row = {
-    tipo:        document.getElementById('m-tipo').value.trim(),
+    tipo,
     val_apu:     parseFloat(document.getElementById('m-val-apu').value) || 0,
-    composicion: document.getElementById('m-composicion').value.trim() || null,
-    pozo:        parseFloat(document.getElementById('m-pozo').value)    || null,
-    vales:       parseInt(document.getElementById('m-vales').value)     || null,
-    div_orig:    parseFloat(document.getElementById('m-div-orig').value) || null,
-    div_inc:     parseFloat(document.getElementById('m-div-inc').value)  || null,
-    vacante:     document.getElementById('m-vacante').checked,
+    composicion: document.getElementById('m-comp').value.trim() || null,
+    pozo:        parseFloat(document.getElementById('m-pozo').value)  || null,
+    vales:       parseInt(document.getElementById('m-vales').value)   || null,
+    div_orig:    parseFloat(document.getElementById('m-dorig').value) || null,
+    div_inc:     parseFloat(document.getElementById('m-dinc').value)  || null,
+    vacante:     document.getElementById('m-vac').checked,
   };
-  if (!row.tipo) { toast('Seleccioná un tipo de apuesta', 'error'); return; }
-
-  if (editingApuestaIdx !== null) {
-    pendingApuestas[editingApuestaIdx] = { ...pendingApuestas[editingApuestaIdx], ...row };
-    selectedRowIdx = editingApuestaIdx;
+  if (editIdx !== null) {
+    pendingApuestas[editIdx] = { ...pendingApuestas[editIdx], ...row };
+    selIdx = editIdx;
   } else {
     pendingApuestas.push(row);
-    selectedRowIdx = pendingApuestas.length - 1;
+    selIdx = pendingApuestas.length - 1;
   }
-  closeApuestaModal();
-  renderApuestasTable();
-  setStatus(`${editingApuestaIdx !== null ? 'Apuesta modificada' : 'Apuesta agregada'} (pendiente F10-Aplicar)`);
+  closeModal();
+  renderTabla();
+  setStatus(`${editIdx!==null?'Apuesta modificada':'Apuesta agregada'} — pendiente Guardar`);
 }
 
 function deleteApuesta() {
-  if (selectedRowIdx < 0 || selectedRowIdx >= pendingApuestas.length) {
-    toast('Seleccioná una fila primero', 'error'); return;
-  }
-  if (!confirm(`¿Eliminar fila "${pendingApuestas[selectedRowIdx].tipo} ${pendingApuestas[selectedRowIdx].composicion||''}"?`)) return;
-  pendingApuestas.splice(selectedRowIdx, 1);
-  selectedRowIdx = Math.min(selectedRowIdx, pendingApuestas.length - 1);
-  renderApuestasTable();
-  setStatus('Apuesta eliminada (pendiente F10-Aplicar)');
+  if (selIdx < 0 || selIdx >= pendingApuestas.length) { toast('Seleccioná una fila primero','error'); return; }
+  const a = pendingApuestas[selIdx];
+  if (!confirm(`¿Eliminar fila "${a.tipo} ${a.composicion||''}"?`)) return;
+  pendingApuestas.splice(selIdx, 1);
+  selIdx = Math.min(selIdx, pendingApuestas.length - 1);
+  renderTabla();
+  setStatus('Apuesta eliminada — pendiente Guardar');
 }
 
-// F8: recarga apuestas desde DB (descarta cambios locales)
+/* F8: recarga desde DB */
 async function f8Dividendos() {
-  if (!currentCarreraId) return;
   const res = resultados[currentCarreraId];
-  if (!res) { toast('Guardá el resultado primero (F10)', 'error'); return; }
+  if (!res) { toast('Guardá el resultado primero','error'); return; }
   const { data } = await sb.from('resultado_apuestas').select('*').eq('resultado_id', res.id).order('orden');
   apuestasMap[res.id] = data || [];
-  pendingApuestas = (data || []).map(a => ({...a}));
-  selectedRowIdx = -1;
-  renderApuestasTable();
+  pendingApuestas = (data||[]).map(a=>({...a}));
+  selIdx = -1;
+  renderTabla();
   setStatus('Dividendos recargados desde la base de datos.');
 }
 
-// ── Aplicar (F10) ──
+/* ═══════════════════════════════════════════════
+   GUARDAR (F10-Aplicar)
+═══════════════════════════════════════════════ */
 async function aplicar(carreraId, estado) {
-  const tiempoClima  = document.getElementById('tiempo-clima')?.value.trim()   || null;
-  const estadoPista  = document.getElementById('estado-pista')?.value           || null;
-  const tiempoGan    = document.getElementById('tiempo-ganador')?.value.trim()  || null;
-  const favoritoVal  = document.getElementById('favorito-mandil')?.value;
-  const favorito_mandil = favoritoVal ? parseInt(favoritoVal, 10) : null;
+  const tiempoClima  = document.getElementById('tiempo-clima')?.value.trim()  || null;
+  const estadoPista  = document.getElementById('estado-pista')?.value          || null;
+  const tiempoGan    = document.getElementById('tiempo-ganador')?.value.trim() || null;
+  const incidentes   = document.getElementById('incidentes')?.value.trim()     || null;
+  const favVal       = document.getElementById('favorito-mandil')?.value;
+  const favorito_mandil = favVal ? parseInt(favVal,10) : null;
 
-  // Redistribución de legs
   const redistribucion_legs = {};
-  for (let i = 1; i <= 5; i++) {
+  for (let i=1; i<=5; i++) {
     const v = document.getElementById(`leg-${i}`)?.value;
     if (v) redistribucion_legs[String(i)] = v;
   }
 
-  const insc = inscripciones.filter(i => i.carrera_id === carreraId);
   const res  = resultados[carreraId];
+  const insc = inscripciones.filter(i=>i.carrera_id===carreraId);
 
-  // Construir payload de resultado
-  const resPayload = {
+  const payload = {
     carrera_id: carreraId, estado,
-    tiempo_clima:  tiempoClima,
-    estado_pista:  estadoPista,
+    tiempo_clima: tiempoClima,
+    estado_pista: estadoPista,
     tiempo_ganador: tiempoGan,
+    incidentes,
     favorito_mandil,
     redistribucion_legs: Object.keys(redistribucion_legs).length ? redistribucion_legs : null,
-    dividendos: res?.dividendos || null, // preservar JSONB legacy
+    dividendos: res?.dividendos || null, // preservar JSONB legacy intacto
   };
 
   // Upsert resultado
   let resId = res?.id;
   if (!resId) {
-    const { data, error } = await sb.from('resultados').insert(resPayload).select().single();
-    if (error) { toast(error.message, 'error'); return; }
-    resId = data.id;
-    resultados[carreraId] = data;
+    const { data, error } = await sb.from('resultados').insert(payload).select().single();
+    if (error) { toast(error.message,'error'); return; }
+    resId = data.id; resultados[carreraId] = data;
   } else {
-    const { error } = await sb.from('resultados').update(resPayload).eq('id', resId);
-    if (error) { toast(error.message, 'error'); return; }
-    resultados[carreraId] = { ...resultados[carreraId], ...resPayload };
+    const { error } = await sb.from('resultados').update(payload).eq('id', resId);
+    if (error) { toast(error.message,'error'); return; }
+    resultados[carreraId] = {...resultados[carreraId], ...payload};
   }
 
-  // Posiciones: leer marcador (20 inputs → inscripcion_id)
+  // Posiciones: marcador → inscripcion_id
   const posData = [];
-  let duplicateError = false;
-  const mandilUsados = new Set();
-  for (let puesto = 1; puesto <= 20; puesto++) {
-    const rawVal = document.getElementById(`marc-${puesto}`)?.value?.trim();
-    if (!rawVal) continue;
-    const mandil = parseInt(rawVal);
+  const usados  = new Set();
+  for (let p=1; p<=20; p++) {
+    const raw = document.getElementById(`marc-${p}`)?.value?.trim();
+    if (!raw) continue;
+    const mandil = parseInt(raw);
     if (isNaN(mandil)) continue;
-    if (mandilUsados.has(mandil)) { toast(`Mandil ${mandil} aparece más de una vez en el marcador`, 'error'); duplicateError = true; break; }
-    mandilUsados.add(mandil);
-    const inscr = insc.find(i => i.numero_partidor === mandil);
-    if (!inscr) { toast(`Mandil ${mandil} no encontrado entre los inscriptos`, 'error'); duplicateError = true; break; }
-    posData.push({
-      resultado_id: resId, inscripcion_id: inscr.id,
-      posicion: puesto, diferencia: null, dividendo: null,
-      descalificado: false, motivo_desc: null, empate: false,
-    });
+    if (usados.has(mandil)) { toast(`Mandil ${mandil} duplicado en el marcador`,'error'); return; }
+    usados.add(mandil);
+    const inscr = insc.find(i=>i.numero_partidor===mandil);
+    if (!inscr) { toast(`Mandil ${mandil} no encontrado entre los inscriptos`,'error'); return; }
+    posData.push({ resultado_id:resId, inscripcion_id:inscr.id, posicion:p,
+      diferencia:null, dividendo:null, descalificado:false, motivo_desc:null, empate:false });
   }
-  if (duplicateError) return;
-
   if (posData.length) {
     await sb.from('resultado_posiciones').delete().eq('resultado_id', resId);
     const { error } = await sb.from('resultado_posiciones').insert(posData);
-    if (error) { toast(error.message, 'error'); return; }
+    if (error) { toast(error.message,'error'); return; }
     posicionesMap[resId] = posData;
   }
 
   // Apuestas
   if (pendingApuestas.length > 0) {
     await sb.from('resultado_apuestas').delete().eq('resultado_id', resId);
-    const apuToInsert = pendingApuestas.map((a, i) => ({
-      resultado_id: resId,
-      tipo: a.tipo, val_apu: a.val_apu,
-      composicion: a.composicion || null,
-      pozo:     a.pozo     || null,
-      vales:    a.vales    || null,
-      div_orig: a.div_orig || null,
-      div_inc:  a.div_inc  || null,
-      vacante:  a.vacante  || false,
-      orden:    i + 1,
+    const rows = pendingApuestas.map((a,i) => ({
+      resultado_id:resId, tipo:a.tipo, val_apu:a.val_apu,
+      composicion:a.composicion||null, pozo:a.pozo||null, vales:a.vales||null,
+      div_orig:a.div_orig||null, div_inc:a.div_inc||null, vacante:a.vacante||false, orden:i+1,
     }));
-    const { error } = await sb.from('resultado_apuestas').insert(apuToInsert);
-    if (error) { toast(error.message, 'error'); return; }
-    apuestasMap[resId] = apuToInsert;
-    pendingApuestas = apuToInsert.map(a => ({...a}));
+    const { error } = await sb.from('resultado_apuestas').insert(rows);
+    if (error) { toast(error.message,'error'); return; }
+    apuestasMap[resId] = rows;
+    pendingApuestas = rows.map(r=>({...r}));
   }
 
-  const msg = estado === 'provisional' ? 'Resultado provisional guardado' : 'Guardado';
+  const msg = estado==='provisional' ? 'Resultado provisional guardado' : 'Guardado';
   toast(msg);
   setStatus(`✓ ${msg} — ${new Date().toLocaleTimeString('es-AR')}`);
+  renderTabla();
 }
 
-async function cancelarEdicion(carreraId) {
+async function cancelar(carreraId) {
   await loadReunion();
   if (carreraId) abrirResultado(carreraId);
 }
 
-// ── Oficializar ──
+/* ═══════════════════════════════════════════════
+   OFICIALIZAR
+═══════════════════════════════════════════════ */
 async function oficializar(carreraId) {
-  if (!confirm('⚠️ Esta acción es irreversible. El resultado quedará bloqueado. ¿Confirmar?')) return;
+  if (!confirm('⚠️ Esta acción es irreversible. ¿Hacer oficial el resultado?')) return;
   await aplicar(carreraId, 'oficial');
   const res = resultados[carreraId];
   if (res?.estado !== 'oficial') return;
 
-  // Actualizar performances (mismo código que legacy)
   const posiciones = posicionesMap[res.id] || [];
-  const inscs = inscripciones.filter(i => i.carrera_id === carreraId);
-  const carrera = carreras.find(c => c.id === carreraId);
-  const { data: reunionData } = await sb.from('reuniones').select('fecha,hipodromos(nombre,sigla)').eq('id', document.getElementById('sel-reunion').value).single();
+  const inscs = inscripciones.filter(i=>i.carrera_id===carreraId);
+  const carrera = carreras.find(c=>c.id===carreraId);
+  const { data: reun } = await sb.from('reuniones').select('fecha,hipodromos(nombre,sigla)').eq('id', document.getElementById('sel-reunion').value).single();
   const perfInserts = posiciones.map(pos => {
-    const insc = inscs.find(i => i.id === pos.inscripcion_id);
+    const insc = inscs.find(i=>i.id===pos.inscripcion_id);
     if (!insc) return null;
-    return { spc_id: insc.spc_id, carrera_id: carreraId, fecha_carrera: reunionData?.fecha,
-      hipodromo_sigla: reunionData?.hipodromos?.sigla||'', hipodromo_nombre: reunionData?.hipodromos?.nombre||'',
-      numero_carrera: carrera?.numero_turno, distancia_metros: carrera?.distancia_metros,
-      tipo_pista: carrera?.tipo_pista, posicion: pos.posicion, tiempo_ganador: res?.tiempo_ganador,
-      diferencia: pos.diferencia, peso_llevado: insc.peso_final||insc.peso_declarado,
-      jockey_id: insc.jockey_titular_id, descalificado: pos.descalificado, fuente: 'local' };
+    return { spc_id:insc.spc_id, carrera_id:carreraId, fecha_carrera:reun?.fecha,
+      hipodromo_sigla:reun?.hipodromos?.sigla||'', hipodromo_nombre:reun?.hipodromos?.nombre||'',
+      numero_carrera:carrera?.numero_turno, distancia_metros:carrera?.distancia_metros,
+      tipo_pista:carrera?.tipo_pista, posicion:pos.posicion, tiempo_ganador:res?.tiempo_ganador,
+      diferencia:pos.diferencia, peso_llevado:insc.peso_final||insc.peso_declarado,
+      jockey_id:insc.jockey_titular_id, descalificado:pos.descalificado, fuente:'local' };
   }).filter(Boolean);
   if (perfInserts.length) {
     await sb.from('performances').delete().eq('carrera_id', carreraId);
     await sb.from('performances').insert(perfInserts);
   }
-  toast('Resultado oficial ✅');
+  toast('✅ Resultado oficial');
   abrirResultado(carreraId);
 }
 
 async function modificarOficial(resId, carreraId) {
-  if (!confirm('⚠️ Modificar un resultado oficial queda registrado en el log de auditoría. ¿Continuar?')) return;
-  const { error } = await sb.from('resultados').update({ estado: 'provisional' }).eq('id', resId);
-  if (error) { toast(error.message, 'error'); return; }
-  resultados[carreraId] = { ...resultados[carreraId], estado: 'provisional' };
+  if (!confirm('⚠️ Modificar un resultado oficial queda registrado en auditoría. ¿Continuar?')) return;
+  const { error } = await sb.from('resultados').update({ estado:'provisional' }).eq('id', resId);
+  if (error) { toast(error.message,'error'); return; }
+  resultados[carreraId] = {...resultados[carreraId], estado:'provisional'};
   abrirResultado(carreraId);
 }
 
-// ── Resumen oficial (solo lectura) ──
-function renderResumenOficial(carrera, res, pos, apuestas, insc) {
-  const posOrdenadas = [...pos].sort((a,b) => (a.posicion||99)-(b.posicion||99));
-
-  const borradas = insc.filter(i => ['forfait','mal_inscrito'].includes(i.estado))
-                       .sort((a,b) => (a.numero_partidor||999)-(b.numero_partidor||999));
+/* ═══════════════════════════════════════════════
+   RESUMEN OFICIAL (solo lectura)
+═══════════════════════════════════════════════ */
+function renderOficial(carrera, res, pos, apus, insc) {
+  const posOrdenadas = [...pos].sort((a,b)=>(a.posicion||99)-(b.posicion||99));
+  const borradas = insc.filter(i=>['forfait','mal_inscrito'].includes(i.estado))
+                       .sort((a,b)=>(a.numero_partidor||999)-(b.numero_partidor||999));
   const borradosTxt = borradas.length
-    ? `${borradas.map(i => i.numero_partidor).filter(Boolean).join('-')} (${insc.length})`
+    ? `${borradas.map(i=>i.numero_partidor).filter(Boolean).join('-')} (${insc.length})`
     : `Ninguno (${insc.length})`;
 
-  const getJock = (puestoNum) => {
-    const p = posOrdenadas.find(x => x.posicion === puestoNum);
+  const mbp = {};
+  posOrdenadas.forEach(p => {
+    const i = insc.find(x=>x.id===p.inscripcion_id);
+    if (i?.numero_partidor) mbp[p.posicion] = i.numero_partidor;
+  });
+
+  const jockStr = (puesto) => {
+    const p = posOrdenadas.find(x=>x.posicion===puesto);
     if (!p) return '—';
-    const i = insc.find(x => x.id === p.inscripcion_id);
+    const i = insc.find(x=>x.id===p.inscripcion_id);
     const j = i ? profsMap[i.jockey_titular_id] : null;
     return j ? `${j.apellido||''} ${j.nombre||''}`.trim().toUpperCase() : '—';
   };
 
-  // M.(F) en resumen
-  const mandilByPuesto = {};
-  posOrdenadas.forEach(p => {
-    const i = insc.find(x => x.id === p.inscripcion_id);
-    if (i?.numero_partidor) mandilByPuesto[p.posicion] = i.numero_partidor;
-  });
   const mfCells = [1,2,3,4,5,6,7].map(p => {
-    const m = mandilByPuesto[p] || '';
-    const cls = p===2?'mf-yellow': p===3?'mf-green': p===4?'mf-red':'';
+    const m = mbp[p]||'';
+    const cls = p===2?'mf-2': p===3?'mf-3': p===4?'mf-4':'';
     return `<div class="mf-cell ${cls}">${m}</div>`;
   }).join('');
 
   document.getElementById('main-container').innerHTML = `
-    <div class="det-header">
-      <button class="btn-outline no-print" onclick="renderCarrerasList()">← Carreras</button>
-      <h2>Turno ${carrera.numero_turno}${carrera.nombre?' — '+carrera.nombre:''}</h2>
-      <span class="badge badge-oficial">✅ Oficial</span>
-      <button class="btn-outline no-print" onclick="window.print()">🖨️ Imprimir</button>
-      <button class="btn-danger no-print" onclick="modificarOficial('${res.id}','${carrera.id}')">⚠️ Modificar</button>
-    </div>
-
-    <div class="det-topbar" style="font-size:13px;">
-      <div>Tiempo: <strong>${res.tiempo_clima||'—'}</strong></div>
-      <div>Pista: <strong>${res.estado_pista||'—'}</strong></div>
-      <div>T. ganador: <strong>${res.tiempo_ganador||'—'}</strong></div>
-      <div style="margin-left:auto;">Borrados: <span class="borrados-val">${borradosTxt}</span></div>
-    </div>
-
-    <div class="det-main">
-      <!-- Marcador / Datos -->
-      <div class="marcador-panel">
-        <h3>Posiciones</h3>
-        <ul class="pos-result-list">
-          ${posOrdenadas.slice(0,10).map(p => {
-            const i = insc.find(x => x.id === p.inscripcion_id);
-            const spc = i ? spcsMap[i.spc_id] : null;
-            const mandil = i?.numero_partidor ? `[${i.numero_partidor}]` : '';
-            return `<li>
-              <div class="pos-num">${p.posicion}°</div>
-              <div>
-                <div class="pos-spc">${mandil} ${spc?.nombre||'—'}${p.descalificado?' <span style="color:var(--danger);font-size:11px">(DESC)</span>':''}</div>
-              </div>
-            </li>`;
-          }).join('')}
-        </ul>
-        <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:12px;font-size:13px;">
-          ${res.favorito_mandil!=null?`<div><div style="font-size:11px;color:var(--muted)">Favorito</div><div style="color:var(--accent);font-weight:700;">${res.favorito_mandil}</div></div>`:''}
-          <div><div style="font-size:11px;color:var(--muted)">Jockey 1°</div><div>${getJock(1)}</div></div>
-          <div><div style="font-size:11px;color:var(--muted)">Jockey 2°</div><div>${getJock(2)}</div></div>
+    <div class="res-panel">
+      <div class="res-panel-header">
+        <div>
+          <div class="res-panel-title">Turno ${carrera.numero_turno}${carrera.nombre?' — '+carrera.nombre:''}</div>
+          <div class="res-meta">${carrera.distancia_metros}m · ${carrera.tipo_pista||'—'} · Pista: ${res.estado_pista||'—'} · ${res.tiempo_clima||''} · T: ${res.tiempo_ganador||'—'}</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <span class="badge badge-oficial">✅ Oficial</span>
+          <button class="btn-outline no-print" onclick="window.print()">🖨️ Imprimir</button>
+          <button class="btn-danger  no-print" onclick="modificarOficial('${res.id}','${carrera.id}')">⚠️ Modificar</button>
+          <button class="btn-outline no-print" onclick="renderLista()">← Carreras</button>
         </div>
       </div>
 
-      <!-- Panel derecho -->
-      <div class="right-panel">
-        <!-- M.(F) -->
-        <div class="mf-block">
-          <span class="mf-lbl">M.(F)</span>
-          <div class="mf-wrap">
-            <div class="mf-headers"><div>1°</div><div>2°</div><div>3°</div><div>4°</div><div>5°</div><div>6°</div><div>7°</div></div>
-            <div class="mf-cells">${mfCells}</div>
+      <div class="res-section">
+        <div class="form-row" style="gap:20px;font-size:13px;">
+          <div>Borrados: <strong>${borradosTxt}</strong></div>
+          ${res.favorito_mandil!=null?`<div>Favorito: <strong style="color:var(--accent)">${res.favorito_mandil}</strong></div>`:''}
+          <div>Jockey 1°: <strong>${jockStr(1)}</strong></div>
+          <div>Jockey 2°: <strong>${jockStr(2)}</strong></div>
+        </div>
+      </div>
+
+      <div class="det-cols">
+        <!-- Posiciones -->
+        <div class="det-col-left">
+          <div class="res-section-title" style="margin-bottom:10px;">Posiciones</div>
+          <ul class="pos-list">
+            ${posOrdenadas.map(p=>{
+              const i = insc.find(x=>x.id===p.inscripcion_id);
+              const spc = i ? spcsMap[i.spc_id] : null;
+              const mandil = i?.numero_partidor ? `[${i.numero_partidor}]` : '';
+              return `<li>
+                <div class="pos-num">${p.posicion}°</div>
+                <div>
+                  <div class="pos-spc">${mandil} ${spc?.nombre||'—'}${p.descalificado?' <span style="color:var(--danger);font-size:11px">(DESC)</span>':''}</div>
+                </div>
+              </li>`;
+            }).join('')}
+          </ul>
+          <!-- M.(F) -->
+          <div style="margin-top:16px;">
+            <div class="mf-block">
+              <span class="mf-lbl">M.(F)</span>
+              <div>
+                <div class="mf-headers"><div>1°</div><div>2°</div><div>3°</div><div>4°</div><div>5°</div><div>6°</div><div>7°</div></div>
+                <div class="mf-cells">${mfCells}</div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- Tabla apuestas (solo lectura) -->
-        <div class="table-wrap">
-          <table class="divs">
-            <thead><tr>
-              <th class="apu" style="width:56px">Apu</th>
-              <th class="num" style="width:76px">Val.Apu</th>
-              <th class="comp" style="width:130px">Composición</th>
-              <th class="num" style="width:110px">Pozo</th>
-              <th class="num" style="width:64px">Vales</th>
-              <th class="num" style="width:96px">Div.Orig</th>
-              <th class="num" style="width:96px">Div.Inc</th>
-              <th style="width:80px"></th>
-            </tr></thead>
-            <tbody>
-              ${apuestas.length
-                ? apuestas.map(a => `<tr>
-                    <td class="apu">${a.tipo||''}</td>
-                    <td class="num">${a.val_apu!=null?formatNum(a.val_apu):''}</td>
-                    <td class="comp">${a.composicion||''}</td>
-                    <td class="num">${a.pozo!=null?formatNum(a.pozo):''}</td>
-                    <td class="num">${a.vales!=null&&a.vales!==''?a.vales:''}</td>
-                    <td class="num">${a.div_orig!=null?formatNum(a.div_orig):''}</td>
-                    <td class="num">${a.div_inc!=null?formatNum(a.div_inc):''}</td>
-                    <td class="vac">${a.vacante?'VACANTE':''}</td>
-                  </tr>`).join('')
-                : '<tr><td colspan="8" style="padding:16px;text-align:center;color:var(--muted)">Sin dividendos cargados</td></tr>'
-              }
-            </tbody>
-          </table>
+        <!-- Tabla dividendos (read-only) -->
+        <div class="det-col-right" style="padding:14px 22px;">
+          <div class="res-section-title" style="margin-bottom:10px;">Dividendos</div>
+          <div class="divs-outer">
+            <div class="divs-scroll" style="max-height:480px;">
+              <table class="divs">
+                <thead><tr>
+                  <th class="th-l" style="width:58px">Apu</th>
+                  <th class="th-r" style="width:78px">Val.Apu</th>
+                  <th class="th-l" style="width:130px">Composición</th>
+                  <th class="th-r" style="width:110px">Pozo</th>
+                  <th class="th-r" style="width:60px">Vales</th>
+                  <th class="th-r" style="width:96px">Div.Orig</th>
+                  <th class="th-r" style="width:96px">Div.Inc</th>
+                  <th style="width:88px"></th>
+                </tr></thead>
+                <tbody>
+                  ${apus.length
+                    ? apus.map(a=>`<tr>
+                        <td class="td-apu">${a.tipo||''}</td>
+                        <td class="td-r">${a.val_apu!=null?fNum(a.val_apu):''}</td>
+                        <td class="td-comp">${a.composicion||''}</td>
+                        <td class="td-r">${a.pozo!=null?fNum(a.pozo):''}</td>
+                        <td class="td-r">${a.vales!=null&&a.vales!==''?a.vales:''}</td>
+                        <td class="td-r">${a.div_orig!=null?fNum(a.div_orig):''}</td>
+                        <td class="td-r">${a.div_inc!=null?fNum(a.div_inc):''}</td>
+                        <td style="text-align:left;padding-left:6px;">${a.vacante?'<span class="badge-vac">VACANTE</span>':''}</td>
+                      </tr>`).join('')
+                    : '<tr><td colspan="8" style="padding:16px;text-align:center;color:var(--muted)">Sin dividendos cargados</td></tr>'
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>`;
 }
 
-// ── Helpers ──
+/* ── Helpers ── */
 function setStatus(msg) {
   const el = document.getElementById('status-txt');
   if (el) el.textContent = msg;
 }
 
-// ── Atajos de teclado ──
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'F8')  { e.preventDefault(); if (currentCarreraId) f8Dividendos(); }
-  if (e.key === 'F9')  { e.preventDefault(); if (currentCarreraId) cancelarEdicion(currentCarreraId); }
-  if (e.key === 'F10') { e.preventDefault(); if (currentCarreraId) aplicar(currentCarreraId, 'provisional'); }
+/* ═══════════════════════════════════════════════
+   ATAJOS DE TECLADO
+═══════════════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+  if (e.key==='F8')  { e.preventDefault(); if (currentCarreraId) f8Dividendos(); }
+  if (e.key==='F9')  { e.preventDefault(); if (currentCarreraId) cancelar(currentCarreraId); }
+  if (e.key==='F10') { e.preventDefault(); if (currentCarreraId) aplicar(currentCarreraId,'provisional'); }
 });
 
-// ── Inicialización ──
-async function initApp() { if (await initAuth()) init(); }
-initApp();
+/* ═══════════════════════════════════════════════
+   ARRANQUE
+═══════════════════════════════════════════════ */
+(async()=>{ if(await initAuth()) init(); })();
 </script>
 <script src="club-switcher.js"></script>
 </body>
