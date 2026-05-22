@@ -283,7 +283,7 @@ function renderPrograma(reunion, carreras, inscripciones) {
   if (!carreras.length) {
     html += `<div class="empty-state"><div class="icon">📋</div><h3>Sin carreras programadas</h3></div>`;
   } else {
-    carreras.forEach(car => {
+    carreras.filter(car => car.estado !== 'anulada').forEach(car => {
       const cat = categorias[car.categoria_id];
       const inscs = inscripciones.filter(i=>i.carrera_id===car.id);
       const dist = car.distribucion_premios || {};
@@ -385,7 +385,7 @@ function abrirProgramaOficial() {
 function openApuestasModal() {
   if (!currentReunion) { toast('Seleccioná primero una reunión','error'); return; }
   if (!currentCarreras || !currentCarreras.length) { toast('Esta reunión no tiene carreras cargadas','error'); return; }
-  const ordenadas = [...currentCarreras].sort((a,b) => {
+  const ordenadas = [...currentCarreras].filter(c => c.estado !== 'anulada').sort((a,b) => {
     const aN = a.numero_carrera_programa != null ? a.numero_carrera_programa : (a.numero_turno + 10000);
     const bN = b.numero_carrera_programa != null ? b.numero_carrera_programa : (b.numero_turno + 10000);
     return aN - bN;
@@ -434,7 +434,7 @@ async function saveApuestas() {
 function openPremiosModal() {
   if (!currentReunion) { toast('Seleccioná primero una reunión','error'); return; }
   if (!currentCarreras || !currentCarreras.length) { toast('Esta reunión no tiene carreras cargadas','error'); return; }
-  const ordenadas = [...currentCarreras].sort((a,b) => {
+  const ordenadas = [...currentCarreras].filter(c => c.estado !== 'anulada').sort((a,b) => {
     const aN = a.numero_carrera_programa != null ? a.numero_carrera_programa : (a.numero_turno + 10000);
     const bN = b.numero_carrera_programa != null ? b.numero_carrera_programa : (b.numero_turno + 10000);
     return aN - bN;
