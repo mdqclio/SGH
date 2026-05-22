@@ -141,7 +141,7 @@ async function load() {
   const { data: club } = await sb.from('clubs').select('*').eq('id', clubId).single();
 
   // 2) Carreras
-  const { data: carreras } = await sb.from('carreras').select('*').eq('reunion_id', reunionId);
+  const { data: carreras } = await sb.from('carreras').select('*').eq('reunion_id', reunionId).neq('estado', 'anulada');
   const carIds = (carreras || []).map(c => c.id);
 
   // 3) Inscripciones y entidades relacionadas
