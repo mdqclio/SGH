@@ -174,6 +174,11 @@ ALTER TABLE clubs ADD COLUMN IF NOT EXISTS auditoria_retencion_meses INTEGER DEF
 ALTER TABLE resultado_posiciones ADD COLUMN IF NOT EXISTS empate BOOLEAN DEFAULT false;
 ALTER TABLE resultado_posiciones ADD COLUMN IF NOT EXISTS dividendo NUMERIC(10,2); -- (22/05/2026) dividendo "a place" del puesto: pago de apuesta ganador/2°/3° por cada caballo según su posición
 ALTER TABLE resultados ADD COLUMN IF NOT EXISTS favorito_mandil INTEGER; -- (22/05/2026) número de partidor del caballo favorito antes de la carrera (para análisis de M.(F))
+-- Migraciones carga-resultados-v2 (22/05/2026):
+-- CREATE TABLE resultado_apuestas (id UUID PK, resultado_id FK, tipo VARCHAR(10), val_apu NUMERIC(10,2), composicion VARCHAR(60), pozo NUMERIC(15,2), vales INTEGER, div_orig NUMERIC(12,2), div_inc NUMERIC(12,2), vacante BOOLEAN, orden SMALLINT, created_at TIMESTAMPTZ)
+-- ALTER TABLE resultados ADD COLUMN redistribucion_legs JSONB; -- umbral redistribución por pata ({"1":"gde","2":"al3",...}) PENDIENTE VALIDACIÓN SEMÁNTICA con secretario de carreras
+-- ALTER TABLE resultados ADD COLUMN tiempo_clima VARCHAR(50); -- condición climática ("BUENO", "REGULAR", "MALO") separada de estado_pista
+-- ALTER TABLE resultados DROP/ADD CONSTRAINT estado_pista_check CHECK (IN ('normal','seca','humeda','fangosa','pesada'))
 ALTER TABLE resultados ADD COLUMN IF NOT EXISTS estado_pista VARCHAR(20) CHECK (estado_pista IN ('seca','buena','algo_pesada','pesada','muy_pesada'));
 CREATE TABLE IF NOT EXISTS resultado_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
