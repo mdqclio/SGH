@@ -300,14 +300,14 @@ function renderPrograma(reunion, carreras, inscripciones) {
         extras.push(`Bono ${dist.bono_posicion_desde}°–${dist.bono_posicion_hasta}°: ${formatMonto(dist.bono_posicion_monto)} c/u`);
       }
       const premioStr = [puestosStr, extras.join(' | ')].filter(Boolean).join(' || ');
-      const rows = inscs.map(i => {
+      const rows = inscs.map((i, idx) => {
         const spc = spcs[i.spc_id];
         const prop = propietarios[i.propietario_id];
         const jock = profesionales[i.jockey_titular_id];
         const entr = profesionales[i.entrenador_id];
         const cab = caballerizas[i.caballeriza_id];
         return `<tr>
-          <td class="part-num">${i.numero_partidor||'—'}</td>
+          <td class="part-num">${idx + 1}</td>
           <td>
             <div class="part-spc">${spc?.nombre||i.spc_id}</div>
             <div class="part-sub">${spc?`${spc.sexo||''}${calcEdad(spc.fecha_nacimiento)} | ${spc.color||''} | Por ${spc.padrillo_nombre||'?'} - ${spc.madre_nombre||'?'}`:''}</div>

@@ -301,7 +301,7 @@ function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
 
   const filas = (ins || [])
     .sort((a, b) => (a.numero_partidor || 999) - (b.numero_partidor || 999))
-    .map(i => {
+    .map((i, idx) => {
       const spc  = spcMap[i.spc_id]            || {};
       const jock = profMap[i.jockey_titular_id];
       const entr = profMap[i.entrenador_id];
@@ -314,7 +314,7 @@ function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
       return `<tr>
         <td>${caballeriza}</td>
         <td>${spc.ult_performances || ''}</td>
-        <td class="col-numero">${i.numero_partidor || ''}</td>
+        <td class="col-numero">${idx + 1}</td>
         <td><strong>${(spc.nombre || '').toUpperCase()}</strong></td>
         <td>${jock ? `${jock.apellido || ''} ${jock.nombre || ''}`.trim().toUpperCase() : 'XX'}</td>
         <td class="col-kesp">${kesp}</td>
