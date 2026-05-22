@@ -155,11 +155,11 @@
         padding-bottom: 10px; margin-bottom: 12px;
         border-bottom: 3px solid #245033;
       }
-      .p-doc-logo { width: 90px; height: 90px; object-fit: contain; flex-shrink: 0; }
-      .p-doc-logo-fallback { width: 90px; flex-shrink: 0; font-size: 11px; font-weight: 700; color: #245033; text-align: center; border: 1px solid #245033; padding: 6px; line-height: 1.3; display: flex; align-items: center; justify-content: center; }
+      .p-doc-logo { width: 100px; height: 100px; object-fit: contain; flex-shrink: 0; }
+      .p-doc-logo-fallback { width: 100px; flex-shrink: 0; font-size: 12px; font-weight: 700; color: #245033; text-align: center; border: 1px solid #245033; padding: 6px; line-height: 1.3; display: flex; align-items: center; justify-content: center; }
       .p-doc-title { flex: 1; text-align: center; padding: 0 12px; }
       .p-doc-title h1 { font-size: 20px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 4px; }
-      .p-doc-title p { font-size: 10px; color: #333; margin: 1px 0; }
+      .p-doc-title p { font-size: 13px; color: #222; margin: 2px 0; }
       .p-doc-fecha { text-align: right; line-height: 1.2; }
       .p-fecha-dow { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #555; }
       .p-fecha-dia { font-size: 30px; font-weight: 900; color: #000; line-height: 1; }
@@ -730,8 +730,7 @@ function renderPrint() {
     ${logoHtml}
     <div class="p-doc-title">
       <h1>Carta de Llamado</h1>
-      <p>Reunión N° ${reunion.numero||'—'} &mdash; ${hip?.nombre||'—'}${hip?.sigla?` (${hip.sigla})`:''}</p>
-      <p>${hip?.localidad||''}${reunion.condicion_pista?` &mdash; Pista: ${reunion.condicion_pista}`:''}</p>
+      <p>Reunión N° ${reunion.numero||'—'} &mdash; ${hip?.nombre||'—'}${hip?.sigla?` (${hip.sigla})`:''}${hip?.localidad?` &mdash; ${hip.localidad}`:''}${reunion.condicion_pista?` &mdash; Pista: ${reunion.condicion_pista}`:''}</p>
     </div>
     <div class="p-doc-fecha">
       <div class="p-fecha-dow">${DIAS[f.getDay()]}</div>
