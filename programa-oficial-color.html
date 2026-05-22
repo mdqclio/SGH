@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8">
+<title>Programa Oficial Color</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;800;900&family=Roboto+Condensed:wght@700;900&family=Playfair+Display:ital,wght@1,700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --verde-principal: #4FC09C;
+    --verde-oscuro:    #1E5B43;
+    --verde-muy-oscuro:#0F3527;
+    --verde-claro:     #B8E6D5;
+    --rojo-cartel:     #E10E0E;
+    --magenta-titulo:  #E91E63;
+    --naranja-bono:    #F26522;
+    --negro:           #1A1A1A;
+    --gris-suave:      #F4F4F4;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Roboto', Arial, sans-serif; color: var(--negro); background: #fff; font-size: 11px; }
+  @page { size: A4; margin: 10mm 8mm; }
+
+  /* ===== TAPA ===== */
+  .tapa { min-height: 277mm; page-break-after: always; display: flex; flex-direction: column; }
+
+  .tapa-header {
+    display: grid; grid-template-columns: 180px 1fr 180px;
+    align-items: center; background: var(--verde-principal);
+    padding: 16px 20px; gap: 20px;
+  }
+  .logo-circulo {
+    background: var(--verde-claro); border-radius: 50%;
+    width: 130px; height: 130px;
+    display: flex; align-items: center; justify-content: center;
+    border: 4px solid #fff; overflow: hidden;
+  }
+  .logo-circulo img { width: 100px; height: 100px; object-fit: contain; }
+  .logo-circulo .logo-fallback {
+    font-family: 'Roboto Condensed', sans-serif; font-weight: 900;
+    font-size: 18px; color: var(--verde-muy-oscuro); text-align: center; line-height: 1.2;
+  }
+  .tapa-titulo {
+    font-family: 'Roboto Condensed', sans-serif; font-weight: 900;
+    font-size: 60px; color: var(--magenta-titulo);
+    text-align: center; margin: 0; letter-spacing: 2px;
+    text-transform: uppercase; line-height: 0.9;
+  }
+  .tapa-bandera {
+    background: var(--rojo-cartel); color: #fff;
+    text-align: center; padding: 12px 14px;
+    font-family: 'Roboto Condensed', sans-serif; font-weight: 900;
+    clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 50% 92%, 0% 100%);
+    min-width: 120px;
+  }
+  .tapa-bandera-anio  { font-size: 18px; letter-spacing: 2px; }
+  .tapa-bandera-dow   { font-size: 15px; margin: 2px 0; }
+  .tapa-bandera-fecha { font-size: 36px; line-height: 1; letter-spacing: 1px; }
+  .tapa-bandera-reun  { font-size: 13px; margin-top: 4px; letter-spacing: 1px; }
+
+  .tapa-foto {
+    flex: 1; min-height: 260px;
+    background: url('assets/programa-oficial-color/tapa-caballos.jpg') center/cover no-repeat;
+    position: relative;
+  }
+  .tapa-foto::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+    height: 80px; background: linear-gradient(to bottom, transparent, var(--verde-principal));
+  }
+
+  .tapa-info {
+    background: var(--verde-principal); display: grid;
+    grid-template-columns: 1fr auto 1fr; gap: 20px;
+    padding: 16px 20px; color: #fff;
+  }
+  .tapa-info h3 {
+    background: #fff; color: var(--negro);
+    font-family: 'Roboto', sans-serif; font-weight: 900; font-size: 11px;
+    padding: 4px 14px; display: inline-block; letter-spacing: 1px;
+    clip-path: polygon(4% 0%, 100% 0%, 96% 100%, 0% 100%);
+    margin: 0 0 6px; text-transform: uppercase;
+  }
+  .tapa-info-col .item { font-size: 10px; font-weight: 700; line-height: 1.6; }
+  .tapa-info-col .item .rol { font-weight: 400; opacity: 0.85; }
+  .tapa-info-logo { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .tapa-info-logo img { width: 90px; height: 90px; object-fit: contain; background: #fff; border-radius: 50%; padding: 6px; }
+  .tapa-apuestas-titulo {
+    background: var(--verde-muy-oscuro); color: #fff;
+    padding: 6px 14px; font-weight: 900; font-size: 10px; text-align: center;
+    clip-path: polygon(6% 0%, 100% 0%, 94% 100%, 0% 100%); letter-spacing: 1px;
+  }
+
+  .tapa-apuestas-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    padding: 20px 24px;
+    background: linear-gradient(135deg, var(--verde-principal) 0%, var(--verde-claro) 100%);
+  }
+  .apuesta-card {
+    background: #fff; padding: 10px 14px;
+    clip-path: polygon(3% 0%, 100% 0%, 97% 100%, 0% 100%);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+    display: grid; grid-template-columns: 52px 1fr; align-items: center; gap: 8px;
+  }
+  .apuesta-card .ac-num {
+    font-family: 'Roboto Condensed', sans-serif; font-weight: 900; font-size: 36px;
+    color: var(--verde-oscuro); line-height: 1; text-align: center;
+  }
+  .apuesta-card .ac-body {}
+  .apuesta-card .ac-tipo { font-weight: 900; font-size: 11px; color: var(--verde-muy-oscuro); text-transform: uppercase; }
+  .apuesta-card .ac-desde { font-size: 9px; color: #666; margin: 1px 0; }
+  .apuesta-card .ac-pozo { font-weight: 700; font-size: 10px; color: var(--rojo-cartel); }
+  .apuesta-card .ac-base { font-size: 9px; color: #444; }
+
+  /* ===== CARRERAS ===== */
+  .carrera-color {
+    page-break-inside: avoid; margin-bottom: 16px; position: relative;
+  }
+  .carrera-color-header {
+    background: var(--verde-oscuro); color: #fff;
+    padding: 8px 12px 8px 96px;
+    font-family: 'Roboto', sans-serif; font-weight: 700; font-size: 11px;
+    text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;
+  }
+  .carrera-color-trapecio {
+    position: absolute; top: 0; left: 0;
+    width: 88px; background: var(--verde-principal); color: #fff;
+    padding: 10px 8px 8px; text-align: center;
+    clip-path: polygon(0% 0%, 100% 0%, 78% 100%, 0% 100%);
+    z-index: 2;
+  }
+  .carrera-color-trapecio .t-label { font-size: 8px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+  .carrera-color-trapecio .t-num  { font-family: 'Roboto Condensed', sans-serif; font-weight: 900; font-size: 34px; line-height: 1; margin: 2px 0; }
+  .carrera-color-trapecio .t-hora { font-size: 9px; font-weight: 700; }
+
+  .carrera-color-premio {
+    background: var(--verde-claro); color: var(--verde-muy-oscuro);
+    padding: 5px 12px 5px 96px;
+    font-family: 'Playfair Display', serif; font-style: italic; font-weight: 700; font-size: 11px;
+    text-transform: uppercase; min-height: 24px;
+  }
+  .carrera-color-info {
+    padding: 6px 12px 6px 96px; font-size: 10px; line-height: 1.4; position: relative;
+  }
+  .carrera-color-info .bono-lateral {
+    position: absolute; top: 6px; right: 12px;
+    background: var(--naranja-bono); color: #fff;
+    padding: 4px 10px; font-weight: 900; font-size: 10px; text-align: center;
+    clip-path: polygon(4% 0%, 100% 0%, 96% 100%, 0% 100%); line-height: 1.3;
+  }
+  .carrera-color-info .bolsa-linea { font-weight: 700; margin-top: 2px; }
+
+  /* ===== TABLA INSCRIPTOS ===== */
+  table.inscriptos-color {
+    width: 100%; border-collapse: collapse; font-size: 9.5px; margin-top: 4px;
+  }
+  table.inscriptos-color thead th {
+    background: var(--verde-muy-oscuro); color: #fff;
+    padding: 5px 4px; font-weight: 700; text-transform: uppercase;
+    font-size: 9px; letter-spacing: 0.5px; text-align: left;
+  }
+  table.inscriptos-color tbody td {
+    padding: 3px 4px; border-bottom: 1px solid #E0E0E0; vertical-align: middle;
+  }
+  table.inscriptos-color tbody tr:nth-child(even) td { background: var(--gris-suave); }
+  table.inscriptos-color .col-num { text-align: center; width: 26px; }
+  table.inscriptos-color .col-kesp { white-space: nowrap; }
+  table.inscriptos-color .col-spc { font-weight: 700; }
+
+  .partidor-chip {
+    display: inline-block; width: 22px; height: 22px;
+    line-height: 22px; text-align: center;
+    font-weight: 800; font-size: 11px;
+    font-family: 'Roboto', Arial, sans-serif;
+    border-radius: 2px;
+  }
+
+  /* ===== BANNER PRÓXIMA ===== */
+  .banner-proxima {
+    background: var(--verde-oscuro); color: #fff; text-align: center;
+    padding: 10px; font-family: 'Roboto Condensed', sans-serif; font-weight: 900;
+    font-size: 13px; letter-spacing: 1px; text-transform: uppercase; margin-top: 20px;
+  }
+
+  /* ===== SPONSORS ===== */
+  .sponsors-band { margin-top: 16px; }
+  .sponsors-titulo {
+    font-family: 'Roboto Condensed', sans-serif; font-weight: 900; font-size: 11px;
+    letter-spacing: 2px; text-transform: uppercase; text-align: center;
+    color: var(--verde-oscuro); border-top: 2px solid var(--verde-oscuro);
+    border-bottom: 2px solid var(--verde-oscuro); padding: 4px; margin-bottom: 10px;
+  }
+  .sponsors-grid { display: flex; gap: 20px; justify-content: center; align-items: center; flex-wrap: wrap; }
+  .sponsor-item { text-align: center; }
+  .sponsor-item img { max-height: 40px; max-width: 80px; object-fit: contain; }
+  .sponsor-item .sponsor-nombre { font-size: 9px; font-weight: 700; color: #555; margin-top: 3px; }
+
+  .sponsor-destacado {
+    display: grid; grid-template-columns: 1fr 160px; margin-top: 16px;
+    border: 2px solid var(--verde-oscuro); border-radius: 4px; overflow: hidden;
+  }
+  .sd-text { padding: 14px 16px; }
+  .sd-nombre { font-family: 'Roboto Condensed', sans-serif; font-weight: 900; font-size: 16px; color: var(--verde-muy-oscuro); text-transform: uppercase; }
+  .sd-subtitulo { font-size: 10px; color: #555; margin-top: 2px; }
+  .sd-direccion, .sd-contacto { font-size: 10px; margin-top: 4px; color: #333; }
+  .sd-foto { background-size: cover; background-position: center; }
+  .sd-foto.sin-foto { background: var(--verde-claro); }
+
+  /* ===== PÁGINA FINAL ===== */
+  .pagina-final { page-break-inside: avoid; padding-top: 20px; }
+  .redes-info { font-size: 10px; line-height: 1.6; margin-top: 10px; color: #444; }
+  .redes-list { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 4px; }
+  .disclaimer { font-size: 9.5px; text-align: justify; line-height: 1.5; margin-bottom: 10px; color: #333; }
+  .secretaria-bloque { font-size: 10px; margin-bottom: 8px; line-height: 1.5; }
+  .secretaria-info { font-size: 10px; line-height: 1.5; }
+
+  @media print {
+    html, body, * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    .tapa-foto { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    .btn-imprimir { display: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div style="text-align:center;padding:8px;background:#f0f0f0;font-size:12px;" class="btn-imprimir">
+  <button onclick="window.print()" style="padding:6px 20px;font-size:13px;cursor:pointer;">🖨️ Imprimir Programa Oficial Color</button>
+</div>
+
+<div id="programa-page">
+  <div style="text-align:center;padding:40px;">Cargando programa…</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="premios-utils.js"></script>
+<script src="partidor-colors.js"></script>
+<script>
+const sb = supabase.createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');
+
+const params = new URLSearchParams(location.search);
+const reunionId = params.get('reunion_id');
+
+function formatMonto(n) {
+  if (n == null || isNaN(n)) return '$0';
+  return '$' + Math.round(parseFloat(n)).toLocaleString('es-AR').replace(/,/g, '.');
+}
+function calcEdad(fecha) {
+  if (!fecha) return '';
+  const hoy = new Date(), f = new Date(fecha);
+  let e = hoy.getFullYear() - f.getFullYear();
+  if (hoy.getMonth() < f.getMonth() || (hoy.getMonth() === f.getMonth() && hoy.getDate() < f.getDate())) e--;
+  return e;
+}
+function pelajeCodigo(color) {
+  if (!color) return '';
+  const c = color.toLowerCase();
+  if (c.startsWith('zaino')) return 'Z';
+  if (c.startsWith('tordillo')) return 'T';
+  if (c.startsWith('alazán') || c.startsWith('alazan')) return 'A';
+  if (c.startsWith('colorado')) return 'C';
+  if (c.startsWith('negro')) return 'N';
+  if (c.startsWith('moro') || c.startsWith('mulato')) return 'M';
+  return color.charAt(0).toUpperCase();
+}
+function sexoCodigo(sexo) {
+  if (!sexo) return '';
+  const s = sexo.toLowerCase();
+  if (s.startsWith('castrado')) return 'C';
+  if (s.startsWith('macho')) return 'M';
+  if (s.startsWith('hembra')) return 'H';
+  return sexo.charAt(0).toUpperCase();
+}
+
+async function load() {
+  if (!reunionId) {
+    document.getElementById('programa-page').innerHTML = '<div style="padding:40px;text-align:center;">No hay reunión seleccionada.</div>';
+    return;
+  }
+  const { data: reunion } = await sb.from('reuniones')
+    .select('*,hipodromos(nombre,sigla,localidad,provincia,club_id)')
+    .eq('id', reunionId).single();
+  if (!reunion) {
+    document.getElementById('programa-page').innerHTML = '<div style="padding:40px;text-align:center;">Reunión no encontrada.</div>';
+    return;
+  }
+  const clubId = reunion.hipodromos?.club_id || reunion.club_id;
+  const { data: club } = await sb.from('clubs').select('*').eq('id', clubId).single();
+
+  const { data: carreras } = await sb.from('carreras').select('*').eq('reunion_id', reunionId).neq('estado', 'anulada');
+  const carIds = (carreras || []).map(c => c.id);
+
+  const { data: ins } = carIds.length
+    ? await sb.from('inscripciones').select('*').in('carrera_id', carIds)
+    : { data: [] };
+
+  const spcIds  = [...new Set((ins || []).map(i => i.spc_id).filter(Boolean))];
+  const jockIds = [...new Set((ins || []).flatMap(i => [i.jockey_titular_id, i.jockey_suplente_id]).filter(Boolean))];
+  const propIds = [...new Set((ins || []).map(i => i.propietario_id).filter(Boolean))];
+  const entrIds = [...new Set((ins || []).map(i => i.entrenador_id).filter(Boolean))];
+  const cabaIds = [...new Set((ins || []).map(i => i.caballeriza_id).filter(Boolean))];
+  const profIds = [...new Set([...jockIds, ...entrIds])];
+  const EMPTY   = ['00000000-0000-0000-0000-000000000000'];
+
+  const [{ data: spcs }, { data: profs }, { data: props }, { data: cabs }, { data: cats }] = await Promise.all([
+    sb.from('spcs').select('id,nombre,sexo,color,fecha_nacimiento,padrillo_nombre,madre_nombre,ult_performances').in('id', spcIds.length ? spcIds : EMPTY),
+    sb.from('profesionales').select('id,nombre,apellido').in('id', profIds.length ? profIds : EMPTY),
+    sb.from('propietarios').select('id,nombre').in('id', propIds.length ? propIds : EMPTY),
+    sb.from('caballerizas').select('id,nombre').in('id', cabaIds.length ? cabaIds : EMPTY),
+    sb.from('categorias_carrera').select('id,nombre,codigo').eq('club_id', clubId),
+  ]);
+
+  const spcMap  = Object.fromEntries((spcs  || []).map(s => [s.id, s]));
+  const profMap = Object.fromEntries((profs || []).map(p => [p.id, p]));
+  const propMap = Object.fromEntries((props || []).map(p => [p.id, p]));
+  const cabMap  = Object.fromEntries((cabs  || []).map(c => [c.id, c]));
+  const catMap  = Object.fromEntries((cats  || []).map(c => [c.id, c]));
+
+  const insByCarrera = {};
+  (ins || []).forEach(i => { (insByCarrera[i.carrera_id] ??= []).push(i); });
+
+  const { data: proxRe } = await sb.from('reuniones')
+    .select('id,fecha,numero').eq('club_id', clubId)
+    .gt('fecha', reunion.fecha).neq('estado', 'anulada')
+    .order('fecha', { ascending: true }).limit(1);
+  const proximaReunion = proxRe?.[0] || null;
+
+  render(reunion, club, carreras || [], insByCarrera, { spcMap, profMap, propMap, cabMap, catMap }, proximaReunion);
+}
+
+function render(reunion, club, carreras, insByCarrera, maps, proximaReunion) {
+  const { spcMap, profMap, propMap, cabMap, catMap } = maps;
+
+  carreras.sort((a, b) => {
+    const aN = a.numero_carrera_programa ?? a.numero_turno ?? 999;
+    const bN = b.numero_carrera_programa ?? b.numero_turno ?? 999;
+    return aN - bN;
+  });
+
+  const f        = new Date(reunion.fecha + 'T12:00:00');
+  const DIAS     = ['DOMINGO','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO'];
+  const MESES    = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+  const diaNom   = DIAS[f.getDay()];
+  const diaNum   = String(f.getDate()).padStart(2, '0');
+  const mesNum   = String(f.getMonth() + 1).padStart(2, '0');
+  const anio     = f.getFullYear();
+  const fechaCorta = `${diaNum}/${mesNum}`;
+  const fechaLarga = `${diaNom} ${f.getDate()} DE ${MESES[f.getMonth()]} DE ${anio}`;
+
+  const comision    = Array.isArray(club?.comision_carreras) ? club.comision_carreras : [];
+  const comisariato = Array.isArray(club?.comisariato)       ? club.comisariato       : [];
+  const sponsors    = Array.isArray(club?.sponsors)          ? club.sponsors          : [];
+
+  const logoHtml = club?.logo_url
+    ? `<img src="${club.logo_url}" alt="${club.nombre || ''}">`
+    : `<div class="logo-fallback">${(reunion.hipodromos?.sigla || club?.nombre || 'SGH')}</div>`;
+
+  // ---- TAPA ----
+  const comisionHtml    = comision.map(m => `<div class="item"><span class="rol">${m.cargo}:</span> ${m.nombre}</div>`).join('') || '<div class="item">—</div>';
+  const comisariatoHtml = comisariato.map(m => `<div class="item"><span class="rol">${m.cargo}:</span> ${m.nombre}</div>`).join('') || '<div class="item">—</div>';
+
+  // TODO: apuestas especiales multi-carrera (TRIPLO/CUATERNA/DOBLE) no están en DB aún.
+  // Hardcodeadas como placeholder para Dolores. Reemplazar cuando exista el campo en reuniones.
+  const apuestasEspHtml = `
+    <div class="apuesta-card">
+      <div class="ac-num">2</div>
+      <div class="ac-body">
+        <div class="ac-tipo">Triplo Inicial</div>
+        <div class="ac-desde">Carreras 2 · 3 · 4</div>
+        <div class="ac-pozo">POZO ASEGURADO $50.000</div>
+        <div class="ac-base">Base $500</div>
+      </div>
+    </div>
+    <div class="apuesta-card">
+      <div class="ac-num">5</div>
+      <div class="ac-body">
+        <div class="ac-tipo">Cuaterna Final</div>
+        <div class="ac-desde">Carreras 6 · 7 · 8 · 9</div>
+        <div class="ac-pozo">POZO ASEGURADO $75.000</div>
+        <div class="ac-base">Base $500</div>
+      </div>
+    </div>
+    <div class="apuesta-card">
+      <div class="ac-num">8</div>
+      <div class="ac-body">
+        <div class="ac-tipo">Doble Final</div>
+        <div class="ac-desde">Carreras 8 · 9</div>
+        <div class="ac-pozo">POZO ASEGURADO $25.000</div>
+        <div class="ac-base">Base $500</div>
+      </div>
+    </div>`;
+
+  const tapaHtml = `
+  <div class="tapa">
+    <div class="tapa-header">
+      <div class="logo-circulo">${logoHtml}</div>
+      <h1 class="tapa-titulo">PROGRAMA<br>OFICIAL</h1>
+      <div class="tapa-bandera">
+        <div class="tapa-bandera-anio">${anio}</div>
+        <div class="tapa-bandera-dow">${diaNom}</div>
+        <div class="tapa-bandera-fecha">${fechaCorta}</div>
+        <div class="tapa-bandera-reun">Reunión N°${reunion.numero || ''}</div>
+      </div>
+    </div>
+
+    <div class="tapa-foto"></div>
+
+    <div class="tapa-info">
+      <div class="tapa-info-col">
+        <h3>Comisión de Carreras</h3>
+        ${comisionHtml}
+      </div>
+      <div class="tapa-info-logo">
+        ${logoHtml}
+        <div class="tapa-apuestas-titulo">APUESTAS<br>ESPECIALES</div>
+      </div>
+      <div class="tapa-info-col" style="text-align:right;">
+        <h3>Comisariato</h3>
+        ${comisariatoHtml}
+      </div>
+    </div>
+
+    <div class="tapa-apuestas-grid">
+      ${apuestasEspHtml}
+    </div>
+  </div>`;
+
+  // ---- CARRERAS ----
+  const carrerasHtml = carreras.map((c, idx) =>
+    renderCarreraColor(c, insByCarrera[c.id] || [], maps, idx)
+  ).join('');
+
+  // ---- PRÓXIMA REUNIÓN ----
+  const proximaHtml = proximaReunion ? `
+    <div class="banner-proxima">
+      PRÓXIMA REUNIÓN — ${new Date(proximaReunion.fecha+'T12:00:00').toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).toUpperCase()}
+    </div>` : '';
+
+  // ---- SPONSORS ----
+  const sponsorsHtml = sponsors.length ? `
+    <div class="sponsors-band">
+      <div class="sponsors-titulo">AUSPICIAN ESTA REUNIÓN</div>
+      <div class="sponsors-grid">
+        ${sponsors.map(s => `
+          <div class="sponsor-item">
+            ${s.logo_url ? `<img src="${s.logo_url}" alt="${(s.nombre||'').replace(/"/g,'&quot;')}">` : ''}
+            <div class="sponsor-nombre">${s.nombre || ''}</div>
+          </div>`).join('')}
+      </div>
+    </div>` : '';
+
+  const sdHtml = (club?.sponsor_destacado?.nombre) ? `
+    <div class="sponsor-destacado">
+      <div class="sd-text">
+        <div class="sd-nombre">${club.sponsor_destacado.nombre}</div>
+        ${club.sponsor_destacado.subtitulo ? `<div class="sd-subtitulo">${club.sponsor_destacado.subtitulo}</div>` : ''}
+        <div style="margin-top:6px;">
+          ${club.sponsor_destacado.direccion ? `<div class="sd-direccion">${club.sponsor_destacado.direccion}</div>` : ''}
+          ${club.sponsor_destacado.contacto  ? `<div class="sd-contacto">${club.sponsor_destacado.contacto}</div>`   : ''}
+        </div>
+      </div>
+      <div class="sd-foto ${club.sponsor_destacado.foto_url ? '' : 'sin-foto'}"
+        ${club.sponsor_destacado.foto_url ? `style="background-image:url('${club.sponsor_destacado.foto_url}');"` : ''}>
+      </div>
+    </div>` : '';
+
+  // ---- PÁGINA FINAL ----
+  const finalHtml = `
+    <div class="pagina-final">
+      ${club?.disclaimer_importante ? `<div class="disclaimer">${club.disclaimer_importante.replace(/\n/g,'<br>')}</div>` : ''}
+      ${club?.disclaimer_nota ? `<div class="disclaimer"><strong>Nota:</strong> ${club.disclaimer_nota.replace(/\n/g,'<br>')}</div>` : ''}
+      ${(club?.secretaria_carreras_nombre || club?.inscripciones_telefono) ? `
+        <div class="secretaria-bloque">
+          ${club.secretaria_carreras_nombre ? `<div><strong>Secretaría:</strong> ${club.secretaria_carreras_nombre}</div>` : ''}
+          ${club.inscripciones_telefono ? `<div><strong>Inscripciones:</strong> ${club.inscripciones_telefono}</div>` : ''}
+        </div>` : ''}
+      <div class="secretaria-info">
+        ${reunion.fechas_inscripciones     ? `<div><strong>Inscripciones:</strong> ${reunion.fechas_inscripciones}</div>`         : ''}
+        ${reunion.fechas_forfaits          ? `<div><strong>Forfaits:</strong> ${reunion.fechas_forfaits}</div>`                   : ''}
+        ${reunion.fechas_compromiso_montas ? `<div><strong>Compromiso de montas:</strong> ${reunion.fechas_compromiso_montas}</div>` : ''}
+      </div>
+      <div class="redes-info">
+        ${club?.website ? `<div><strong>${club.website}</strong></div>` : ''}
+        <div class="redes-list">
+          ${club?.instagram ? `<span>IG: ${club.instagram}</span>` : ''}
+          ${club?.facebook  ? `<span>FB: ${club.facebook}</span>`  : ''}
+          ${club?.twitter_x ? `<span>X: ${club.twitter_x}</span>`  : ''}
+          ${club?.tiktok    ? `<span>TikTok: ${club.tiktok}</span>`  : ''}
+          ${club?.youtube   ? `<span>YT: ${club.youtube}</span>`   : ''}
+        </div>
+      </div>
+    </div>`;
+
+  document.getElementById('programa-page').innerHTML =
+    tapaHtml + `<section>` + carrerasHtml + proximaHtml + sponsorsHtml + sdHtml + finalHtml + `</section>`;
+  document.title = `Programa-Oficial-Color-Reunion-${reunion.numero || ''}-${reunion.fecha || ''}`;
+}
+
+function renderCarreraColor(c, ins, maps, idx) {
+  const { spcMap, profMap, propMap, cabMap, catMap } = maps;
+  const num     = idx + 1;
+  const hora    = c.hora_estimada ? String(c.hora_estimada).slice(0, 5) : '';
+  const cat     = catMap[c.categoria_id];
+  const dist    = c.distribucion_premios || {};
+  const bolsa   = parseFloat(c.bolsa_total) || 0;
+  const { puestos: puestosEf, bolsaEfectiva } = calcPremiosConPiso(bolsa, dist);
+  const bonoGanador  = dist.bono_ganador || 0;
+  const apuestasText = Array.isArray(c.apuestas) ? c.apuestas.join(' — ') : '';
+
+  const desglose = [1,2,3,4,5,6].map(p => {
+    const m = puestosEf[String(p)];
+    return m > 0 ? `${p}° ${formatMonto(m)}` : null;
+  }).filter(Boolean).join(' — ');
+
+  const condiciones = [c.condicion_adicional, c.condicion_handicap].filter(Boolean).join(' — ');
+
+  const filas = (ins || [])
+    .sort((a, b) => (a.numero_partidor || 999) - (b.numero_partidor || 999))
+    .map((i, fi) => {
+      const spc  = spcMap[i.spc_id] || {};
+      const jock = profMap[i.jockey_titular_id];
+      const entr = profMap[i.entrenador_id];
+      const prop = propMap[i.propietario_id];
+      const cab  = cabMap[i.caballeriza_id];
+      const edad = calcEdad(spc.fecha_nacimiento);
+      const kesp = `${i.peso_declarado || ''}${edad}${sexoCodigo(spc.sexo)}${pelajeCodigo(spc.color)}`.trim();
+      const caballeriza = (cab?.nombre || prop?.nombre || '').toUpperCase();
+      const padreMadre  = `${(spc.padrillo_nombre || '').toUpperCase()}${spc.madre_nombre ? ` — ${spc.madre_nombre.toUpperCase()}` : ''}`;
+      const jockeyStr   = jock ? `${jock.apellido || ''} ${jock.nombre || ''}`.trim().toUpperCase() : 'XX';
+      const entrStr     = entr ? `${entr.apellido || ''} ${entr.nombre || ''}`.trim().toUpperCase() : '';
+      return `<tr>
+        <td>${caballeriza}</td>
+        <td>${spc.ult_performances || ''}</td>
+        <td class="col-num">${partidorChipHTML(fi + 1)}</td>
+        <td class="col-spc">${(spc.nombre || '').toUpperCase()}</td>
+        <td class="col-kesp">${kesp}</td>
+        <td>${jockeyStr}</td>
+        <td>${padreMadre}</td>
+        <td>${entrStr}</td>
+      </tr>`;
+    }).join('');
+
+  const numStr    = String(num).padStart(2, '0');
+  const catNombre = cat ? cat.nombre.toUpperCase() : '';
+  const distMts   = c.distancia_metros ? `${c.distancia_metros} MTS` : '';
+
+  return `<div class="carrera-color">
+    <div class="carrera-color-trapecio">
+      <div class="t-label">CARRERA</div>
+      <div class="t-num">${numStr}</div>
+      ${hora ? `<div class="t-hora">${hora} HS.</div>` : ''}
+    </div>
+    <div class="carrera-color-header">
+      <span>${[distMts, catNombre].filter(Boolean).join(' — ')}</span>
+      ${apuestasText ? `<span style="font-weight:400;font-size:9px;">${apuestasText}</span>` : ''}
+    </div>
+    <div class="carrera-color-premio">PREMIO: ${c.nombre || ''}</div>
+    <div class="carrera-color-info">
+      ${bonoGanador ? `<div class="bono-lateral">BONO ${formatMonto(bonoGanador)}<br>AL GANADOR</div>` : ''}
+      ${condiciones ? `<div>${condiciones}</div>` : ''}
+      ${bolsa ? `<div class="bolsa-linea">BOLSA: ${formatMonto(Math.round(bolsaEfectiva))}${desglose ? ` — ${desglose}` : ''}</div>` : ''}
+    </div>
+    <table class="inscriptos-color">
+      <thead><tr>
+        <th>CABALLERIZA</th><th>4 ÚLT.</th><th>N°</th><th>S.P.C.</th><th>K E S P</th><th>JOCKEY</th><th>PADRE — MADRE</th><th>ENTRENADOR</th>
+      </tr></thead>
+      <tbody>${filas || '<tr><td colspan="8" style="text-align:center;font-style:italic;padding:6px;">Sin inscriptos</td></tr>'}</tbody>
+    </table>
+  </div>`;
+}
+
+load();
+</script>
+</body></html>
