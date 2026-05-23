@@ -304,6 +304,7 @@ let currentCarreraId = null;
 let pendingApuestas  = [];     // copia local de resultado_apuestas (la edición)
 let editIdx          = null;   // null=agregar, N=índice en pendingApuestas
 let selIdx           = -1;     // fila seleccionada en la tabla
+let loadedUpdatedAt  = null;   // updated_at del resultado al momento de cargarlo (optimistic lock)
 
 /* ═══════════════════════════════════════════════
    FORMATTERS
@@ -413,9 +414,10 @@ function abrirResultado(carreraId) {
    FORMULARIO DE CARGA
 ═══════════════════════════════════════════════ */
 function renderFormulario(carrera, res, pos, apus, insc) {
-  pendingApuestas = apus.map(a=>({...a}));
-  selIdx   = -1;
-  editIdx  = null;
+  pendingApuestas  = apus.map(a=>({...a}));
+  selIdx           = -1;
+  editIdx          = null;
+  loadedUpdatedAt  = res?.updated_at || null;
 
   // Borrados
   const borradas = insc.filter(i=>['forfait','mal_inscrito'].includes(i.estado))
@@ -793,29 +795,7 @@ async function aplicar(carreraId, estado) {
   const res  = resultados[carreraId];
   const insc = inscripciones.filter(i=>i.carrera_id===carreraId);
 
-  const payload = {
-    carrera_id: carreraId, estado,
-    tiempo_clima: tiempoClima,
-    estado_pista: estadoPista,
-    tiempo_ganador: tiempoGan,
-    incidentes,
-    favorito_mandil,
-    redistribucion_legs: Object.keys(redistribucion_legs).length ? redistribucion_legs : null,
-  };
-
-  // Upsert resultado
-  let resId = res?.id;
-  if (!resId) {
-    const { data, error } = await sb.from('resultados').insert(payload).select().single();
-    if (error) { toast(error.message,'error'); return; }
-    resId = data.id; resultados[carreraId] = data;
-  } else {
-    const { error } = await sb.from('resultados').update(payload).eq('id', resId);
-    if (error) { toast(error.message,'error'); return; }
-    resultados[carreraId] = {...resultados[carreraId], ...payload};
-  }
-
-  // Posiciones: marcador → inscripcion_id
+  // Posiciones: marcador → inscripcion_id (validación local antes de llamar la RPC)
   const posData = [];
   const usados  = new Set();
   for (let p=1; p<=20; p++) {
@@ -827,29 +807,47 @@ async function aplicar(carreraId, estado) {
     usados.add(mandil);
     const inscr = insc.find(i=>i.numero_partidor===mandil);
     if (!inscr) { toast(`Mandil ${mandil} no encontrado entre los inscriptos`,'error'); return; }
-    posData.push({ resultado_id:resId, inscripcion_id:inscr.id, posicion:p,
-      diferencia:null, dividendo:null, descalificado:false, motivo_desc:null, empate:false });
-  }
-  if (posData.length) {
-    await sb.from('resultado_posiciones').delete().eq('resultado_id', resId);
-    const { error } = await sb.from('resultado_posiciones').insert(posData);
-    if (error) { toast(error.message,'error'); return; }
-    posicionesMap[resId] = posData;
+    posData.push({ inscripcion_id:inscr.id, posicion:p, descalificado:false, empate:false });
   }
 
-  // Apuestas
-  if (pendingApuestas.length > 0) {
-    await sb.from('resultado_apuestas').delete().eq('resultado_id', resId);
-    const rows = pendingApuestas.map((a,i) => ({
-      resultado_id:resId, tipo:a.tipo, val_apu:a.val_apu,
-      composicion:a.composicion||null, pozo:a.pozo||null, vales:a.vales||null,
-      div_orig:a.div_orig||null, div_inc:a.div_inc||null, vacante:a.vacante||false, orden:i+1,
-    }));
-    const { error } = await sb.from('resultado_apuestas').insert(rows);
-    if (error) { toast(error.message,'error'); return; }
-    apuestasMap[resId] = rows;
-    pendingApuestas = rows.map(r=>({...r}));
+  const apuestasArr = pendingApuestas.map((a,i) => ({
+    tipo:a.tipo, val_apu:a.val_apu, composicion:a.composicion||null,
+    pozo:a.pozo||null, vales:a.vales||null,
+    div_orig:a.div_orig||null, div_inc:a.div_inc||null,
+    vacante:a.vacante||false, orden:i+1,
+  }));
+
+  const { data: rpcData, error: rpcErr } = await sb.rpc('aplicar_resultado', {
+    p_resultado_id:        res?.id || null,
+    p_expected_updated_at: loadedUpdatedAt,
+    p_carrera_id:          carreraId,
+    p_estado:              estado,
+    p_tiempo_clima:        tiempoClima,
+    p_estado_pista:        estadoPista,
+    p_tiempo_ganador:      tiempoGan,
+    p_incidentes:          incidentes,
+    p_favorito_mandil:     favorito_mandil,
+    p_redistribucion_legs: Object.keys(redistribucion_legs).length ? redistribucion_legs : null,
+    p_posiciones:          posData,
+    p_apuestas:            apuestasArr,
+  });
+
+  if (rpcErr) {
+    if (rpcErr.message?.includes('CONCURRENT_MODIFICATION')) {
+      toast('Otro operador modificó este resultado. Recargá antes de guardar.', 'error');
+    } else {
+      toast('Error al guardar: ' + rpcErr.message, 'error');
+    }
+    return;
   }
+
+  const resId = rpcData.resultado_id;
+  loadedUpdatedAt = rpcData.updated_at;
+  resultados[carreraId] = { ...(resultados[carreraId] || {}), id: resId, updated_at: rpcData.updated_at, carrera_id: carreraId, estado };
+  posicionesMap[resId] = posData;
+  const rows = apuestasArr.map(a => ({ ...a, resultado_id: resId }));
+  apuestasMap[resId] = rows;
+  pendingApuestas = rows.map(r=>({...r}));
 
   const msg = estado==='provisional' ? 'Resultado provisional guardado' : 'Guardado';
   toast(msg);
