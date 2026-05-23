@@ -778,10 +778,31 @@ async function f8Dividendos() {
 /* ═══════════════════════════════════════════════
    GUARDAR (F10-Aplicar)
 ═══════════════════════════════════════════════ */
+
+// Valida y normaliza "M:SS.CC" (M 1-2 dígitos, SS 2, CC 1-2).
+// Devuelve el string normalizado, null si vacío, o false si inválido.
+function normalizeTiempoGanador(raw) {
+  if (!raw) return null;
+  const m = raw.match(/^(\d{1,2}):(\d{2})(?:\.(\d{1,2}))?$/);
+  if (!m) return false;
+  const cc = m[3] ? m[3].padEnd(2, '0') : '00';
+  return `${m[1]}:${m[2]}.${cc}`;
+}
+
 async function aplicar(carreraId, estado) {
   const tiempoClima  = document.getElementById('tiempo-clima')?.value.trim()  || null;
   const estadoPista  = document.getElementById('estado-pista')?.value          || null;
-  const tiempoGan    = document.getElementById('tiempo-ganador')?.value.trim() || null;
+  const tiempoGanRaw = document.getElementById('tiempo-ganador')?.value.trim() || null;
+  const tiempoGan    = normalizeTiempoGanador(tiempoGanRaw);
+  if (tiempoGan === false) {
+    toast('Tiempo inválido. Formato: M:SS.CC (ej. 1:02.40)', 'error');
+    document.getElementById('tiempo-ganador')?.focus();
+    return;
+  }
+  if (tiempoGan !== tiempoGanRaw) {
+    const el = document.getElementById('tiempo-ganador');
+    if (el) el.value = tiempoGan;
+  }
   const incidentes   = document.getElementById('incidentes')?.value.trim()     || null;
   const favVal       = document.getElementById('favorito-mandil')?.value;
   const favorito_mandil = favVal ? parseInt(favVal,10) : null;
