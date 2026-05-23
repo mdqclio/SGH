@@ -224,7 +224,7 @@
 
 <div class="selector-bar">
   <label>Reunión:</label>
-  <select id="sel-reunion" onchange="loadReunion()"><option value="">Cargando…</option></select>
+  <select id="sel-reunion" onchange="navigateToReunion()"><option value="">Cargando…</option></select>
 </div>
 
 <div class="content">
@@ -305,6 +305,21 @@ let pendingApuestas  = [];     // copia local de resultado_apuestas (la edición
 let editIdx          = null;   // null=agregar, N=índice en pendingApuestas
 let selIdx           = -1;     // fila seleccionada en la tabla
 let loadedUpdatedAt  = null;   // updated_at del resultado al momento de cargarlo (optimistic lock)
+let isDirty          = false;  // hay cambios sin aplicar
+
+/* ── Guard de cambios pendientes ── */
+function guardDirty(fn) {
+  if (!isDirty) { fn(); return; }
+  if (confirm('Hay cambios sin aplicar. ¿Descartar y salir?')) { isDirty = false; fn(); }
+}
+function navigateToLista()     { guardDirty(() => renderLista()); }
+function navigateToCarrera(id) { guardDirty(() => abrirResultado(id)); }
+function navigateToReunion()   { guardDirty(() => loadReunion()); }
+function navCarrera(delta) {
+  const idx  = carreras.findIndex(c => c.id === currentCarreraId);
+  const next = carreras[idx + delta];
+  if (next) navigateToCarrera(next.id);
+}
 
 /* ═══════════════════════════════════════════════
    FORMATTERS
@@ -414,6 +429,7 @@ function abrirResultado(carreraId) {
    FORMULARIO DE CARGA
 ═══════════════════════════════════════════════ */
 function renderFormulario(carrera, res, pos, apus, insc) {
+  isDirty          = false;
   pendingApuestas  = apus.map(a=>({...a}));
   selIdx           = -1;
   editIdx          = null;
@@ -468,6 +484,10 @@ function renderFormulario(carrera, res, pos, apus, insc) {
     return `<div class="mf-cell ${cls}" id="mf-${p}">${m}</div>`;
   }).join('');
 
+  const _cIdx    = carreras.findIndex(c => c.id === carrera.id);
+  const _isFirst = _cIdx <= 0;
+  const _isLast  = _cIdx >= carreras.length - 1;
+
   document.getElementById('main-container').innerHTML = `
     <div class="res-panel">
       <!-- Header del panel -->
@@ -476,9 +496,12 @@ function renderFormulario(carrera, res, pos, apus, insc) {
           <div class="res-panel-title">Turno ${carrera.numero_turno}${carrera.nombre?' — '+carrera.nombre:''}</div>
           <div class="res-meta">${carrera.distancia_metros}m · ${carrera.tipo_pista||'—'}</div>
         </div>
-        <div style="display:flex;gap:10px;align-items:center;">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <span class="badge badge-${res?.estado||'sin_resultado'}">${(res?.estado||'sin resultado').replace('_',' ')}</span>
-          <button class="btn-outline no-print" onclick="renderLista()">← Carreras</button>
+          <button class="btn-outline no-print" onclick="navCarrera(-1)" ${_isFirst?'disabled':''}>← Anterior</button>
+          <span style="font-size:13px;color:var(--muted);min-width:60px;text-align:center;">Turno ${_cIdx+1} / ${carreras.length}</span>
+          <button class="btn-outline no-print" onclick="navCarrera(1)"  ${_isLast?'disabled':''}>Siguiente →</button>
+          <button class="btn-outline no-print" onclick="navigateToLista()">← Carreras</button>
         </div>
       </div>
 
@@ -718,6 +741,7 @@ function confirmApuesta() {
     selIdx = pendingApuestas.length - 1;
   }
   closeModal();
+  isDirty = true;
   renderTabla();
   setStatus(`${editIdx!==null?'Apuesta modificada':'Apuesta agregada'} — pendiente Aplicar`);
 }
@@ -728,6 +752,7 @@ function deleteApuesta() {
   if (!confirm(`¿Eliminar fila "${a.tipo} ${a.composicion||''}"?`)) return;
   pendingApuestas.splice(selIdx, 1);
   selIdx = Math.min(selIdx, pendingApuestas.length - 1);
+  isDirty = true;
   renderTabla();
   setStatus('Apuesta eliminada — pendiente Aplicar');
 }
@@ -837,6 +862,7 @@ async function aplicar(carreraId, estado) {
   apuestasMap[resId] = rows;
   pendingApuestas = rows.map(r=>({...r}));
 
+  isDirty = false;
   const msg = estado==='provisional' ? 'Resultado provisional guardado' : 'Guardado';
   toast(msg);
   setStatus(`✓ ${msg} — ${new Date().toLocaleTimeString('es-AR')}`);
@@ -844,6 +870,7 @@ async function aplicar(carreraId, estado) {
 }
 
 async function cancelar(carreraId) {
+  isDirty = false;
   await loadReunion();
   if (carreraId) abrirResultado(carreraId);
 }
@@ -891,6 +918,7 @@ async function modificarOficial(resId, carreraId) {
    RESUMEN OFICIAL (solo lectura)
 ═══════════════════════════════════════════════ */
 function renderOficial(carrera, res, pos, apus, insc) {
+  isDirty = false;
   const posOrdenadas = [...pos].sort((a,b)=>(a.posicion||99)-(b.posicion||99));
   const borradas = insc.filter(i=>['forfait','mal_inscrito'].includes(i.estado))
                        .sort((a,b)=>(a.numero_partidor||999)-(b.numero_partidor||999));
@@ -921,7 +949,7 @@ function renderOficial(carrera, res, pos, apus, insc) {
           <span class="badge badge-oficial">✅ Oficial</span>
           <button class="btn-outline no-print" onclick="window.print()">🖨️ Imprimir</button>
           <button class="btn-danger  no-print" onclick="modificarOficial('${res.id}','${carrera.id}')">⚠️ Modificar</button>
-          <button class="btn-outline no-print" onclick="renderLista()">← Carreras</button>
+          <button class="btn-outline no-print" onclick="navigateToLista()">← Carreras</button>
         </div>
       </div>
 
@@ -1010,9 +1038,18 @@ function setStatus(msg) {
    ATAJOS DE TECLADO
 ═══════════════════════════════════════════════ */
 document.addEventListener('keydown', e => {
-  if (e.key==='F8')  { e.preventDefault(); if (currentCarreraId) f8Dividendos(); }
-  if (e.key==='F9')  { e.preventDefault(); if (currentCarreraId) cancelar(currentCarreraId); }
-  if (e.key==='F10') { e.preventDefault(); if (currentCarreraId) aplicar(currentCarreraId,'provisional'); }
+  if (e.key==='F8')       { e.preventDefault(); if (currentCarreraId) f8Dividendos(); }
+  if (e.key==='F9')       { e.preventDefault(); if (currentCarreraId) cancelar(currentCarreraId); }
+  if (e.key==='F10')      { e.preventDefault(); if (currentCarreraId) aplicar(currentCarreraId,'provisional'); }
+  if (e.key==='PageDown') { e.preventDefault(); navCarrera(1); }
+  if (e.key==='PageUp')   { e.preventDefault(); navCarrera(-1); }
+});
+
+document.addEventListener('input',  e => { if (!e.target.closest('#modal-apuesta') && currentCarreraId) isDirty = true; });
+document.addEventListener('change', e => { if (!e.target.closest('#modal-apuesta') && e.target.id !== 'sel-reunion' && currentCarreraId) isDirty = true; });
+
+window.addEventListener('beforeunload', e => {
+  if (isDirty) { e.preventDefault(); e.returnValue = ''; }
 });
 
 /* ═══════════════════════════════════════════════
