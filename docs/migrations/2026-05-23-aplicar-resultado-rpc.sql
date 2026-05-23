@@ -24,10 +24,12 @@ DECLARE
   v_res_id             UUID;
 BEGIN
 
-  -- Optimistic locking: solo chequea si tenemos ID y timestamp de referencia
+  -- Optimistic locking con FOR UPDATE para cerrar race en escrituras concurrentes
   IF p_resultado_id IS NOT NULL AND p_expected_updated_at IS NOT NULL THEN
     SELECT updated_at INTO v_current_updated_at
-      FROM resultados WHERE id = p_resultado_id;
+      FROM resultados
+      WHERE id = p_resultado_id
+      FOR UPDATE;
     IF v_current_updated_at IS DISTINCT FROM p_expected_updated_at THEN
       RAISE EXCEPTION 'CONCURRENT_MODIFICATION'
         USING DETAIL = 'El resultado fue modificado por otro operador. Recargá antes de guardar.';
