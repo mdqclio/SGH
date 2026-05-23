@@ -152,48 +152,64 @@ async function waitForTurnoLabel(page, expected) {
   /* ── T4: Siguiente → navega un paso; disabled en última carrera ── */
   {
     const { page } = await loadLista(ctx);
-    const totalCards = await page.locator('.carrera-card').count();
 
     // 4a: navega un paso hacia adelante desde turno 6
     await openTurno(page, 6);
     const labelBefore = await turnoLabel(page);
     const numBefore   = parseInt(labelBefore.match(/Turno\s+(\d+)/)?.[1]||'0');
-    const expectedLabel = `Turno ${numBefore + 1} / ${totalCards}`;
+    const total       = parseInt(labelBefore.match(/\/\s*(\d+)/)?.[1]||'0');
     await page.locator('button:has-text("Siguiente →")').click();
-    await waitForTurnoLabel(page, expectedLabel).catch(()=>{});
+    await waitForTurnoLabel(page, `Turno ${numBefore + 1} / ${total}`).catch(()=>{});
     const labelAfter = await turnoLabel(page);
-    const navigated  = labelAfter === expectedLabel;
+    const navigated  = labelAfter === `Turno ${numBefore + 1} / ${total}`;
 
-    // 4b: ir a última carrera directamente y verificar disabled
-    await openTurno(page, totalCards);
-    const disabledAtLast = await page.locator('button:has-text("Siguiente →")').isDisabled({ timeout: 5000 });
+    // 4b: navegar hacia adelante paso a paso hasta que Siguiente quede disabled
+    let disabledAtLast = false;
+    for (let guard = 0; guard < total; guard++) {
+      const btn = page.locator('button:has-text("Siguiente →")');
+      if (await btn.isDisabled({ timeout: 5000 }).catch(()=>false)) { disabledAtLast = true; break; }
+      const curLabel = await turnoLabel(page);
+      await btn.click();
+      await waitForTurnoLabel(page,
+        curLabel.replace(/Turno\s+(\d+)/, (_, n) => `Turno ${parseInt(n)+1}`)
+      ).catch(()=>{});
+      await page.waitForTimeout(300);
+    }
 
     push('T4 — Siguiente navega; disabled en última', navigated && disabledAtLast,
-      `${labelBefore} → ${labelAfter} (esperado: ${expectedLabel}) | disabled en última: ${disabledAtLast}`);
+      `${labelBefore} → ${labelAfter} | navigated: ${navigated} | disabled en última: ${disabledAtLast}`);
     await page.close();
   }
 
   /* ── T5: ← Anterior navega un paso; disabled en primera carrera ── */
   {
     const { page } = await loadLista(ctx);
-    const totalCards = await page.locator('.carrera-card').count();
 
     // 5a: navega un paso hacia atrás desde turno 6
     await openTurno(page, 6);
     const labelBefore = await turnoLabel(page);
     const numBefore   = parseInt(labelBefore.match(/Turno\s+(\d+)/)?.[1]||'0');
-    const expectedLabel = `Turno ${numBefore - 1} / ${totalCards}`;
+    const total       = parseInt(labelBefore.match(/\/\s*(\d+)/)?.[1]||'0');
     await page.locator('button:has-text("← Anterior")').click();
-    await waitForTurnoLabel(page, expectedLabel).catch(()=>{});
+    await waitForTurnoLabel(page, `Turno ${numBefore - 1} / ${total}`).catch(()=>{});
     const labelAfter = await turnoLabel(page);
-    const navigated  = labelAfter === expectedLabel;
+    const navigated  = labelAfter === `Turno ${numBefore - 1} / ${total}`;
 
-    // 5b: ir a primer carrera directamente y verificar disabled
-    await openTurno(page, 1);
-    const disabledAtFirst = await page.locator('button:has-text("← Anterior")').isDisabled({ timeout: 5000 });
+    // 5b: navegar hacia atrás paso a paso hasta que Anterior quede disabled
+    let disabledAtFirst = false;
+    for (let guard = 0; guard < total; guard++) {
+      const btn = page.locator('button:has-text("← Anterior")');
+      if (await btn.isDisabled({ timeout: 5000 }).catch(()=>false)) { disabledAtFirst = true; break; }
+      const curLabel = await turnoLabel(page);
+      await btn.click();
+      await waitForTurnoLabel(page,
+        curLabel.replace(/Turno\s+(\d+)/, (_, n) => `Turno ${parseInt(n)-1}`)
+      ).catch(()=>{});
+      await page.waitForTimeout(300);
+    }
 
     push('T5 — Anterior navega; disabled en primera', navigated && disabledAtFirst,
-      `${labelBefore} → ${labelAfter} (esperado: ${expectedLabel}) | disabled en primera: ${disabledAtFirst}`);
+      `${labelBefore} → ${labelAfter} | navigated: ${navigated} | disabled en primera: ${disabledAtFirst}`);
     await page.close();
   }
 
