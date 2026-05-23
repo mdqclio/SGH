@@ -314,11 +314,29 @@ function guardDirty(fn) {
 }
 function navigateToLista()     { guardDirty(() => renderLista()); }
 function navigateToCarrera(id) { guardDirty(() => abrirResultado(id)); }
-function navigateToReunion()   { guardDirty(() => loadReunion()); }
+function navigateToReunion() {
+  const sel  = document.getElementById('sel-reunion');
+  const prev = sel?._prevValue ?? sel?.value;
+  if (!isDirty) {
+    if (sel) sel._prevValue = sel.value;
+    loadReunion();
+    return;
+  }
+  if (confirm('Hay cambios sin aplicar. ¿Descartar y salir?')) {
+    isDirty = false;
+    if (sel) sel._prevValue = sel.value;
+    loadReunion();
+  } else {
+    if (sel && prev != null) { sel.value = prev; sel._prevValue = prev; }
+  }
+}
 function navCarrera(delta) {
-  const idx  = carreras.findIndex(c => c.id === currentCarreraId);
-  const next = carreras[idx + delta];
-  if (next) navigateToCarrera(next.id);
+  if (!currentCarreraId) return;
+  const idx     = carreras.findIndex(c => c.id === currentCarreraId);
+  if (idx === -1) return;
+  const newIdx  = Math.max(0, Math.min(carreras.length - 1, idx + delta));
+  if (newIdx === idx) return;
+  navigateToCarrera(carreras[newIdx].id);
 }
 
 /* ═══════════════════════════════════════════════
