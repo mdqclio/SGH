@@ -956,6 +956,10 @@ function renderOficial(carrera, res, pos, apus, insc) {
     return `<div class="mf-cell ${cls}">${m}</div>`;
   }).join('');
 
+  const _cIdx    = carreras.findIndex(c => c.id === carrera.id);
+  const _isFirst = _cIdx <= 0;
+  const _isLast  = _cIdx >= carreras.length - 1;
+
   document.getElementById('main-container').innerHTML = `
     <div class="res-panel">
       <div class="res-panel-header">
@@ -965,6 +969,9 @@ function renderOficial(carrera, res, pos, apus, insc) {
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <span class="badge badge-oficial">✅ Oficial</span>
+          <button class="btn-outline no-print" onclick="navCarrera(-1)" ${_isFirst?'disabled':''}>← Anterior</button>
+          <span style="font-size:13px;color:var(--muted);min-width:60px;text-align:center;">Turno ${_cIdx+1} / ${carreras.length}</span>
+          <button class="btn-outline no-print" onclick="navCarrera(1)"  ${_isLast?'disabled':''}>Siguiente →</button>
           <button class="btn-outline no-print" onclick="window.print()">🖨️ Imprimir</button>
           <button class="btn-danger  no-print" onclick="modificarOficial('${res.id}','${carrera.id}')">⚠️ Modificar</button>
           <button class="btn-outline no-print" onclick="navigateToLista()">← Carreras</button>

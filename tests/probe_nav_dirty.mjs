@@ -16,6 +16,8 @@ const SUPABASE_URL  = 'https://unlhcuanfrtpatoipwve.supabase.co';
 const SERVICE_KEY   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjcyNDQ5NywiZXhwIjoyMDkyMzAwNDk3fQ.drl2zQmZ3NMEksHSv14Jd_1p0HQWQg-_ACihQi3vQcE';
 const STORAGE_KEY   = 'sb-unlhcuanfrtpatoipwve-auth-token';
 const REUNION_ID    = 'c90b6186-268d-4089-8cc6-71626b627cf8';
+const RESULTADO_ID  = '052b679b-f539-4c20-9038-a4f2fce48287';
+const CARRERA_ID    = 'ee373aea-bb8d-4866-9a11-1f34282dbb73';
 const BASE_URL      = `https://mdqclio.github.io/SGH/resultados.html?reunion_id=${REUNION_ID}`;
 const DOLORES_EMAIL = 'dolores@sgh.com';
 const DOLORES_UID   = '01c55b92-c53e-42fd-948f-ebfdb31b8d65';
@@ -36,28 +38,57 @@ async function buildSession() {
     token_type: 'bearer', expires_in: ei, expires_at: Math.floor(Date.now()/1000)+ei, user: ud?.user };
 }
 
-async function loadPage(ctx) {
+/** Página fresca con handler de diálogo mutable (evita conflicto on + once). */
+async function newPage(ctx) {
   const page = await ctx.newPage();
-  // Dismiss all native confirm dialogs by default (tests override per-dialog as needed)
-  page.on('dialog', d => d.dismiss());
+  let handler = d => d.dismiss();
+  page.on('dialog', d => handler(d));
+  return { page, setDialog: fn => { handler = fn; } };
+}
+
+async function loadLista(ctx) {
+  const { page, setDialog } = await newPage(ctx);
   await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 30000 });
   await page.waitForFunction(() => {
     const o = document.getElementById('auth-overlay');
     return !o || o.style.display === 'none';
   }, { timeout: 15000 }).catch(()=>{});
   await page.waitForSelector('.carrera-card', { timeout: 15000 });
-  return page;
+  return { page, setDialog };
 }
 
+/** Abre el turno cuyo .cc-num coincide con `numero` desde la lista. */
 async function openTurno(page, numero) {
+  // Si no estamos en la lista, volver a ella (sin dirty guard)
+  if (await page.locator('.carrera-card').count() === 0) {
+    await page.evaluate(() => renderLista());
+    await page.waitForSelector('.carrera-card', { timeout: 10000 });
+  }
   const cards = page.locator('.carrera-card');
   const count = await cards.count();
   for (let i = 0; i < count; i++) {
-    const txt = (await cards.nth(i).locator('.cc-num').textContent()).trim();
-    if (txt === String(numero)) { await cards.nth(i).click(); break; }
+    if ((await cards.nth(i).locator('.cc-num').textContent()).trim() === String(numero)) {
+      await cards.nth(i).click();
+      break;
+    }
   }
-  await page.waitForSelector('#tiempo-ganador', { timeout: 10000 });
-  await page.waitForTimeout(500);
+  await page.waitForSelector('.res-panel', { timeout: 10000 });
+  await page.waitForTimeout(600);
+}
+
+async function turnoLabel(page) {
+  const el = page.locator('span').filter({ hasText: /Turno \d+ \/ \d+/ }).first();
+  return (await el.textContent({ timeout: 8000 })).trim();
+}
+
+async function waitForTurnoLabel(page, expected) {
+  await page.waitForFunction(
+    exp => {
+      const el = [...document.querySelectorAll('span')].find(s => /Turno \d+ \/ \d+/.test(s.textContent));
+      return el && el.textContent.trim() === exp;
+    },
+    expected, { timeout: 15000 }
+  );
 }
 
 (async () => {
@@ -72,29 +103,25 @@ async function openTurno(page, numero) {
 
   /* ── T1: dirty bloquea "← Carreras" ── */
   {
-    const page = await loadPage(ctx);
+    const { page, setDialog } = await loadLista(ctx);
     await openTurno(page, 6);
-    // Dirty the form
     await page.locator('#incidentes').fill('SUCIA');
-    // Intercept the dialog to verify it fires; dismiss (cancel)
     let dialogFired = false;
-    page.once('dialog', async d => { dialogFired = true; await d.dismiss(); });
+    setDialog(d => { dialogFired = true; d.dismiss(); });
     await page.locator('button:has-text("← Carreras")').click();
-    await page.waitForTimeout(300);
-    // Should still be on the form (dialog was dismissed)
+    await page.waitForTimeout(400);
     const stillOnForm = await page.locator('#tiempo-ganador').count() > 0;
     push('T1 — dirty bloquea ← Carreras', dialogFired && stillOnForm,
       `dialog: ${dialogFired} | form presente: ${stillOnForm}`);
     await page.close();
   }
 
-  /* ── T2: confirm OK descarta cambios y vuelve a la lista ── */
+  /* ── T2: confirm OK descarta y vuelve a la lista ── */
   {
-    const page = await loadPage(ctx);
+    const { page, setDialog } = await loadLista(ctx);
     await openTurno(page, 6);
     await page.locator('#incidentes').fill('SUCIA');
-    // Accept the confirm dialog this time
-    page.once('dialog', d => d.accept());
+    setDialog(d => d.accept());
     await page.locator('button:has-text("← Carreras")').click();
     await page.waitForTimeout(500);
     const onList = await page.locator('.carrera-card').count() > 0;
@@ -106,127 +133,122 @@ async function openTurno(page, numero) {
 
   /* ── T3: F10 limpia dirty (sin confirm al salir tras save) ── */
   {
-    const page = await loadPage(ctx);
+    const { page, setDialog } = await loadLista(ctx);
     await openTurno(page, 6);
-    await page.locator('#incidentes').fill('SUCIA');
-    // Save
+    await page.locator('#incidentes').fill('TEST_F10');
     await page.keyboard.press('F10');
     await page.waitForSelector('.toast', { timeout: 8000 }).catch(()=>{});
-    await page.waitForTimeout(400);
-    // Now navigate back — should NOT trigger confirm
+    await page.waitForTimeout(500);
     let dialogFired = false;
-    page.once('dialog', async d => { dialogFired = true; await d.dismiss(); });
+    setDialog(d => { dialogFired = true; d.accept(); });
     await page.locator('button:has-text("← Carreras")').click();
     await page.waitForTimeout(400);
     const onList = await page.locator('.carrera-card').count() > 0;
     push('T3 — F10 limpia dirty', !dialogFired && onList,
-      `dialog: ${dialogFired} | lista: ${onList}`);
+      `dialog inesperado: ${dialogFired} | lista: ${onList}`);
     await page.close();
   }
 
-  /* ── T4: Siguiente → navega; disabled en última carrera ── */
+  /* ── T4: Siguiente → navega un paso; disabled en última carrera ── */
   {
-    const page = await loadPage(ctx);
+    const { page } = await loadLista(ctx);
+    const totalCards = await page.locator('.carrera-card').count();
+
+    // 4a: navega un paso hacia adelante desde turno 6
     await openTurno(page, 6);
-    // Get current turno label
-    const labelBefore = (await page.locator('span:has-text("Turno")').filter({ hasText: '/' }).textContent()).trim();
-    // Click Siguiente
+    const labelBefore = await turnoLabel(page);
+    const numBefore   = parseInt(labelBefore.match(/Turno\s+(\d+)/)?.[1]||'0');
+    const expectedLabel = `Turno ${numBefore + 1} / ${totalCards}`;
     await page.locator('button:has-text("Siguiente →")').click();
-    await page.waitForSelector('#tiempo-ganador', { timeout: 10000 });
-    await page.waitForTimeout(400);
-    const labelAfter = (await page.locator('span:has-text("Turno")').filter({ hasText: '/' }).textContent()).trim();
-    // Extract index from "Turno X / N"
-    const numBefore = parseInt(labelBefore.match(/Turno\s+(\d+)/)?.[1]||'0');
-    const numAfter  = parseInt(labelAfter.match(/Turno\s+(\d+)/)?.[1]||'0');
-    const navigated = numAfter === numBefore + 1;
+    await waitForTurnoLabel(page, expectedLabel).catch(()=>{});
+    const labelAfter = await turnoLabel(page);
+    const navigated  = labelAfter === expectedLabel;
 
-    // Navigate to last carrera and check disabled
-    const totalMatch = labelBefore.match(/\/\s*(\d+)/);
-    const total = totalMatch ? parseInt(totalMatch[1]) : null;
-    // Navigate to last using Siguiente repeatedly
-    let btnDisabled = false;
-    for (let i = numAfter; i < (total||0); i++) {
-      const btn = page.locator('button:has-text("Siguiente →")');
-      if (await btn.isDisabled()) { btnDisabled = true; break; }
-      await btn.click();
-      await page.waitForTimeout(300);
-    }
-    btnDisabled = btnDisabled || await page.locator('button:has-text("Siguiente →")').isDisabled();
+    // 4b: ir a última carrera directamente y verificar disabled
+    await openTurno(page, totalCards);
+    const disabledAtLast = await page.locator('button:has-text("Siguiente →")').isDisabled({ timeout: 5000 });
 
-    push('T4 — Siguiente navega; disabled en última', navigated && btnDisabled,
-      `${labelBefore} → ${labelAfter} | navigated: ${navigated} | disabled en última: ${btnDisabled}`);
+    push('T4 — Siguiente navega; disabled en última', navigated && disabledAtLast,
+      `${labelBefore} → ${labelAfter} (esperado: ${expectedLabel}) | disabled en última: ${disabledAtLast}`);
     await page.close();
   }
 
-  /* ── T5: ← Anterior navega; disabled en primera carrera ── */
+  /* ── T5: ← Anterior navega un paso; disabled en primera carrera ── */
   {
-    const page = await loadPage(ctx);
+    const { page } = await loadLista(ctx);
+    const totalCards = await page.locator('.carrera-card').count();
+
+    // 5a: navega un paso hacia atrás desde turno 6
     await openTurno(page, 6);
-    const labelBefore = (await page.locator('span:has-text("Turno")').filter({ hasText: '/' }).textContent()).trim();
+    const labelBefore = await turnoLabel(page);
+    const numBefore   = parseInt(labelBefore.match(/Turno\s+(\d+)/)?.[1]||'0');
+    const expectedLabel = `Turno ${numBefore - 1} / ${totalCards}`;
     await page.locator('button:has-text("← Anterior")').click();
-    await page.waitForSelector('#tiempo-ganador', { timeout: 10000 });
-    await page.waitForTimeout(400);
-    const labelAfter = (await page.locator('span:has-text("Turno")').filter({ hasText: '/' }).textContent()).trim();
-    const numBefore = parseInt(labelBefore.match(/Turno\s+(\d+)/)?.[1]||'0');
-    const numAfter  = parseInt(labelAfter.match(/Turno\s+(\d+)/)?.[1]||'0');
-    const navigated = numAfter === numBefore - 1;
+    await waitForTurnoLabel(page, expectedLabel).catch(()=>{});
+    const labelAfter = await turnoLabel(page);
+    const navigated  = labelAfter === expectedLabel;
 
-    // Go to turno 1 and check disabled
+    // 5b: ir a primer carrera directamente y verificar disabled
     await openTurno(page, 1);
-    await page.waitForTimeout(300);
-    const btnDisabled = await page.locator('button:has-text("← Anterior")').isDisabled();
+    const disabledAtFirst = await page.locator('button:has-text("← Anterior")').isDisabled({ timeout: 5000 });
 
-    push('T5 — Anterior navega; disabled en primera', navigated && btnDisabled,
-      `${labelBefore} → ${labelAfter} | navigated: ${navigated} | disabled en primera: ${btnDisabled}`);
+    push('T5 — Anterior navega; disabled en primera', navigated && disabledAtFirst,
+      `${labelBefore} → ${labelAfter} (esperado: ${expectedLabel}) | disabled en primera: ${disabledAtFirst}`);
     await page.close();
   }
 
   /* ── T6: etiqueta "Turno X / N" correcta ── */
   {
-    const page = await loadPage(ctx);
+    const { page } = await loadLista(ctx);
     const totalCards = await page.locator('.carrera-card').count();
     await openTurno(page, 1);
-    const labelTxt = (await page.locator('span:has-text("Turno")').filter({ hasText: '/' }).textContent()).trim();
+    const labelTxt = await turnoLabel(page);
     const m = labelTxt.match(/Turno\s+(\d+)\s*\/\s*(\d+)/);
     const correctIdx   = m ? parseInt(m[1]) === 1 : false;
     const correctTotal = m ? parseInt(m[2]) === totalCards : false;
     push('T6 — etiqueta Turno X / N correcta', correctIdx && correctTotal,
-      `label: "${labelTxt}" | cards: ${totalCards}`);
+      `label: "${labelTxt}" | cards en lista: ${totalCards}`);
     await page.close();
   }
 
   /* ── T7: dirty + Siguiente → confirm; Cancel preserva form ── */
   {
-    const page = await loadPage(ctx);
+    const { page, setDialog } = await loadLista(ctx);
     await openTurno(page, 6);
-    const incOriginal = await page.locator('#incidentes').inputValue();
     await page.locator('#incidentes').fill('DIRTY_TEST');
-    const labelBefore = (await page.locator('span:has-text("Turno")').filter({ hasText: '/' }).textContent()).trim();
-
-    // Dismiss (Cancel)
+    const labelBefore = await turnoLabel(page);
     let dialogFired = false;
-    page.once('dialog', async d => { dialogFired = true; await d.dismiss(); });
+    setDialog(d => { dialogFired = true; d.dismiss(); });
     await page.locator('button:has-text("Siguiente →")').click();
-    await page.waitForTimeout(400);
-
-    const labelAfter = (await page.locator('span:has-text("Turno")').filter({ hasText: '/' }).textContent()).trim();
-    const stayedSame = labelBefore === labelAfter;
-    const incValue   = await page.locator('#incidentes').inputValue();
-    const preserved  = incValue === 'DIRTY_TEST';
-
+    await page.waitForTimeout(500);
+    const labelAfter  = await turnoLabel(page);
+    const stayedSame  = labelBefore === labelAfter;
+    const incValue    = await page.locator('#incidentes').inputValue();
+    const preserved   = incValue === 'DIRTY_TEST';
     push('T7 — dirty + Siguiente + Cancel preserva form', dialogFired && stayedSame && preserved,
-      `dialog: ${dialogFired} | label ${labelBefore}→${labelAfter} | incidentes: "${incValue}"`);
-
-    // Restore incidentes original value (don't leave dirty state)
-    page.once('dialog', d => d.accept());
-    await page.locator('button:has-text("← Carreras")').click();
-    await page.waitForTimeout(300);
+      `dialog: ${dialogFired} | ${labelBefore}→${labelAfter} | incidentes: "${incValue}"`);
     await page.close();
   }
 
   await browser.close();
 
-  // ── Reporte ──────────────────────────────────────────────────────────────
+  /* ── Restaurar estado de la carrera de prueba ── */
+  const { data: rr } = await adminSb.from('resultados').select('updated_at').eq('id', RESULTADO_ID).single();
+  await adminSb.rpc('aplicar_resultado', {
+    p_resultado_id:        RESULTADO_ID,
+    p_expected_updated_at: rr?.updated_at,
+    p_carrera_id:          CARRERA_ID,
+    p_estado:              'provisional',
+    p_estado_pista:        null,
+    p_tiempo_ganador:      '1:02.40',
+    p_incidentes:          'Sin novedad',
+    p_favorito_mandil:     2,
+    p_redistribucion_legs: {"1":"gde","2":"al3","3":"al4","4":"al5","5":"al6"},
+    p_posiciones:          [],
+    p_apuestas:            null,
+  });
+
+  /* ── Reporte ── */
   console.log('\n' + '═'.repeat(100));
   console.log('  SMOKE: nav entre carreras + dirty-check guard');
   console.log('═'.repeat(100));
@@ -237,6 +259,7 @@ async function openTurno(page, numero) {
   const fail = results.filter(r=>r.status==='❌').length;
   console.log('─'.repeat(100));
   console.log(`Total: ${results.length} | ✅ ${pass} | ❌ ${fail}`);
-  console.log('═'.repeat(100) + '\n');
+  console.log('═'.repeat(100));
+  console.log('[RESTORE] estado_pista → NULL, tiempo_ganador → 1:02.40, incidentes → "Sin novedad"\n');
   if (fail > 0) process.exit(1);
 })().catch(e => { console.error('FATAL:', e); process.exit(1); });
