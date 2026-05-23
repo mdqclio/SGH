@@ -31,16 +31,15 @@ One row per carrera. Unique constraint on `carrera_id` (a carrera can only have 
 | `estado_pista` | `varchar(20)` | YES | — | CHECK (ver abajo) |
 | `favorito_mandil` | `integer` | YES | — | número de partidor del favorito |
 | `redistribucion_legs` | `jsonb` | YES | `'{}'` | mapa leg→destino, ej. `{"1":"gde","2":"al3"}` |
-| `tiempo_clima` | `varchar(50)` | YES | — | **nuevo en v2** — ej. `'BUENO'`, `'LLUVIOSO'` |
 | `updated_at` | `timestamptz` | YES | `now()` | **nuevo en v2** — lo mantiene el trigger |
 
 ### CHECK `estado_pista`
 
 ```sql
-estado_pista IN ('normal', 'seca', 'humeda', 'fangosa', 'pesada')
+estado_pista IN ('seca', 'humeda', 'fangosa', 'pesada')
 ```
 
-`'normal'` se agregó en `carga-resultados-v2`; los valores previos eran `seca`/`humeda`/`fangosa`/`pesada`.
+Cuatro valores válidos históricos. `'normal'` fue agregado por error y revertido el 2026-05-23 (precedente legal del hipódromo).
 
 ### Constraints
 
@@ -143,7 +142,6 @@ CREATE OR REPLACE FUNCTION public.aplicar_resultado(
   p_expected_updated_at timestamptz,
   p_carrera_id          uuid,
   p_estado              text,
-  p_tiempo_clima        text,
   p_estado_pista        text,
   p_tiempo_ganador      text,
   p_incidentes          text,

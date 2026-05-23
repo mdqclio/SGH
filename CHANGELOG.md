@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-05-23 — `cleanup-fede` (feedback del secretario de carreras)
+
+### Revertido / Eliminado
+- **`estado_pista = 'normal'`** revertido del CHECK y del `<select>` de la UI. El hipódromo tiene precedente legal que establece que los únicos valores válidos son `seca`, `humeda`, `fangosa` y `pesada`. El selector arranca ahora con opción vacía `—` para forzar elección consciente.
+- **`resultados.tiempo_clima`** eliminado: columna dropeada de la tabla, campo removido de la UI y del payload del RPC. El clima no va en la pantalla de resultados.
+- **Display de jockey 1° y 2°** eliminado del panel central de resultados. El dato sigue viviendo en inscripciones y performances; se removió solo de esta pantalla porque ya está disponible en el programa.
+
+---
+
 ## 2026-05-23 — `carga-resultados-v2`
 
 ### Agregado
@@ -12,11 +21,11 @@
 - **Optimistic locking concurrente**: el servidor detecta escrituras en conflicto y devuelve `CONCURRENT_MODIFICATION`; la UI muestra el toast "Otro operador modificó este resultado. Recargá antes de guardar."
 - **Schema changes** (ver [SCHEMA.md](SCHEMA.md)):
   - `resultado_apuestas` (tabla nueva): columnas `tipo`, `val_apu`, `composicion`, `pozo`, `vales`, `div_orig`, `div_inc`, `vacante`, `orden`, FK a `resultados`. Detalle en SCHEMA.md.
-  - `resultados.tiempo_clima` (`varchar(50)`)
   - `resultados.redistribucion_legs` (`jsonb`, default `'{}'`)
   - `resultados.updated_at` (`timestamptz`) con trigger `BEFORE UPDATE` (`set_updated_at`)
   - Índice `idx_resultados_updated_at (id, updated_at)`
-  - CHECK `estado_pista` ampliado con `'normal'`
+  - ~~`resultados.tiempo_clima`~~ — revertido, ver arriba
+  - ~~CHECK `estado_pista` ampliado con `'normal'`~~ — revertido, ver arriba
 
 ### Corregido
 - **Bug 3b**: borrar todas las filas de dividendos, aplicar (F10) y recargar mostraba las 20 filas originales en vez de una grilla vacía. La RPC ahora ejecuta el DELETE incondicionalmente aunque `p_apuestas` sea un array vacío.

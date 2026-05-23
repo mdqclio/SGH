@@ -433,13 +433,6 @@ function renderFormulario(carrera, res, pos, apus, insc) {
     if (i?.numero_partidor) mbp[p.posicion] = i.numero_partidor;
   });
 
-  // Jockeys auto-derivados
-  const jockStr = (mandil) => {
-    const i = insc.find(x=>x.numero_partidor===parseInt(mandil));
-    const p = i ? profsMap[i.jockey_titular_id] : null;
-    return p ? `${p.apellido||''} ${p.nombre||''}`.trim().toUpperCase() : '';
-  };
-
   // Selectores de leg
   const legLabels = ['Gde','al 3°','al 4°','al 5°','al 6°'];
   const legOpts   = [
@@ -463,9 +456,10 @@ function renderFormulario(carrera, res, pos, apus, insc) {
   }).join('');
 
   // Estado de pista options
-  const pistaOpts = ['normal','seca','humeda','fangosa','pesada'].map(v=>
-    `<option value="${v}" ${(res?.estado_pista||'normal')===v?'selected':''}>${v.charAt(0).toUpperCase()+v.slice(1)}</option>`
-  ).join('');
+  const pistaOpts = '<option value="">—</option>' +
+    ['seca','humeda','fangosa','pesada'].map(v=>
+      `<option value="${v}" ${res?.estado_pista===v?'selected':''}>${v.charAt(0).toUpperCase()+v.slice(1)}</option>`
+    ).join('');
 
   // M.(F) inicial
   const mfCells = [1,2,3,4,5,6,7].map(p => {
@@ -492,10 +486,6 @@ function renderFormulario(carrera, res, pos, apus, insc) {
       <div class="res-section">
         <div class="res-section-title">Condiciones de la carrera</div>
         <div class="form-row">
-          <div class="form-group">
-            <label>Tiempo (clima)</label>
-            <input type="text" id="tiempo-clima" value="${res?.tiempo_clima||''}" placeholder="BUENO" style="width:110px">
-          </div>
           <div class="form-group">
             <label>Estado de pista</label>
             <select id="estado-pista" style="min-width:120px;">${pistaOpts}</select>
@@ -526,18 +516,10 @@ function renderFormulario(carrera, res, pos, apus, insc) {
         <!-- ─── PANEL DERECHO ─── -->
         <div class="det-col-right">
 
-          <!-- Jockey / Favorito -->
+          <!-- Favorito -->
           <div class="res-section">
             <div class="res-section-title">Datos del resultado</div>
             <div class="form-row">
-              <div class="form-group" style="flex:1;">
-                <label>Jockey 1°</label>
-                <input type="text" id="jockey1" value="${jockStr(mbp[1])}" placeholder="—">
-              </div>
-              <div class="form-group" style="flex:1;">
-                <label>Jockey 2°</label>
-                <input type="text" id="jockey2" value="${jockStr(mbp[2])}" placeholder="—">
-              </div>
               <div class="form-group">
                 <label>Favorito (mandil)</label>
                 <input type="number" id="favorito-mandil" value="${res?.favorito_mandil||''}" placeholder="—" style="width:80px">
@@ -621,7 +603,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
 }
 
 /* ── Cambios en el marcador ── */
-function onMarcInput() { updateMF(); autoJockeys(); }
+function onMarcInput() { updateMF(); }
 
 function updateMF() {
   [1,2,3,4,5,6,7].forEach(p => {
@@ -630,20 +612,7 @@ function updateMF() {
   });
 }
 
-function autoJockeys() {
-  const jstr = (puesto) => {
-    const val = document.getElementById(`marc-${puesto}`)?.value?.trim();
-    if (!val) return '';
-    const mandil = parseInt(val);
-    const insc = inscripciones.find(i => i.carrera_id===currentCarreraId && i.numero_partidor===mandil);
-    const jock = insc ? profsMap[insc.jockey_titular_id] : null;
-    return jock ? `${jock.apellido||''} ${jock.nombre||''}`.trim().toUpperCase() : '';
-  };
-  const j1 = jstr(1), j2 = jstr(2);
-  const el1 = document.getElementById('jockey1'), el2 = document.getElementById('jockey2');
-  if (el1 && j1) el1.value = j1;
-  if (el2 && j2) el2.value = j2;
-}
+
 
 /* ── Tabs ── */
 function switchTab(tab) {
@@ -790,7 +759,6 @@ function normalizeTiempoGanador(raw) {
 }
 
 async function aplicar(carreraId, estado) {
-  const tiempoClima  = document.getElementById('tiempo-clima')?.value.trim()  || null;
   const estadoPista  = document.getElementById('estado-pista')?.value          || null;
   const tiempoGanRaw = document.getElementById('tiempo-ganador')?.value.trim() || null;
   const tiempoGan    = normalizeTiempoGanador(tiempoGanRaw);
@@ -843,7 +811,6 @@ async function aplicar(carreraId, estado) {
     p_expected_updated_at: loadedUpdatedAt,
     p_carrera_id:          carreraId,
     p_estado:              estado,
-    p_tiempo_clima:        tiempoClima,
     p_estado_pista:        estadoPista,
     p_tiempo_ganador:      tiempoGan,
     p_incidentes:          incidentes,
@@ -937,14 +904,6 @@ function renderOficial(carrera, res, pos, apus, insc) {
     if (i?.numero_partidor) mbp[p.posicion] = i.numero_partidor;
   });
 
-  const jockStr = (puesto) => {
-    const p = posOrdenadas.find(x=>x.posicion===puesto);
-    if (!p) return '—';
-    const i = insc.find(x=>x.id===p.inscripcion_id);
-    const j = i ? profsMap[i.jockey_titular_id] : null;
-    return j ? `${j.apellido||''} ${j.nombre||''}`.trim().toUpperCase() : '—';
-  };
-
   const mfCells = [1,2,3,4,5,6,7].map(p => {
     const m = mbp[p]||'';
     const cls = p===2?'mf-2': p===3?'mf-3': p===4?'mf-4':'';
@@ -956,7 +915,7 @@ function renderOficial(carrera, res, pos, apus, insc) {
       <div class="res-panel-header">
         <div>
           <div class="res-panel-title">Turno ${carrera.numero_turno}${carrera.nombre?' — '+carrera.nombre:''}</div>
-          <div class="res-meta">${carrera.distancia_metros}m · ${carrera.tipo_pista||'—'} · Pista: ${res.estado_pista||'—'} · ${res.tiempo_clima||''} · T: ${res.tiempo_ganador||'—'}</div>
+          <div class="res-meta">${carrera.distancia_metros}m · ${carrera.tipo_pista||'—'} · Pista: ${res.estado_pista||'—'} · T: ${res.tiempo_ganador||'—'}</div>
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <span class="badge badge-oficial">✅ Oficial</span>
@@ -970,8 +929,6 @@ function renderOficial(carrera, res, pos, apus, insc) {
         <div class="form-row" style="gap:20px;font-size:13px;">
           <div>Borrados: <strong>${borradosTxt}</strong></div>
           ${res.favorito_mandil!=null?`<div>Favorito: <strong style="color:var(--accent)">${res.favorito_mandil}</strong></div>`:''}
-          <div>Jockey 1°: <strong>${jockStr(1)}</strong></div>
-          <div>Jockey 2°: <strong>${jockStr(2)}</strong></div>
         </div>
       </div>
 
