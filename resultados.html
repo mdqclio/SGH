@@ -801,7 +801,6 @@ async function aplicar(carreraId, estado) {
     incidentes,
     favorito_mandil,
     redistribucion_legs: Object.keys(redistribucion_legs).length ? redistribucion_legs : null,
-    dividendos: res?.dividendos || null, // preservar JSONB legacy intacto
   };
 
   // Upsert resultado
