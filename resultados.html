@@ -837,19 +837,20 @@ async function aplicar(carreraId, estado) {
     posicionesMap[resId] = posData;
   }
 
-  // Apuestas
-  if (pendingApuestas.length > 0) {
-    await sb.from('resultado_apuestas').delete().eq('resultado_id', resId);
-    const rows = pendingApuestas.map((a,i) => ({
-      resultado_id:resId, tipo:a.tipo, val_apu:a.val_apu,
-      composicion:a.composicion||null, pozo:a.pozo||null, vales:a.vales||null,
-      div_orig:a.div_orig||null, div_inc:a.div_inc||null, vacante:a.vacante||false, orden:i+1,
-    }));
-    const { error } = await sb.from('resultado_apuestas').insert(rows);
-    if (error) { toast(error.message,'error'); return; }
-    apuestasMap[resId] = rows;
-    pendingApuestas = rows.map(r=>({...r}));
+  // Apuestas — siempre borrar lo previo; insertar solo si hay filas nuevas
+  const { error: delErr } = await sb.from('resultado_apuestas').delete().eq('resultado_id', resId);
+  if (delErr) { toast('Error al borrar apuestas previas: ' + delErr.message, 'error'); return; }
+  const rows = pendingApuestas.map((a,i) => ({
+    resultado_id:resId, tipo:a.tipo, val_apu:a.val_apu,
+    composicion:a.composicion||null, pozo:a.pozo||null, vales:a.vales||null,
+    div_orig:a.div_orig||null, div_inc:a.div_inc||null, vacante:a.vacante||false, orden:i+1,
+  }));
+  if (rows.length > 0) {
+    const { error: insErr } = await sb.from('resultado_apuestas').insert(rows);
+    if (insErr) { toast('Error al insertar apuestas: ' + insErr.message, 'error'); return; }
   }
+  apuestasMap[resId] = rows;
+  pendingApuestas = rows.map(r=>({...r}));
 
   const msg = estado==='provisional' ? 'Resultado provisional guardado' : 'Guardado';
   toast(msg);
