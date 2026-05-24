@@ -246,6 +246,51 @@ async function waitForTurnoLabel(page, expected) {
     await page.close();
   }
 
+  /* ── T8: cambio de reunión con dirty=true ── */
+  {
+    const { page, setDialog } = await loadLista(ctx);
+    await openTurno(page, 6);
+    await page.locator('#incidentes').fill('T8_DIRTY');
+
+    // Capturar valor actual del select y buscar otra opción disponible
+    const selVal = await page.locator('#sel-reunion').inputValue();
+    const otherOpt = await page.locator('#sel-reunion option').filter({ hasNot: page.locator('[value=""]') }).evaluateAll(
+      (opts, cur) => { const o = opts.find(o => o.value && o.value !== cur); return o ? o.value : null; },
+      selVal
+    );
+
+    if (!otherOpt) {
+      push('T8 — cambio de reunión con dirty: Cancel revierte select', false, 'SKIP: solo hay una reunión disponible en el select');
+      push('T8b — cambio de reunión con dirty: Accept carga nueva reunión', false, 'SKIP: solo hay una reunión disponible');
+      await page.close();
+    } else {
+      // --- T8a: Cancel → select revierte al valor original ---
+      let dialog8aFired = false;
+      setDialog(d => { dialog8aFired = true; d.dismiss(); });
+      await page.locator('#sel-reunion').selectOption(otherOpt);
+      await page.waitForTimeout(400);
+      const selAfterCancel = await page.locator('#sel-reunion').inputValue();
+      const incAfterCancel = await page.locator('#incidentes').inputValue();
+      const selectReverted = selAfterCancel === selVal;
+      const formIntact     = incAfterCancel === 'T8_DIRTY';
+      push('T8a — Cancel: select revierte, form intacto', dialog8aFired && selectReverted && formIntact,
+        `dialog: ${dialog8aFired} | sel: ${selVal}→${selAfterCancel} (esperado ${selVal}) | incidentes: "${incAfterCancel}"`);
+
+      // --- T8b: segundo intento, Accept → carga nueva reunión ---
+      let dialog8bFired = false;
+      setDialog(d => { dialog8bFired = true; d.accept(); });
+      await page.locator('#sel-reunion').selectOption(otherOpt);
+      await page.waitForTimeout(1500);
+      // Tras accept, debe cargar la nueva reunión → lista de carreras o form nuevo
+      const selAfterAccept = await page.locator('#sel-reunion').inputValue();
+      const loadedNew = selAfterAccept === otherOpt;
+      push('T8b — Accept: carga nueva reunión', dialog8bFired && loadedNew,
+        `dialog: ${dialog8bFired} | sel ahora: "${selAfterAccept}" (esperado "${otherOpt}")`);
+
+      await page.close();
+    }
+  }
+
   await browser.close();
 
   /* ── Restaurar estado de la carrera de prueba ── */
