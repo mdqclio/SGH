@@ -1072,7 +1072,8 @@ document.addEventListener('keydown', e => {
 });
 
 document.addEventListener('input',  e => { if (!e.target.closest('#modal-apuesta') && currentCarreraId) isDirty = true; });
-document.addEventListener('change', e => { if (!e.target.closest('#modal-apuesta') && e.target.id !== 'sel-reunion' && currentCarreraId) isDirty = true; });
+// 'change' en text inputs dispara al perder foco (spurioso al navegar); solo capturar selects.
+document.addEventListener('change', e => { if (e.target.tagName === 'SELECT' && !e.target.closest('#modal-apuesta') && e.target.id !== 'sel-reunion' && currentCarreraId) isDirty = true; });
 
 window.addEventListener('beforeunload', e => {
   if (isDirty) { e.preventDefault(); e.returnValue = ''; }
