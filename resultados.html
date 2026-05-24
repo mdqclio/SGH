@@ -797,8 +797,9 @@ function normalizeTiempoGanador(raw) {
   if (!raw) return null;
   const m = raw.match(/^(\d{1,2}):(\d{2})(?:\.(\d{1,2}))?$/);
   if (!m) return false;
+  const mm = String(parseInt(m[1], 10));
   const cc = m[3] ? m[3].padEnd(2, '0') : '00';
-  return `${m[1]}:${m[2]}.${cc}`;
+  return `${mm}:${m[2]}.${cc}`;
 }
 
 async function aplicar(carreraId, estado) {
