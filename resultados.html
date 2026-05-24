@@ -372,7 +372,7 @@ async function init() {
     reuniones.map(r => `<option value="${r.id}">Reunión ${r.numero||''} — ${new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR')} — ${r.hipodromos?.nombre||''}</option>`).join('');
 
   const rid = ActiveReunion.resolve(reuniones);
-  if (rid) { sel.value = rid; try { history.replaceState(null,'',`?reunion_id=${rid}`); } catch(_){} await loadReunion(); }
+  if (rid) { sel.value = rid; sel._prevValue = rid; try { history.replaceState(null,'',`?reunion_id=${rid}`); } catch(_){} await loadReunion(); }
 }
 
 async function loadReunion() {
