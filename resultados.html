@@ -109,9 +109,10 @@
 
     /* ── Marcador ── */
     .marc-grid { display: grid; grid-template-columns: 30px 48px 1fr; row-gap: 5px; column-gap: 6px; align-items: center; }
-    .marc-pos { font-size: 12px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+    .marc-pos { text-align: right; }
+    .marc-pos-chip { display: inline-block; padding: 2px 5px; border-radius: 5px; font-size: 10px; font-weight: 800; font-family: 'DM Sans', sans-serif; line-height: 16px; white-space: nowrap; }
     .marc-input {
-      height: 32px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text);
+      height: 32px; background: rgba(255,255,255,0.04); border: 1px solid rgba(201,168,76,0.35); color: var(--text);
       border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
       text-align: center; padding: 0 6px; width: 100%; outline: none; transition: border-color 0.15s;
     }
@@ -119,7 +120,7 @@
 
     /* ── Chapa picker ── */
     .chapa-wrap { display: flex; align-items: center; }
-    .chapa-btn  { display: flex; align-items: center; gap: 5px; height: 32px; padding: 0 7px 0 5px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; min-width: 88px; font-family: 'DM Sans', sans-serif; color: var(--text); transition: border-color 0.15s; }
+    .chapa-btn  { display: flex; align-items: center; gap: 5px; height: 32px; padding: 0 7px 0 5px; background: rgba(255,255,255,0.04); border: 1px solid rgba(201,168,76,0.35); border-radius: 8px; cursor: pointer; min-width: 88px; font-family: 'DM Sans', sans-serif; color: var(--text); transition: border-color 0.15s; }
     .chapa-btn:hover { border-color: rgba(201,168,76,0.4); }
     .chapa-btn:focus { outline: none; border-color: var(--accent); }
     .chapa-btn-icon { width: 22px; height: 22px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
@@ -319,6 +320,7 @@
 <div id="chapa-shared-dd" class="chapa-shared-dd"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="partidor-colors.js"></script>
 <script src="chapas.js"></script>
 <script>
 /* ═══════════════════════════════════════════════
@@ -513,6 +515,8 @@ function renderFormulario(carrera, res, pos, apus, insc) {
   const marcRows = Array.from({length: rowCount}, (_, i) => {
     const p   = i + 1;
     const val = mbp[p] || '';
+    const { bg: chipBg, fg: chipFg } = partidorColor(p);
+    const chipBorder = chipBg.toUpperCase() === '#FFFFFF' ? '1px solid rgba(0,0,0,0.25)' : 'none';
     let chapaCell = '<div></div>';
     if (p > 1) {
       const st = parseDif(difMap[p] || null);
@@ -527,7 +531,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
         </button>
       </div>`;
     }
-    return `<div class="marc-pos">${p}°</div>
+    return `<div class="marc-pos"><span class="marc-pos-chip" style="background:${chipBg};color:${chipFg};border:${chipBorder}">${p}°</span></div>
       <input class="marc-input" id="marc-${p}" type="number" min="1" max="30" value="${val}" oninput="onMarcInput()">
       ${chapaCell}`;
   }).join('');
