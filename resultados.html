@@ -108,13 +108,19 @@
     .det-col-right { padding: 0; }
 
     /* ── Marcador ── */
-    .marc-grid { display: grid; grid-template-columns: 54px 1fr; row-gap: 6px; column-gap: 8px; align-items: center; }
+    .marc-grid { display: grid; grid-template-columns: 54px 1fr 58px; row-gap: 6px; column-gap: 8px; align-items: center; }
     .marc-input {
       height: 34px; background: rgba(255,255,255,0.04); border: 1px solid rgba(201,168,76,0.35); color: var(--text);
       border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700;
       text-align: center; padding: 0; width: 100%; outline: none; transition: border-color 0.15s;
     }
     .marc-input:focus { border-color: var(--accent); }
+    .marc-div {
+      height: 34px; width: 58px; background: rgba(255,255,255,0.04); border: 1px solid rgba(201,168,76,0.35); color: var(--text);
+      border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+      text-align: center; padding: 0; outline: none; transition: border-color 0.15s;
+    }
+    .marc-div:focus { border-color: var(--accent); }
 
     /* ── Chapa picker ── */
     .chapa-wrap { display: flex; align-items: center; }
@@ -504,7 +510,11 @@ function renderFormulario(carrera, res, pos, apus, insc) {
   // Marcador HTML con chapa picker por puesto 2+
   chapaValues = {};
   const difMap = {};
-  (pos||[]).forEach(px => { if (px.diferencia) difMap[px.posicion] = px.diferencia; });
+  const divMap = {};
+  (pos||[]).forEach(px => {
+    if (px.diferencia) difMap[px.posicion] = px.diferencia;
+    if (px.dividendo != null) divMap[px.posicion] = px.dividendo;
+  });
 
   const activeInsc = insc.filter(i => !['forfait','mal_inscrito'].includes(i.estado));
   const rowCount   = Math.max(1, activeInsc.length);
@@ -526,8 +536,10 @@ function renderFormulario(carrera, res, pos, apus, insc) {
         </button>
       </div>`;
     }
+    const divVal = divMap[p] != null ? Number(divMap[p]).toFixed(2) : '';
     return `<input class="marc-input" id="marc-${p}" type="number" min="1" max="30" value="${val}" oninput="onMarcInput()">
-      ${chapaCell}`;
+      ${chapaCell}
+      <input class="marc-div" id="marc-div-${p}" type="number" step="0.01" min="0" value="${divVal}" placeholder="—">`;
   }).join('');
 
   // Normalizar tiempo_ganador — formato viejo "M:SS:CC" → nuevo "M:SS.CC"
@@ -1070,8 +1082,11 @@ async function aplicar(carreraId, estado) {
     usados.add(mandil);
     const inscr = insc.find(i=>i.numero_partidor===mandil);
     if (!inscr) { toast(`Mandil ${mandil} no encontrado entre los inscriptos`,'error'); return; }
+    const divRaw = document.getElementById(`marc-div-${p}`)?.value?.trim();
+    const dividendo = divRaw ? parseFloat(divRaw) : null;
     posData.push({ inscripcion_id:inscr.id, posicion:p, descalificado:false, empate:false,
-                   diferencia: p === 1 ? null : (chapaGetCodigo(chapaValues[p]) || null) });
+                   diferencia: p === 1 ? null : (chapaGetCodigo(chapaValues[p]) || null),
+                   dividendo });
   }
 
   const apuestasArr = pendingApuestas.map((a,i) => ({
