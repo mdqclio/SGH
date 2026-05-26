@@ -93,14 +93,9 @@
     .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
     .form-group { display: flex; flex-direction: column; gap: 4px; }
     .form-group label { font-size: 12px; font-weight: 500; color: var(--muted); }
-    .tg-wrap { display: flex; align-items: center; gap: 3px; }
-    .tg-sep  { font-weight: 700; color: var(--muted); font-size: 14px; line-height: 1; }
-    .tg-input { height: 34px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; text-align: center; padding: 0; outline: none; transition: border-color 0.15s; -moz-appearance: textfield; }
-    .tg-input::-webkit-outer-spin-button, .tg-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-    .tg-input:focus { border-color: var(--accent); }
-    .tg-min  { width: 36px; }
-    .tg-seg  { width: 36px; }
-    .tg-cent { width: 36px; }
+    .tg-single { height: 34px; width: 110px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; text-align: center; padding: 0 8px; outline: none; transition: border-color 0.15s; }
+    .tg-single:focus { border-color: var(--accent); }
+    .tg-single.tg-invalid { border-color: var(--danger); }
 
     /* ── 2 columnas: marcador + right ── */
     .det-cols { display: grid; grid-template-columns: 340px 1fr; gap: 0; }
@@ -532,12 +527,10 @@ function renderFormulario(carrera, res, pos, apus, insc) {
       ${chapaCell}`;
   }).join('');
 
-  // Parse tiempo_ganador → tres campos
-  const _tgRaw   = res?.tiempo_ganador || '';
-  const _tgMatch = _tgRaw.match(/^(\d{1,2}):(\d{2})(?:\.(\d{1,2}))?$/);
-  const _tgMin   = _tgMatch ? _tgMatch[1] : '';
-  const _tgSeg   = _tgMatch ? _tgMatch[2] : '';
-  const _tgCent  = _tgMatch ? (_tgMatch[3] || '').padEnd(2, '0') : '';
+  // Normalizar tiempo_ganador — formato viejo "M:SS:CC" → nuevo "M:SS.CC"
+  const _tgRaw = res?.tiempo_ganador || '';
+  const _tgOld = _tgRaw.match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+  const _tgVal = _tgOld ? `${_tgOld[1]}:${_tgOld[2]}.${_tgOld[3]}` : _tgRaw;
 
   // Estado de pista options
   const pistaOpts = '<option value="">—</option>' +
@@ -583,13 +576,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
           </div>
           <div class="form-group">
             <label>Tiempo del ganador</label>
-            <div class="tg-wrap">
-              <input type="number" id="tg-min"  class="tg-input tg-min"  min="0" max="99" value="${_tgMin}"  placeholder="0"  title="Minutos">
-              <span class="tg-sep">:</span>
-              <input type="number" id="tg-seg"  class="tg-input tg-seg"  min="0" max="59" value="${_tgSeg}"  placeholder="00" title="Segundos" onblur="if(this.value!=='')this.value=String(parseInt(this.value,10)||0).padStart(2,'0')">
-              <span class="tg-sep">.</span>
-              <input type="number" id="tg-cent" class="tg-input tg-cent" min="0" max="99" value="${_tgCent}" placeholder="00" title="Centésimas" onblur="if(this.value!=='')this.value=String(parseInt(this.value,10)||0).padStart(2,'0')">
-            </div>
+            <input type="text" id="tg" class="tg-single" value="${_tgVal}" placeholder="MM:SS.CC" maxlength="8" autocomplete="off" oninput="tgAutoFormat(this)" onblur="tgOnBlur(this)">
           </div>
           <div class="form-group">
             <label>Incidentes</label>
@@ -942,27 +929,52 @@ async function f8Dividendos() {
    GUARDAR (F10-Aplicar)
 ═══════════════════════════════════════════════ */
 
-// Lee los tres campos de tiempo del ganador y devuelve "M:SS.CC", null si vacíos, false si inválido.
+/* ── Tiempo del ganador — input único ── */
+function tgAutoFormat(el) {
+  let v = el.value.replace(/[^\d:.]/g, '');
+  // Rebuild from digits while the dot hasn't been inserted yet
+  // (once the dot is present the user may be editing; just strip invalid chars)
+  if (!v.includes('.')) {
+    const d = v.replace(/\D/g, '').slice(0, 6);
+    if      (d.length >= 5) v = d.slice(0,2) + ':' + d.slice(2,4) + '.' + d.slice(4);
+    else if (d.length >= 3) v = d.slice(0,2) + ':' + d.slice(2);
+    else                    v = d;
+  }
+  if (el.value !== v) el.value = v;
+  el.classList.remove('tg-invalid');
+}
+
+function tgOnBlur(el) {
+  const v = el.value.trim();
+  if (!v) { el.classList.remove('tg-invalid'); return; }
+  const m = v.match(/^(\d{1,2}):(\d{1,2})\.(\d{1,2})$/);
+  if (m) {
+    const sec = parseInt(m[2], 10), cent = parseInt(m[3], 10);
+    if (sec <= 59 && cent <= 99) {
+      el.value = `${String(parseInt(m[1],10)).padStart(2,'0')}:${String(sec).padStart(2,'0')}.${String(cent).padStart(2,'0')}`;
+      el.classList.remove('tg-invalid');
+      return;
+    }
+  }
+  el.classList.add('tg-invalid');
+}
+
 function getTiempoGanador() {
-  const minEl  = document.getElementById('tg-min');
-  const segEl  = document.getElementById('tg-seg');
-  const centEl = document.getElementById('tg-cent');
-  if (!minEl) return null;
-  const minV = minEl.value.trim(), segV = segEl.value.trim(), centV = centEl.value.trim();
-  if (minV === '' && segV === '' && centV === '') return null;
-  if (minV === '' || segV === '' || centV === '') return false;
-  const m = parseInt(minV, 10), s = parseInt(segV, 10), c = parseInt(centV, 10);
-  if (isNaN(m) || isNaN(s) || isNaN(c)) return false;
-  if (m < 0 || m > 99 || s < 0 || s > 59 || c < 0 || c > 99) return false;
-  return `${m}:${String(s).padStart(2,'0')}.${String(c).padStart(2,'0')}`;
+  const el = document.getElementById('tg');
+  if (!el) return null;
+  const v = el.value.trim();
+  if (!v) return null;
+  if (!v.match(/^(\d{1,2}):([0-5]\d)\.(\d{2})$/)) return false;
+  return v;
 }
 
 async function aplicar(carreraId, estado) {
   const estadoPista = document.getElementById('estado-pista')?.value || null;
   const tiempoGan   = getTiempoGanador();
   if (tiempoGan === false) {
-    toast('Tiempo inválido. Revisá los campos min:seg.cent (seg 0-59, cent 0-99)', 'error');
-    document.getElementById('tg-min')?.focus();
+    toast('Tiempo inválido — formato esperado MM:SS.CC (ej: 01:32.45)', 'error');
+    const tgEl = document.getElementById('tg');
+    if (tgEl) { tgEl.classList.add('tg-invalid'); tgEl.focus(); }
     return;
   }
   const incidentes   = document.getElementById('incidentes')?.value.trim()     || null;
