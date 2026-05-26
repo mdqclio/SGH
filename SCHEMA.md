@@ -156,6 +156,19 @@ SECURITY DEFINER
 SET search_path TO 'public', 'pg_temp'
 ```
 
+### Convención GAN / SEG / TER
+
+Los tipos `GAN`, `SEG`, `TER` representan los dividendos de Ganador (1°), Segundo (2°) y Tercero (3°) respectivamente.
+
+**Reglas:**
+
+- Máximo **1 fila** de cada tipo por carrera (validado en UI antes del save).
+- **No se guarda `spc_id` en `resultado_apuestas`**. La asociación caballo↔dividendo se deriva por JOIN:
+  - `GAN` ↔ `resultado_posiciones.posicion = 1` → `inscripciones.spc_id`
+  - `SEG` ↔ `resultado_posiciones.posicion = 2` → `inscripciones.spc_id`
+  - `TER` ↔ `resultado_posiciones.posicion = 3` → `inscripciones.spc_id`
+- `composicion` se deja en blanco para estos tres tipos (el caballo no es parte del código del dividendo).
+
 ### Payload de `p_apuestas`
 
 Array JSON de objetos, uno por fila de dividendos:
