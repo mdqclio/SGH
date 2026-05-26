@@ -161,11 +161,18 @@
     .favorito-block label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
     .mf-edit-row { display: flex; gap: 12px; align-items: center; }
     .mf-edit-lbl { min-width: 52px; flex-shrink: 0; font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 700; color: var(--accent); white-space: nowrap; }
-    .sport-cells { display: grid; grid-template-columns: repeat(7, 32px); gap: 3px; }
+    .sport-cells { display: grid; grid-template-columns: repeat(7, 42px); gap: 3px; }
+    .sport-cell-wrap { position: relative; width: 42px; height: 32px; }
+    .sport-cell-wrap::before {
+      content: "$"; position: absolute; left: 3px; top: 50%; transform: translateY(-50%);
+      pointer-events: none; color: var(--muted); font-size: 10px;
+      font-family: 'DM Sans', sans-serif; font-weight: 600; line-height: 1; z-index: 1;
+    }
+    .sport-cell-wrap:has(input:disabled)::before { opacity: 0.3; }
     .sport-cell {
-      height: 32px; width: 32px; border: 1px solid rgba(201,168,76,0.35); background: rgba(255,255,255,0.04);
-      color: var(--text); text-align: center; font-size: 12px; font-weight: 600; font-family: 'DM Sans', sans-serif;
-      border-radius: 2px; padding: 0; outline: none; transition: border-color 0.15s;
+      height: 32px; width: 42px; border: 1px solid rgba(201,168,76,0.35); background: rgba(255,255,255,0.04);
+      color: var(--text); text-align: right; font-size: 11px; font-weight: 600; font-family: 'DM Sans', sans-serif;
+      border-radius: 2px; padding: 0 4px 0 13px; outline: none; transition: border-color 0.15s;
       -moz-appearance: textfield; appearance: textfield;
     }
     .sport-cell::-webkit-inner-spin-button,
@@ -577,7 +584,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
   const sportCells = [1,2,3,4,5,6,7].map(p => {
     const disabled = p > rowCount ? 'disabled' : '';
     const val = divMap[p] != null ? Number(divMap[p]).toFixed(2) : '';
-    return `<input class="sport-cell" id="sport-${p}" type="number" step="0.01" min="0" value="${val}" placeholder="—" ${disabled}>`;
+    return `<div class="sport-cell-wrap"><input class="sport-cell" id="sport-${p}" type="number" step="0.01" min="0" value="${val}" placeholder="—" ${disabled}></div>`;
   }).join('');
 
   const _cIdx    = carreras.findIndex(c => c.id === carrera.id);
