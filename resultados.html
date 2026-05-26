@@ -1417,12 +1417,12 @@ function openPesoBalanza() {
     `Pesos balanza — Carrera N° ${carrera?.numero_turno ?? '?'}`;
 
   pbOriginal = {};
-  document.getElementById('pb-tbody').innerHTML = insc.map(i => {
+  document.getElementById('pb-tbody').innerHTML = insc.map((i, idx) => {
     const spc  = spcsMap[i.spc_id];
     const val  = i.peso_balanza != null ? i.peso_balanza : '';
     pbOriginal[i.id] = val === '' ? null : Number(val);
     return `<tr>
-      <td class="pb-td">${i.numero_partidor ?? '—'}</td>
+      <td class="pb-td">${idx + 1}</td>
       <td class="pb-td" style="font-weight:600;">${spc?.nombre || '—'}</td>
       <td class="pb-td" style="text-align:right;">
         <input class="pb-input" type="number" id="pb-${i.id}"
