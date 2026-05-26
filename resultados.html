@@ -156,8 +156,9 @@
     .mf-4 { background: #E1452F; border-color: #B5321F; color: #fff; }
 
     /* ── M.(F) + Sport — edit layout ── */
-    .mf-edit-header { display: flex; gap: 12px; margin-bottom: 3px; }
-    .mf-edit-lbl-spacer { min-width: 52px; flex-shrink: 0; }
+    .datos-layout { display: flex; gap: 20px; align-items: center; }
+    .favorito-block { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+    .favorito-block label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
     .mf-edit-row { display: flex; gap: 12px; align-items: center; }
     .mf-edit-lbl { min-width: 52px; flex-shrink: 0; font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 700; color: var(--accent); white-space: nowrap; }
     .sport-cells { display: grid; grid-template-columns: repeat(7, 32px); gap: 3px; }
@@ -165,7 +166,10 @@
       height: 32px; width: 32px; border: 1px solid rgba(201,168,76,0.35); background: rgba(255,255,255,0.04);
       color: var(--text); text-align: center; font-size: 12px; font-weight: 600; font-family: 'DM Sans', sans-serif;
       border-radius: 2px; padding: 0; outline: none; transition: border-color 0.15s;
+      -moz-appearance: textfield; appearance: textfield;
     }
+    .sport-cell::-webkit-inner-spin-button,
+    .sport-cell::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     .sport-cell:focus { border-color: var(--accent); }
     .sport-cell:disabled { opacity: 0.3; cursor: default; }
 
@@ -631,30 +635,24 @@ function renderFormulario(carrera, res, pos, apus, insc) {
         <!-- ─── PANEL DERECHO ─── -->
         <div class="det-col-right">
 
-          <!-- Favorito -->
+          <!-- Datos del resultado: Favorito + M.(F) + Sport -->
           <div class="res-section">
             <div class="res-section-title">Datos del resultado</div>
-            <div class="form-row">
-              <div class="form-group">
+            <div class="datos-layout">
+              <div class="favorito-block">
                 <label>Favorito (mandil)</label>
-                <input type="number" id="favorito-mandil" value="${res?.favorito_mandil||''}" placeholder="—" style="width:80px">
+                <input type="number" id="favorito-mandil" value="${res?.favorito_mandil||''}" placeholder="—" style="width:72px">
               </div>
-            </div>
-          </div>
-
-          <!-- M.(F) + Sport -->
-          <div class="res-section">
-            <div class="mf-edit-header">
-              <div class="mf-edit-lbl-spacer"></div>
-              <div class="mf-headers"><div>1°</div><div>2°</div><div>3°</div><div>4°</div><div>5°</div><div>6°</div><div>7°</div></div>
-            </div>
-            <div class="mf-edit-row">
-              <span class="mf-edit-lbl">M.(F)</span>
-              <div class="mf-cells">${mfCells}</div>
-            </div>
-            <div class="mf-edit-row" style="margin-top:4px">
-              <span class="mf-edit-lbl">Sport</span>
-              <div class="sport-cells">${sportCells}</div>
+              <div>
+                <div class="mf-edit-row">
+                  <span class="mf-edit-lbl">M.(F)</span>
+                  <div class="mf-cells">${mfCells}</div>
+                </div>
+                <div class="mf-edit-row" style="margin-top:4px">
+                  <span class="mf-edit-lbl">Sport</span>
+                  <div class="sport-cells">${sportCells}</div>
+                </div>
+              </div>
             </div>
           </div>
 
