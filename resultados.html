@@ -93,14 +93,22 @@
     .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
     .form-group { display: flex; flex-direction: column; gap: 4px; }
     .form-group label { font-size: 12px; font-weight: 500; color: var(--muted); }
+    .tg-wrap { display: flex; align-items: center; gap: 3px; }
+    .tg-sep  { font-weight: 700; color: var(--muted); font-size: 14px; line-height: 1; }
+    .tg-input { height: 34px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; text-align: center; padding: 0; outline: none; transition: border-color 0.15s; -moz-appearance: textfield; }
+    .tg-input::-webkit-outer-spin-button, .tg-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .tg-input:focus { border-color: var(--accent); }
+    .tg-min  { width: 36px; }
+    .tg-seg  { width: 36px; }
+    .tg-cent { width: 36px; }
 
     /* ── 2 columnas: marcador + right ── */
-    .det-cols { display: grid; grid-template-columns: 300px 1fr; gap: 0; }
+    .det-cols { display: grid; grid-template-columns: 340px 1fr; gap: 0; }
     .det-col-left { border-right: 1px solid var(--border); padding: 14px 18px; }
     .det-col-right { padding: 0; }
 
     /* ── Marcador ── */
-    .marc-grid { display: grid; grid-template-columns: 30px 48px 10px 54px 1fr; row-gap: 5px; column-gap: 8px; align-items: center; }
+    .marc-grid { display: grid; grid-template-columns: 30px 48px 1fr; row-gap: 5px; column-gap: 6px; align-items: center; }
     .marc-pos { font-size: 12px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
     .marc-input {
       height: 32px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text);
@@ -108,9 +116,30 @@
       text-align: center; padding: 0 6px; width: 100%; outline: none; transition: border-color 0.15s;
     }
     .marc-input:focus { border-color: var(--accent); }
-    .marc-leg-lbl { font-size: 11px; color: var(--muted); white-space: nowrap; }
-    .marc-leg-sel { height: 32px; background: var(--input-bg); border: 1px solid var(--border); color: var(--muted); border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 11px; width: 100%; padding: 0 6px; outline: none; }
-    .marc-leg-sel:focus { border-color: var(--accent); }
+
+    /* ── Chapa picker ── */
+    .chapa-wrap { display: flex; align-items: center; }
+    .chapa-btn  { display: flex; align-items: center; gap: 5px; height: 32px; padding: 0 7px 0 5px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; min-width: 88px; font-family: 'DM Sans', sans-serif; color: var(--text); transition: border-color 0.15s; }
+    .chapa-btn:hover { border-color: rgba(201,168,76,0.4); }
+    .chapa-btn:focus { outline: none; border-color: var(--accent); }
+    .chapa-btn-icon { width: 22px; height: 22px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .chapa-btn-icon svg { width: 22px; height: 22px; }
+    .chapa-btn-code { font-size: 11px; color: var(--text); font-family: monospace; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chapa-caret { font-size: 9px; color: var(--muted); flex-shrink: 0; }
+
+    /* Shared dropdown */
+    .chapa-shared-dd { position: fixed; z-index: 1000; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 4px 0; min-width: 210px; max-height: 300px; overflow-y: auto; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.45); }
+    .chapa-shared-dd.open { display: block; }
+    .chapa-opt { display: flex; align-items: center; gap: 8px; padding: 5px 12px; cursor: pointer; font-size: 12px; }
+    .chapa-opt:hover, .chapa-opt.sel { background: rgba(201,168,76,0.12); }
+    .chapa-opt-icon { width: 24px; height: 24px; flex-shrink: 0; display: flex; align-items: center; }
+    .chapa-opt-icon svg { width: 24px; height: 24px; }
+    .chapa-opt-nombre { flex: 1; color: var(--text); }
+    .chapa-opt-code { color: var(--muted); font-family: monospace; font-size: 11px; flex-shrink: 0; }
+    .chapa-varios-row { display: flex; align-items: center; gap: 6px; padding: 2px 12px 7px; }
+    .chapa-varios-inp { width: 64px; height: 28px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); border-radius: 6px; text-align: center; font-size: 13px; font-family: 'DM Sans', sans-serif; padding: 0; -moz-appearance: textfield; }
+    .chapa-varios-inp::-webkit-outer-spin-button, .chapa-varios-inp::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .chapa-varios-inp:focus { outline: none; border-color: var(--accent); }
 
     /* ── M.(F) ── */
     .mf-block { display: flex; align-items: flex-end; gap: 12px; }
@@ -121,7 +150,7 @@
     .mf-cell { height: 32px; border: 1px solid #B5B5B5; background: #F4EFE6; text-align: center; font-weight: 700; font-size: 14px; line-height: 30px; border-radius: 2px; color: #111; transition: background 0.2s; }
     /* Colores estándar internacionales de fotofinish — no adaptar al palette del SGH */
     .mf-2 { background: #F5DC1F; border-color: #C8B018; color: #111; }
-    .mf-3 { background: #1A4423; border-color: #122E18; color: #fff; }
+    .mf-3 { background: #52A86A; border-color: #3D8050; color: #fff; }
     .mf-4 { background: #E1452F; border-color: #B5321F; color: #fff; }
 
     /* ── Tabs ── */
@@ -286,7 +315,11 @@
   </div>
 </div>
 
+<!-- Chapa dropdown compartido — posicionado via JS -->
+<div id="chapa-shared-dd" class="chapa-shared-dd"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="chapas.js"></script>
 <script>
 /* ═══════════════════════════════════════════════
    AUTH
@@ -306,6 +339,8 @@ let editIdx          = null;   // null=agregar, N=índice en pendingApuestas
 let selIdx           = -1;     // fila seleccionada en la tabla
 let loadedUpdatedAt  = null;   // updated_at del resultado al momento de cargarlo (optimistic lock)
 let isDirty          = false;  // hay cambios sin aplicar
+let chapaValues      = {};     // {posicion: {id, n}} — distancias entre puestos
+let chapaOpenPos     = null;   // posición cuyo dropdown está abierto
 
 /* ── Guard de cambios pendientes ── */
 function guardDirty(fn) {
@@ -467,27 +502,40 @@ function renderFormulario(carrera, res, pos, apus, insc) {
     if (i?.numero_partidor) mbp[p.posicion] = i.numero_partidor;
   });
 
-  // Selectores de leg
-  const legLabels = ['Gde','al 3°','al 4°','al 5°','al 6°'];
-  const legOpts   = [
-    {v:'',l:'—'},{v:'gde',l:'Gde (1)'},{v:'al2',l:'al 2°'},{v:'al3',l:'al 3°'},
-    {v:'al4',l:'al 4°'},{v:'al5',l:'al 5°'},{v:'al6',l:'al 6°'},{v:'al7',l:'al 7°'},
-  ];
-  const legSel = (n, legs) => legOpts.map(o=>`<option value="${o.v}" ${(legs[String(n)]||'')===o.v?'selected':''}>${o.l}</option>`).join('');
-  const legs = res?.redistribucion_legs || {};
+  // Marcador HTML con chapa picker por puesto 2+
+  chapaValues = {};
+  const difMap = {};
+  (pos||[]).forEach(px => { if (px.diferencia) difMap[px.posicion] = px.diferencia; });
 
-  // Marcador HTML
   const marcRows = Array.from({length:20},(_,i)=>{
     const p   = i+1;
     const val = mbp[p] || '';
-    const extra = i < 5
-      ? `<div class="marc-leg-lbl">${legLabels[i]}:</div>
-         <select class="marc-leg-sel" id="leg-${p}" title="Redistribución pata ${p} — semántica pendiente validación con secretaría">${legSel(p,legs)}</select>`
-      : '<div></div><div></div>';
+    let chapaCell = '<div></div>';
+    if (p > 1) {
+      const st = parseDif(difMap[p] || null);
+      if (st) chapaValues[p] = st;
+      const svg = chapaGetSvg(chapaValues[p]);
+      const cod = chapaGetCodigo(chapaValues[p]) || '—';
+      const vis = val ? '' : 'display:none';
+      chapaCell = `<div class="chapa-wrap" id="chapa-wrap-${p}" style="${vis}">
+        <button type="button" class="chapa-btn" id="chapa-btn-${p}" onclick="openChapaDropdown(${p})">
+          <span class="chapa-btn-icon" id="chapa-icon-${p}">${svg}</span>
+          <span class="chapa-btn-code" id="chapa-code-${p}">${cod}</span>
+          <span class="chapa-caret">▾</span>
+        </button>
+      </div>`;
+    }
     return `<div class="marc-pos">${p}°</div>
       <input class="marc-input" id="marc-${p}" type="number" min="1" max="30" value="${val}" oninput="onMarcInput()">
-      <div></div>${extra}`;
+      ${chapaCell}`;
   }).join('');
+
+  // Parse tiempo_ganador → tres campos
+  const _tgRaw   = res?.tiempo_ganador || '';
+  const _tgMatch = _tgRaw.match(/^(\d{1,2}):(\d{2})(?:\.(\d{1,2}))?$/);
+  const _tgMin   = _tgMatch ? _tgMatch[1] : '';
+  const _tgSeg   = _tgMatch ? _tgMatch[2] : '';
+  const _tgCent  = _tgMatch ? (_tgMatch[3] || '').padEnd(2, '0') : '';
 
   // Estado de pista options
   const pistaOpts = '<option value="">—</option>' +
@@ -533,7 +581,13 @@ function renderFormulario(carrera, res, pos, apus, insc) {
           </div>
           <div class="form-group">
             <label>Tiempo del ganador</label>
-            <input type="text" id="tiempo-ganador" value="${res?.tiempo_ganador||''}" placeholder="1:02.3" style="width:100px">
+            <div class="tg-wrap">
+              <input type="number" id="tg-min"  class="tg-input tg-min"  min="0" max="99" value="${_tgMin}"  placeholder="0"  title="Minutos">
+              <span class="tg-sep">:</span>
+              <input type="number" id="tg-seg"  class="tg-input tg-seg"  min="0" max="59" value="${_tgSeg}"  placeholder="00" title="Segundos" onblur="if(this.value!=='')this.value=String(parseInt(this.value,10)||0).padStart(2,'0')">
+              <span class="tg-sep">.</span>
+              <input type="number" id="tg-cent" class="tg-input tg-cent" min="0" max="99" value="${_tgCent}" placeholder="00" title="Centésimas" onblur="if(this.value!=='')this.value=String(parseInt(this.value,10)||0).padStart(2,'0')">
+            </div>
           </div>
           <div class="form-group">
             <label>Incidentes</label>
@@ -644,13 +698,113 @@ function renderFormulario(carrera, res, pos, apus, insc) {
 }
 
 /* ── Cambios en el marcador ── */
-function onMarcInput() { updateMF(); }
+function onMarcInput() {
+  updateMF();
+  for (let p = 2; p <= 20; p++) {
+    const val  = document.getElementById(`marc-${p}`)?.value?.trim();
+    const wrap = document.getElementById(`chapa-wrap-${p}`);
+    if (wrap) wrap.style.display = val ? '' : 'none';
+  }
+}
 
 function updateMF() {
   [1,2,3,4,5,6,7].forEach(p => {
     const c = document.getElementById(`mf-${p}`);
     if (c) c.textContent = document.getElementById(`marc-${p}`)?.value?.trim() || '';
   });
+}
+
+/* ─────────────────────────────────────────────
+   CHAPA PICKER
+───────────────────────────────────────────── */
+function parseDif(str) {
+  if (!str) return null;
+  const vm = str.match(/^(\d+)\s*cpos$/i);
+  if (vm) { const n = parseInt(vm[1],10); return n >= 5 ? {id:17, n} : null; }
+  const ch = getChapaByCodigo(str);
+  return ch ? {id:ch.id, n:null} : null;
+}
+
+function chapaGetCodigo(st) {
+  if (!st) return null;
+  if (st.id === 17) return st.n ? getVariosCodigo(st.n) : null;
+  return getChapa(st.id)?.codigo || null;
+}
+
+function chapaGetSvg(st) {
+  if (!st) return '';
+  if (st.id === 17) return st.n ? renderVariosChapa(st.n) : '';
+  return getChapa(st.id)?.svg || '';
+}
+
+function updateChapaBtn(p) {
+  const st   = chapaValues[p];
+  const icon = document.getElementById(`chapa-icon-${p}`);
+  const code = document.getElementById(`chapa-code-${p}`);
+  if (icon) icon.innerHTML  = chapaGetSvg(st);
+  if (code) code.textContent = chapaGetCodigo(st) || '—';
+}
+
+function openChapaDropdown(p) {
+  const dd  = document.getElementById('chapa-shared-dd');
+  const btn = document.getElementById(`chapa-btn-${p}`);
+  if (!dd || !btn) return;
+  if (chapaOpenPos === p) { closeChapaDropdown(); return; }
+  chapaOpenPos = p;
+  const curId = chapaValues[p]?.id  || null;
+  const curN  = chapaValues[p]?.n   || null;
+  dd.innerHTML = CHAPAS_CATALOG.map(ch => {
+    const sel = curId === ch.id ? 'sel' : '';
+    if (ch.id === 17) {
+      return `<div class="chapa-opt ${sel}" onclick="selectChapa(${p},17)">
+        <span class="chapa-opt-icon">${renderVariosChapa(5)}</span>
+        <span class="chapa-opt-nombre">${ch.nombre}</span>
+        <span class="chapa-opt-code">N cpos</span>
+      </div>
+      <div class="chapa-varios-row">
+        <input type="number" class="chapa-varios-inp" id="chapa-varios-input-${p}"
+               min="5" placeholder="N≥5" value="${curN||''}"
+               oninput="onVariosInput(${p})" onclick="event.stopPropagation()">
+        <span style="font-size:11px;color:var(--muted)">cuerpos</span>
+      </div>`;
+    }
+    return `<div class="chapa-opt ${sel}" onclick="selectChapa(${p},${ch.id})">
+      <span class="chapa-opt-icon">${ch.svg||''}</span>
+      <span class="chapa-opt-nombre">${ch.nombre}</span>
+      <span class="chapa-opt-code">${ch.codigo||''}</span>
+    </div>`;
+  }).join('');
+  const rect = btn.getBoundingClientRect();
+  dd.style.top  = (rect.bottom + 4) + 'px';
+  dd.style.left = rect.left + 'px';
+  dd.classList.add('open');
+  if (curId === 17) setTimeout(() => document.getElementById(`chapa-varios-input-${p}`)?.focus(), 40);
+}
+
+function closeChapaDropdown() {
+  document.getElementById('chapa-shared-dd')?.classList.remove('open');
+  chapaOpenPos = null;
+}
+
+function selectChapa(p, id) {
+  if (id === 17) {
+    const inp = document.getElementById(`chapa-varios-input-${p}`);
+    if (inp) { inp.focus(); inp.select(); }
+    return;
+  }
+  chapaValues[p] = {id, n:null};
+  updateChapaBtn(p);
+  closeChapaDropdown();
+  isDirty = true;
+}
+
+function onVariosInput(p) {
+  const n = parseInt(document.getElementById(`chapa-varios-input-${p}`)?.value, 10);
+  if (Number.isInteger(n) && n >= 5) {
+    chapaValues[p] = {id:17, n};
+    updateChapaBtn(p);
+    isDirty = true;
+  }
 }
 
 
@@ -791,39 +945,34 @@ async function f8Dividendos() {
    GUARDAR (F10-Aplicar)
 ═══════════════════════════════════════════════ */
 
-// Valida y normaliza "M:SS.CC" (M 1-2 dígitos, SS 2, CC 1-2).
-// Devuelve el string normalizado, null si vacío, o false si inválido.
-function normalizeTiempoGanador(raw) {
-  if (!raw) return null;
-  const m = raw.match(/^(\d{1,2}):(\d{2})(?:\.(\d{1,2}))?$/);
-  if (!m) return false;
-  const mm = String(parseInt(m[1], 10));
-  const cc = m[3] ? m[3].padEnd(2, '0') : '00';
-  return `${mm}:${m[2]}.${cc}`;
+// Lee los tres campos de tiempo del ganador y devuelve "M:SS.CC", null si vacíos, false si inválido.
+function getTiempoGanador() {
+  const minEl  = document.getElementById('tg-min');
+  const segEl  = document.getElementById('tg-seg');
+  const centEl = document.getElementById('tg-cent');
+  if (!minEl) return null;
+  const minV = minEl.value.trim(), segV = segEl.value.trim(), centV = centEl.value.trim();
+  if (minV === '' && segV === '' && centV === '') return null;
+  if (minV === '' || segV === '' || centV === '') return false;
+  const m = parseInt(minV, 10), s = parseInt(segV, 10), c = parseInt(centV, 10);
+  if (isNaN(m) || isNaN(s) || isNaN(c)) return false;
+  if (m < 0 || m > 99 || s < 0 || s > 59 || c < 0 || c > 99) return false;
+  return `${m}:${String(s).padStart(2,'0')}.${String(c).padStart(2,'0')}`;
 }
 
 async function aplicar(carreraId, estado) {
-  const estadoPista  = document.getElementById('estado-pista')?.value          || null;
-  const tiempoGanRaw = document.getElementById('tiempo-ganador')?.value.trim() || null;
-  const tiempoGan    = normalizeTiempoGanador(tiempoGanRaw);
+  const estadoPista = document.getElementById('estado-pista')?.value || null;
+  const tiempoGan   = getTiempoGanador();
   if (tiempoGan === false) {
-    toast('Tiempo inválido. Formato: M:SS.CC (ej. 1:02.40)', 'error');
-    document.getElementById('tiempo-ganador')?.focus();
+    toast('Tiempo inválido. Revisá los campos min:seg.cent (seg 0-59, cent 0-99)', 'error');
+    document.getElementById('tg-min')?.focus();
     return;
-  }
-  if (tiempoGan !== tiempoGanRaw) {
-    const el = document.getElementById('tiempo-ganador');
-    if (el) el.value = tiempoGan;
   }
   const incidentes   = document.getElementById('incidentes')?.value.trim()     || null;
   const favVal       = document.getElementById('favorito-mandil')?.value;
   const favorito_mandil = favVal ? parseInt(favVal,10) : null;
 
-  const redistribucion_legs = {};
-  for (let i=1; i<=5; i++) {
-    const v = document.getElementById(`leg-${i}`)?.value;
-    if (v) redistribucion_legs[String(i)] = v;
-  }
+  const redistribucion_legs = resultados[carreraId]?.redistribucion_legs || {};
 
   const res  = resultados[carreraId];
   const insc = inscripciones.filter(i=>i.carrera_id===carreraId);
@@ -840,7 +989,8 @@ async function aplicar(carreraId, estado) {
     usados.add(mandil);
     const inscr = insc.find(i=>i.numero_partidor===mandil);
     if (!inscr) { toast(`Mandil ${mandil} no encontrado entre los inscriptos`,'error'); return; }
-    posData.push({ inscripcion_id:inscr.id, posicion:p, descalificado:false, empate:false });
+    posData.push({ inscripcion_id:inscr.id, posicion:p, descalificado:false, empate:false,
+                   diferencia: p === 1 ? null : (chapaGetCodigo(chapaValues[p]) || null) });
   }
 
   const apuestasArr = pendingApuestas.map((a,i) => ({
@@ -1074,6 +1224,8 @@ document.addEventListener('keydown', e => {
 document.addEventListener('input',  e => { if (!e.target.closest('#modal-apuesta') && currentCarreraId) isDirty = true; });
 // 'change' en text inputs dispara al perder foco (spurioso al navegar); solo capturar selects.
 document.addEventListener('change', e => { if (e.target.tagName === 'SELECT' && !e.target.closest('#modal-apuesta') && e.target.id !== 'sel-reunion' && currentCarreraId) isDirty = true; });
+// Cerrar chapa dropdown al hacer click fuera
+document.addEventListener('click', e => { if (!e.target.closest('.chapa-wrap') && !e.target.closest('.chapa-shared-dd')) closeChapaDropdown(); });
 
 window.addEventListener('beforeunload', e => {
   if (isDirty) { e.preventDefault(); e.returnValue = ''; }
