@@ -305,10 +305,9 @@
       <table style="width:100%;border-collapse:collapse;">
         <thead>
           <tr>
-            <th class="pb-th">N°</th>
+            <th class="pb-th" style="width:48px;">N°</th>
             <th class="pb-th">Caballo</th>
-            <th class="pb-th">Jockey</th>
-            <th class="pb-th" style="text-align:right;">Peso (kg)</th>
+            <th class="pb-th" style="width:110px;text-align:right;">Peso (kg)</th>
           </tr>
         </thead>
         <tbody id="pb-tbody"></tbody>
@@ -1420,13 +1419,11 @@ function openPesoBalanza() {
   pbOriginal = {};
   document.getElementById('pb-tbody').innerHTML = insc.map(i => {
     const spc  = spcsMap[i.spc_id];
-    const jock = profsMap[i.jockey_titular_id];
     const val  = i.peso_balanza != null ? i.peso_balanza : '';
     pbOriginal[i.id] = val === '' ? null : Number(val);
     return `<tr>
       <td class="pb-td">${i.numero_partidor ?? '—'}</td>
       <td class="pb-td" style="font-weight:600;">${spc?.nombre || '—'}</td>
-      <td class="pb-td">${jock ? jock.apellido : '—'}</td>
       <td class="pb-td" style="text-align:right;">
         <input class="pb-input" type="number" id="pb-${i.id}"
                value="${val}" step="0.5" min="30" max="100" placeholder="—" autocomplete="off">
