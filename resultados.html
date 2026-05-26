@@ -30,7 +30,7 @@
     .btn-back:hover { border-color: var(--accent); color: var(--accent); }
     .selector-bar { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; gap: 12px; align-items: center; }
     .selector-bar label { font-size: 12px; color: var(--muted); }
-    .content { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .content { max-width: 1400px; margin: 0 auto; padding: 24px; }
 
     /* ── Inputs / selects base ── */
     select, input[type=text], input[type=number] {
@@ -108,7 +108,7 @@
     /* ── 2 columnas: marcador + right ── */
     .det-cols { display: grid; grid-template-columns: 340px 1fr; gap: 0; }
     .det-col-left { border-right: 1px solid var(--border); padding: 14px 18px; }
-    .det-col-right { padding: 0; }
+    .det-col-right { padding: 0; min-width: 0; }
 
     /* ── Marcador ── */
     .marc-grid { display: grid; grid-template-columns: 54px 1fr; row-gap: 6px; column-gap: 8px; align-items: center; }
@@ -157,6 +157,10 @@
 
     /* ── M.(F) + Sport — edit layout ── */
     .datos-layout { display: flex; gap: 20px; align-items: center; }
+    .mf-rows-scroll { overflow-x: auto; min-width: 0; padding-bottom: 4px; }
+    .mf-rows-scroll::-webkit-scrollbar { height: 4px; }
+    .mf-rows-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+    .mf-rows-scroll::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3); border-radius: 2px; }
     .favorito-block { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
     .favorito-block label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
     .mf-edit-row { display: flex; gap: 12px; align-items: center; }
@@ -647,7 +651,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <span class="badge badge-${res?.estado||'sin_resultado'}">${(res?.estado||'sin resultado').replace('_',' ')}</span>
           <button class="btn-outline no-print" onclick="navCarrera(-1)" ${_isFirst?'disabled':''}>← Anterior</button>
-          <span style="font-size:13px;color:var(--muted);min-width:60px;text-align:center;">Turno ${_cIdx+1} / ${carreras.length}</span>
+          <span style="font-size:13px;color:var(--muted);min-width:60px;text-align:center;">Carrera ${_cIdx+1} / ${carreras.length}</span>
           <button class="btn-outline no-print" onclick="navCarrera(1)"  ${_isLast?'disabled':''}>Siguiente →</button>
           <button class="btn-outline no-print" onclick="navigateToLista()">← Carreras</button>
         </div>
@@ -695,7 +699,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
                 <label>Favorito</label>
                 <input type="number" id="favorito-mandil" value="${res?.favorito_mandil||''}" placeholder="—" style="width:72px">
               </div>
-              <div>
+              <div class="mf-rows-scroll">
                 <div class="mf-edit-row">
                   <span class="mf-edit-lbl"></span>
                   <div class="mf-cells" style="${mfColStyle}">${mfCells}</div>
@@ -1291,7 +1295,7 @@ function renderOficial(carrera, res, pos, apus, insc) {
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <span class="badge badge-oficial">✅ Oficial</span>
           <button class="btn-outline no-print" onclick="navCarrera(-1)" ${_isFirst?'disabled':''}>← Anterior</button>
-          <span style="font-size:13px;color:var(--muted);min-width:60px;text-align:center;">Turno ${_cIdx+1} / ${carreras.length}</span>
+          <span style="font-size:13px;color:var(--muted);min-width:60px;text-align:center;">Carrera ${_cIdx+1} / ${carreras.length}</span>
           <button class="btn-outline no-print" onclick="navCarrera(1)"  ${_isLast?'disabled':''}>Siguiente →</button>
           <button class="btn-outline no-print" onclick="window.print()">🖨️ Imprimir</button>
           <button class="btn-danger  no-print" onclick="modificarOficial('${res.id}','${carrera.id}')">⚠️ Modificar</button>
