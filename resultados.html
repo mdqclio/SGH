@@ -252,6 +252,11 @@
     .chk-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-top: 4px; }
     .chk-row input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--danger); }
 
+    /* ── Pesos Balanza modal ── */
+    .pb-th { text-align:left; padding:8px 14px; font-size:12px; color:var(--muted); font-weight:500; border-bottom:1px solid var(--border); }
+    .pb-td { padding:8px 14px; font-size:13px; border-bottom:1px solid rgba(201,168,76,0.1); }
+    .pb-input { width:80px; padding:6px 8px; font-size:13px; border-radius:8px; background:var(--input-bg); border:1px solid var(--border); color:var(--text); text-align:right; font-family:'DM Sans',sans-serif; }
+
     /* ── Auth overlay ── */
     #auth-overlay { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center; }
     .btn-logout { background:none;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;transition:all 0.2s; }
@@ -286,6 +291,33 @@
 <div class="content">
   <div id="main-container">
     <div class="empty-state"><div class="icon">🏁</div><h3>Seleccionar una reunión para ver resultados</h3></div>
+  </div>
+</div>
+
+<!-- Modal: Pesos balanza -->
+<div class="modal-overlay" id="modal-peso-balanza">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-header">
+      <h3 id="pb-title">Pesos balanza</h3>
+      <button class="btn-close" onclick="closePesoBalanza()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:0;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th class="pb-th">N°</th>
+            <th class="pb-th">Caballo</th>
+            <th class="pb-th">Jockey</th>
+            <th class="pb-th" style="text-align:right;">Peso (kg)</th>
+          </tr>
+        </thead>
+        <tbody id="pb-tbody"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-outline" onclick="closePesoBalanza()">Cerrar</button>
+      <button class="btn-primary" onclick="savePesoBalanza()">Guardar y cerrar</button>
+    </div>
   </div>
 </div>
 
@@ -711,6 +743,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
           <div class="actions-bar no-print">
             <div class="actions-grp">
               <button class="btn-outline" onclick="f8Dividendos()">Dividendos <kbd>F8</kbd></button>
+              <button class="btn-outline" onclick="openPesoBalanza()">⚖️ Pesos balanza</button>
             </div>
             <div class="actions-grp">
               <button class="btn-danger"  onclick="deleteApuesta()">Eliminar</button>
@@ -1370,6 +1403,80 @@ document.addEventListener('focus', e => { if (e.target.matches('input[type=numbe
 window.addEventListener('beforeunload', e => {
   if (isDirty) { e.preventDefault(); e.returnValue = ''; }
 });
+
+/* ─── Pesos Balanza ──────────────────────────────────────────────────────── */
+let pbOriginal = {};
+
+function openPesoBalanza() {
+  if (!currentCarreraId) return;
+  const carrera = carreras.find(c => c.id === currentCarreraId);
+  const insc = inscripciones
+    .filter(i => i.carrera_id === currentCarreraId && !['forfait','mal_inscrito'].includes(i.estado))
+    .sort((a,b) => (a.numero_partidor||999) - (b.numero_partidor||999));
+
+  document.getElementById('pb-title').textContent =
+    `Pesos balanza — Carrera N° ${carrera?.numero_turno ?? '?'}`;
+
+  pbOriginal = {};
+  document.getElementById('pb-tbody').innerHTML = insc.map(i => {
+    const spc  = spcsMap[i.spc_id];
+    const jock = profsMap[i.jockey_titular_id];
+    const val  = i.peso_balanza != null ? i.peso_balanza : '';
+    pbOriginal[i.id] = val === '' ? null : Number(val);
+    return `<tr>
+      <td class="pb-td">${i.numero_partidor ?? '—'}</td>
+      <td class="pb-td" style="font-weight:600;">${spc?.nombre || '—'}</td>
+      <td class="pb-td">${jock ? jock.apellido : '—'}</td>
+      <td class="pb-td" style="text-align:right;">
+        <input class="pb-input" type="number" id="pb-${i.id}"
+               value="${val}" step="0.5" min="30" max="100" placeholder="—" autocomplete="off">
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('modal-peso-balanza').classList.add('open');
+}
+
+function _pbHasChanges() {
+  return Object.keys(pbOriginal).some(id => {
+    const raw = document.getElementById(`pb-${id}`)?.value.trim() ?? '';
+    const cur = raw === '' ? null : Number(raw);
+    return cur !== pbOriginal[id];
+  });
+}
+
+function closePesoBalanza() {
+  if (_pbHasChanges() && !confirm('Hay cambios sin guardar. ¿Cerrar de todas formas?')) return;
+  document.getElementById('modal-peso-balanza').classList.remove('open');
+}
+
+async function savePesoBalanza() {
+  const insc = inscripciones.filter(i =>
+    i.carrera_id === currentCarreraId && !['forfait','mal_inscrito'].includes(i.estado)
+  );
+  const updates = [];
+  for (const i of insc) {
+    const raw = document.getElementById(`pb-${i.id}`)?.value.trim() ?? '';
+    const val = raw === '' ? null : parseFloat(raw);
+    if (val !== pbOriginal[i.id]) updates.push({ id: i.id, peso_balanza: val });
+  }
+  if (!updates.length) {
+    document.getElementById('modal-peso-balanza').classList.remove('open');
+    return;
+  }
+  const errors = [];
+  for (const u of updates) {
+    const { error } = await sb.from('inscripciones').update({ peso_balanza: u.peso_balanza }).eq('id', u.id);
+    if (error) errors.push(error);
+    else {
+      const local = inscripciones.find(i => i.id === u.id);
+      if (local) local.peso_balanza = u.peso_balanza;
+    }
+  }
+  if (errors.length) { toast(`Error al guardar ${errors.length} peso(s)`, 'error'); return; }
+  toast('Pesos guardados', 'success');
+  document.getElementById('modal-peso-balanza').classList.remove('open');
+}
 
 /* ═══════════════════════════════════════════════
    ARRANQUE

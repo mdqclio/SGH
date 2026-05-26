@@ -229,3 +229,30 @@ El cliente debe almacenar `updated_at` devuelto y enviarlo como `p_expected_upda
 - `SECURITY DEFINER`: ejecuta con los permisos del owner de la función, no del caller.
 - `SET search_path TO 'public', 'pg_temp'`: evita search_path injection.
 - RLS de las tablas subyacentes no aplica dentro de la función (por SECURITY DEFINER).
+
+---
+
+## Table `inscripciones` (columnas relevantes para resultados)
+
+Una fila por caballo inscripto en una carrera.
+
+| Columna | Tipo | Nullable | Default | Notas |
+|---------|------|----------|---------|-------|
+| `id` | `uuid` | NOT NULL | `uuid_generate_v4()` | PK |
+| `carrera_id` | `uuid` | NOT NULL | — | FK → `carreras(id)` |
+| `spc_id` | `uuid` | NOT NULL | — | FK → `spcs(id)` — el caballo |
+| `jockey_titular_id` | `uuid` | YES | — | FK → `profesionales(id)` |
+| `numero_partidor` | `integer` | YES | — | mandil del caballo |
+| `estado` | `estado_inscripcion` | NOT NULL | `'pre_inscripto'` | forfait / mal_inscrito = no corrió |
+| `peso_declarado` | `numeric` | YES | — | peso asignado pre-carrera (handicap) |
+| `peso_final` | `numeric` | YES | — | peso final post-ratificación |
+| `peso_balanza` | `numeric(5,2)` | YES | — | **peso real medido en balanza post-carrera** — lo carga sistemas desde el dato de veterinaria |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | mantenido por trigger |
+
+### Columna `peso_balanza`
+
+- Se agrega en migración `add_peso_balanza_to_inscripciones` (2026-05-26).
+- Dato separado del handicap (`peso_declarado`/`peso_final`): es el peso real que arroja la balanza al pesaje post-carrera.
+- Se carga para **todos los caballos que corrieron** (excluir `forfait` y `mal_inscrito`).
+- Rango esperado: 30–100 kg, paso 0.5 kg.
+- RLS: cubierto por `rls_inscripciones_update` (mismo check de club que el resto de columnas).
