@@ -93,6 +93,14 @@
     .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
     .form-group { display: flex; flex-direction: column; gap: 4px; }
     .form-group label { font-size: 12px; font-weight: 500; color: var(--muted); }
+    .tg-wrap { display: flex; align-items: center; gap: 3px; }
+    .tg-sep  { font-weight: 700; color: var(--muted); font-size: 14px; line-height: 1; }
+    .tg-input { height: 34px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; text-align: center; padding: 0; outline: none; transition: border-color 0.15s; -moz-appearance: textfield; }
+    .tg-input::-webkit-outer-spin-button, .tg-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .tg-input:focus { border-color: var(--accent); }
+    .tg-min  { width: 36px; }
+    .tg-seg  { width: 36px; }
+    .tg-cent { width: 36px; }
 
     /* ── 2 columnas: marcador + right ── */
     .det-cols { display: grid; grid-template-columns: 300px 1fr; gap: 0; }
@@ -121,7 +129,7 @@
     .mf-cell { height: 32px; border: 1px solid #B5B5B5; background: #F4EFE6; text-align: center; font-weight: 700; font-size: 14px; line-height: 30px; border-radius: 2px; color: #111; transition: background 0.2s; }
     /* Colores estándar internacionales de fotofinish — no adaptar al palette del SGH */
     .mf-2 { background: #F5DC1F; border-color: #C8B018; color: #111; }
-    .mf-3 { background: #1A4423; border-color: #122E18; color: #fff; }
+    .mf-3 { background: #52A86A; border-color: #3D8050; color: #fff; }
     .mf-4 { background: #E1452F; border-color: #B5321F; color: #fff; }
 
     /* ── Tabs ── */
@@ -489,6 +497,13 @@ function renderFormulario(carrera, res, pos, apus, insc) {
       <div></div>${extra}`;
   }).join('');
 
+  // Parse tiempo_ganador → tres campos
+  const _tgRaw   = res?.tiempo_ganador || '';
+  const _tgMatch = _tgRaw.match(/^(\d{1,2}):(\d{2})(?:\.(\d{1,2}))?$/);
+  const _tgMin   = _tgMatch ? _tgMatch[1] : '';
+  const _tgSeg   = _tgMatch ? _tgMatch[2] : '';
+  const _tgCent  = _tgMatch ? (_tgMatch[3] || '').padEnd(2, '0') : '';
+
   // Estado de pista options
   const pistaOpts = '<option value="">—</option>' +
     ['seca','humeda','fangosa','pesada'].map(v=>
@@ -533,7 +548,13 @@ function renderFormulario(carrera, res, pos, apus, insc) {
           </div>
           <div class="form-group">
             <label>Tiempo del ganador</label>
-            <input type="text" id="tiempo-ganador" value="${res?.tiempo_ganador||''}" placeholder="1:02.3" style="width:100px">
+            <div class="tg-wrap">
+              <input type="number" id="tg-min"  class="tg-input tg-min"  min="0" max="99" value="${_tgMin}"  placeholder="0"  title="Minutos">
+              <span class="tg-sep">:</span>
+              <input type="number" id="tg-seg"  class="tg-input tg-seg"  min="0" max="59" value="${_tgSeg}"  placeholder="00" title="Segundos" onblur="if(this.value!=='')this.value=String(parseInt(this.value,10)||0).padStart(2,'0')">
+              <span class="tg-sep">.</span>
+              <input type="number" id="tg-cent" class="tg-input tg-cent" min="0" max="99" value="${_tgCent}" placeholder="00" title="Centésimas" onblur="if(this.value!=='')this.value=String(parseInt(this.value,10)||0).padStart(2,'0')">
+            </div>
           </div>
           <div class="form-group">
             <label>Incidentes</label>
@@ -791,29 +812,28 @@ async function f8Dividendos() {
    GUARDAR (F10-Aplicar)
 ═══════════════════════════════════════════════ */
 
-// Valida y normaliza "M:SS.CC" (M 1-2 dígitos, SS 2, CC 1-2).
-// Devuelve el string normalizado, null si vacío, o false si inválido.
-function normalizeTiempoGanador(raw) {
-  if (!raw) return null;
-  const m = raw.match(/^(\d{1,2}):(\d{2})(?:\.(\d{1,2}))?$/);
-  if (!m) return false;
-  const mm = String(parseInt(m[1], 10));
-  const cc = m[3] ? m[3].padEnd(2, '0') : '00';
-  return `${mm}:${m[2]}.${cc}`;
+// Lee los tres campos de tiempo del ganador y devuelve "M:SS.CC", null si vacíos, false si inválido.
+function getTiempoGanador() {
+  const minEl  = document.getElementById('tg-min');
+  const segEl  = document.getElementById('tg-seg');
+  const centEl = document.getElementById('tg-cent');
+  if (!minEl) return null;
+  const minV = minEl.value.trim(), segV = segEl.value.trim(), centV = centEl.value.trim();
+  if (minV === '' && segV === '' && centV === '') return null;
+  if (minV === '' || segV === '' || centV === '') return false;
+  const m = parseInt(minV, 10), s = parseInt(segV, 10), c = parseInt(centV, 10);
+  if (isNaN(m) || isNaN(s) || isNaN(c)) return false;
+  if (m < 0 || m > 99 || s < 0 || s > 59 || c < 0 || c > 99) return false;
+  return `${m}:${String(s).padStart(2,'0')}.${String(c).padStart(2,'0')}`;
 }
 
 async function aplicar(carreraId, estado) {
-  const estadoPista  = document.getElementById('estado-pista')?.value          || null;
-  const tiempoGanRaw = document.getElementById('tiempo-ganador')?.value.trim() || null;
-  const tiempoGan    = normalizeTiempoGanador(tiempoGanRaw);
+  const estadoPista = document.getElementById('estado-pista')?.value || null;
+  const tiempoGan   = getTiempoGanador();
   if (tiempoGan === false) {
-    toast('Tiempo inválido. Formato: M:SS.CC (ej. 1:02.40)', 'error');
-    document.getElementById('tiempo-ganador')?.focus();
+    toast('Tiempo inválido. Revisá los campos min:seg.cent (seg 0-59, cent 0-99)', 'error');
+    document.getElementById('tg-min')?.focus();
     return;
-  }
-  if (tiempoGan !== tiempoGanRaw) {
-    const el = document.getElementById('tiempo-ganador');
-    if (el) el.value = tiempoGan;
   }
   const incidentes   = document.getElementById('incidentes')?.value.trim()     || null;
   const favVal       = document.getElementById('favorito-mandil')?.value;
