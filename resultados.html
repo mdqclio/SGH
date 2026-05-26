@@ -11,6 +11,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; appearance: textfield; }
     :root {
       --bg:      #0e2318; --card:   #1a3d26; --accent: #c9a84c;
       --text:    #f5f0e8; --muted:  #a0b8a0; --danger: #e05252;
@@ -1340,6 +1343,8 @@ document.addEventListener('input',  e => { if (!e.target.closest('#modal-apuesta
 document.addEventListener('change', e => { if (e.target.tagName === 'SELECT' && !e.target.closest('#modal-apuesta') && e.target.id !== 'sel-reunion' && currentCarreraId) isDirty = true; });
 // Cerrar chapa dropdown al hacer click fuera
 document.addEventListener('click', e => { if (!e.target.closest('.chapa-wrap') && !e.target.closest('.chapa-shared-dd')) closeChapaDropdown(); });
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('input[type=number]')) e.target.blur(); }, true);
+document.addEventListener('focus', e => { if (e.target.matches('input[type=number]')) e.target.select(); }, true);
 
 window.addEventListener('beforeunload', e => {
   if (isDirty) { e.preventDefault(); e.returnValue = ''; }
