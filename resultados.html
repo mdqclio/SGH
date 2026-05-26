@@ -160,9 +160,9 @@
     .favorito-block { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
     .favorito-block label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
     .mf-edit-row { display: flex; gap: 12px; align-items: center; }
-    .mf-edit-lbl { min-width: 52px; flex-shrink: 0; font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 700; color: var(--accent); white-space: nowrap; }
-    .sport-cells { display: grid; grid-template-columns: repeat(7, 42px); gap: 3px; }
-    .sport-cell-wrap { position: relative; width: 42px; height: 32px; }
+    .mf-edit-lbl { width: 80px; flex-shrink: 0; font-family: 'Playfair Display', serif; font-size: 14px; font-weight: 700; color: var(--accent); white-space: nowrap; overflow: hidden; }
+    .sport-cells { display: grid; grid-template-columns: repeat(7, 68px); gap: 3px; }
+    .sport-cell-wrap { position: relative; width: 68px; height: 32px; }
     .sport-cell-wrap::before {
       content: "$"; position: absolute; left: 3px; top: 50%; transform: translateY(-50%);
       pointer-events: none; color: var(--muted); font-size: 10px;
@@ -170,7 +170,7 @@
     }
     .sport-cell-wrap:has(input:disabled)::before { opacity: 0.3; }
     .sport-cell {
-      height: 32px; width: 42px; border: 1px solid rgba(201,168,76,0.35); background: rgba(255,255,255,0.04);
+      height: 32px; width: 68px; border: 1px solid rgba(201,168,76,0.35); background: rgba(255,255,255,0.04);
       color: var(--text); text-align: right; font-size: 11px; font-weight: 600; font-family: 'DM Sans', sans-serif;
       border-radius: 2px; padding: 0 4px 0 13px; outline: none; transition: border-color 0.15s;
       -moz-appearance: textfield; appearance: textfield;
@@ -615,7 +615,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
     ).join('');
 
   // M.(F) — ordenado por MANDIL (1..N). Color = color SBARG del propio mandil.
-  const mfColStyle = `grid-template-columns:repeat(${rowCount},42px)`;
+  const mfColStyle = `grid-template-columns:repeat(${rowCount},68px)`;
   const mfCells = Array.from({length: rowCount}, (_, i) => {
     const m = i + 1;
     const { bg, fg } = partidorColor(m);
@@ -624,7 +624,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
   }).join('');
 
   // Sport — ordenado por MANDIL (1..N). Dividendo = resultado_posiciones.dividendo del mandil M.
-  const sportColStyle = `grid-template-columns:repeat(${rowCount},42px)`;
+  const sportColStyle = `grid-template-columns:repeat(${rowCount},68px)`;
   const sportCells = Array.from({length: rowCount}, (_, i) => {
     const m = i + 1;
     const puesto = pxm[m] || null;
@@ -641,8 +641,8 @@ function renderFormulario(carrera, res, pos, apus, insc) {
       <!-- Header del panel -->
       <div class="res-panel-header">
         <div>
-          <div class="res-panel-title">Turno ${carrera.numero_turno}${carrera.nombre?' — '+carrera.nombre:''}</div>
-          <div class="res-meta">${carrera.distancia_metros}m · <span class="tp-label" id="tp-label-${carrera.id}" onclick="tipoPistaClick('${carrera.id}')" title="Clic para cambiar">${tipoPistaLabel(carrera.tipo_pista)}</span></div>
+          <div class="res-panel-title">Carrera ${carrera.numero_turno}${carrera.nombre?' — '+carrera.nombre:''}</div>
+          <div class="res-meta">${carrera.distancia_metros}m</div>
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <span class="badge badge-${res?.estado||'sin_resultado'}">${(res?.estado||'sin resultado').replace('_',' ')}</span>
@@ -692,16 +692,16 @@ function renderFormulario(carrera, res, pos, apus, insc) {
             <div class="res-section-title">Datos del resultado</div>
             <div class="datos-layout">
               <div class="favorito-block">
-                <label>Favorito (mandil)</label>
+                <label>Favorito</label>
                 <input type="number" id="favorito-mandil" value="${res?.favorito_mandil||''}" placeholder="—" style="width:72px">
               </div>
               <div>
                 <div class="mf-edit-row">
-                  <span class="mf-edit-lbl">M.(F)</span>
+                  <span class="mf-edit-lbl"></span>
                   <div class="mf-cells" style="${mfColStyle}">${mfCells}</div>
                 </div>
                 <div class="mf-edit-row" style="margin-top:4px">
-                  <span class="mf-edit-lbl">Sport</span>
+                  <span class="mf-edit-lbl">Div a GAN</span>
                   <div class="sport-cells" style="${sportColStyle}">${sportCells}</div>
                 </div>
               </div>
@@ -1285,8 +1285,8 @@ function renderOficial(carrera, res, pos, apus, insc) {
     <div class="res-panel">
       <div class="res-panel-header">
         <div>
-          <div class="res-panel-title">Turno ${carrera.numero_turno}${carrera.nombre?' — '+carrera.nombre:''}</div>
-          <div class="res-meta">${carrera.distancia_metros}m · <span class="tp-label" id="tp-label-${carrera.id}" onclick="tipoPistaClick('${carrera.id}')" title="Clic para cambiar">${tipoPistaLabel(carrera.tipo_pista)}</span> · Pista: ${res.estado_pista||'—'} · T: ${res.tiempo_ganador||'—'}</div>
+          <div class="res-panel-title">Carrera ${carrera.numero_turno}${carrera.nombre?' — '+carrera.nombre:''}</div>
+          <div class="res-meta">${carrera.distancia_metros}m · Pista: ${res.estado_pista||'—'} · T: ${res.tiempo_ganador||'—'}</div>
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <span class="badge badge-oficial">✅ Oficial</span>
@@ -1326,7 +1326,6 @@ function renderOficial(carrera, res, pos, apus, insc) {
           <!-- M.(F) -->
           <div style="margin-top:16px;">
             <div class="mf-block">
-              <span class="mf-lbl">M.(F)</span>
               <div>
                 <div class="mf-headers"><div>1°</div><div>2°</div><div>3°</div><div>4°</div><div>5°</div><div>6°</div><div>7°</div></div>
                 <div class="mf-cells">${mfCells}</div>
