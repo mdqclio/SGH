@@ -507,8 +507,11 @@ function renderFormulario(carrera, res, pos, apus, insc) {
   const difMap = {};
   (pos||[]).forEach(px => { if (px.diferencia) difMap[px.posicion] = px.diferencia; });
 
-  const marcRows = Array.from({length:20},(_,i)=>{
-    const p   = i+1;
+  const activeInsc = insc.filter(i => !['forfait','mal_inscrito'].includes(i.estado));
+  const rowCount   = Math.max(1, activeInsc.length);
+
+  const marcRows = Array.from({length: rowCount}, (_, i) => {
+    const p   = i + 1;
     const val = mbp[p] || '';
     let chapaCell = '<div></div>';
     if (p > 1) {
@@ -516,8 +519,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
       if (st) chapaValues[p] = st;
       const svg = chapaGetSvg(chapaValues[p]);
       const cod = chapaGetCodigo(chapaValues[p]) || '—';
-      const vis = val ? '' : 'display:none';
-      chapaCell = `<div class="chapa-wrap" id="chapa-wrap-${p}" style="${vis}">
+      chapaCell = `<div class="chapa-wrap" id="chapa-wrap-${p}">
         <button type="button" class="chapa-btn" id="chapa-btn-${p}" onclick="openChapaDropdown(${p})">
           <span class="chapa-btn-icon" id="chapa-icon-${p}">${svg}</span>
           <span class="chapa-btn-code" id="chapa-code-${p}">${cod}</span>
@@ -700,11 +702,6 @@ function renderFormulario(carrera, res, pos, apus, insc) {
 /* ── Cambios en el marcador ── */
 function onMarcInput() {
   updateMF();
-  for (let p = 2; p <= 20; p++) {
-    const val  = document.getElementById(`marc-${p}`)?.value?.trim();
-    const wrap = document.getElementById(`chapa-wrap-${p}`);
-    if (wrap) wrap.style.display = val ? '' : 'none';
-  }
 }
 
 function updateMF() {
@@ -720,7 +717,7 @@ function updateMF() {
 function parseDif(str) {
   if (!str) return null;
   const vm = str.match(/^(\d+)\s*cpos$/i);
-  if (vm) { const n = parseInt(vm[1],10); return n >= 5 ? {id:17, n} : null; }
+  if (vm) { const n = parseInt(vm[1],10); if (n >= 5) return {id:17, n}; }
   const ch = getChapaByCodigo(str);
   return ch ? {id:ch.id, n:null} : null;
 }
