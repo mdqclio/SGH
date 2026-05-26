@@ -300,6 +300,9 @@
       <div class="mg-row">
         <div class="mg">
           <label>Tipo</label>
+          <!-- GAN/SEG/TER: máximo 1 por carrera. Para derivar qué caballo cobró cada uno,
+               JOIN resultado_posiciones WHERE posicion=1/2/3 → inscripcion → spc.
+               NO agregar spc_id a resultado_apuestas (normalización). -->
           <select id="m-tipo">
             <option value="TE">TE — Tómbola Exacta</option>
             <option value="EX">EX — Exacta</option>
@@ -311,6 +314,9 @@
             <option value="X4">X4 — Cuaterna</option>
             <option value="X5">X5 — Quíntuplo</option>
             <option value="CAD">CAD — Cadena</option>
+            <option value="GAN">GAN — Ganador (1°)</option>
+            <option value="SEG">SEG — Segundo (2°)</option>
+            <option value="TER">TER — Tercero (3°)</option>
           </select>
         </div>
         <div class="mg">
@@ -989,6 +995,11 @@ function closeModal() { document.getElementById('modal-apuesta').classList.remov
 function confirmApuesta() {
   const tipo = document.getElementById('m-tipo').value.trim();
   if (!tipo) { toast('Seleccioná un tipo', 'error'); return; }
+  // GAN/SEG/TER: solo 1 por carrera (el caballo se deriva por JOIN con resultado_posiciones)
+  if (['GAN','SEG','TER'].includes(tipo)) {
+    const dup = pendingApuestas.some((a, i) => a.tipo === tipo && i !== editIdx);
+    if (dup) { toast(`Ya existe un dividendo ${tipo} en esta carrera`, 'error'); return; }
+  }
   const row = {
     tipo,
     val_apu:     parseFloat(document.getElementById('m-val-apu').value) || 0,
