@@ -1,20 +1,21 @@
+// Colores canónicos SBARG (Stud Book Argentino) — 16 mandiles
 const PARTIDOR_COLORS = {
-   1: { bg: '#E10600', fg: '#FFFFFF' },
-   2: { bg: '#FFFFFF', fg: '#000000' },
-   3: { bg: '#1E2691', fg: '#FFFFFF' },
-   4: { bg: '#FFE600', fg: '#000000' },
-   5: { bg: '#006B3C', fg: '#FFFFFF' },
-   6: { bg: '#000000', fg: '#FFE600' },
-   7: { bg: '#F26522', fg: '#FFFFFF' },
-   8: { bg: '#ED1C76', fg: '#000000' },
-   9: { bg: '#1FB7E0', fg: '#000000' },
-  10: { bg: '#6D2C8F', fg: '#FFFFFF' },
-  11: { bg: '#B8B8B8', fg: '#E10600' },
-  12: { bg: '#3DB54A', fg: '#FFFFFF' },
-  13: { bg: '#4D1414', fg: '#FFFFFF' },
-  14: { bg: '#7A1E1E', fg: '#FFE600' },
-  15: { bg: '#6E6E6E', fg: '#000000' },
-  16: { bg: '#7BD5E5', fg: '#E10600' },
+   1: { bg: '#D50000', fg: '#FFFFFF' },  // Rojo
+   2: { bg: '#FFFFFF', fg: '#000000' },  // Blanco
+   3: { bg: '#0047AB', fg: '#FFFFFF' },  // Azul
+   4: { bg: '#FFD400', fg: '#000000' },  // Amarillo
+   5: { bg: '#009B3A', fg: '#FFFFFF' },  // Verde
+   6: { bg: '#000000', fg: '#FFFFFF' },  // Negro
+   7: { bg: '#FF6A00', fg: '#FFFFFF' },  // Naranja
+   8: { bg: '#FF69B4', fg: '#000000' },  // Rosa
+   9: { bg: '#4FC3F7', fg: '#000000' },  // Celeste
+  10: { bg: '#7B1FA2', fg: '#FFFFFF' },  // Violeta
+  11: { bg: '#808080', fg: '#FFFFFF' },  // Gris
+  12: { bg: '#6D4C41', fg: '#FFFFFF' },  // Marrón
+  13: { bg: '#00B8B8', fg: '#000000' },  // Turquesa
+  14: { bg: '#D8C3A5', fg: '#000000' },  // Beige
+  15: { bg: '#A4C400', fg: '#000000' },  // Verde limón
+  16: { bg: '#800020', fg: '#FFFFFF' },  // Bordó
 };
 
 function partidorColor(n) {

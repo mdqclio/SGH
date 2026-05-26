@@ -534,6 +534,9 @@ function renderFormulario(carrera, res, pos, apus, insc) {
     const i = insc.find(x=>x.id===p.inscripcion_id);
     if (i?.numero_partidor) mbp[p.posicion] = i.numero_partidor;
   });
+  // Puesto por mandil (inverso de mbp) — para M.(F) y Sport ordenados por mandil
+  const pxm = {};
+  Object.entries(mbp).forEach(([puesto, mandil]) => { pxm[mandil] = parseInt(puesto); });
 
   // Marcador HTML con chapa picker por puesto 2+
   chapaValues = {};
@@ -579,18 +582,22 @@ function renderFormulario(carrera, res, pos, apus, insc) {
       `<option value="${v}" ${res?.estado_pista===v?'selected':''}>${v.charAt(0).toUpperCase()+v.slice(1)}</option>`
     ).join('');
 
-  // M.(F) inicial
-  const mfCells = [1,2,3,4,5,6,7].map(p => {
-    const m = mbp[p]||'';
-    const cls = p===2?'mf-2': p===3?'mf-3': p===4?'mf-4':'';
-    return `<div class="mf-cell ${cls}" id="mf-${p}">${m}</div>`;
+  // M.(F) — ordenado por MANDIL (1..N). Color = color SBARG del propio mandil.
+  const mfColStyle = `grid-template-columns:repeat(${rowCount},42px)`;
+  const mfCells = Array.from({length: rowCount}, (_, i) => {
+    const m = i + 1;
+    const { bg, fg } = partidorColor(m);
+    const bdr = bg.toUpperCase() === '#FFFFFF' ? '#ccc' : bg;
+    return `<div class="mf-cell" data-mandil="${m}" id="mf-${m}" style="background:${bg};color:${fg};border-color:${bdr}">${m}</div>`;
   }).join('');
 
-  // Sport cells — 7 posiciones (alineadas con M.(F)); celdas > rowCount deshabilitadas
-  const sportCells = [1,2,3,4,5,6,7].map(p => {
-    const disabled = p > rowCount ? 'disabled' : '';
-    const val = divMap[p] != null ? Number(divMap[p]).toFixed(2) : '';
-    return `<div class="sport-cell-wrap"><input class="sport-cell" id="sport-${p}" type="number" step="0.01" min="0" value="${val}" placeholder="—" ${disabled}></div>`;
+  // Sport — ordenado por MANDIL (1..N). Dividendo = resultado_posiciones.dividendo del mandil M.
+  const sportColStyle = `grid-template-columns:repeat(${rowCount},42px)`;
+  const sportCells = Array.from({length: rowCount}, (_, i) => {
+    const m = i + 1;
+    const puesto = pxm[m] || null;
+    const val = puesto != null && divMap[puesto] != null ? Number(divMap[puesto]).toFixed(2) : '';
+    return `<div class="sport-cell-wrap"><input class="sport-cell" id="sport-${m}" type="number" step="0.01" min="0" value="${val}" placeholder="—"></div>`;
   }).join('');
 
   const _cIdx    = carreras.findIndex(c => c.id === carrera.id);
@@ -659,11 +666,11 @@ function renderFormulario(carrera, res, pos, apus, insc) {
               <div>
                 <div class="mf-edit-row">
                   <span class="mf-edit-lbl">M.(F)</span>
-                  <div class="mf-cells">${mfCells}</div>
+                  <div class="mf-cells" style="${mfColStyle}">${mfCells}</div>
                 </div>
                 <div class="mf-edit-row" style="margin-top:4px">
                   <span class="mf-edit-lbl">Sport</span>
-                  <div class="sport-cells">${sportCells}</div>
+                  <div class="sport-cells" style="${sportColStyle}">${sportCells}</div>
                 </div>
               </div>
             </div>
@@ -739,10 +746,7 @@ function onMarcInput() {
 }
 
 function updateMF() {
-  [1,2,3,4,5,6,7].forEach(p => {
-    const c = document.getElementById(`mf-${p}`);
-    if (c) c.textContent = document.getElementById(`marc-${p}`)?.value?.trim() || '';
-  });
+  // Colores de M.(F) son estáticos por mandil (SBARG) — no hay que actualizar al cambiar el marcador
 }
 
 /* ─────────────────────────────────────────────
@@ -1119,7 +1123,7 @@ async function aplicar(carreraId, estado) {
     usados.add(mandil);
     const inscr = insc.find(i=>i.numero_partidor===mandil);
     if (!inscr) { toast(`Mandil ${mandil} no encontrado entre los inscriptos`,'error'); return; }
-    const divRaw = document.getElementById(`sport-${p}`)?.value?.trim();
+    const divRaw = document.getElementById(`sport-${mandil}`)?.value?.trim();
     const dividendo = divRaw ? parseFloat(divRaw) : null;
     posData.push({ inscripcion_id:inscr.id, posicion:p, descalificado:false, empate:false,
                    diferencia: p === 1 ? null : (chapaGetCodigo(chapaValues[p]) || null),
