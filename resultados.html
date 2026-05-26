@@ -108,19 +108,19 @@
     .det-col-right { padding: 0; }
 
     /* ── Marcador ── */
-    .marc-grid { display: grid; grid-template-columns: 30px 48px 1fr; row-gap: 5px; column-gap: 6px; align-items: center; }
-    .marc-pos { text-align: right; }
-    .marc-pos-chip { display: inline-block; padding: 2px 5px; border-radius: 5px; font-size: 10px; font-weight: 800; font-family: 'DM Sans', sans-serif; line-height: 16px; white-space: nowrap; }
+    .marc-grid { display: grid; grid-template-columns: 38px 42px 1fr; row-gap: 6px; column-gap: 6px; align-items: center; }
+    .marc-pos { display: flex; align-items: center; justify-content: flex-end; }
+    .marc-pos-chip { display: flex; align-items: center; justify-content: center; height: 34px; padding: 0 8px; border-radius: 7px; font-size: 12px; font-weight: 800; font-family: 'DM Sans', sans-serif; white-space: nowrap; }
     .marc-input {
-      height: 32px; background: rgba(255,255,255,0.04); border: 1px solid rgba(201,168,76,0.35); color: var(--text);
-      border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
-      text-align: center; padding: 0 6px; width: 100%; outline: none; transition: border-color 0.15s;
+      height: 34px; background: rgba(255,255,255,0.04); border: 1px solid rgba(201,168,76,0.35); color: var(--text);
+      border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700;
+      text-align: center; padding: 0; width: 100%; outline: none; transition: border-color 0.15s;
     }
     .marc-input:focus { border-color: var(--accent); }
 
     /* ── Chapa picker ── */
     .chapa-wrap { display: flex; align-items: center; }
-    .chapa-btn  { display: flex; align-items: center; gap: 5px; height: 32px; padding: 0 7px 0 5px; background: rgba(255,255,255,0.04); border: 1px solid rgba(201,168,76,0.35); border-radius: 8px; cursor: pointer; min-width: 88px; font-family: 'DM Sans', sans-serif; color: var(--text); transition: border-color 0.15s; }
+    .chapa-btn  { display: flex; align-items: center; gap: 5px; height: 34px; padding: 0 7px 0 5px; background: rgba(255,255,255,0.04); border: 1px solid rgba(201,168,76,0.35); border-radius: 8px; cursor: pointer; min-width: 88px; font-family: 'DM Sans', sans-serif; color: var(--text); transition: border-color 0.15s; }
     .chapa-btn:hover { border-color: rgba(201,168,76,0.4); }
     .chapa-btn:focus { outline: none; border-color: var(--accent); }
     .chapa-btn-icon { width: 22px; height: 22px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
