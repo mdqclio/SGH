@@ -200,18 +200,6 @@
           </select>
         </div>
         <div class="form-group">
-          <label>Condición de pista</label>
-          <select id="f-condicion">
-            <option value="">—</option>
-            <option value="seco">Seco</option>
-            <option value="bueno">Bueno</option>
-            <option value="algo pesado">Algo pesado</option>
-            <option value="pesado">Pesado</option>
-            <option value="muy pesado">Muy pesado</option>
-            <option value="fangoso">Fangoso</option>
-          </select>
-        </div>
-        <div class="form-group">
           <label>Clima</label>
           <input type="text" id="f-clima" placeholder="Ej: Soleado, 22°C">
         </div>
@@ -337,7 +325,7 @@ function renderList(data) {
           ${r.numero ? `Reunión N° ${r.numero} — ` : ''}${hip?.nombre || 'Hipódromo desconocido'}
           ${isActive ? '<span class="badge-activa">ACTIVA</span>' : ''}
         </div>
-        <div class="reunion-sub">${hip?.sigla ? `(${hip.sigla})` : ''} ${r.condicion_pista ? `• Pista: ${r.condicion_pista}` : ''} ${r.tiempo_clima ? `• ${r.tiempo_clima}` : ''}</div>
+        <div class="reunion-sub">${hip?.sigla ? `(${hip.sigla})` : ''} ${r.tiempo_clima ? `• ${r.tiempo_clima}` : ''}</div>
         <div class="badges">
           <span class="badge badge-${r.estado}">${ESTADO_LABELS[r.estado]||r.estado}</span>
           <span class="badge badge-tipo">${r.tipo}</span>
@@ -379,7 +367,6 @@ function openModal(rec=null) {
   document.getElementById('f-numero').value = rec?.numero || '';
   document.getElementById('f-tipo-r').value = rec?.tipo || 'oficial';
   document.getElementById('f-hora-cierre-rat').value = rec?.hora_cierre_ratificacion ? String(rec.hora_cierre_ratificacion).slice(0,5) : '';
-  document.getElementById('f-condicion').value = rec?.condicion_pista || '';
   document.getElementById('f-clima').value = rec?.tiempo_clima || '';
   document.getElementById('f-observaciones').value = rec?.observaciones || '';
   document.getElementById('f-fechas-inscripciones').value = rec?.fechas_inscripciones || '';
@@ -405,7 +392,6 @@ async function saveRecord() {
     numero: document.getElementById('f-numero').value ? parseInt(document.getElementById('f-numero').value) : null,
     tipo: document.getElementById('f-tipo-r').value,
     hora_cierre_ratificacion: document.getElementById('f-hora-cierre-rat').value || null,
-    condicion_pista: document.getElementById('f-condicion').value || null,
     tiempo_clima: document.getElementById('f-clima').value.trim() || null,
     observaciones: document.getElementById('f-observaciones').value.trim() || null,
     fechas_inscripciones:    document.getElementById('f-fechas-inscripciones').value.trim() || null,

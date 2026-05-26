@@ -455,7 +455,7 @@ function imprimirCartaBN() {
 const params = new URLSearchParams(location.search);
 let reunionId = params.get('reunion_id') || ActiveReunion.get();
 if (reunionId) { ActiveReunion.set(reunionId); }
-let reunion=null, carreras=[], categorias=[], hipodromos=[], clubData=null;
+let reunion=null, carreras=[], categorias=[], hipodromos=[], clubData=null, condPista=null;
 
 function toast(msg, type='success') {
   const t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
@@ -563,6 +563,11 @@ async function load() {
   ]);
   if (er) { toast(er.message,'error'); return; }
   reunion = r; carreras = cars||[]; categorias = cats||[]; hipodromos = hips||[]; clubData = club||null;
+  condPista = null;
+  if (carreras.length) {
+    const { data: _res } = await sb.from('resultados').select('estado_pista').eq('carrera_id', carreras[0].id).maybeSingle();
+    condPista = _res?.estado_pista || null;
+  }
   const obsEl = document.getElementById('f-observaciones-carta');
   if (obsEl) obsEl.value = reunion?.observaciones || '';
   renderHeader();
@@ -580,7 +585,7 @@ function renderHeader() {
     <div class="info-item"><div class="info-label">Hipódromo</div><div class="info-val">${hip?.nombre||'—'} ${hip?.sigla?`(${hip.sigla})`:''}</div></div>
     <div class="info-item"><div class="info-label">Localidad</div><div class="info-val">${hip?.localidad||'—'}</div></div>
     <div class="info-item"><div class="info-label">Tipo</div><div class="info-val">${reunion.tipo}</div></div>
-    ${reunion.condicion_pista?`<div class="info-item"><div class="info-label">Pista</div><div class="info-val">${reunion.condicion_pista}</div></div>`:''}
+    ${condPista?`<div class="info-item"><div class="info-label">Pista</div><div class="info-val">${condPista}</div></div>`:''}
     ${reunion.tiempo_clima?`<div class="info-item"><div class="info-label">Clima</div><div class="info-val">${reunion.tiempo_clima}</div></div>`:''}
     <div class="info-item"><div class="info-label">Estado</div><div class="info-val"><span class="badge badge-${reunion.estado}">${reunion.estado}</span></div></div>
   `;
@@ -730,7 +735,7 @@ function renderPrint() {
     ${logoHtml}
     <div class="p-doc-title">
       <h1>Carta de Llamado</h1>
-      <p>Reunión N° ${reunion.numero||'—'} &mdash; ${hip?.nombre||'—'}${hip?.sigla?` (${hip.sigla})`:''}${hip?.localidad?` &mdash; ${hip.localidad}`:''}${reunion.condicion_pista?` &mdash; Pista: ${reunion.condicion_pista}`:''}</p>
+      <p>Reunión N° ${reunion.numero||'—'} &mdash; ${hip?.nombre||'—'}${hip?.sigla?` (${hip.sigla})`:''}${hip?.localidad?` &mdash; ${hip.localidad}`:''}${condPista?` &mdash; Pista: ${condPista}`:''}</p>
     </div>
     <div class="p-doc-fecha">
       <div class="p-fecha-dow">${DIAS[f.getDay()]}</div>
