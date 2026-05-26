@@ -108,19 +108,13 @@
     .det-col-right { padding: 0; }
 
     /* ── Marcador ── */
-    .marc-grid { display: grid; grid-template-columns: 54px 1fr 58px; row-gap: 6px; column-gap: 8px; align-items: center; }
+    .marc-grid { display: grid; grid-template-columns: 54px 1fr; row-gap: 6px; column-gap: 8px; align-items: center; }
     .marc-input {
       height: 34px; background: rgba(255,255,255,0.04); border: 1px solid rgba(201,168,76,0.35); color: var(--text);
       border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700;
       text-align: center; padding: 0; width: 100%; outline: none; transition: border-color 0.15s;
     }
     .marc-input:focus { border-color: var(--accent); }
-    .marc-div {
-      height: 34px; width: 58px; background: rgba(255,255,255,0.04); border: 1px solid rgba(201,168,76,0.35); color: var(--text);
-      border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
-      text-align: center; padding: 0; outline: none; transition: border-color 0.15s;
-    }
-    .marc-div:focus { border-color: var(--accent); }
 
     /* ── Chapa picker ── */
     .chapa-wrap { display: flex; align-items: center; }
@@ -157,6 +151,20 @@
     .mf-2 { background: #F5DC1F; border-color: #C8B018; color: #111; }
     .mf-3 { background: #52A86A; border-color: #3D8050; color: #fff; }
     .mf-4 { background: #E1452F; border-color: #B5321F; color: #fff; }
+
+    /* ── M.(F) + Sport — edit layout ── */
+    .mf-edit-header { display: flex; gap: 12px; margin-bottom: 3px; }
+    .mf-edit-lbl-spacer { min-width: 52px; flex-shrink: 0; }
+    .mf-edit-row { display: flex; gap: 12px; align-items: center; }
+    .mf-edit-lbl { min-width: 52px; flex-shrink: 0; font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+    .sport-cells { display: grid; grid-template-columns: repeat(7, 32px); gap: 3px; }
+    .sport-cell {
+      height: 32px; width: 32px; border: 1px solid rgba(201,168,76,0.35); background: rgba(255,255,255,0.04);
+      color: var(--text); text-align: center; font-size: 12px; font-weight: 600; font-family: 'DM Sans', sans-serif;
+      border-radius: 2px; padding: 0; outline: none; transition: border-color 0.15s;
+    }
+    .sport-cell:focus { border-color: var(--accent); }
+    .sport-cell:disabled { opacity: 0.3; cursor: default; }
 
     /* ── Tabs ── */
     .tabs { display: flex; gap: 2px; padding: 14px 22px 0; }
@@ -536,10 +544,8 @@ function renderFormulario(carrera, res, pos, apus, insc) {
         </button>
       </div>`;
     }
-    const divVal = divMap[p] != null ? Number(divMap[p]).toFixed(2) : '';
     return `<input class="marc-input" id="marc-${p}" type="number" min="1" max="30" value="${val}" oninput="onMarcInput()">
-      ${chapaCell}
-      <input class="marc-div" id="marc-div-${p}" type="number" step="0.01" min="0" value="${divVal}" placeholder="—">`;
+      ${chapaCell}`;
   }).join('');
 
   // Normalizar tiempo_ganador — formato viejo "M:SS:CC" → nuevo "M:SS.CC"
@@ -558,6 +564,13 @@ function renderFormulario(carrera, res, pos, apus, insc) {
     const m = mbp[p]||'';
     const cls = p===2?'mf-2': p===3?'mf-3': p===4?'mf-4':'';
     return `<div class="mf-cell ${cls}" id="mf-${p}">${m}</div>`;
+  }).join('');
+
+  // Sport cells — 7 posiciones (alineadas con M.(F)); celdas > rowCount deshabilitadas
+  const sportCells = [1,2,3,4,5,6,7].map(p => {
+    const disabled = p > rowCount ? 'disabled' : '';
+    const val = divMap[p] != null ? Number(divMap[p]).toFixed(2) : '';
+    return `<input class="sport-cell" id="sport-${p}" type="number" step="0.01" min="0" value="${val}" placeholder="—" ${disabled}>`;
   }).join('');
 
   const _cIdx    = carreras.findIndex(c => c.id === carrera.id);
@@ -626,14 +639,19 @@ function renderFormulario(carrera, res, pos, apus, insc) {
             </div>
           </div>
 
-          <!-- M.(F) -->
+          <!-- M.(F) + Sport -->
           <div class="res-section">
-            <div class="mf-block">
-              <span class="mf-lbl">M.(F)</span>
-              <div>
-                <div class="mf-headers"><div>1°</div><div>2°</div><div>3°</div><div>4°</div><div>5°</div><div>6°</div><div>7°</div></div>
-                <div class="mf-cells">${mfCells}</div>
-              </div>
+            <div class="mf-edit-header">
+              <div class="mf-edit-lbl-spacer"></div>
+              <div class="mf-headers"><div>1°</div><div>2°</div><div>3°</div><div>4°</div><div>5°</div><div>6°</div><div>7°</div></div>
+            </div>
+            <div class="mf-edit-row">
+              <span class="mf-edit-lbl">M.(F)</span>
+              <div class="mf-cells">${mfCells}</div>
+            </div>
+            <div class="mf-edit-row" style="margin-top:4px">
+              <span class="mf-edit-lbl">Sport</span>
+              <div class="sport-cells">${sportCells}</div>
             </div>
           </div>
 
@@ -1082,7 +1100,7 @@ async function aplicar(carreraId, estado) {
     usados.add(mandil);
     const inscr = insc.find(i=>i.numero_partidor===mandil);
     if (!inscr) { toast(`Mandil ${mandil} no encontrado entre los inscriptos`,'error'); return; }
-    const divRaw = document.getElementById(`marc-div-${p}`)?.value?.trim();
+    const divRaw = document.getElementById(`sport-${p}`)?.value?.trim();
     const dividendo = divRaw ? parseFloat(divRaw) : null;
     posData.push({ inscripcion_id:inscr.id, posicion:p, descalificado:false, empate:false,
                    diferencia: p === 1 ? null : (chapaGetCodigo(chapaValues[p]) || null),
