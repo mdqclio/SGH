@@ -87,6 +87,11 @@
     .res-panel-header { padding: 16px 22px; background: rgba(201,168,76,0.07); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
     .res-panel-title { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--accent); }
     .res-meta { font-size: 12px; color: var(--muted); }
+    .tp-label { cursor: pointer; border-bottom: 1px dashed rgba(160,184,160,0.35); transition: border-color 0.15s, color 0.15s; }
+    .tp-label:hover { border-bottom-color: var(--accent); color: var(--accent); }
+    .tp-select { background: var(--input-bg); border: 1px solid rgba(201,168,76,0.35); color: var(--text); border-radius: 4px; font-family: 'DM Sans', sans-serif; font-size: 12px; padding: 0 3px; cursor: pointer; outline: none; height: 19px; vertical-align: middle; }
+    .tp-select:focus { border-color: var(--accent); }
+    .tp-select option { background: #1a3d26; }
     .res-section { padding: 14px 22px; border-bottom: 1px solid var(--border); }
     .res-section-title { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
     .res-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
@@ -555,7 +560,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
       <div class="res-panel-header">
         <div>
           <div class="res-panel-title">Turno ${carrera.numero_turno}${carrera.nombre?' — '+carrera.nombre:''}</div>
-          <div class="res-meta">${carrera.distancia_metros}m · ${carrera.tipo_pista||'—'}</div>
+          <div class="res-meta">${carrera.distancia_metros}m · <span class="tp-label" id="tp-label-${carrera.id}" onclick="tipoPistaClick('${carrera.id}')" title="Clic para cambiar">${tipoPistaLabel(carrera.tipo_pista)}</span></div>
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <span class="badge badge-${res?.estado||'sin_resultado'}">${(res?.estado||'sin resultado').replace('_',' ')}</span>
@@ -792,6 +797,75 @@ function onVariosInput(p) {
 }
 
 
+
+/* ═══════════════════════════════════════════════
+   TIPO PISTA — INLINE EDIT
+═══════════════════════════════════════════════ */
+const TIPO_PISTA_DISPLAY = { cesped: 'césped' };
+const TIPO_PISTA_VISIBLE = ['arena', 'cesped', 'tierra'];
+
+function tipoPistaLabel(v) {
+  return v ? (TIPO_PISTA_DISPLAY[v] || v) : '—';
+}
+
+function tipoPistaClick(carreraId) {
+  const carrera = carreras.find(c => c.id === carreraId);
+  if (!carrera) return;
+  const labelEl = document.getElementById(`tp-label-${carreraId}`);
+  if (!labelEl) return;
+
+  const curVal = carrera.tipo_pista || '';
+  const sel = document.createElement('select');
+  sel.className = 'tp-select';
+  sel.id = `tp-sel-${carreraId}`;
+
+  // If current value is a legacy one not in the visible list, prepend it
+  if (curVal && !TIPO_PISTA_VISIBLE.includes(curVal)) {
+    const opt = document.createElement('option');
+    opt.value = curVal; opt.textContent = curVal; opt.selected = true;
+    sel.appendChild(opt);
+  }
+  TIPO_PISTA_VISIBLE.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = TIPO_PISTA_DISPLAY[v] || v;
+    if (v === curVal) opt.selected = true;
+    sel.appendChild(opt);
+  });
+
+  let saving = false;
+
+  sel.onchange = async () => {
+    saving = true;
+    const newVal = sel.value;
+    const { error } = await sb.from('carreras').update({ tipo_pista: newVal }).eq('id', carreraId);
+    if (error) {
+      toast('Error al guardar tipo de pista: ' + error.message, 'error');
+      saving = false;
+      tipoPistaCollapse(carreraId, curVal);
+      return;
+    }
+    carrera.tipo_pista = newVal;
+    tipoPistaCollapse(carreraId, newVal);
+    toast('✓ Tipo de pista guardado');
+  };
+
+  sel.onblur = () => { if (!saving) tipoPistaCollapse(carreraId, curVal); };
+
+  labelEl.replaceWith(sel);
+  sel.focus();
+}
+
+function tipoPistaCollapse(carreraId, val) {
+  const selEl = document.getElementById(`tp-sel-${carreraId}`);
+  if (!selEl) return;
+  const span = document.createElement('span');
+  span.className = 'tp-label';
+  span.id = `tp-label-${carreraId}`;
+  span.title = 'Clic para cambiar';
+  span.textContent = tipoPistaLabel(val);
+  span.onclick = () => tipoPistaClick(carreraId);
+  selEl.replaceWith(span);
+}
 
 /* ── Tabs ── */
 function switchTab(tab) {
@@ -1125,7 +1199,7 @@ function renderOficial(carrera, res, pos, apus, insc) {
       <div class="res-panel-header">
         <div>
           <div class="res-panel-title">Turno ${carrera.numero_turno}${carrera.nombre?' — '+carrera.nombre:''}</div>
-          <div class="res-meta">${carrera.distancia_metros}m · ${carrera.tipo_pista||'—'} · Pista: ${res.estado_pista||'—'} · T: ${res.tiempo_ganador||'—'}</div>
+          <div class="res-meta">${carrera.distancia_metros}m · <span class="tp-label" id="tp-label-${carrera.id}" onclick="tipoPistaClick('${carrera.id}')" title="Clic para cambiar">${tipoPistaLabel(carrera.tipo_pista)}</span> · Pista: ${res.estado_pista||'—'} · T: ${res.tiempo_ganador||'—'}</div>
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <span class="badge badge-oficial">✅ Oficial</span>
