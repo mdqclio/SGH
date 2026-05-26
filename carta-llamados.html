@@ -565,8 +565,21 @@ async function load() {
   reunion = r; carreras = cars||[]; categorias = cats||[]; hipodromos = hips||[]; clubData = club||null;
   condPista = null;
   if (carreras.length) {
-    const { data: _res } = await sb.from('resultados').select('estado_pista').eq('carrera_id', carreras[0].id).maybeSingle();
-    condPista = _res?.estado_pista || null;
+    const carreraIds = carreras.map(c => c.id);
+    const { data: _res } = await sb.from('resultados')
+      .select('estado_pista, carrera_id')
+      .in('carrera_id', carreraIds)
+      .not('estado_pista', 'is', null)
+      .limit(50);
+    if (_res?.length) {
+      const carrerasById = new Map(carreras.map(c => [c.id, c]));
+      _res.sort((a, b) => {
+        const ta = carrerasById.get(a.carrera_id)?.numero_turno ?? 999;
+        const tb = carrerasById.get(b.carrera_id)?.numero_turno ?? 999;
+        return ta - tb;
+      });
+      condPista = _res[0].estado_pista;
+    }
   }
   const obsEl = document.getElementById('f-observaciones-carta');
   if (obsEl) obsEl.value = reunion?.observaciones || '';

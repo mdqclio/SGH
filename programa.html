@@ -243,8 +243,21 @@ async function loadPrograma() {
   currentInscripciones = inscripciones;
   currentCondPista = null;
   if (currentCarreras.length) {
-    const { data: _res } = await sb.from('resultados').select('estado_pista').eq('carrera_id', currentCarreras[0].id).maybeSingle();
-    currentCondPista = _res?.estado_pista || null;
+    const carreraIds = currentCarreras.map(c => c.id);
+    const { data: _res } = await sb.from('resultados')
+      .select('estado_pista, carrera_id')
+      .in('carrera_id', carreraIds)
+      .not('estado_pista', 'is', null)
+      .limit(50);
+    if (_res?.length) {
+      const carrerasById = new Map(currentCarreras.map(c => [c.id, c]));
+      _res.sort((a, b) => {
+        const ta = carrerasById.get(a.carrera_id)?.numero_turno ?? 999;
+        const tb = carrerasById.get(b.carrera_id)?.numero_turno ?? 999;
+        return ta - tb;
+      });
+      currentCondPista = _res[0].estado_pista;
+    }
   }
   renderPrograma(reunion, currentCarreras, currentInscripciones);
 }
