@@ -738,13 +738,11 @@ function renderFormulario(carrera, res, pos, apus, insc) {
             <div class="divs-scroll">
               <table class="divs">
                 <thead><tr>
-                  <th class="th-l" style="width:58px">Apu</th>
-                  <th class="th-r" style="width:78px">Val.Apu</th>
-                  <th class="th-l" style="width:130px">Composición</th>
-                  <th class="th-r" style="width:110px">Pozo</th>
-                  <th class="th-r" style="width:60px">Vales</th>
-                  <th class="th-r" style="width:96px">Div.Orig</th>
-                  <th class="th-r" style="width:96px">Div.Inc</th>
+                  <th class="th-l" style="width:120px">Apuesta</th>
+                  <th class="th-r" style="width:72px">Val.Apu</th>
+                  <th class="th-l" style="width:120px">Composición</th>
+                  <th class="th-r" style="width:104px">Div.Orig</th>
+                  <th class="th-r" style="width:104px">Div.Inc</th>
                   <th style="width:88px"></th>
                 </tr></thead>
                 <tbody id="apu-tbody"></tbody>
@@ -983,6 +981,35 @@ function isReducida() {
 }
 
 /* ── Tabla de dividendos ── */
+function autoComp(a) {
+  if (a.composicion) return a.composicion;
+  const res = resultados[currentCarreraId];
+  if (!res) return '';
+  const posiciones = posicionesMap[res.id] || [];
+  if (!posiciones.length) return '';
+  const carreraInsc = inscripciones.filter(i => i.carrera_id === currentCarreraId)
+    .sort((x, y) => (x.numero_partidor||999) - (y.numero_partidor||999));
+  const mandilToChapa = {};
+  carreraInsc.forEach((x, i) => { if (x.numero_partidor) mandilToChapa[x.numero_partidor] = i + 1; });
+  const chapaAt = pos => {
+    const p = posiciones.find(x => x.posicion === pos);
+    if (!p) return null;
+    const insc = carreraInsc.find(x => x.id === p.inscripcion_id);
+    return insc ? (mandilToChapa[insc.numero_partidor] ?? null) : null;
+  };
+  const orden = a.orden || 1;
+  switch (a.tipo) {
+    case 'GAN': { const c=chapaAt(1);     return c!=null?String(c):''; }
+    case 'SEG': { const c=chapaAt(orden); return c!=null?String(c):''; }
+    case 'TER': { const c=chapaAt(orden); return c!=null?String(c):''; }
+    case 'EX':  { const [c1,c2]=[chapaAt(1),chapaAt(2)]; return c1!=null&&c2!=null?`${c1}-${c2}`:''; }
+    case 'IM':  { const [c1,c2]=[chapaAt(1),chapaAt(2)]; return c1!=null&&c2!=null?`${c1}/${c2}`:''; }
+    case 'TR':  { const [c1,c2,c3]=[chapaAt(1),chapaAt(2),chapaAt(3)]; return c1!=null&&c2!=null&&c3!=null?`${c1}-${c2}-${c3}`:''; }
+    case 'CUAT':{ const [c1,c2,c3,c4]=[chapaAt(1),chapaAt(2),chapaAt(3),chapaAt(4)]; return c1!=null&&c2!=null&&c3!=null&&c4!=null?`${c1}-${c2}-${c3}-${c4}`:''; }
+    default: return '—';
+  }
+}
+
 function renderTabla() {
   const tbody = document.getElementById('apu-tbody');
   if (!tbody) return;
@@ -992,7 +1019,7 @@ function renderTabla() {
     : pendingApuestas;
 
   if (!filas.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="padding:18px;text-align:center;color:var(--muted);">Sin apuestas cargadas. Usá Agregar.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="padding:18px;text-align:center;color:var(--muted);">Sin apuestas cargadas. Usá Agregar.</td></tr>';
     document.getElementById('nav-info').textContent = '0 / 0';
     return;
   }
@@ -1006,14 +1033,13 @@ function renderTabla() {
   tbody.innerHTML = filas.map((a, fi) => {
     const pidx = pendingIdxForFila(fi);
     const sel  = pidx === selIdx ? 'sel-row' : '';
+    const comp = autoComp(a);
     return `<tr class="${sel}" onclick="selectRow(${pidx})">
-      <td class="td-apu">${a.tipo||''}</td>
+      <td class="td-apu">${DIV_NOMBRE[a.tipo] || a.tipo || ''}</td>
       <td class="td-r">${a.val_apu!=null ? fNum(a.val_apu) : ''}</td>
-      <td class="td-comp">${a.composicion||''}</td>
-      <td class="td-r">${a.pozo!=null ? fNum(a.pozo) : ''}</td>
-      <td class="td-r">${a.vales!=null && a.vales!=='' ? a.vales : ''}</td>
-      <td class="td-r">${a.div_orig!=null ? fNum(a.div_orig) : ''}</td>
-      <td class="td-r">${a.div_inc!=null  ? fNum(a.div_inc)  : ''}</td>
+      <td class="td-comp">${comp}</td>
+      <td class="td-r">${a.div_orig!=null ? '$ '+fNum(a.div_orig) : ''}</td>
+      <td class="td-r">${a.div_inc!=null  ? '$ '+fNum(a.div_inc)  : ''}</td>
       <td style="text-align:left;padding-left:6px;">${a.vacante ? '<span class="badge-vac">VACANTE</span>' : ''}</td>
     </tr>`;
   }).join('');
@@ -1529,28 +1555,24 @@ function renderOficial(carrera, res, pos, apus, insc) {
             <div class="divs-scroll" style="max-height:480px;">
               <table class="divs">
                 <thead><tr>
-                  <th class="th-l" style="width:58px">Apu</th>
-                  <th class="th-r" style="width:78px">Val.Apu</th>
-                  <th class="th-l" style="width:130px">Composición</th>
-                  <th class="th-r" style="width:110px">Pozo</th>
-                  <th class="th-r" style="width:60px">Vales</th>
-                  <th class="th-r" style="width:96px">Div.Orig</th>
-                  <th class="th-r" style="width:96px">Div.Inc</th>
+                  <th class="th-l" style="width:120px">Apuesta</th>
+                  <th class="th-r" style="width:72px">Val.Apu</th>
+                  <th class="th-l" style="width:120px">Composición</th>
+                  <th class="th-r" style="width:104px">Div.Orig</th>
+                  <th class="th-r" style="width:104px">Div.Inc</th>
                   <th style="width:88px"></th>
                 </tr></thead>
                 <tbody>
                   ${apus.length
                     ? apus.map(a=>`<tr>
-                        <td class="td-apu">${a.tipo||''}</td>
+                        <td class="td-apu">${DIV_NOMBRE[a.tipo]||a.tipo||''}</td>
                         <td class="td-r">${a.val_apu!=null?fNum(a.val_apu):''}</td>
                         <td class="td-comp">${a.composicion||''}</td>
-                        <td class="td-r">${a.pozo!=null?fNum(a.pozo):''}</td>
-                        <td class="td-r">${a.vales!=null&&a.vales!==''?a.vales:''}</td>
-                        <td class="td-r">${a.div_orig!=null?fNum(a.div_orig):''}</td>
-                        <td class="td-r">${a.div_inc!=null?fNum(a.div_inc):''}</td>
+                        <td class="td-r">${a.div_orig!=null?'$ '+fNum(a.div_orig):''}</td>
+                        <td class="td-r">${a.div_inc!=null?'$ '+fNum(a.div_inc):''}</td>
                         <td style="text-align:left;padding-left:6px;">${a.vacante?'<span class="badge-vac">VACANTE</span>':''}</td>
                       </tr>`).join('')
-                    : '<tr><td colspan="8" style="padding:16px;text-align:center;color:var(--muted)">Sin dividendos cargados</td></tr>'
+                    : '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--muted)">Sin dividendos cargados</td></tr>'
                   }
                 </tbody>
               </table>
