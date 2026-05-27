@@ -99,7 +99,7 @@
     .comision-row .nombre { color: var(--text); font-weight: 600; }
 
     /* ── Modal apuestas estructurado ── */
-    input[type=number].apu-price { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 3px 6px; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 12px; outline: none; width: 64px; -moz-appearance: textfield; }
+    input[type=number].apu-price { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 3px 6px; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 12px; outline: none; width: 70px; -moz-appearance: textfield; }
     input[type=number].apu-price::-webkit-inner-spin-button, input[type=number].apu-price::-webkit-outer-spin-button { -webkit-appearance: none; }
     input[type=number].apu-price:focus { border-color: var(--accent); }
     .apu-carrera { border-bottom: 1px solid var(--border); }
@@ -114,21 +114,16 @@
     .apu-carrera.open .apu-carrera-body { display: block; }
     .apu-group-title { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin: 10px 0 5px; }
     .apu-rows { display: flex; flex-direction: column; gap: 6px; }
-    .apu-row { display: flex; flex-direction: column; gap: 3px; }
-    .apu-row-main { display: flex; align-items: center; gap: 8px; }
-    .apu-row-main input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer; }
-    .apu-row-main label { font-size: 13px; color: var(--text); cursor: pointer; flex: 1; }
-    .apu-price-wrap { display: flex; align-items: center; gap: 6px; }
-    .apu-details-btn { font-size: 11px; color: var(--accent); background: none; border: 1px solid var(--accent); border-radius: 4px; padding: 1px 6px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
-    .apu-details-btn.open { color: var(--muted); border-color: var(--border); }
-    .apu-details { display: none; flex-direction: row; flex-wrap: wrap; gap: 6px; padding: 4px 0 2px 23px; align-items: center; }
-    .apu-details.open { display: flex; }
-    input.apu-detail-nombre { flex: 1 1 160px; padding: 3px 6px; font-size: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); color: var(--text); outline: none; font-family: 'DM Sans', sans-serif; }
-    input.apu-detail-nombre:focus { border-color: var(--accent); }
-    .apu-detail-money { display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--muted); }
-    input.apu-detail-num { width: 76px; padding: 3px 6px; font-size: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); color: var(--text); outline: none; -moz-appearance: textfield; font-family: 'DM Sans', sans-serif; }
-    input.apu-detail-num::-webkit-inner-spin-button, input.apu-detail-num::-webkit-outer-spin-button { -webkit-appearance: none; }
-    input.apu-detail-num:focus { border-color: var(--accent); }
+    .apu-row { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; overflow-x: auto; }
+    .apu-row input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer; }
+    .apu-row label { font-size: 13px; color: var(--text); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+    .apu-lbl { font-size: 11px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+    input.apu-nombre { width: 160px; padding: 3px 6px; font-size: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); color: var(--text); outline: none; font-family: 'DM Sans', sans-serif; flex-shrink: 0; }
+    input.apu-nombre:focus { border-color: var(--accent); }
+    input.apu-aseg, input.apu-incr { width: 90px; padding: 3px 6px; font-size: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); color: var(--text); outline: none; -moz-appearance: textfield; font-family: 'DM Sans', sans-serif; flex-shrink: 0; }
+    input.apu-aseg::-webkit-inner-spin-button, input.apu-aseg::-webkit-outer-spin-button,
+    input.apu-incr::-webkit-inner-spin-button, input.apu-incr::-webkit-outer-spin-button { -webkit-appearance: none; }
+    input.apu-aseg:focus, input.apu-incr:focus { border-color: var(--accent); }
     .apu-notas { width: 100%; margin-top: 10px; padding: 7px 10px; font-size: 12px; border-radius: 8px; resize: vertical; min-height: 48px; font-family: 'DM Sans', sans-serif; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); outline: none; }
     .apu-notas:focus { border-color: var(--accent); }
 
@@ -487,40 +482,26 @@ async function openApuestasModal() {
         const nombre    = (row?.nombre ?? '').replace(/"/g, '&quot;');
         const aseg      = row?.asegurado ?? '';
         const incr      = row?.incremento ?? '';
-        const hasExtra  = !!(row?.nombre || row?.asegurado != null || row?.incremento != null);
         const chkId     = `apu-${tipo}-${c.id}`;
-        const detailsId = `details-${tipo}-${c.id}`;
         return `<div class="apu-row">
-          <div class="apu-row-main">
-            <input type="checkbox" id="${chkId}" data-tipo="${tipo}" data-cid="${c.id}"
-                   ${checked ? 'checked' : ''} onchange="onApuCheck(this)">
-            <label for="${chkId}">${tipo} — ${APU_NOMBRE[tipo]}</label>
-            <div class="apu-price-wrap"${checked ? '' : ' hidden'}>
-              <input type="number" class="apu-price" id="price-${tipo}-${c.id}"
-                     value="${precio}" placeholder="$" min="1" step="1"
-                     oninput="apuDirtyIds.add('${c.id}')">
-              <button class="apu-details-btn${hasExtra ? ' open' : ''}" type="button"
-                      onclick="toggleApuDetails(this)"
-                      data-details="${detailsId}">${hasExtra ? '— detalles' : '+ detalles'}</button>
-            </div>
-          </div>
-          <div class="apu-details${hasExtra ? ' open' : ''}" id="${detailsId}">
-            <input type="text" class="apu-detail-nombre" id="nombre-${tipo}-${c.id}"
-                   value="${nombre}" placeholder="Nombre (opcional)"
-                   oninput="apuDirtyIds.add('${c.id}')">
-            <div class="apu-detail-money">
-              <span>Aseg.$</span>
-              <input type="number" class="apu-detail-num" id="asegurado-${tipo}-${c.id}"
-                     value="${aseg}" placeholder="0" min="0" step="1"
-                     oninput="apuDirtyIds.add('${c.id}')">
-            </div>
-            <div class="apu-detail-money">
-              <span>Incr.$</span>
-              <input type="number" class="apu-detail-num" id="incremento-${tipo}-${c.id}"
-                     value="${incr}" placeholder="0" min="0" step="1"
-                     oninput="apuDirtyIds.add('${c.id}')">
-            </div>
-          </div>
+          <input type="checkbox" id="${chkId}" data-tipo="${tipo}" data-cid="${c.id}"
+                 ${checked ? 'checked' : ''} onchange="onApuCheck(this)">
+          <label for="${chkId}" title="${tipo} — ${APU_NOMBRE[tipo]}">${tipo}</label>
+          <span class="apu-lbl">$</span>
+          <input type="number" class="apu-price" id="price-${tipo}-${c.id}"
+                 value="${precio}" placeholder="0" min="1" step="1"
+                 oninput="apuDirtyIds.add('${c.id}')">
+          <input type="text" class="apu-nombre" id="nombre-${tipo}-${c.id}"
+                 value="${nombre}" placeholder="Nombre opcional"
+                 oninput="apuDirtyIds.add('${c.id}')">
+          <span class="apu-lbl">Aseg.$</span>
+          <input type="number" class="apu-aseg" id="asegurado-${tipo}-${c.id}"
+                 value="${aseg}" placeholder="0" min="0" step="1"
+                 oninput="apuDirtyIds.add('${c.id}')">
+          <span class="apu-lbl">Incr.$</span>
+          <input type="number" class="apu-incr" id="incremento-${tipo}-${c.id}"
+                 value="${incr}" placeholder="0" min="0" step="1"
+                 oninput="apuDirtyIds.add('${c.id}')">
         </div>`;
       }).join('');
       return `<div class="apu-group-title">${g.label}</div><div class="apu-rows">${rows}</div>`;
@@ -555,27 +536,7 @@ function toggleAllApuCarreras() {
   btn.textContent = allOpen ? 'Expandir todas' : 'Colapsar todas';
 }
 
-function toggleApuDetails(btn) {
-  const block = document.getElementById(btn.dataset.details);
-  const open  = block.classList.toggle('open');
-  btn.textContent = open ? '— detalles' : '+ detalles';
-  btn.classList.toggle('open', open);
-}
-
 function onApuCheck(chk) {
-  const rowEl    = chk.closest('.apu-row');
-  const priceWrap = rowEl.querySelector('.apu-price-wrap');
-  if (chk.checked) {
-    priceWrap.removeAttribute('hidden');
-  } else {
-    priceWrap.setAttribute('hidden', '');
-    const tipo   = chk.dataset.tipo;
-    const cid    = chk.dataset.cid;
-    const block  = document.getElementById(`details-${tipo}-${cid}`);
-    const detBtn = priceWrap.querySelector('.apu-details-btn');
-    if (block)  { block.classList.remove('open'); }
-    if (detBtn) { detBtn.classList.remove('open'); detBtn.textContent = '+ detalles'; }
-  }
   apuDirtyIds.add(chk.dataset.cid);
   renderApuSummary(chk.dataset.cid);
 }
