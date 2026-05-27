@@ -1108,6 +1108,8 @@ async function f8Dividendos() {
 /* ═══════════════════════════════════════════════
    MODAL DIVIDENDOS HABILITADOS
 ═══════════════════════════════════════════════ */
+let divModalDirty = false;
+
 const DIV_NOMBRE = {
   GAN:'Ganador', SEG:'Segundo', TER:'Tercero',
   EX:'Exacta', IM:'Imperfecta', TR:'Trifecta', CUAT:'Cuatrifecta',
@@ -1159,10 +1161,14 @@ function openDivModal() {
     }).join('');
   }
 
+  divModalDirty = false;
+  document.getElementById('div-modal-body').addEventListener('input', () => { divModalDirty = true; }, { once: false, capture: false });
   document.getElementById('modal-div').classList.add('open');
 }
 
 function closeDivModal() {
+  if (divModalDirty && !confirm('Hay dividendos sin guardar. ¿Cerrar de todas formas?')) return;
+  divModalDirty = false;
   document.getElementById('modal-div').classList.remove('open');
 }
 
@@ -1233,6 +1239,7 @@ async function saveDivModal() {
   }
 
   btn.disabled = false; btn.textContent = 'Guardar';
+  divModalDirty = false;
   renderTabla();
   toast('Dividendos guardados');
   closeDivModal();
@@ -1545,9 +1552,9 @@ document.addEventListener('keydown', e => {
   if (e.key==='PageUp')   { e.preventDefault(); navCarrera(-1); }
 });
 
-document.addEventListener('input',  e => { if (!e.target.closest('#modal-apuesta') && currentCarreraId) isDirty = true; });
+document.addEventListener('input',  e => { if (!e.target.closest('#modal-apuesta') && !e.target.closest('#modal-div') && currentCarreraId) isDirty = true; });
 // 'change' en text inputs dispara al perder foco (spurioso al navegar); solo capturar selects.
-document.addEventListener('change', e => { if (e.target.tagName === 'SELECT' && !e.target.closest('#modal-apuesta') && e.target.id !== 'sel-reunion' && currentCarreraId) isDirty = true; });
+document.addEventListener('change', e => { if (e.target.tagName === 'SELECT' && !e.target.closest('#modal-apuesta') && !e.target.closest('#modal-div') && e.target.id !== 'sel-reunion' && currentCarreraId) isDirty = true; });
 // Cerrar chapa dropdown al hacer click fuera
 document.addEventListener('click', e => { if (!e.target.closest('.chapa-wrap') && !e.target.closest('.chapa-shared-dd')) closeChapaDropdown(); });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('input[type=number]')) e.target.blur(); }, true);
