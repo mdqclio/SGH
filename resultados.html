@@ -261,6 +261,12 @@
     .pb-td { padding:8px 14px; font-size:13px; border-bottom:1px solid rgba(201,168,76,0.1); }
     .pb-input { width:80px; padding:6px 8px; font-size:13px; border-radius:8px; background:var(--input-bg); border:1px solid var(--border); color:var(--text); text-align:right; font-family:'DM Sans',sans-serif; }
 
+    /* ── Div modal money input ── */
+    .div-money { display:flex;align-items:center;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;padding:0 6px;gap:3px; }
+    .div-money:focus-within { border-color:var(--accent); }
+    .div-money input[type=number] { border:none;background:transparent;outline:none;padding:5px 0;width:76px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;-moz-appearance:textfield; }
+    .div-money input[type=number]::-webkit-inner-spin-button,.div-money input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; }
+
     /* ── Auth overlay ── */
     #auth-overlay { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center; }
     .btn-logout { background:none;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;transition:all 0.2s; }
@@ -1177,17 +1183,36 @@ function openDivModal() {
 
     const parts = [];
 
+    // Chapa lookup para posicionales
+    const posiciones = posicionesMap[res.id] || [];
+    const carreraInsc = inscripciones.filter(i => i.carrera_id === currentCarreraId)
+      .sort((x, y) => (x.numero_partidor||999) - (y.numero_partidor||999));
+    const mandilToChapa = {};
+    carreraInsc.forEach((x, idx) => { if (x.numero_partidor) mandilToChapa[x.numero_partidor] = idx + 1; });
+    const chapaForPos = pos => {
+      const p = posiciones.find(x => x.posicion === pos);
+      if (!p) return null;
+      const insc = carreraInsc.find(x => x.id === p.inscripcion_id);
+      return insc ? (mandilToChapa[insc.numero_partidor] ?? null) : null;
+    };
+    const chapaChip = chapa => {
+      if (chapa == null) return `<div style="width:28px;height:28px;border-radius:4px;background:var(--border);flex-shrink:0;"></div>`;
+      const { bg, fg } = partidorColor(chapa);
+      const bdr = bg.toUpperCase() === '#FFFFFF' ? '1px solid #000' : '1px solid transparent';
+      return `<div style="width:28px;height:28px;border-radius:4px;background:${bg};color:${fg};border:${bdr};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">${chapa}</div>`;
+    };
+    const moneyInput = (id, val) =>
+      `<div class="div-money"><span style="font-size:11px;color:var(--muted);">$</span><input type="number" id="${id}" value="${val}" placeholder="0" min="0" step="0.01"></div>`;
+
     if (habPOS.length) {
       const cols = habPOS.map(a => {
         const slots = DIV_SLOTS[a.tipo] || 1;
         const existing = byTipo[a.tipo] || [];
         const inputs = Array.from({ length: slots }, (_, i) => {
           const val = existing[i]?.div_orig ?? '';
-          const lbl = slots > 1
-            ? `<div style="font-size:10px;color:var(--muted);margin-bottom:2px;">${i+1}°</div>` : '';
-          return `<div style="margin-bottom:${i < slots-1 ? '8px' : '0'};">
-            ${lbl}<input type="number" class="pb-input" id="div-${a.tipo}-${i+1}"
-                         value="${val}" placeholder="0" min="0" step="0.01">
+          const chip = chapaChip(chapaForPos(i + 1));
+          return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:${i < slots-1 ? '8px' : '0'};">
+            ${chip}${moneyInput(`div-${a.tipo}-${i+1}`, val)}
           </div>`;
         }).join('');
         return `<div style="display:flex;flex-direction:column;gap:2px;">
@@ -1195,15 +1220,14 @@ function openDivModal() {
           ${inputs}
         </div>`;
       }).join('');
-      parts.push(`<div style="display:flex;gap:24px;">${cols}</div>`);
+      parts.push(`<div style="display:flex;gap:20px;">${cols}</div>`);
     }
 
     const rowSection = (list) => list.map(a => {
       const val = (byTipo[a.tipo] || [])[0]?.div_orig ?? '';
       return `<div style="display:flex;align-items:center;gap:12px;padding:5px 0;">
         <div style="width:130px;font-size:13px;color:var(--text);">${DIV_NOMBRE[a.tipo]}</div>
-        <input type="number" class="pb-input" id="div-${a.tipo}-1"
-               value="${val}" placeholder="0" min="0" step="0.01">
+        ${moneyInput(`div-${a.tipo}-1`, val)}
       </div>`;
     }).join('');
 
