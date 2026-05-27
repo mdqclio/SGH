@@ -78,7 +78,7 @@ NOTA estado: campo VARCHAR libre (sin ENUM). Valores especiales usados en UI: 'r
 NOTA apuestas (legacy): TEXT[] con texto libre del programa oficial ("Apuestas: A ganador, segundo…"). Sin uso funcional; queda intacta para referencia.
 NOTA apuestas_habilitadas: JSONB estructurado. Keys = códigos de apuesta habilitados en esa carrera; values = configuración de cada apuesta (base, pozo_asegurado, etc.). CHECK via fn apuestas_keys_validas() — keys válidas: GAN, SEG, TER, EX, IM, TR, X2, X2P, X3, X4, X5, CAD, TE.
 NOTA apuestas_notas: texto libre opcional para notas del programa (ej: "Triplo Inicial — Pozo asegurado $50.000").
-FUNCIÓN: apuestas_keys_validas(obj jsonb) RETURNS boolean IMMUTABLE — valida que todos los keys del JSONB pertenezcan al set de tipos válidos. Usada en CHECK constraint chk_carreras_apuestas_keys.
+FUNCIÓN: apuestas_keys_validas(obj jsonb) RETURNS boolean IMMUTABLE — valida que todos los keys del JSONB pertenezcan al set de tipos válidos. Usada en CHECK constraint chk_carreras_apuestas_keys. Set actual: GAN, SEG, TER, EX, IM, TR, X2, X2P, X3, X4, X5, CAD, TE, CUAT.
 
 ### inscripciones
 id UUID PK, carrera_id FK carreras, spc_id FK spcs, propietario_id FK, entrenador_id FK, jockey_titular_id FK, jockey_suplente_id FK, caballeriza_id FK, peon VARCHAR, capataz VARCHAR, sereno VARCHAR, numero_partidor, peso_declarado, peso_final, estado ENUM(pre_inscripto/inscripto/confirmado/ratificado/forfait/no_presentado/mal_inscrito) DEFAULT 'inscripto', canal DEFAULT 'manual', motivo_estado VARCHAR, info_adicional, certificado_correr BOOLEAN, inscripto_por FK usuarios, ratificado_por FK usuarios
@@ -107,6 +107,7 @@ TIPOS DE APUESTA:
 | IM     | Imperfecta           | Per-carrera     |
 | TR     | Trifecta             | Per-carrera     |
 | TE     | Tómbola Exacta       | Per-carrera     |
+| CUAT   | Cuatrifecta          | Per-carrera     |
 | X2     | Doble                | Multi-carrera   |
 | X2P    | Doble a Place        | Multi-carrera   |
 | X3     | Triplo               | Multi-carrera   |
@@ -258,6 +259,10 @@ CREATE OR REPLACE FUNCTION apuestas_keys_validas(obj jsonb) RETURNS boolean LANG
 ALTER TABLE carreras ADD COLUMN apuestas_habilitadas JSONB NOT NULL DEFAULT '{}'::jsonb, ADD COLUMN apuestas_notas TEXT NULL, ADD CONSTRAINT chk_carreras_apuestas_keys CHECK (apuestas_keys_validas(apuestas_habilitadas));
 ALTER TABLE resultado_apuestas ADD CONSTRAINT chk_resultado_apuestas_tipo CHECK (tipo IN ('GAN','SEG','TER','EX','IM','TR','X2','X2P','X3','X4','X5','CAD','TE'));
 CREATE UNIQUE INDEX idx_resultado_apuestas_resultado_tipo_orden ON resultado_apuestas (resultado_id, tipo, orden);
+-- add_cuat_to_apuestas_validas (27/05/2026):
+-- CREATE OR REPLACE FUNCTION apuestas_keys_validas(...) — agrega 'CUAT' al set
+-- ALTER TABLE resultado_apuestas DROP CONSTRAINT chk_resultado_apuestas_tipo;
+-- ALTER TABLE resultado_apuestas ADD CONSTRAINT chk_resultado_apuestas_tipo CHECK (tipo IN ('GAN','SEG','TER','EX','IM','TR','X2','X2P','X3','X4','X5','CAD','TE','CUAT'));
 -- Columnas agregadas y eliminadas en la misma sesión (refactor):
 -- clubs.apuestas_simples TEXT[]  -- agregada y luego eliminada (movida a carreras.apuestas)
 -- reuniones.apuestas_combinadas JSONB  -- agregada y luego eliminada (simplificación modelo)
