@@ -502,14 +502,52 @@ function render(reunion, club, carreras, insByCarrera, maps, proximaReunion) {
 function formatApuestasText(c) {
   const apus = c._apuestas || [];
   if (apus.length) {
-    const partes = apus.map(a => {
-      let txt = `${a.tipo} $${a.precio}`;
-      if (a.nombre) txt += ` ${a.nombre}`;
-      return txt;
-    });
-    let txt = 'Apuestas: ' + partes.join('. ') + '.';
+    const NOMBRE = {
+      GAN:'Ganador', SEG:'Segundo', TER:'Tercero',
+      EX:'Exacta', IM:'Imperfecta', TR:'Trifecta', CUAT:'Cuatrifecta',
+      X2:'Doble', X2P:'Doble a Place', X3:'Triplo', X4:'Cuaterna', X5:'Quíntuplo', CAD:'Cadena',
+    };
+    const ORDER = ['GAN','SEG','TER','EX','IM','TR','CUAT','X2','X2P','X3','X4','X5','CAD'];
+    const POS   = new Set(['GAN','SEG','TER']);
+    const COMBI = new Set(['EX','IM','TR','CUAT']);
+    const MULTI = new Set(['X2','X2P','X3','X4','X5','CAD']);
+    const fmtN  = n => Number(n).toLocaleString('es-AR');
+    const isSimp = a => !a.nombre && !a.asegurado && !a.incremento;
+    const joinY  = ns => ns.length === 1 ? ns[0] : ns.slice(0,-1).join(', ') + ' y ' + ns[ns.length-1];
+    const xtra   = a => {
+      const e = [];
+      if (a.asegurado > 0) e.push(`Aseg. $${fmtN(a.asegurado)}`);
+      if (a.incremento > 0) e.push(`Incr. $${fmtN(a.incremento)}`);
+      return e.length ? ` (${e.join(', ')})` : '';
+    };
+
+    const valid = apus.filter(a => a.precio > 0)
+                      .sort((a, b) => ORDER.indexOf(a.tipo) - ORDER.indexOf(b.tipo));
+    const parts = [];
+
+    const emitBlock = (block, prefix) => {
+      const simples = valid.filter(a => block.has(a.tipo) && isSimp(a));
+      const byPrice = new Map();
+      for (const a of simples) {
+        if (!byPrice.has(a.precio)) byPrice.set(a.precio, []);
+        byPrice.get(a.precio).push(NOMBRE[a.tipo]);
+      }
+      for (const [precio, names] of byPrice) {
+        const head = names.length > 1 ? `${prefix}${joinY(names)}` : names[0];
+        parts.push(`${head} $${fmtN(precio)}`);
+      }
+      for (const a of valid.filter(a => block.has(a.tipo) && !isSimp(a)))
+        parts.push(`${a.nombre || NOMBRE[a.tipo]} $${fmtN(a.precio)}${xtra(a)}`);
+    };
+
+    emitBlock(POS,   'A ');
+    emitBlock(COMBI, '');
+    for (const a of valid.filter(a => MULTI.has(a.tipo)))
+      parts.push(`${a.nombre || NOMBRE[a.tipo]} $${fmtN(a.precio)}${xtra(a)}`);
+
+    let txt = 'Apuestas: ' + parts.join('. ');
     const notas = (c.apuestas_notas || '').trim();
-    if (notas) txt += ' ' + notas;
+    if (notas) txt += '. ' + notas;
     return txt;
   }
   if (Array.isArray(c.apuestas) && c.apuestas.length > 0)
