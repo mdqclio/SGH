@@ -111,7 +111,9 @@
     .det-col-right { padding: 0; min-width: 0; }
 
     /* ── Marcador ── */
-    .marc-grid { display: grid; grid-template-columns: 54px 1fr; row-gap: 6px; column-gap: 8px; align-items: center; }
+    .marc-grid { display: grid; grid-template-columns: 28px 54px 1fr; row-gap: 6px; column-gap: 8px; align-items: center; }
+    .marc-pos   { font-size: 11px; font-weight: 500; color: var(--muted); text-align: right; padding-right: 2px; line-height: 34px; }
+    .marc-pos-1 { color: var(--accent); font-weight: 700; font-size: 12px; }
     .marc-input {
       height: 34px; background: rgba(255,255,255,0.04); border: 1px solid rgba(201,168,76,0.35); color: var(--text);
       border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700;
@@ -572,7 +574,9 @@ function renderFormulario(carrera, res, pos, apus, insc) {
         </button>
       </div>`;
     }
-    return `<input class="marc-input" id="marc-${p}" type="number" min="1" max="30" value="${val}" oninput="onMarcInput()">
+    const posClass = p === 1 ? 'marc-pos marc-pos-1' : 'marc-pos';
+    return `<div class="${posClass}">${p}°</div>
+      <input class="marc-input" id="marc-${p}" type="number" min="1" max="30" value="${val}" oninput="onMarcInput()">
       ${chapaCell}`;
   }).join('');
 
