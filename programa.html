@@ -97,6 +97,31 @@
     .comision-row:last-child { border-bottom: none; }
     .comision-row .cargo { color: var(--muted); }
     .comision-row .nombre { color: var(--text); font-weight: 600; }
+
+    /* ── Modal apuestas estructurado ── */
+    input[type=number].apu-price { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 3px 6px; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 12px; outline: none; width: 64px; -moz-appearance: textfield; }
+    input[type=number].apu-price::-webkit-inner-spin-button, input[type=number].apu-price::-webkit-outer-spin-button { -webkit-appearance: none; }
+    input[type=number].apu-price:focus { border-color: var(--accent); }
+    .apu-carrera { border-bottom: 1px solid var(--border); }
+    .apu-carrera:last-child { border-bottom: none; }
+    .apu-carrera-hdr { display: flex; align-items: center; gap: 10px; padding: 10px 4px; cursor: pointer; user-select: none; border-radius: 6px; transition: background 0.1s; }
+    .apu-carrera-hdr:hover { background: rgba(201,168,76,0.05); }
+    .apu-num { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--accent); font-weight: 700; min-width: 44px; }
+    .apu-summary { font-size: 12px; color: var(--muted); flex: 1; }
+    .apu-chevron { font-size: 11px; color: var(--muted); transition: transform 0.15s; flex-shrink: 0; }
+    .apu-carrera.open .apu-chevron { transform: rotate(180deg); }
+    .apu-carrera-body { display: none; padding: 2px 0 14px 52px; }
+    .apu-carrera.open .apu-carrera-body { display: block; }
+    .apu-group-title { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin: 10px 0 5px; }
+    .apu-rows { display: flex; flex-direction: column; gap: 5px; }
+    .apu-row { display: flex; align-items: center; gap: 8px; }
+    .apu-row input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer; }
+    .apu-row label { font-size: 13px; color: var(--text); cursor: pointer; flex: 1; }
+    .apu-price-wrap { display: flex; align-items: center; gap: 4px; }
+    .apu-price-wrap::before { content: '$'; font-size: 11px; color: var(--muted); }
+    .apu-notas { width: 100%; margin-top: 10px; padding: 7px 10px; font-size: 12px; border-radius: 8px; resize: vertical; min-height: 48px; font-family: 'DM Sans', sans-serif; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); outline: none; }
+    .apu-notas:focus { border-color: var(--accent); }
+
     #auth-overlay { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center; }
     .btn-logout { background:none;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;transition:all 0.2s; }
     .btn-logout:hover { border-color:var(--danger);color:var(--danger); }
@@ -406,50 +431,140 @@ function abrirProgramaOficialColor() {
   window.open(`programa-oficial-color.html?reunion_id=${currentReunion.id}`, '_blank');
 }
 
+/* ── Apuestas: constantes ── */
+const APU_GRUPOS = [
+  { label: 'Posicionales',                              tipos: ['GAN','SEG','TER'] },
+  { label: 'Combinatoriales (1 carrera)',               tipos: ['EX','IM','TR','TE','CUAT'] },
+  { label: 'Multi-carrera — marcar en carrera de cierre', tipos: ['X2','X2P','X3','X4','X5','CAD'] },
+];
+const APU_NOMBRE = {
+  GAN:'Ganador (1°)', SEG:'Segundo (2°)', TER:'Tercero (3°)',
+  EX:'Exacta', IM:'Imperfecta', TR:'Trifecta', TE:'Tómbola Exacta', CUAT:'Cuatrifecta',
+  X2:'Doble', X2P:'Doble a Place', X3:'Triplo', X4:'Cuaterna', X5:'Quíntuplo', CAD:'Cadena',
+};
+const APU_PRECIO_DEFAULT = {
+  GAN:1, SEG:1, TER:1,
+  EX:200, IM:200, TR:200, TE:200, CUAT:200,
+  X2:200, X2P:200, X3:200, X4:200, X5:200, CAD:200,
+};
+let apuDirtyIds = new Set();
+
 function openApuestasModal() {
   if (!currentReunion) { toast('Seleccioná primero una reunión','error'); return; }
-  if (!currentCarreras || !currentCarreras.length) { toast('Esta reunión no tiene carreras cargadas','error'); return; }
+  if (!currentCarreras?.length) { toast('Esta reunión no tiene carreras cargadas','error'); return; }
+  apuDirtyIds = new Set();
   const ordenadas = [...currentCarreras].filter(c => c.estado !== 'anulada').sort((a,b) => {
     const aN = a.numero_carrera_programa != null ? a.numero_carrera_programa : (a.numero_turno + 10000);
     const bN = b.numero_carrera_programa != null ? b.numero_carrera_programa : (b.numero_turno + 10000);
     return aN - bN;
   });
-  const filas = ordenadas.map(c => {
+  document.getElementById('modal-apuestas-body').innerHTML = ordenadas.map(c => {
     const num = c.numero_carrera_programa || c.numero_turno;
-    const valor = Array.isArray(c.apuestas) ? c.apuestas.join(', ') : '';
-    return `
-      <div class="apuestas-row" style="display:grid;grid-template-columns:60px 1fr;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
-        <div style="font-weight:700;color:var(--accent);font-size:15px;">N° ${num}</div>
-        <input type="text" class="apuestas-input" data-carrera-id="${c.id}" placeholder="Ej: Ganador, Placé, Exacta, Trifecta" value="${valor.replace(/"/g,'&quot;')}">
-      </div>`;
+    const hab = (c.apuestas_habilitadas && typeof c.apuestas_habilitadas === 'object') ? c.apuestas_habilitadas : {};
+    const notas = c.apuestas_notas || '';
+    const checkedTipos = Object.keys(hab);
+    const summaryTxt = checkedTipos.length
+      ? `${checkedTipos.length} apuesta${checkedTipos.length > 1 ? 's' : ''} — ${checkedTipos.join(', ')}`
+      : '<em>Sin apuestas</em>';
+    const gruposHtml = APU_GRUPOS.map(g => {
+      const rows = g.tipos.map(tipo => {
+        const checked = Object.prototype.hasOwnProperty.call(hab, tipo);
+        const precio  = checked ? (hab[tipo] ?? APU_PRECIO_DEFAULT[tipo]) : APU_PRECIO_DEFAULT[tipo];
+        const chkId   = `apu-${tipo}-${c.id}`;
+        return `<div class="apu-row">
+          <input type="checkbox" id="${chkId}" data-tipo="${tipo}" data-cid="${c.id}"
+                 ${checked ? 'checked' : ''} onchange="onApuCheck(this)">
+          <label for="${chkId}">${tipo} — ${APU_NOMBRE[tipo]}</label>
+          <div class="apu-price-wrap" ${checked ? '' : 'hidden'}>
+            <input type="number" class="apu-price" id="price-${tipo}-${c.id}"
+                   value="${precio}" min="1" step="1" oninput="apuDirtyIds.add('${c.id}')">
+          </div>
+        </div>`;
+      }).join('');
+      return `<div class="apu-group-title">${g.label}</div><div class="apu-rows">${rows}</div>`;
+    }).join('');
+    return `<div class="apu-carrera" data-id="${c.id}">
+      <div class="apu-carrera-hdr" onclick="toggleApuCarrera('${c.id}')">
+        <div class="apu-num">N° ${num}</div>
+        <div class="apu-summary" id="apu-summary-${c.id}">${summaryTxt}</div>
+        <div class="apu-chevron">▾</div>
+      </div>
+      <div class="apu-carrera-body">
+        ${gruposHtml}
+        <textarea class="apu-notas" id="apu-notas-${c.id}"
+                  placeholder="Notas opcionales (ej: Pozo asegurado $50.000)…"
+                  oninput="apuDirtyIds.add('${c.id}')">${notas.replace(/</g,'&lt;')}</textarea>
+      </div>
+    </div>`;
   }).join('');
-  const body = document.getElementById('modal-apuestas-body');
-  body.innerHTML = `
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Cargá las apuestas habilitadas en cada carrera separadas por coma. Ej: <em>Ganador, Placé, Exacta, Trifecta</em></div>
-    <div>${filas}</div>
-  `;
+  document.getElementById('btn-toggle-all-apu').textContent = 'Expandir todas';
   document.getElementById('modal-apuestas').classList.add('open');
 }
 
+function toggleApuCarrera(cid) {
+  document.querySelector(`.apu-carrera[data-id="${cid}"]`)?.classList.toggle('open');
+}
+
+function toggleAllApuCarreras() {
+  const btn   = document.getElementById('btn-toggle-all-apu');
+  const cards = [...document.querySelectorAll('.apu-carrera')];
+  const allOpen = cards.every(el => el.classList.contains('open'));
+  cards.forEach(el => el.classList.toggle('open', !allOpen));
+  btn.textContent = allOpen ? 'Expandir todas' : 'Colapsar todas';
+}
+
+function onApuCheck(chk) {
+  const priceWrap = chk.closest('.apu-row').querySelector('.apu-price-wrap');
+  if (chk.checked) priceWrap.removeAttribute('hidden');
+  else             priceWrap.setAttribute('hidden', '');
+  apuDirtyIds.add(chk.dataset.cid);
+  renderApuSummary(chk.dataset.cid);
+}
+
+function renderApuSummary(cid) {
+  const checked = [...document.querySelectorAll(`input[type=checkbox][data-cid="${cid}"]:checked`)]
+    .map(el => el.dataset.tipo);
+  const el = document.getElementById(`apu-summary-${cid}`);
+  if (!el) return;
+  el.innerHTML = checked.length
+    ? `${checked.length} apuesta${checked.length > 1 ? 's' : ''} — ${checked.join(', ')}`
+    : '<em>Sin apuestas</em>';
+}
+
+function closeApuestasModal() {
+  if (apuDirtyIds.size > 0 && !confirm('Hay cambios sin guardar. ¿Cerrar de todas formas?')) return;
+  apuDirtyIds.clear();
+  closeMini('modal-apuestas');
+}
+
 async function saveApuestas() {
-  const inputs = Array.from(document.querySelectorAll('#modal-apuestas-body .apuestas-input'));
+  if (!apuDirtyIds.size) { closeMini('modal-apuestas'); return; }
   const btn = document.getElementById('btn-save-apuestas');
   btn.disabled = true; btn.textContent = 'Guardando…';
-  const promesas = inputs.map(inp => {
-    const id = inp.dataset.carreraId;
-    const arr = inp.value.split(',').map(s => s.trim()).filter(Boolean);
-    return sb.from('carreras').update({ apuestas: arr }).eq('id', id);
-  });
-  const results = await Promise.all(promesas);
-  const err = results.find(r => r.error);
+  const failed = [];
+  for (const cid of apuDirtyIds) {
+    const checked = [...document.querySelectorAll(`input[type=checkbox][data-cid="${cid}"]:checked`)];
+    const hab = {};
+    checked.forEach(chk => {
+      const tipo = chk.dataset.tipo;
+      const priceEl = document.getElementById(`price-${tipo}-${cid}`);
+      hab[tipo] = priceEl ? (parseFloat(priceEl.value) || APU_PRECIO_DEFAULT[tipo]) : APU_PRECIO_DEFAULT[tipo];
+    });
+    const notas = document.getElementById(`apu-notas-${cid}`)?.value.trim() || null;
+    const { error } = await sb.from('carreras').update({ apuestas_habilitadas: hab, apuestas_notas: notas }).eq('id', cid);
+    if (error) {
+      failed.push(error);
+    } else {
+      const car = currentCarreras.find(c => c.id === cid);
+      if (car) { car.apuestas_habilitadas = hab; car.apuestas_notas = notas; }
+      apuDirtyIds.delete(cid);
+    }
+  }
   btn.disabled = false; btn.textContent = 'Guardar apuestas';
-  if (err) { toast(err.error.message,'error'); return; }
-  inputs.forEach(inp => {
-    const id = inp.dataset.carreraId;
-    const arr = inp.value.split(',').map(s => s.trim()).filter(Boolean);
-    const car = currentCarreras.find(c => c.id === id);
-    if (car) car.apuestas = arr;
-  });
+  if (failed.length) {
+    toast(`Error en ${failed.length} carrera(s): ${failed[0].message}`, 'error');
+    return;
+  }
   toast('Apuestas guardadas');
   closeMini('modal-apuestas');
   renderPrograma(currentReunion, currentCarreras, currentInscripciones);
@@ -518,14 +633,17 @@ async function savePremios() {
 </div>
 
 <div class="modal-overlay" id="modal-apuestas">
-  <div class="modal" style="max-width:720px;">
+  <div class="modal" style="max-width:760px;">
     <div class="modal-header">
-      <h2>Apuestas</h2>
-      <button class="btn-close" onclick="closeMini('modal-apuestas')">✕</button>
+      <h2>Apuestas por carrera</h2>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="btn-secondary" style="padding:5px 12px;font-size:12px;" id="btn-toggle-all-apu" onclick="toggleAllApuCarreras()">Expandir todas</button>
+        <button class="btn-close" onclick="closeApuestasModal()">✕</button>
+      </div>
     </div>
     <div class="modal-body" id="modal-apuestas-body">—</div>
     <div class="modal-footer">
-      <button class="btn-secondary" onclick="closeMini('modal-apuestas')">Cerrar</button>
+      <button class="btn-secondary" onclick="closeApuestasModal()">Cerrar</button>
       <button class="btn-primary" id="btn-save-apuestas" onclick="saveApuestas()">Guardar apuestas</button>
     </div>
   </div>
