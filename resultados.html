@@ -864,8 +864,10 @@ function openChapaDropdown(p) {
       <span class="chapa-opt-code">${ch.codigo||''}</span>
     </div>`;
   }).join('');
-  const rect = btn.getBoundingClientRect();
-  dd.style.top  = (rect.bottom + 4) + 'px';
+  const rect      = btn.getBoundingClientRect();
+  const DD_MAX_H  = 300;
+  const spaceBelow = window.innerHeight - rect.bottom - 4;
+  dd.style.top  = (spaceBelow >= DD_MAX_H ? rect.bottom + 4 : Math.max(4, rect.top - DD_MAX_H - 4)) + 'px';
   dd.style.left = rect.left + 'px';
   dd.classList.add('open');
   if (curId === 17) setTimeout(() => document.getElementById(`chapa-varios-input-${p}`)?.focus(), 40);
