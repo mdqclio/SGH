@@ -1136,31 +1136,55 @@ function openDivModal() {
   if (!habilitadas.length) {
     body.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:8px 0;">No hay apuestas habilitadas para esta carrera. Cargalas primero en programa.</p>';
   } else {
-    // Pre-popular desde pendingApuestas agrupando por tipo
     const byTipo = {};
     for (const a of pendingApuestas) (byTipo[a.tipo] ??= []).push(a);
 
-    body.innerHTML = habilitadas.map(a => {
-      const slots = DIV_SLOTS[a.tipo] || 1;
-      const existingList = byTipo[a.tipo] || [];
-      const inputsHtml = Array.from({ length: slots }, (_, i) => {
-        const val = existingList[i]?.div_orig ?? '';
-        const puesto = slots > 1
-          ? `<span style="font-size:11px;color:var(--muted);width:18px;text-align:right;">${i+1}°</span>`
-          : '';
-        return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:${i < slots-1 ? '4px' : '0'};">
-          ${puesto}
-          <input type="number" class="pb-input" id="div-${a.tipo}-${i+1}"
-                 value="${val}" placeholder="0" min="0" step="0.01">
+    const POS   = ['GAN','SEG','TER'];
+    const COMBI = ['EX','IM','TR','CUAT'];
+    const MULTI = ['X2','X2P','X3','X4','X5','CAD'];
+    const habPOS   = habilitadas.filter(a => POS.includes(a.tipo));
+    const habCOMBI = habilitadas.filter(a => COMBI.includes(a.tipo));
+    const habMULTI = habilitadas.filter(a => MULTI.includes(a.tipo));
+
+    const SEP = '<div style="border-top:1px solid var(--border);margin:16px 0 12px;"></div>';
+    const secTitle = t => `<div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:8px;">${t}</div>`;
+
+    const parts = [];
+
+    if (habPOS.length) {
+      const cols = habPOS.map(a => {
+        const slots = DIV_SLOTS[a.tipo] || 1;
+        const existing = byTipo[a.tipo] || [];
+        const inputs = Array.from({ length: slots }, (_, i) => {
+          const val = existing[i]?.div_orig ?? '';
+          const lbl = slots > 1
+            ? `<div style="font-size:10px;color:var(--muted);margin-bottom:2px;">${i+1}°</div>` : '';
+          return `<div style="margin-bottom:${i < slots-1 ? '8px' : '0'};">
+            ${lbl}<input type="number" class="pb-input" id="div-${a.tipo}-${i+1}"
+                         value="${val}" placeholder="0" min="0" step="0.01">
+          </div>`;
+        }).join('');
+        return `<div style="display:flex;flex-direction:column;gap:2px;">
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">${DIV_NOMBRE[a.tipo]}</div>
+          ${inputs}
         </div>`;
       }).join('');
-      return `<div style="display:flex;align-items:flex-start;gap:14px;padding:10px 0;border-bottom:1px solid var(--border);">
-        <div style="width:140px;font-size:13px;color:var(--text);padding-top:2px;">
-          <span style="color:var(--accent);font-weight:700;margin-right:5px;">${a.tipo}</span>${DIV_NOMBRE[a.tipo] || a.tipo}
-        </div>
-        <div>${inputsHtml}</div>
+      parts.push(`<div style="display:flex;gap:24px;">${cols}</div>`);
+    }
+
+    const rowSection = (list) => list.map(a => {
+      const val = (byTipo[a.tipo] || [])[0]?.div_orig ?? '';
+      return `<div style="display:flex;align-items:center;gap:12px;padding:5px 0;">
+        <div style="width:130px;font-size:13px;color:var(--text);">${DIV_NOMBRE[a.tipo]}</div>
+        <input type="number" class="pb-input" id="div-${a.tipo}-1"
+               value="${val}" placeholder="0" min="0" step="0.01">
       </div>`;
     }).join('');
+
+    if (habCOMBI.length) parts.push(secTitle('Combinatoriales') + rowSection(habCOMBI));
+    if (habMULTI.length) parts.push(secTitle('Multi-carrera')   + rowSection(habMULTI));
+
+    body.innerHTML = parts.join(SEP);
   }
 
   divModalDirty = false;
