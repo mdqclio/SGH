@@ -494,6 +494,20 @@ function render(reunion, club, carreras, insByCarrera, maps, proximaReunion) {
   document.title = `Programa-Oficial-Color-Reunion-${reunion.numero || ''}-${reunion.fecha || ''}`;
 }
 
+const APU_NOMBRE_LARGO = {
+  GAN:'Ganador', SEG:'Segundo', TER:'Tercero',
+  EX:'Exacta', IM:'Imperfecta', TR:'Trifecta', TE:'Trifecta exacta', CUAT:'Cuatrifecta',
+  X2:'Doble', X2P:'Doble plus', X3:'Triplo', X4:'Cuaterna', X5:'Quíntuple', CAD:'Cadena'
+};
+function formatApuestasText(c) {
+  const hab = c.apuestas_habilitadas;
+  if (hab && typeof hab === 'object' && Object.keys(hab).length > 0)
+    return Object.keys(hab).map(t => APU_NOMBRE_LARGO[t] || t).join(' — ');
+  if (Array.isArray(c.apuestas) && c.apuestas.length > 0)
+    return c.apuestas.join(' — ');
+  return '';
+}
+
 function renderCarreraColor(c, ins, maps, idx) {
   const { spcMap, profMap, propMap, cabMap, catMap } = maps;
   const num     = idx + 1;
@@ -503,7 +517,7 @@ function renderCarreraColor(c, ins, maps, idx) {
   const bolsa   = parseFloat(c.bolsa_total) || 0;
   const { puestos: puestosEf, bolsaEfectiva } = calcPremiosConPiso(bolsa, dist);
   const bonoGanador  = dist.bono_ganador || 0;
-  const apuestasText = Array.isArray(c.apuestas) ? c.apuestas.join(' — ') : '';
+  const apuestasText = formatApuestasText(c);
 
   const desglose = [1,2,3,4,5,6].map(p => {
     const m = puestosEf[String(p)];

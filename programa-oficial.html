@@ -286,18 +286,27 @@ function render(reunion, club, carreras, insByCarrera, maps, proximaReunion) {
   document.title = `Programa-Oficial-Reunion-${reunion.numero || ''}-${reunion.fecha || ''}`;
 }
 
+const APU_NOMBRE_LARGO = {
+  GAN:'Ganador', SEG:'Segundo', TER:'Tercero',
+  EX:'Exacta', IM:'Imperfecta', TR:'Trifecta', TE:'Trifecta exacta', CUAT:'Cuatrifecta',
+  X2:'Doble', X2P:'Doble plus', X3:'Triplo', X4:'Cuaterna', X5:'Quíntuple', CAD:'Cadena'
+};
+function formatApuestasText(c) {
+  const hab = c.apuestas_habilitadas;
+  if (hab && typeof hab === 'object' && Object.keys(hab).length > 0)
+    return Object.keys(hab).map(t => APU_NOMBRE_LARGO[t] || t).join(' — ');
+  if (Array.isArray(c.apuestas) && c.apuestas.length > 0)
+    return c.apuestas.map(a => String(a).replace(/^\s*apuestas\s*:\s*/i, '').trim()).filter(Boolean).join(', ');
+  return '';
+}
+
 function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
   const num  = c.numero_carrera_programa || c.numero_turno;
   const hora = c.hora_estimada ? String(c.hora_estimada).slice(0, 5) : '';
   const cat  = catMap[c.categoria_id];
   const dist = c.distribucion_premios || {};
   const bonoGanador  = dist.bono_ganador || 0;
-  const apuestasText = Array.isArray(c.apuestas)
-    ? c.apuestas
-        .map(a => String(a).replace(/^\s*apuestas\s*:\s*/i, '').trim())
-        .filter(Boolean)
-        .join(', ')
-    : '';
+  const apuestasText = formatApuestasText(c);
   const bolsa = parseFloat(c.bolsa_total) || 0;
   const { puestos: puestosEfectivos, bolsaEfectiva } = calcPremiosConPiso(bolsa, dist);
   const desglose = [1, 2, 3, 4, 5, 6].map(p => {
