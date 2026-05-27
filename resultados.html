@@ -1249,8 +1249,8 @@ function openDivModal() {
       </div>`;
     }).join('');
 
-    if (habCOMBI.length) parts.push(secTitle('Combinatoriales') + rowSection(habCOMBI));
-    if (habMULTI.length) parts.push(secTitle('Multi-carrera')   + rowSection(habMULTI));
+    if (habCOMBI.length) parts.push(secTitle('Apuestas directas')   + rowSection(habCOMBI));
+    if (habMULTI.length) parts.push(secTitle('Apuestas combinadas') + rowSection(habMULTI));
 
     body.innerHTML = parts.join(SEP);
   }
