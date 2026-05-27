@@ -288,13 +288,32 @@ function render(reunion, club, carreras, insByCarrera, maps, proximaReunion) {
 
 const APU_NOMBRE_LARGO = {
   GAN:'Ganador', SEG:'Segundo', TER:'Tercero',
-  EX:'Exacta', IM:'Imperfecta', TR:'Trifecta', TE:'Trifecta exacta', CUAT:'Cuatrifecta',
-  X2:'Doble', X2P:'Doble plus', X3:'Triplo', X4:'Cuaterna', X5:'Quíntuple', CAD:'Cadena'
+  EX:'Exacta', IM:'Imperfecta', TR:'Trifecta', TE:'Tómbola Exacta', CUAT:'Cuatrifecta',
+  X2:'Doble', X2P:'Doble a Place', X3:'Triplo', X4:'Cuaterna', X5:'Quíntuplo', CAD:'Cadena'
 };
+const APU_ORDEN = ['GAN','SEG','TER','EX','IM','TR','TE','CUAT','X2','X2P','X3','X4','X5','CAD'];
 function formatApuestasText(c) {
   const hab = c.apuestas_habilitadas;
-  if (hab && typeof hab === 'object' && Object.keys(hab).length > 0)
-    return Object.keys(hab).map(t => APU_NOMBRE_LARGO[t] || t).join(' — ');
+  if (hab && typeof hab === 'object' && Object.keys(hab).length > 0) {
+    const tipos = APU_ORDEN.filter(t => t in hab);
+    if (!tipos.length) return '';
+    const grupos = [];
+    for (const t of tipos) {
+      const last = grupos[grupos.length - 1];
+      if (last && last.precio === hab[t]) last.tipos.push(t);
+      else grupos.push({ precio: hab[t], tipos: [t] });
+    }
+    const partes = grupos.map((g, gi) => {
+      const noms = g.tipos.map(t => APU_NOMBRE_LARGO[t] || t);
+      const lista = noms.length < 2 ? noms[0] : noms.slice(0,-1).join(', ') + ' y ' + noms[noms.length-1];
+      const pref = g.tipos[0] === 'GAN' ? 'A ' : '';
+      return (gi === 0 ? 'Apuestas: ' : '') + pref + lista + ' $' + g.precio + '.';
+    });
+    let txt = partes.join(' ');
+    const notas = (c.apuestas_notas || '').trim();
+    if (notas) txt += ' ' + notas;
+    return txt;
+  }
   if (Array.isArray(c.apuestas) && c.apuestas.length > 0)
     return c.apuestas.map(a => String(a).replace(/^\s*apuestas\s*:\s*/i, '').trim()).filter(Boolean).join(', ');
   return '';
