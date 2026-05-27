@@ -516,8 +516,8 @@ function formatApuestasText(c) {
     const joinY  = ns => ns.length === 1 ? ns[0] : ns.slice(0,-1).join(', ') + ' y ' + ns[ns.length-1];
     const xtra   = a => {
       const e = [];
-      if (a.asegurado > 0) e.push(`Aseg. $${fmtN(a.asegurado)}`);
-      if (a.incremento > 0) e.push(`Incr. $${fmtN(a.incremento)}`);
+      if (a.asegurado > 0) e.push(`Pozo asegurado $${fmtN(a.asegurado)}`);
+      if (a.incremento > 0) e.push(`Incremento asegurado $${fmtN(a.incremento)}`);
       return e.length ? ` (${e.join(', ')})` : '';
     };
 
@@ -545,7 +545,7 @@ function formatApuestasText(c) {
     for (const a of valid.filter(a => MULTI.has(a.tipo)))
       parts.push(`${a.nombre || NOMBRE[a.tipo]} $${fmtN(a.precio)}${xtra(a)}`);
 
-    let txt = 'Apuestas: ' + parts.join('. ');
+    let txt = parts.join('. ');
     const notas = (c.apuestas_notas || '').trim();
     if (notas) txt += '. ' + notas;
     return txt;
