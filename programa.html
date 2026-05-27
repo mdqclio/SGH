@@ -99,9 +99,11 @@
     .comision-row .nombre { color: var(--text); font-weight: 600; }
 
     /* ── Modal apuestas estructurado ── */
-    input[type=number].apu-price { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 3px 6px; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 12px; outline: none; width: 100%; -moz-appearance: textfield; }
-    input[type=number].apu-price::-webkit-inner-spin-button, input[type=number].apu-price::-webkit-outer-spin-button { -webkit-appearance: none; }
-    input[type=number].apu-price:focus { border-color: var(--accent); }
+    .apu-money { display: flex; align-items: center; background: var(--input-bg); border: 1px solid var(--border); border-radius: 6px; padding: 0 6px; gap: 2px; }
+    .apu-money::before { content: '$'; color: var(--muted); font-size: 11px; flex-shrink: 0; font-family: 'DM Sans', sans-serif; }
+    .apu-money:focus-within { border-color: var(--accent); }
+    .apu-money input[type=number] { border: none; background: transparent; outline: none; padding: 4px 0; flex: 1; min-width: 0; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 12px; -moz-appearance: textfield; }
+    .apu-money input[type=number]::-webkit-inner-spin-button, .apu-money input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
     .apu-carrera { border-bottom: 1px solid var(--border); }
     .apu-carrera:last-child { border-bottom: none; }
     .apu-carrera-hdr { display: flex; align-items: center; gap: 10px; padding: 10px 4px; cursor: pointer; user-select: none; border-radius: 6px; transition: background 0.1s; }
@@ -121,10 +123,6 @@
     .apu-col-lbl { font-size: 10px; color: var(--muted); white-space: nowrap; }
     input.apu-nombre { width: 100%; padding: 3px 6px; font-size: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); color: var(--text); outline: none; font-family: 'DM Sans', sans-serif; min-width: 0; }
     input.apu-nombre:focus { border-color: var(--accent); }
-    input.apu-aseg, input.apu-incr { width: 100%; padding: 3px 6px; font-size: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); color: var(--text); outline: none; -moz-appearance: textfield; font-family: 'DM Sans', sans-serif; }
-    input.apu-aseg::-webkit-inner-spin-button, input.apu-aseg::-webkit-outer-spin-button,
-    input.apu-incr::-webkit-inner-spin-button, input.apu-incr::-webkit-outer-spin-button { -webkit-appearance: none; }
-    input.apu-aseg:focus, input.apu-incr:focus { border-color: var(--accent); }
     .apu-notas { width: 100%; margin-top: 10px; padding: 7px 10px; font-size: 12px; border-radius: 8px; resize: vertical; min-height: 48px; font-family: 'DM Sans', sans-serif; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); outline: none; }
     .apu-notas:focus { border-color: var(--accent); }
 
@@ -488,23 +486,29 @@ async function openApuestasModal() {
           <input type="checkbox" id="${chkId}" data-tipo="${tipo}" data-cid="${c.id}"
                  ${checked ? 'checked' : ''} onchange="onApuCheck(this)">
           <label for="${chkId}" title="${tipo}">${APU_NOMBRE[tipo]}</label>
-          <input type="number" class="apu-price" id="price-${tipo}-${c.id}"
-                 value="${precio}" placeholder="$" min="1" step="1"
-                 oninput="apuDirtyIds.add('${c.id}')">
+          <div class="apu-money">
+            <input type="number" class="apu-price" id="price-${tipo}-${c.id}"
+                   value="${precio}" placeholder="0" min="1" step="1"
+                   oninput="apuDirtyIds.add('${c.id}')">
+          </div>
           <input type="text" class="apu-nombre" id="nombre-${tipo}-${c.id}"
                  value="${nombre}" placeholder="Nombre opcional"
                  oninput="apuDirtyIds.add('${c.id}')">
           <div class="apu-col">
             <span class="apu-col-lbl">Asegurado</span>
-            <input type="number" class="apu-aseg" id="asegurado-${tipo}-${c.id}"
-                   value="${aseg}" placeholder="$" min="0" step="1"
-                   oninput="apuDirtyIds.add('${c.id}')">
+            <div class="apu-money">
+              <input type="number" class="apu-aseg" id="asegurado-${tipo}-${c.id}"
+                     value="${aseg}" placeholder="0" min="0" step="1"
+                     oninput="apuDirtyIds.add('${c.id}')">
+            </div>
           </div>
           <div class="apu-col">
             <span class="apu-col-lbl">Incremento</span>
-            <input type="number" class="apu-incr" id="incremento-${tipo}-${c.id}"
-                   value="${incr}" placeholder="$" min="0" step="1"
-                   oninput="apuDirtyIds.add('${c.id}')">
+            <div class="apu-money">
+              <input type="number" class="apu-incr" id="incremento-${tipo}-${c.id}"
+                     value="${incr}" placeholder="0" min="0" step="1"
+                     oninput="apuDirtyIds.add('${c.id}')">
+            </div>
           </div>
         </div>`;
       }).join('');
