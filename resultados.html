@@ -383,6 +383,20 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-div">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h3 id="div-modal-title">Dividendos habilitados</h3>
+      <button class="btn-close" onclick="closeDivModal()">✕</button>
+    </div>
+    <div class="modal-body" id="div-modal-body" style="padding:8px 22px 4px;max-height:60vh;overflow-y:auto;"></div>
+    <div class="modal-footer">
+      <button class="btn-outline" onclick="closeDivModal()">Cancelar</button>
+      <button class="btn-primary" id="btn-save-div" onclick="saveDivModal()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Chapa dropdown compartido — posicionado via JS -->
 <div id="chapa-shared-dd" class="chapa-shared-dd"></div>
 
@@ -400,7 +414,7 @@ function logout(){ sb.auth.signOut().then(()=>window.location.replace('login.htm
 /* ═══════════════════════════════════════════════
    ESTADO GLOBAL
 ═══════════════════════════════════════════════ */
-let reuniones=[], carreras=[], inscripciones=[], resultados={}, posicionesMap={}, apuestasMap={};
+let reuniones=[], carreras=[], inscripciones=[], resultados={}, posicionesMap={}, apuestasMap={}, carreraApuestasMap={};
 let spcsMap={}, profsMap={};
 let currentCarreraId = null;
 let pendingApuestas  = [];     // copia local de resultado_apuestas (la edición)
@@ -491,13 +505,16 @@ async function loadReunion() {
   if (!carreras.length) { mc.innerHTML='<div class="empty-state"><div class="icon">📋</div><h3>Sin carreras en esta reunión</h3></div>'; return; }
 
   const carIds = carreras.map(c=>c.id);
-  const [{ data: inscs }, { data: resData }] = await Promise.all([
+  const [{ data: inscs }, { data: resData }, { data: carApuData }] = await Promise.all([
     sb.from('inscripciones').select('*').in('carrera_id', carIds),
     sb.from('resultados').select('*').in('carrera_id', carIds),
+    carIds.length ? sb.from('carrera_apuestas').select('*').in('carrera_id', carIds).order('orden') : Promise.resolve({ data: [] }),
   ]);
   inscripciones = inscs || [];
   resultados = {};
+  carreraApuestasMap = {};
   (resData||[]).forEach(r => { resultados[r.carrera_id] = r; });
+  (carApuData||[]).forEach(a => { (carreraApuestasMap[a.carrera_id] ??= []).push(a); });
 
   const resIds = (resData||[]).map(r=>r.id);
   const [{ data: posData }, { data: apuData }] = await Promise.all([
@@ -746,6 +763,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
           <div class="actions-bar no-print">
             <div class="actions-grp">
               <button class="btn-outline" onclick="f8Dividendos()">Dividendos <kbd>F8</kbd></button>
+              <button class="btn-outline" onclick="openDivModal()">Div. habilitadas</button>
               <button class="btn-outline" onclick="openPesoBalanza()">⚖️ Pesos balanza</button>
             </div>
             <div class="actions-grp">
@@ -1085,6 +1103,139 @@ async function f8Dividendos() {
   selIdx = -1;
   renderTabla();
   setStatus('Dividendos recargados desde la base de datos.');
+}
+
+/* ═══════════════════════════════════════════════
+   MODAL DIVIDENDOS HABILITADOS
+═══════════════════════════════════════════════ */
+const DIV_NOMBRE = {
+  GAN:'Ganador', SEG:'Segundo', TER:'Tercero',
+  EX:'Exacta', IM:'Imperfecta', TR:'Trifecta', CUAT:'Cuatrifecta',
+  X2:'Doble', X2P:'Doble a Place', X3:'Triplo', X4:'Cuaterna', X5:'Quíntuplo', CAD:'Cadena',
+};
+const DIV_ORDER = ['GAN','SEG','TER','EX','IM','TR','CUAT','X2','X2P','X3','X4','X5','CAD'];
+const DIV_SLOTS = { SEG:2, TER:3 }; // resto: 1
+
+function openDivModal() {
+  const res = resultados[currentCarreraId];
+  if (!res) { toast('Guardá el resultado primero', 'error'); return; }
+
+  const carrera = carreras.find(c => c.id === currentCarreraId);
+  const num = carrera?.numero_carrera_programa || carrera?.numero_turno || '?';
+  document.getElementById('div-modal-title').textContent = `Dividendos — C° N° ${num}`;
+
+  const habilitadas = (carreraApuestasMap[currentCarreraId] || [])
+    .filter(a => a.precio > 0)
+    .sort((a, b) => DIV_ORDER.indexOf(a.tipo) - DIV_ORDER.indexOf(b.tipo));
+
+  const body = document.getElementById('div-modal-body');
+  if (!habilitadas.length) {
+    body.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:8px 0;">No hay apuestas habilitadas para esta carrera. Cargalas primero en programa.</p>';
+  } else {
+    // Pre-popular desde pendingApuestas agrupando por tipo
+    const byTipo = {};
+    for (const a of pendingApuestas) (byTipo[a.tipo] ??= []).push(a);
+
+    body.innerHTML = habilitadas.map(a => {
+      const slots = DIV_SLOTS[a.tipo] || 1;
+      const existingList = byTipo[a.tipo] || [];
+      const inputsHtml = Array.from({ length: slots }, (_, i) => {
+        const val = existingList[i]?.div_orig ?? '';
+        const puesto = slots > 1
+          ? `<span style="font-size:11px;color:var(--muted);width:18px;text-align:right;">${i+1}°</span>`
+          : '';
+        return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:${i < slots-1 ? '4px' : '0'};">
+          ${puesto}
+          <input type="number" class="pb-input" id="div-${a.tipo}-${i+1}"
+                 value="${val}" placeholder="0" min="0" step="0.01">
+        </div>`;
+      }).join('');
+      return `<div style="display:flex;align-items:flex-start;gap:14px;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="width:140px;font-size:13px;color:var(--text);padding-top:2px;">
+          <span style="color:var(--accent);font-weight:700;margin-right:5px;">${a.tipo}</span>${DIV_NOMBRE[a.tipo] || a.tipo}
+        </div>
+        <div>${inputsHtml}</div>
+      </div>`;
+    }).join('');
+  }
+
+  document.getElementById('modal-div').classList.add('open');
+}
+
+function closeDivModal() {
+  document.getElementById('modal-div').classList.remove('open');
+}
+
+async function saveDivModal() {
+  const res = resultados[currentCarreraId];
+  if (!res) return;
+
+  const habilitadas = (carreraApuestasMap[currentCarreraId] || [])
+    .filter(a => a.precio > 0)
+    .sort((a, b) => DIV_ORDER.indexOf(a.tipo) - DIV_ORDER.indexOf(b.tipo));
+  if (!habilitadas.length) { closeDivModal(); return; }
+
+  const newRows = [];
+  for (const a of habilitadas) {
+    const slots = DIV_SLOTS[a.tipo] || 1;
+    for (let i = 0; i < slots; i++) {
+      const raw = document.getElementById(`div-${a.tipo}-${i+1}`)?.value?.trim();
+      if (!raw) continue;
+      const val = parseFloat(raw);
+      if (val <= 0) { toast('El dividendo debe ser mayor a $0', 'error'); return; }
+      newRows.push({ resultado_id: res.id, tipo: a.tipo, div_orig: val, orden: i + 1,
+                     val_apu: a.precio || 100, vacante: false });
+    }
+  }
+  if (!newRows.length) { toast('Cargá al menos un dividendo', 'error'); return; }
+
+  const btn = document.getElementById('btn-save-div');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+
+  const tipos = [...new Set(newRows.map(r => r.tipo))];
+  const { error: delErr } = await sb.from('resultado_apuestas')
+    .delete().eq('resultado_id', res.id).in('tipo', tipos);
+  if (delErr) {
+    toast('Error al borrar: ' + delErr.message, 'error');
+    btn.disabled = false; btn.textContent = 'Guardar'; return;
+  }
+
+  const { error: insErr } = await sb.from('resultado_apuestas')
+    .insert(newRows.map(({ resultado_id, tipo, div_orig, orden, val_apu, vacante }) =>
+      ({ resultado_id, tipo, div_orig, orden, val_apu, vacante })));
+  if (insErr) {
+    toast('Error al guardar: ' + insErr.message, 'error');
+    btn.disabled = false; btn.textContent = 'Guardar'; return;
+  }
+
+  // Merge quirúrgico en pendingApuestas: actualiza div_orig por tipo/slot,
+  // preserva composicion/pozo/vales/etc. de filas existentes
+  const byTipo = {};
+  for (const a of pendingApuestas) (byTipo[a.tipo] ??= []).push(a);
+  for (const row of newRows) {
+    const existingList = byTipo[row.tipo] || [];
+    const existing = existingList[row.orden - 1];
+    if (existing) {
+      existing.div_orig = row.div_orig;
+      existing.orden = row.orden;
+    } else {
+      pendingApuestas.push({ ...row });
+      (byTipo[row.tipo] ??= []).push(row);
+    }
+  }
+
+  // Sincronizar apuestasMap
+  if (!apuestasMap[res.id]) apuestasMap[res.id] = [];
+  for (const row of newRows) {
+    const idx = apuestasMap[res.id].findIndex(a => a.tipo === row.tipo && a.orden === row.orden);
+    if (idx >= 0) apuestasMap[res.id][idx].div_orig = row.div_orig;
+    else apuestasMap[res.id].push({ ...row });
+  }
+
+  btn.disabled = false; btn.textContent = 'Guardar';
+  renderTabla();
+  toast('Dividendos guardados');
+  closeDivModal();
 }
 
 /* ═══════════════════════════════════════════════
