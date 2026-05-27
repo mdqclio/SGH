@@ -954,7 +954,7 @@ function renderDivHTML(apus, habMap, chapaAt, fullDetail) {
       const slot = i + 1;
       const a = (byTipo[tipo]||[]).find(x => (x.orden||1) === slot);
       const chapa = chapaAt(slot);
-      const posLbl = tipo === 'GAN' ? '' : `<span class="dv-pos-lbl">${slot}°</span>`;
+      const posLbl = '';
       const monto = a?.div_orig != null ? `$ ${fNum(a.div_orig)}` : '—';
       const amtCls = `dv-amount${a?.div_orig == null ? ' dv-empty' : ''}`;
       const vac = a?.vacante ? `<span class="dv-vacante">VAC</span>` : '';
