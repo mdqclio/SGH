@@ -134,5 +134,19 @@ NO usar `(a.numero_turno + 10000)` como offset — mezcla números reales del pr
 - `sgh_selected_club_id` — hipódromo activo para super_admin (UUID). Resuelto en `initAuth`.
 Al cambiar de hipódromo con el club-switcher, se borra automáticamente `sgh_active_reunion_id` para evitar que apunte a una reunión de otro club. Si se limpian manualmente las keys (DevTools → Application → LocalStorage), la UI hace fallback a la próxima reunión del club y al club_id del usuario respectivamente.
 
+## 35. carrera_apuestas reemplaza carreras.apuestas_habilitadas (27/05/2026)
+`carreras.apuestas_habilitadas JSONB` fue dropeada. La tabla relacional `carrera_apuestas` es el modelo actual.
+Para leer apuestas habilitadas de una carrera: `SELECT * FROM carrera_apuestas WHERE carrera_id = 'UUID'`.
+No usar `.select('apuestas_habilitadas')` en la tabla carreras — la columna ya no existe.
+
+## 36. renumerarChapas usa filtro positivo estricto (27/05/2026)
+La regla es `estado === 'ratificado'` (positivo), NO listas de exclusión negativas.
+El filtro negativo `!['forfait','mal_inscrito'].includes(i.estado)` pasa silenciosamente 'anulada', 'inscripto', 'pre_inscripto' y genera chapas extra (bug "chapa 16").
+Usar siempre `renumerar-chapas.js` (helper centralizado). N = cantidad de inscripciones ratificadas, chapas 1..N por orden de `numero_partidor` ASC.
+
+## 37. bindARSInput requiere guard _arsBound para no duplicar listeners (27/05/2026)
+`bindARSInput(el)` agrega listeners focus+blur para normalizar moneda. Si se llama varias veces sobre el mismo elemento (ej: el modal se reabre), los listeners se acumulan y el valor se parsea/formatea múltiples veces, corrompiendo el input.
+Guard: `if (el._arsBound) return; el._arsBound = true;` al inicio de la función.
+
 ## 26. Funciones helper de RLS deben ser SECURITY DEFINER (12/05/2026)
 Si `fn_get_user_club_id()` o `fn_is_super_admin()` fueran SECURITY INVOKER (default), al ser invocadas desde una policy sobre la tabla `usuarios` (que ya tiene RLS), la función intentaría leer `usuarios` con los permisos del usuario llamante — que a su vez pasan por la misma RLS, causando recursión infinita o devolviendo NULL. SECURITY DEFINER hace que la función se ejecute con permisos del owner de la función, bypasseando la RLS de la tabla destino. Combinado siempre con `SET search_path = public` para evitar path injection via search_path hijacking.

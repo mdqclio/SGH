@@ -88,7 +88,8 @@ RLS: policy allow_all
 NOTA: modelo relacional que reemplaza carreras.apuestas_habilitadas. Una fila por apuesta habilitada por carrera. nombre/asegurado/incremento son opcionales (detalles del programa).
 
 ### inscripciones
-id UUID PK, carrera_id FK carreras, spc_id FK spcs, propietario_id FK, entrenador_id FK, jockey_titular_id FK, jockey_suplente_id FK, caballeriza_id FK, peon VARCHAR, capataz VARCHAR, sereno VARCHAR, numero_partidor, peso_declarado, peso_final, estado ENUM(pre_inscripto/inscripto/confirmado/ratificado/forfait/no_presentado/mal_inscrito) DEFAULT 'inscripto', canal DEFAULT 'manual', motivo_estado VARCHAR, info_adicional, certificado_correr BOOLEAN, inscripto_por FK usuarios, ratificado_por FK usuarios
+id UUID PK, carrera_id FK carreras, spc_id FK spcs, propietario_id FK, entrenador_id FK, jockey_titular_id FK, jockey_suplente_id FK, caballeriza_id FK, peon VARCHAR, capataz VARCHAR, sereno VARCHAR, numero_partidor, peso_declarado, peso_final, peso_balanza NUMERIC(5,2) NULL, estado ENUM(pre_inscripto/inscripto/confirmado/ratificado/forfait/no_presentado/mal_inscrito) DEFAULT 'inscripto', canal DEFAULT 'manual', motivo_estado VARCHAR, info_adicional, certificado_correr BOOLEAN, inscripto_por FK usuarios, ratificado_por FK usuarios
+NOTA peso_balanza: peso real del CABALLO medido en balanza post-carrera (300–600 kg). Distinto del handicap (peso_declarado/peso_final). Se carga desde el modal "Pesos balanza" en resultados.html para todos los caballos que corrieron.
 UNIQUE (carrera_id, spc_id)
 ESTADOS VISIBLES EN UI: inscripto / mal_inscrito / ratificado / forfait. mal_inscrito agregado en sesión may-2026.
 CRÍTICO: estado es ENUM rígido (estado_inscripcion). Para agregar valores usar ALTER TYPE ADD VALUE, NO migrar a VARCHAR (v_inscriptos_carrera depende del ENUM).
@@ -279,6 +280,33 @@ ALTER TABLE spcs ADD COLUMN IF NOT EXISTS ult_performances TEXT;
 ALTER TABLE clubs ADD COLUMN IF NOT EXISTS secretaria_carreras_nombre TEXT;
 ALTER TABLE clubs ADD COLUMN IF NOT EXISTS inscripciones_telefono TEXT;
 ALTER TABLE clubs ADD COLUMN IF NOT EXISTS sponsor_destacado JSONB;
+-- feature/apuestas-tabla-relacional (27/05/2026):
+CREATE TABLE carrera_apuestas (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  carrera_id UUID NOT NULL REFERENCES carreras(id) ON DELETE CASCADE,
+  tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('GAN','SEG','TER','EX','IM','TR','CUAT','X2','X2P','X3','X4','X5','CAD')),
+  precio NUMERIC NOT NULL CHECK (precio > 0),
+  nombre TEXT NULL,
+  asegurado NUMERIC NULL CHECK (asegurado >= 0),
+  incremento NUMERIC NULL CHECK (incremento >= 0),
+  orden SMALLINT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (carrera_id, tipo)
+);
+CREATE INDEX idx_carrera_apuestas_carrera ON carrera_apuestas (carrera_id);
+ALTER TABLE carrera_apuestas ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow_all" ON carrera_apuestas FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+-- Migración apuestas_habilitadas → carrera_apuestas (datos insertados via script)
+ALTER TABLE carreras DROP COLUMN apuestas_habilitadas;
+ALTER TABLE carreras DROP CONSTRAINT IF EXISTS chk_carreras_apuestas_keys;
+DROP FUNCTION IF EXISTS apuestas_keys_validas;
+-- Actualizar CHECK de resultado_apuestas: remover TE, dejar set final sin TE, con CUAT:
+ALTER TABLE resultado_apuestas DROP CONSTRAINT chk_resultado_apuestas_tipo;
+ALTER TABLE resultado_apuestas ADD CONSTRAINT chk_resultado_apuestas_tipo CHECK (tipo IN ('GAN','SEG','TER','EX','IM','TR','CUAT','X2','X2P','X3','X4','X5','CAD'));
+-- Nota: la única fila con tipo='TE' fue borrada manualmente antes de alterar el constraint.
+-- add_peso_balanza_to_inscripciones (27/05/2026):
+ALTER TABLE inscripciones ADD COLUMN IF NOT EXISTS peso_balanza NUMERIC(5,2) NULL;
+-- Peso real del caballo en balanza post-carrera (300–600 kg). Distinto del handicap.
 ```
 
 ## Vistas

@@ -108,3 +108,41 @@ Estado: Pendiente — recorrer todos los módulos HTML
 ### ISSUE-019: Auditoría extendida pendiente
 Descripción: Los triggers de auditoría cubren 8 tablas (reuniones, carreras, inscripciones, resultados, liquidaciones, clubs, usuarios, categorias_carrera). Quedan sin auditar: caballerizas, resoluciones, hipodromos, propietarios, profesionales, spcs, sanciones.
 Estado: Pendiente — agregar triggers de auditoría una vez que la RLS de esas tablas esté endurecida
+
+## BUGS PENDIENTES — resultados.html (post rediseño 27/05/2026)
+
+### ISSUE-020: Chapa del ganador no coincide con marcador en Vista Detallada
+Descripción: En Vista Detallada, la chapa mostrada junto al dividendo GAN puede no coincidir con el caballo marcado como 1° en el marcador de posiciones. El JOIN posicion → inscripcion_id → renumerarChapas usa el orden de resultado_posiciones pero el marcador usa numero_partidor original.
+Módulo: resultados.html — `buildChapaAt()` y el marcador de posiciones
+Estado: Pendiente validación con Fede — puede ser bug o puede ser que el render es correcto y el marcador usa lógica diferente.
+Prioridad: Alta
+
+### ISSUE-021: Columna TERCERO no aparece en Vista Reducida
+Descripción: La columna TER no se renderiza aun cuando hay dividendo cargado para ese tipo. Posible causa: `habMap[t]` es undefined si el tipo no está en carreraApuestasMap o si el precio es 0.
+Módulo: resultados.html — `renderDivHTML()` filtro `habilitadas.filter(a => a.precio > 0)`
+Estado: Pendiente reproducción y fix.
+Prioridad: Alta
+
+### ISSUE-022: Monto vacío cuando hay dividendo cargado en "Div a GAN"
+Descripción: El monto del campo "Div a GAN" puede aparecer vacío en la Vista Reducida aunque el valor se haya guardado correctamente en `pendingApuestas`. Posible causa: `div_orig` vs `div_inc` en el campo correcto del objeto.
+Módulo: resultados.html — `renderDivHTML()` y la lectura de `pendingApuestas`
+Estado: Pendiente reproducción y fix.
+Prioridad: Alta
+
+### ISSUE-023: UI para DIV.INC y VAL.APU no implementada
+Descripción: Las columnas `resultado_apuestas.div_inc` (dividendo con incremento) y `val_apu` (valor de la apuesta base, default 100) existen en DB pero fueron eliminadas del rediseño de la UI. No hay forma de cargar estos valores desde `resultados.html`.
+Módulo: resultados.html — modal "Div. habilitadas"
+Estado: Pendiente decisión con Fede — ¿se necesitan? ¿cómo se cargan?
+Prioridad: Media
+
+### ISSUE-024: Composición manual override no implementada
+Descripción: Para apuestas directas (EX, IM, TR, CUAT), la composición (ej: "5/2", "8/5/2") se auto-computa vía `renderCompChips()` a partir de `resultado_posiciones`. Pero si la composición real difiere (ej: por descalificación o apuesta vacante), no hay UI para ingresar manualmente `resultado_apuestas.composicion`.
+Módulo: resultados.html — modal "Div. habilitadas"
+Estado: Pendiente decisión con Fede.
+Prioridad: Media
+
+### ISSUE-025: Pozo, pozo asegurado y vales — sin UI de carga
+Descripción: Los campos `resultado_apuestas.pozo`, `vales` (y el campo asegurado de `carrera_apuestas`) existen en DB pero no tienen UI de carga en resultados.html. No se sabe si Dolores necesita cargar estos valores para el programa oficial.
+Módulo: resultados.html — modal "Div. habilitadas"
+Estado: Pendiente decisión con Fede.
+Prioridad: Baja

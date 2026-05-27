@@ -1,6 +1,6 @@
 # Schema reference — SGH / Supabase
 
-> Reflects the live schema as of 2026-05-23. Generated from `information_schema` and `pg_catalog` via MCP.
+> Reflects the live schema as of 2026-05-27. Generated from `information_schema` and `pg_catalog` via MCP.
 
 ---
 
@@ -103,7 +103,7 @@ Filas de dividendos de un resultado. Se reemplazan en bloque en cada llamada a `
 |---------|------|----------|---------|-------|
 | `id` | `uuid` | NOT NULL | `gen_random_uuid()` | PK |
 | `resultado_id` | `uuid` | NOT NULL | — | FK → `resultados(id)` |
-| `tipo` | `varchar(10)` | NOT NULL | — | ej. `'TE'`, `'EX'`, `'X2'`, `'X3'` |
+| `tipo` | `varchar(10)` | NOT NULL | — | ej. `'GAN'`, `'EX'`, `'CUAT'`, `'X2'` (ver CHECK abajo) |
 | `val_apu` | `numeric(10,2)` | NOT NULL | `100` | valor de la apuesta base |
 | `composicion` | `varchar(60)` | YES | — | ej. `'2/4'`, `'8/5/2'` |
 | `pozo` | `numeric(15,2)` | YES | — | pozo bruto |
@@ -120,6 +120,7 @@ Filas de dividendos de un resultado. Se reemplazan en bloque en cada llamada a `
 |--------|------|---------|
 | `resultado_apuestas_pkey` | PRIMARY KEY | `(id)` |
 | `resultado_apuestas_resultado_id_fkey` | FOREIGN KEY | `resultado_id → resultados(id)` |
+| `chk_resultado_apuestas_tipo` | CHECK | `tipo IN ('GAN','SEG','TER','EX','IM','TR','CUAT','X2','X2P','X3','X4','X5','CAD')` — TE removido en 27/05/2026 |
 
 ### Índices
 
@@ -127,6 +128,47 @@ Filas de dividendos de un resultado. Se reemplazan en bloque en cada llamada a `
 |--------|-----------|
 | `resultado_apuestas_pkey` | `UNIQUE btree(id)` |
 | `idx_resultado_apuestas_resultado_id` | `btree(resultado_id)` — lookup por resultado |
+| `idx_resultado_apuestas_resultado_tipo_orden` | `UNIQUE btree(resultado_id, tipo, orden)` — permite multi-slot SEG(2)/TER(3) |
+
+---
+
+## Table `carrera_apuestas`
+
+Apuestas habilitadas por carrera. Reemplaza `carreras.apuestas_habilitadas JSONB` (dropeada 27/05/2026).
+
+| Columna | Tipo | Nullable | Default | Notas |
+|---------|------|----------|---------|-------|
+| `id` | `uuid` | NOT NULL | `gen_random_uuid()` | PK |
+| `carrera_id` | `uuid` | NOT NULL | — | FK → `carreras(id)` ON DELETE CASCADE |
+| `tipo` | `varchar(10)` | NOT NULL | — | CHECK (ver abajo) |
+| `precio` | `numeric` | NOT NULL | — | CHECK precio > 0 |
+| `nombre` | `text` | YES | — | nombre largo en el programa impreso |
+| `asegurado` | `numeric` | YES | — | pozo asegurado mínimo |
+| `incremento` | `numeric` | YES | — | incremento al pozo asegurado |
+| `orden` | `smallint` | NOT NULL | `0` | orden de presentación en el programa |
+| `created_at` | `timestamptz` | YES | `now()` | |
+
+### CHECK `tipo`
+
+```sql
+tipo IN ('GAN','SEG','TER','EX','IM','TR','CUAT','X2','X2P','X3','X4','X5','CAD')
+```
+
+13 tipos válidos. `TE` (Tómbola Exacta) nunca fue incluido aquí — fue removido de `resultado_apuestas` en la misma migración.
+
+### Constraints
+
+| Nombre | Tipo | Detalle |
+|--------|------|---------|
+| `carrera_apuestas_pkey` | PRIMARY KEY | `(id)` |
+| `carrera_apuestas_carrera_id_fkey` | FOREIGN KEY | `carrera_id → carreras(id) ON DELETE CASCADE` |
+| `carrera_apuestas_carrera_id_tipo_key` | UNIQUE | `(carrera_id, tipo)` — una apuesta por tipo por carrera |
+
+### Índices
+
+| Nombre | Definición |
+|--------|-----------|
+| `idx_carrera_apuestas_carrera` | `btree(carrera_id)` — lookup de apuestas de una carrera |
 
 ---
 
@@ -254,5 +296,5 @@ Una fila por caballo inscripto en una carrera.
 - Se agrega en migración `add_peso_balanza_to_inscripciones` (2026-05-26).
 - Dato separado del handicap (`peso_declarado`/`peso_final`): es el peso real que arroja la balanza al pesaje post-carrera.
 - Se carga para **todos los caballos que corrieron** (excluir `forfait` y `mal_inscrito`).
-- Rango esperado: 30–100 kg, paso 0.5 kg.
+- Rango esperado: 300–600 kg (peso del CABALLO, no del jockey), paso 0.5 kg.
 - RLS: cubierto por `rls_inscripciones_update` (mismo check de club que el resto de columnas).

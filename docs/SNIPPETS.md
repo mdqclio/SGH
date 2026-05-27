@@ -240,6 +240,45 @@ const { data, error } = await testDb.from('caballerizas').select('id').eq('club_
 console.log('Registros visibles del otro club:', data?.length ?? 0, '← debe ser 0');
 ```
 
+## Formato de moneda — variante resultados.html (27/05/2026)
+```js
+// En resultados.html se usan formatARS/parseARS/bindARSInput en lugar de formatMonto/parseMonto
+// parseARS tolera es-AR ("1.234,56") y decimal plano ("1234.56")
+function fNum(n) {
+  if (n == null || n === '' || isNaN(n)) return '';
+  return parseFloat(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function parseARS(str) {
+  if (str == null || str === '') return NaN;
+  const s = String(str).trim();
+  if (s.includes(',')) return parseFloat(s.replace(/\./g, '').replace(',', '.'));
+  return parseFloat(s.replace(/[^\d.]/g, ''));
+}
+function formatARS(n) { return fNum(n); }
+function bindARSInput(el) {
+  if (el._arsBound) return;  // guard: no duplicar listeners
+  el._arsBound = true;
+  el.addEventListener('focus', () => { const v = parseARS(el.value); el.value = isNaN(v) ? '' : String(v); });
+  el.addEventListener('blur',  () => { const raw = el.value.trim(); if (!raw) return; const v = parseARS(raw); el.value = isNaN(v) ? raw : formatARS(v); });
+}
+```
+
+## renumerarChapas — helper centralizado (27/05/2026)
+```js
+// Incluir: <script src="renumerar-chapas.js"></script>
+// Función global:
+function renumerarChapas(inscripciones) {
+  const ratificadas = (inscripciones || [])
+    .filter(i => i.estado === 'ratificado')
+    .sort((a, b) => (a.numero_partidor || 9999) - (b.numero_partidor || 9999));
+  const map = {};
+  ratificadas.forEach((i, idx) => { map[i.id] = idx + 1; });
+  return map;  // { inscripcion_id → chapa 1..N }
+}
+// N = cantidad ratificadas. Chapas 1..N por numero_partidor ASC.
+// NUNCA usar listas de exclusión negativas — filtro positivo estricto.
+```
+
 ## SQL útiles (sesión may-2026 — segunda iteración)
 ```sql
 -- Asignar gateras random a inscripciones de una reunión completa (sin repetir dentro de la misma carrera)

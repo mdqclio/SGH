@@ -34,7 +34,7 @@
 - PWA instalable
 - **Admin "Mi Hipódromo"** (19/05/2026): ABM de Comisión de Carreras, Sponsors y Comisariato (club-level). Campos disclaimer_importante, disclaimer_nota, redes sociales (website/instagram/facebook/tiktok/twitter_x/youtube). Rol admin-de-hipódromo puede editar sus propios datos (no requiere super_admin).
 - **Carta de llamados** (19/05/2026): rediseño completo del PDF estilo Dolores — cajas de carrera con caption de categoría, bono inline en rojo, bloques de novedades editables (textarea con auto-save), disclaimers, fechas operativas, secretaría con redes sociales, logos de sponsors.
-- **Apuestas por carrera** (19/05/2026): `carreras.apuestas TEXT[]`. Modal 🎯 Apuestas en programa.html muestra lista de inputs por carrera — guardado bulk vía Promise.all. Las apuestas combinadas fueron descartadas.
+- **Apuestas por carrera — tabla relacional** (27/05/2026): tabla `carrera_apuestas` (reemplaza `carreras.apuestas_habilitadas JSONB`). Modal 🎯 Apuestas en programa.html con checkbox + precio + nombre + asegurado/incremento por carrera. 13 tipos válidos: GAN, SEG, TER, EX, IM, TR, CUAT, X2, X2P, X3, X4, X5, CAD. Guardado bulk vía Promise.all.
 - **Reunión activa centralizada** (19/05/2026 → helper 20/05/2026): `sgh_active_reunion_id` en localStorage. Refactorizado a `active-reunion.js` helper global `window.ActiveReunion` aplicado en 6 pantallas (programa, carta-llamados, inscripciones, ratificacion, resultados, liquidaciones). Fijable desde reuniones.html con botón 📍 Activar.
 - **Selector de hipódromo para super_admin** (20/05/2026): `club-switcher.js` inyecta dropdown en el topbar de las 16 pantallas operativas/de gestión. Persiste en `sgh_selected_club_id`. Al cambiar de hipódromo borra `sgh_active_reunion_id` para evitar apuntar a reunión de otro club. Excluye login/registro/index (index ya tiene su propio selector).
 - **Bug alta de hipódromos** (20/05/2026): corregido INSERT de categorías por defecto que usaba tabla `categorias` → `categorias_carrera`. Backfill aplicado para hipódromos existentes sin categorías.
@@ -45,7 +45,7 @@
 - **Sistema de auditoría** — UI completa con paginación, filtros, diff visual, export CSV (12/05/2026)
 
 ## En desarrollo
-- Resultados: rediseñado — pendiente testing manual end-to-end por Fede (checklist en PLAN_LIQUIDACIONES.md)
+- Resultados: rediseñado — pendiente testing manual end-to-end por Fede. Ver bugs conocidos en ISSUES.md (ISSUE-020 al 025).
 - Liquidaciones: Bloques A (schema fixes + resultados) y B (motor de cálculo) completos (14/05/2026). Motor ejecutado vs. data sintética: 11 liquidaciones generadas, montos verificados. Pendiente: testing Fede → correr contra reunión real de Dolores → Bloque C (montas perdidas)
 
 ## Pendiente de construir
@@ -84,6 +84,37 @@
 - 14 profesionales extra detectados
 - 7 propietarios de prueba detectados
 - Todos identificados pero no borrados (esperar UI de baja)
+
+- **Vista Reducida / Vista Detallada de dividendos** (27/05/2026): `resultados.html` rediseñado estilo papel. Eliminada grilla editable. Vista Reducida: GAN/SEG/TER en 3 columnas con chapas SBARG color + monto en cápsula. Vista Detallada: posicionales + Apuestas directas (EX/IM/TR/CUAT con composición auto-computada via chips) + Apuestas combinadas (X2/X2P/X3/X4/X5/CAD). Ambas vistas usan `renderDivHTML()` compartido.
+- **Modal "Div. habilitadas"** (27/05/2026): carga de dividendos por tipo habilitado en carrera. Posicionales GAN/SEG/TER con chapa SBARG + input de dinero en 3 columnas. Directas y combinadas en lista vertical.
+- **Botón "Pesos balanza"** (27/05/2026): modal en `resultados.html` que muestra inscripciones ratificadas, permite cargar `inscripciones.peso_balanza` NUMERIC(5,2) (peso del caballo en balanza post-carrera, rango 300–600 kg).
+- **renumerar-chapas.js** (27/05/2026): helper centralizado `renumerarChapas(inscripciones)` — filtra `estado === 'ratificado'`, ordena por `numero_partidor` ASC, devuelve `{id → 1..N}`. Aplicado en 7 call sites corrigiendo bug de chapa 16.
+- **Terminología visual** (27/05/2026): "Combinatoriales" → "Apuestas directas", "Multi-carrera" → "Apuestas combinadas". Códigos internos sin cambio.
+- **Cosméticos resultados.html** (27/05/2026): "Turno N" → "Carrera N", subtítulo solo distancia, labels M.(F) y (MANDIL) removidos, "Sport" → "Div a GAN".
+- **formatARS / parseARS / bindARSInput** (27/05/2026): formato argentino para todos los inputs y displays de dinero en `resultados.html` (punto miles, coma decimal, 2 decimales fijos).
+
+---
+
+## Snapshot — 27/05/2026 (cierre de sesión)
+
+**Reunión activa**: Reunión 5 — 17/5/2026 — Hipódromo de Dolores (11 turnos).
+
+**Validación de Fede**: pendiente en producción — primer ciclo completo con dividendos. Bugs conocidos documentados en ISSUES.md (ISSUE-020 al 025).
+
+**Schema nuevo en esta sesión**:
+- `carrera_apuestas` — tabla relacional que reemplaza `carreras.apuestas_habilitadas JSONB`. Una fila por apuesta habilitada por carrera. 13 tipos válidos.
+- `carreras.apuestas_notas` TEXT NULL — texto libre para notas de apuestas en el programa oficial.
+- `resultado_apuestas` — UNIQUE `(resultado_id, tipo, orden)` agregado; TE removido del CHECK; CUAT agregado.
+- `inscripciones.peso_balanza` NUMERIC(5,2) NULL — peso real del caballo en balanza post-carrera.
+
+**Archivos nuevos en esta sesión**:
+- `renumerar-chapas.js` — helper centralizado de renumeración de chapas.
+
+**Archivos modificados en esta sesión**:
+- `resultados.html` (rediseño completo de dividendos, formatARS, renumerar-chapas, botón pesos balanza, cosmetics)
+- `programa.html` (modal apuestas → carrera_apuestas, terminología)
+- `programa-oficial.html` (corrección filtro `estado === 'ratificado'`, terminología)
+- `programa-oficial-color.html` (corrección filtro `estado === 'ratificado'`, terminología)
 
 ---
 

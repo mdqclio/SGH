@@ -93,6 +93,29 @@ Cuando entre el segundo hipódromo: considerar Supabase Pro + selector de club p
 ### 14. ¿Deprecar módulo Propietarios?
 Si propietarios y caballerizas son el mismo concepto en Dolores, evaluar deprecar propietarios.html. Consultar con Fede.
 
+## Pendientes al cierre del 27/05/2026 (sesión apuestas-tabla-relacional)
+
+### 17. DIV.INC y VAL.APU — ¿se necesitan en la UI?
+Los campos `resultado_apuestas.div_inc` (dividendo con incremento) y `val_apu` (valor de la apuesta base) existen en DB pero fueron eliminados del rediseño de la UI. ¿El hipódromo de Dolores necesita cargar el dividendo "con incremento" por separado del "original"? ¿El valor base de la apuesta es siempre $100 o varía por tipo?
+Estado: pendiente confirmación con Fede.
+
+### 18. Composición manual para apuestas directas
+La composición (ej: "5/2" para Exacta) se auto-computa en la UI a partir de las posiciones cargadas. Pero si hay una descalificación post-carrera que cambia la composición real, no hay UI para sobreescribir `resultado_apuestas.composicion` manualmente.
+¿Necesita Dolores poder editar la composición manualmente? ¿Con qué frecuencia pasa?
+Estado: pendiente confirmación con Fede.
+
+### 19. Pozo, pozo asegurado y vales — ¿dónde se cargan?
+Los campos `resultado_apuestas.pozo` y `vales` existen en DB. `carrera_apuestas.asegurado` e `incremento` también. ¿Los operadores de Dolores cargan estos datos? ¿En qué pantalla? ¿Antes o después de la carrera?
+Estado: pendiente confirmación con Fede.
+
+### 20. Semántica de `redistribucion_legs`
+`resultados.redistribucion_legs JSONB` fue modelado para redistribución por pata en apuestas combinadas (X2/X3/X4/X5). El secretario de carreras debe confirmar la semántica exacta: ¿qué significa "gde", "al3", etc.? ¿Cómo se usa en la práctica para Doble y Triplo?
+Estado: pendiente validación con secretario. Columna modelada pero no usada aún.
+
+### 21. peso_balanza — ¿rango real y obligatoriedad?
+Se implementó `inscripciones.peso_balanza NUMERIC(5,2)` con rango de UI 300–600 kg (peso del caballo). ¿Es obligatorio para todos los caballos que corrieron? ¿Qué pasa si el caballo fue disqualificado? ¿Se carga en todos los hipódromos o solo en Dolores?
+Estado: pendiente confirmación con Fede.
+
 ## Pendientes al cierre del 16/05/2026
 
 - **Forfait sin motivo obligatorio**: cuando declara forfait NO debe pedir motivo (mal_inscrito sí lo requiere). Pendiente de implementar.

@@ -159,7 +159,29 @@ Justificación: antes de este ADR, cada pantalla mostraba `bolsa * pct / 100` cr
 Excepción: `liquidaciones.html` mantiene su lógica propia porque aplica el piso al pago efectivo (calc + bonos individuales), distinto del display de distribución porcentual. No migrar a calcPremiosConPiso.
 Invariante: `carreras.bolsa_total` en DB es siempre la bolsa nominal. La bolsa efectiva (nominal + deltas de piso) es derivada al render y nunca se persiste.
 
+## ADR-038: carrera_apuestas como tabla relacional (reemplaza JSONB) (27/05/2026)
+Decisión: `carrera_apuestas` — tabla relacional con columnas `id`, `carrera_id`, `tipo`, `precio`, `nombre`, `asegurado`, `incremento`, `orden`. Reemplaza `carreras.apuestas_habilitadas JSONB`.
+Justificación: el modelo JSONB permitía keys inválidas y hacía difícil agregar columnas (precio, nombre, asegurado). El modelo relacional tiene constraint CHECK en `tipo`, FK a carreras con CASCADE, y fácil expansión de columnas. UNIQUE `(carrera_id, tipo)` garantiza una apuesta por tipo por carrera.
+Consecuencia: `carreras.apuestas_habilitadas` dropeada. `apuestas_keys_validas(jsonb)` dropeada. `carreraApuestasMap` en el cliente ahora se carga con rows de `carrera_apuestas` en lugar de parsear JSONB.
+Alternativa rechazada: extender el JSONB con estructura anidada `{tipo: {precio, nombre, ...}}` — más difícil de validar y de migrar.
+
+## ADR-039: Renumeración de chapas 1-N estrictamente positiva (27/05/2026)
+Decisión: `renumerarChapas(inscripciones)` filtra `estado === 'ratificado'` (positivo estricto) y no listas de exclusión negativas.
+Justificación: el bug "chapa 16" fue causado por el filtro negativo `!['forfait','mal_inscrito'].includes(i.estado)` que pasaba silenciosamente estados como 'anulada', 'inscripto', 'pre_inscripto', generando chapas extra. El filtro positivo es inambiguo: solo los ratificados corren y reciben chapas 1..N.
+Centralizado en: `renumerar-chapas.js` — helper global. 7 call sites migrados en `resultados.html`, `programa-oficial.html`, `programa-oficial-color.html`.
+Invariante: N = cantidad de inscripciones con `estado === 'ratificado'`. Las chapas 1..N corresponden al orden por `numero_partidor` ASC dentro de ese subset.
+
+## ADR-040: Vista paper-style read-only de dividendos (27/05/2026)
+Decisión: eliminar la grilla editable inline de dividendos en `resultados.html` y reemplazarla con una vista paper-style read-only (`renderDivHTML()`) + un modal separado ("Div. habilitadas") para la carga.
+Justificación: la grilla editable (tabla con nav bar, CRUD buttons, select editable inline) era compleja, difícil de mantener, y generaba errores de estado (ej: bug 3b — grilla aparecía con datos viejos al recargar). La vista paper-style es más legible, más fiel al formato del programa impreso, y separa claramente la carga de datos de la visualización.
+Consecuencia: eliminados `#modal-apuesta`, `openModal()`, `closeModal()`, `confirmApuesta()`, `deleteApuesta()`, `selectRow()`, `navFirst/Last/Prev/Next()`. El modal "Div. habilitadas" hace save directo a DB + merge en `pendingApuestas` para que el siguiente F10 incluya todo.
+
+## ADR-041: Etiquetas 1°/2°/3° solo en modal editable (27/05/2026)
+Decisión: en vistas read-only (Vista Reducida, Vista Detallada, Vista Oficial), las filas posicionales de SEG y TER no muestran etiquetas "1°", "2°", "3°". Cada fila es solo: [chapa SBARG] [monto].
+Justificación: el slot de posición es implícito por la cantidad de filas y el orden (primera fila = dividendo más chico, segunda = más grande). Las etiquetas en el modal editable sí son necesarias para que el operador sepa cuál slot está llenando.
+Excepción: el modal "Div. habilitadas" mantiene las etiquetas de posición para orientación del operador.
+
 ## ADR-010: Montos en DB sin formato, UI en formato argentino
 Decisión: Guardar números DECIMAL planos en Postgres. En UI mostrar siempre $1.234.567,89 (punto miles, coma decimal, 2 decimales fijos).
-Funciones: formatMonto() y parseMonto() en SNIPPETS.md.
-Inputs: type="text" con clase monto, normalización en blur.
+Funciones: formatMonto() y parseMonto() en SNIPPETS.md. En resultados.html: `formatARS()` / `parseARS()` / `bindARSInput()`.
+Inputs: type="text" inputmode="decimal" con normalización en blur. Guard `el._arsBound` previene listeners duplicados.
