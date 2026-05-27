@@ -408,6 +408,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="partidor-colors.js"></script>
 <script src="chapas.js"></script>
+<script src="renumerar-chapas.js"></script>
 <script>
 /* ═══════════════════════════════════════════════
    AUTH
@@ -629,7 +630,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
     if (px.dividendo != null) divMap[px.posicion] = px.dividendo;
   });
 
-  const activeInsc = insc.filter(i => !['forfait','mal_inscrito'].includes(i.estado));
+  const activeInsc = insc.filter(i => i.estado === 'ratificado');
   const rowCount   = Math.max(1, activeInsc.length);
 
   const marcRows = Array.from({length: rowCount}, (_, i) => {
@@ -1016,15 +1017,10 @@ function autoComp(a) {
   if (!res) return '';
   const posiciones = posicionesMap[res.id] || [];
   if (!posiciones.length) return '';
-  const carreraInsc = inscripciones.filter(i => i.carrera_id === currentCarreraId)
-    .sort((x, y) => (x.numero_partidor||999) - (y.numero_partidor||999));
-  const mandilToChapa = {};
-  carreraInsc.forEach((x, i) => { if (x.numero_partidor) mandilToChapa[x.numero_partidor] = i + 1; });
+  const chapaForInsc = renumerarChapas(inscripciones.filter(i => i.carrera_id === currentCarreraId));
   const chapaAt = pos => {
     const p = posiciones.find(x => x.posicion === pos);
-    if (!p) return null;
-    const insc = carreraInsc.find(x => x.id === p.inscripcion_id);
-    return insc ? (mandilToChapa[insc.numero_partidor] ?? null) : null;
+    return p ? (chapaForInsc[p.inscripcion_id] ?? null) : null;
   };
   const orden = a.orden || 1;
   switch (a.tipo) {
@@ -1210,15 +1206,10 @@ function openDivModal() {
 
     // Chapa lookup para posicionales
     const posiciones = posicionesMap[res.id] || [];
-    const carreraInsc = inscripciones.filter(i => i.carrera_id === currentCarreraId)
-      .sort((x, y) => (x.numero_partidor||999) - (y.numero_partidor||999));
-    const mandilToChapa = {};
-    carreraInsc.forEach((x, idx) => { if (x.numero_partidor) mandilToChapa[x.numero_partidor] = idx + 1; });
+    const chapaForInscDiv = renumerarChapas(inscripciones.filter(i => i.carrera_id === currentCarreraId));
     const chapaForPos = pos => {
       const p = posiciones.find(x => x.posicion === pos);
-      if (!p) return null;
-      const insc = carreraInsc.find(x => x.id === p.inscripcion_id);
-      return insc ? (mandilToChapa[insc.numero_partidor] ?? null) : null;
+      return p ? (chapaForInscDiv[p.inscripcion_id] ?? null) : null;
     };
     const chapaChip = chapa => {
       if (chapa == null) return `<div style="width:28px;height:28px;border-radius:4px;background:var(--border);flex-shrink:0;"></div>`;
@@ -1672,7 +1663,7 @@ function openPesoBalanza() {
   if (!currentCarreraId) return;
   const carrera = carreras.find(c => c.id === currentCarreraId);
   const insc = inscripciones
-    .filter(i => i.carrera_id === currentCarreraId && !['forfait','mal_inscrito'].includes(i.estado))
+    .filter(i => i.carrera_id === currentCarreraId && i.estado === 'ratificado')
     .sort((a,b) => (a.numero_partidor||999) - (b.numero_partidor||999));
 
   document.getElementById('pb-title').textContent =
@@ -1711,7 +1702,7 @@ function closePesoBalanza() {
 
 async function savePesoBalanza() {
   const insc = inscripciones.filter(i =>
-    i.carrera_id === currentCarreraId && !['forfait','mal_inscrito'].includes(i.estado)
+    i.carrera_id === currentCarreraId && i.estado === 'ratificado'
   );
   const updates = [];
   for (const i of insc) {

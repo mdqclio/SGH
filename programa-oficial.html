@@ -362,6 +362,7 @@ function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
   }).filter(Boolean).join(' — ');
 
   const filas = (ins || [])
+    .filter(i => i.estado === 'ratificado')
     .sort((a, b) => (a.numero_partidor || 999) - (b.numero_partidor || 999))
     .map((i, idx) => {
       const spc  = spcMap[i.spc_id]            || {};

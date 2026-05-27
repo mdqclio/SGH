@@ -574,6 +574,7 @@ function renderCarreraColor(c, ins, maps, idx) {
   const condiciones = [c.condicion_handicap, c.condicion_adicional].filter(Boolean).join(' — ');
 
   const filas = (ins || [])
+    .filter(i => i.estado === 'ratificado')
     .sort((a, b) => (a.numero_partidor || 999) - (b.numero_partidor || 999))
     .map((i, fi) => {
       const spc  = spcMap[i.spc_id] || {};
