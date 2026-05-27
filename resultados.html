@@ -264,8 +264,7 @@
     /* ── Div modal money input ── */
     .div-money { display:flex;align-items:center;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;padding:0 6px;gap:3px; }
     .div-money:focus-within { border-color:var(--accent); }
-    .div-money input[type=number] { border:none;background:transparent;outline:none;padding:5px 0;width:76px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;-moz-appearance:textfield; }
-    .div-money input[type=number]::-webkit-inner-spin-button,.div-money input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; }
+    .div-money input[type=text] { border:none;background:transparent;outline:none;padding:5px 0;width:76px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px; }
 
     /* ── Auth overlay ── */
     #auth-overlay { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center; }
@@ -362,7 +361,7 @@
         </div>
         <div class="mg">
           <label>Val. Apuesta ($)</label>
-          <input type="number" id="m-val-apu" value="100" step="0.01" min="0">
+          <input type="text" inputmode="decimal" id="m-val-apu" value="100,00">
         </div>
       </div>
       <div class="mg">
@@ -370,12 +369,12 @@
         <input type="text" id="m-comp" placeholder="mandiles separados por /">
       </div>
       <div class="mg-row">
-        <div class="mg"><label>Pozo ($)</label><input type="number" id="m-pozo" step="0.01" min="0"></div>
+        <div class="mg"><label>Pozo ($)</label><input type="text" inputmode="decimal" id="m-pozo"></div>
         <div class="mg"><label>Vales</label><input type="number" id="m-vales" step="1" min="0"></div>
       </div>
       <div class="mg-row">
-        <div class="mg"><label>Div. Original ($)</label><input type="number" id="m-dorig" step="0.01" min="0"></div>
-        <div class="mg"><label>Div. por Incidencia ($)</label><input type="number" id="m-dinc" step="0.01" min="0"></div>
+        <div class="mg"><label>Div. Original ($)</label><input type="text" inputmode="decimal" id="m-dorig"></div>
+        <div class="mg"><label>Div. por Incidencia ($)</label><input type="text" inputmode="decimal" id="m-dinc"></div>
       </div>
       <div class="chk-row">
         <input type="checkbox" id="m-vac">
@@ -469,6 +468,30 @@ function navCarrera(delta) {
 function fNum(n) {
   if (n == null || n === '' || isNaN(n)) return '';
   return parseFloat(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function parseARS(str) {
+  if (str == null || str === '') return NaN;
+  // Accept both "1.234,56" (es-AR) and "1234.56" (plain decimal)
+  const s = String(str).trim();
+  // If contains comma: treat comma as decimal separator, strip dots as thousands
+  if (s.includes(',')) return parseFloat(s.replace(/\./g, '').replace(',', '.'));
+  // Otherwise: plain float (e.g. "1234.56" or "1234")
+  return parseFloat(s.replace(/[^\d.]/g, ''));
+}
+function formatARS(n) { return fNum(n); }
+function bindARSInput(el) {
+  if (el._arsBound) return;
+  el._arsBound = true;
+  el.addEventListener('focus', () => {
+    const v = parseARS(el.value);
+    el.value = isNaN(v) ? '' : String(v);
+  });
+  el.addEventListener('blur', () => {
+    const raw = el.value.trim();
+    if (raw === '') return;
+    const v = parseARS(raw);
+    el.value = isNaN(v) ? raw : formatARS(v);
+  });
 }
 function toast(msg, type='success') {
   const t = document.createElement('div');
@@ -1073,13 +1096,15 @@ function openModal(idx) {
   const a = editIdx !== null ? pendingApuestas[editIdx] : null;
   document.getElementById('modal-title').textContent = a ? 'Cambiar apuesta' : 'Agregar apuesta';
   document.getElementById('m-tipo').value   = a?.tipo       || 'EX';
-  document.getElementById('m-val-apu').value = a?.val_apu   ?? 100;
-  document.getElementById('m-comp').value   = a?.composicion || '';
-  document.getElementById('m-pozo').value   = a?.pozo        ?? '';
-  document.getElementById('m-vales').value  = a?.vales       ?? '';
-  document.getElementById('m-dorig').value  = a?.div_orig    ?? '';
-  document.getElementById('m-dinc').value   = a?.div_inc     ?? '';
-  document.getElementById('m-vac').checked  = a?.vacante     || false;
+  const arsEl = id => document.getElementById(id);
+  arsEl('m-val-apu').value = formatARS(a?.val_apu ?? 100);
+  arsEl('m-comp').value    = a?.composicion || '';
+  arsEl('m-pozo').value    = a?.pozo   != null ? formatARS(a.pozo)    : '';
+  arsEl('m-vales').value   = a?.vales  ?? '';
+  arsEl('m-dorig').value   = a?.div_orig != null ? formatARS(a.div_orig) : '';
+  arsEl('m-dinc').value    = a?.div_inc  != null ? formatARS(a.div_inc)  : '';
+  document.getElementById('m-vac').checked  = a?.vacante || false;
+  ['m-val-apu','m-pozo','m-dorig','m-dinc'].forEach(id => bindARSInput(arsEl(id)));
   document.getElementById('modal-apuesta').classList.add('open');
   document.getElementById('m-comp').focus();
 }
@@ -1095,12 +1120,12 @@ function confirmApuesta() {
   }
   const row = {
     tipo,
-    val_apu:     parseFloat(document.getElementById('m-val-apu').value) || 0,
+    val_apu:     parseARS(document.getElementById('m-val-apu').value) || 0,
     composicion: document.getElementById('m-comp').value.trim() || null,
-    pozo:        parseFloat(document.getElementById('m-pozo').value)  || null,
+    pozo:        parseARS(document.getElementById('m-pozo').value)  || null,
     vales:       parseInt(document.getElementById('m-vales').value)   || null,
-    div_orig:    parseFloat(document.getElementById('m-dorig').value) || null,
-    div_inc:     parseFloat(document.getElementById('m-dinc').value)  || null,
+    div_orig:    parseARS(document.getElementById('m-dorig').value) || null,
+    div_inc:     parseARS(document.getElementById('m-dinc').value)  || null,
     vacante:     document.getElementById('m-vac').checked,
   };
   if (editIdx !== null) {
@@ -1201,8 +1226,10 @@ function openDivModal() {
       const bdr = bg.toUpperCase() === '#FFFFFF' ? '1px solid #000' : '1px solid transparent';
       return `<div style="width:28px;height:28px;border-radius:4px;background:${bg};color:${fg};border:${bdr};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">${chapa}</div>`;
     };
-    const moneyInput = (id, val) =>
-      `<div class="div-money"><span style="font-size:11px;color:var(--muted);">$</span><input type="number" id="${id}" value="${val}" placeholder="0" min="0" step="0.01"></div>`;
+    const moneyInput = (id, val) => {
+      const display = (val !== '' && val != null && !isNaN(parseFloat(val))) ? formatARS(parseFloat(val)) : '';
+      return `<div class="div-money"><span style="font-size:11px;color:var(--muted);">$</span><input type="text" inputmode="decimal" id="${id}" value="${display}" placeholder="0,00" data-ars="1"></div>`;
+    };
 
     if (habPOS.length) {
       const cols = habPOS.map(a => {
@@ -1238,7 +1265,9 @@ function openDivModal() {
   }
 
   divModalDirty = false;
-  document.getElementById('div-modal-body').addEventListener('input', () => { divModalDirty = true; }, { once: false, capture: false });
+  const divBody = document.getElementById('div-modal-body');
+  divBody.querySelectorAll('input[data-ars]').forEach(bindARSInput);
+  divBody.addEventListener('input', () => { divModalDirty = true; }, { once: false, capture: false });
   document.getElementById('modal-div').classList.add('open');
 }
 
@@ -1263,7 +1292,7 @@ async function saveDivModal() {
     for (let i = 0; i < slots; i++) {
       const raw = document.getElementById(`div-${a.tipo}-${i+1}`)?.value?.trim();
       if (!raw) continue;
-      const val = parseFloat(raw);
+      const val = parseARS(raw);
       if (val <= 0) { toast('El dividendo debe ser mayor a $0', 'error'); return; }
       newRows.push({ resultado_id: res.id, tipo: a.tipo, div_orig: val, orden: i + 1,
                      val_apu: a.precio || 100, vacante: false });
