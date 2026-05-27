@@ -113,12 +113,22 @@
     .apu-carrera-body { display: none; padding: 2px 0 14px 52px; }
     .apu-carrera.open .apu-carrera-body { display: block; }
     .apu-group-title { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin: 10px 0 5px; }
-    .apu-rows { display: flex; flex-direction: column; gap: 5px; }
-    .apu-row { display: flex; align-items: center; gap: 8px; }
-    .apu-row input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer; }
-    .apu-row label { font-size: 13px; color: var(--text); cursor: pointer; flex: 1; }
-    .apu-price-wrap { display: flex; align-items: center; gap: 4px; }
-    .apu-price-wrap::before { content: '$'; font-size: 11px; color: var(--muted); }
+    .apu-rows { display: flex; flex-direction: column; gap: 6px; }
+    .apu-row { display: flex; flex-direction: column; gap: 3px; }
+    .apu-row-main { display: flex; align-items: center; gap: 8px; }
+    .apu-row-main input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer; }
+    .apu-row-main label { font-size: 13px; color: var(--text); cursor: pointer; flex: 1; }
+    .apu-price-wrap { display: flex; align-items: center; gap: 6px; }
+    .apu-details-btn { font-size: 11px; color: var(--accent); background: none; border: 1px solid var(--accent); border-radius: 4px; padding: 1px 6px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+    .apu-details-btn.open { color: var(--muted); border-color: var(--border); }
+    .apu-details { display: none; flex-direction: row; flex-wrap: wrap; gap: 6px; padding: 4px 0 2px 23px; align-items: center; }
+    .apu-details.open { display: flex; }
+    input.apu-detail-nombre { flex: 1 1 160px; padding: 3px 6px; font-size: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); color: var(--text); outline: none; font-family: 'DM Sans', sans-serif; }
+    input.apu-detail-nombre:focus { border-color: var(--accent); }
+    .apu-detail-money { display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--muted); }
+    input.apu-detail-num { width: 76px; padding: 3px 6px; font-size: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); color: var(--text); outline: none; -moz-appearance: textfield; font-family: 'DM Sans', sans-serif; }
+    input.apu-detail-num::-webkit-inner-spin-button, input.apu-detail-num::-webkit-outer-spin-button { -webkit-appearance: none; }
+    input.apu-detail-num:focus { border-color: var(--accent); }
     .apu-notas { width: 100%; margin-top: 10px; padding: 7px 10px; font-size: 12px; border-radius: 8px; resize: vertical; min-height: 48px; font-family: 'DM Sans', sans-serif; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); outline: none; }
     .apu-notas:focus { border-color: var(--accent); }
 
@@ -163,7 +173,7 @@ let sb, CLUB_ID, currentUser;
 async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
-let spcs={}, profesionales={}, propietarios={}, categorias={}, performances={}, caballerizas={}, clubData=null, currentReunion=null, currentCarreras=[], currentInscripciones=[], currentCondPista=null;
+let spcs={}, profesionales={}, propietarios={}, categorias={}, performances={}, caballerizas={}, clubData=null, currentReunion=null, currentCarreras=[], currentInscripciones=[], currentCondPista=null, currentApuestasMap={};
 
 function formatMonto(num) {
   if (num === null || num === undefined || isNaN(num)) return '$0,00';
@@ -433,23 +443,18 @@ function abrirProgramaOficialColor() {
 
 /* ── Apuestas: constantes ── */
 const APU_GRUPOS = [
-  { label: 'Posicionales',                              tipos: ['GAN','SEG','TER'] },
-  { label: 'Combinatoriales (1 carrera)',               tipos: ['EX','IM','TR','TE','CUAT'] },
+  { label: 'Posicionales',                                tipos: ['GAN','SEG','TER'] },
+  { label: 'Combinatoriales (1 carrera)',                 tipos: ['EX','IM','TR','CUAT'] },
   { label: 'Multi-carrera — marcar en carrera de cierre', tipos: ['X2','X2P','X3','X4','X5','CAD'] },
 ];
 const APU_NOMBRE = {
   GAN:'Ganador (1°)', SEG:'Segundo (2°)', TER:'Tercero (3°)',
-  EX:'Exacta', IM:'Imperfecta', TR:'Trifecta', TE:'Tómbola Exacta', CUAT:'Cuatrifecta',
+  EX:'Exacta', IM:'Imperfecta', TR:'Trifecta', CUAT:'Cuatrifecta',
   X2:'Doble', X2P:'Doble a Place', X3:'Triplo', X4:'Cuaterna', X5:'Quíntuplo', CAD:'Cadena',
-};
-const APU_PRECIO_DEFAULT = {
-  GAN:1, SEG:1, TER:1,
-  EX:200, IM:200, TR:200, TE:200, CUAT:200,
-  X2:200, X2P:200, X3:200, X4:200, X5:200, CAD:200,
 };
 let apuDirtyIds = new Set();
 
-function openApuestasModal() {
+async function openApuestasModal() {
   if (!currentReunion) { toast('Seleccioná primero una reunión','error'); return; }
   if (!currentCarreras?.length) { toast('Esta reunión no tiene carreras cargadas','error'); return; }
   apuDirtyIds = new Set();
@@ -458,26 +463,63 @@ function openApuestasModal() {
     const bN = b.numero_carrera_programa != null ? b.numero_carrera_programa : (b.numero_turno + 10000);
     return aN - bN;
   });
+  const carIds = ordenadas.map(c => c.id);
+  currentApuestasMap = {};
+  if (carIds.length) {
+    const { data: apuRows } = await sb.from('carrera_apuestas')
+      .select('*').in('carrera_id', carIds).order('orden');
+    (apuRows || []).forEach(row => { (currentApuestasMap[row.carrera_id] ??= []).push(row); });
+  }
   document.getElementById('modal-apuestas-body').innerHTML = ordenadas.map(c => {
-    const num = c.numero_carrera_programa || c.numero_turno;
-    const hab = (c.apuestas_habilitadas && typeof c.apuestas_habilitadas === 'object') ? c.apuestas_habilitadas : {};
-    const notas = c.apuestas_notas || '';
-    const checkedTipos = Object.keys(hab);
+    const num       = c.numero_carrera_programa || c.numero_turno;
+    const notas     = c.apuestas_notas || '';
+    const apuRows   = currentApuestasMap[c.id] || [];
+    const apuByTipo = Object.fromEntries(apuRows.map(r => [r.tipo, r]));
+    const checkedTipos = apuRows.map(r => r.tipo);
     const summaryTxt = checkedTipos.length
       ? `${checkedTipos.length} apuesta${checkedTipos.length > 1 ? 's' : ''} — ${checkedTipos.join(', ')}`
       : '<em>Sin apuestas</em>';
     const gruposHtml = APU_GRUPOS.map(g => {
       const rows = g.tipos.map(tipo => {
-        const checked = Object.prototype.hasOwnProperty.call(hab, tipo);
-        const precio  = checked ? (hab[tipo] ?? APU_PRECIO_DEFAULT[tipo]) : APU_PRECIO_DEFAULT[tipo];
-        const chkId   = `apu-${tipo}-${c.id}`;
+        const row       = apuByTipo[tipo];
+        const checked   = !!row;
+        const precio    = row?.precio ?? '';
+        const nombre    = (row?.nombre ?? '').replace(/"/g, '&quot;');
+        const aseg      = row?.asegurado ?? '';
+        const incr      = row?.incremento ?? '';
+        const hasExtra  = !!(row?.nombre || row?.asegurado != null || row?.incremento != null);
+        const chkId     = `apu-${tipo}-${c.id}`;
+        const detailsId = `details-${tipo}-${c.id}`;
         return `<div class="apu-row">
-          <input type="checkbox" id="${chkId}" data-tipo="${tipo}" data-cid="${c.id}"
-                 ${checked ? 'checked' : ''} onchange="onApuCheck(this)">
-          <label for="${chkId}">${tipo} — ${APU_NOMBRE[tipo]}</label>
-          <div class="apu-price-wrap" ${checked ? '' : 'hidden'}>
-            <input type="number" class="apu-price" id="price-${tipo}-${c.id}"
-                   value="${precio}" min="1" step="1" oninput="apuDirtyIds.add('${c.id}')">
+          <div class="apu-row-main">
+            <input type="checkbox" id="${chkId}" data-tipo="${tipo}" data-cid="${c.id}"
+                   ${checked ? 'checked' : ''} onchange="onApuCheck(this)">
+            <label for="${chkId}">${tipo} — ${APU_NOMBRE[tipo]}</label>
+            <div class="apu-price-wrap"${checked ? '' : ' hidden'}>
+              <input type="number" class="apu-price" id="price-${tipo}-${c.id}"
+                     value="${precio}" placeholder="$" min="1" step="1"
+                     oninput="apuDirtyIds.add('${c.id}')">
+              <button class="apu-details-btn${hasExtra ? ' open' : ''}" type="button"
+                      onclick="toggleApuDetails(this)"
+                      data-details="${detailsId}">${hasExtra ? '— detalles' : '+ detalles'}</button>
+            </div>
+          </div>
+          <div class="apu-details${hasExtra ? ' open' : ''}" id="${detailsId}">
+            <input type="text" class="apu-detail-nombre" id="nombre-${tipo}-${c.id}"
+                   value="${nombre}" placeholder="Nombre (opcional)"
+                   oninput="apuDirtyIds.add('${c.id}')">
+            <div class="apu-detail-money">
+              <span>Aseg.$</span>
+              <input type="number" class="apu-detail-num" id="asegurado-${tipo}-${c.id}"
+                     value="${aseg}" placeholder="0" min="0" step="1"
+                     oninput="apuDirtyIds.add('${c.id}')">
+            </div>
+            <div class="apu-detail-money">
+              <span>Incr.$</span>
+              <input type="number" class="apu-detail-num" id="incremento-${tipo}-${c.id}"
+                     value="${incr}" placeholder="0" min="0" step="1"
+                     oninput="apuDirtyIds.add('${c.id}')">
+            </div>
           </div>
         </div>`;
       }).join('');
@@ -513,10 +555,27 @@ function toggleAllApuCarreras() {
   btn.textContent = allOpen ? 'Expandir todas' : 'Colapsar todas';
 }
 
+function toggleApuDetails(btn) {
+  const block = document.getElementById(btn.dataset.details);
+  const open  = block.classList.toggle('open');
+  btn.textContent = open ? '— detalles' : '+ detalles';
+  btn.classList.toggle('open', open);
+}
+
 function onApuCheck(chk) {
-  const priceWrap = chk.closest('.apu-row').querySelector('.apu-price-wrap');
-  if (chk.checked) priceWrap.removeAttribute('hidden');
-  else             priceWrap.setAttribute('hidden', '');
+  const rowEl    = chk.closest('.apu-row');
+  const priceWrap = rowEl.querySelector('.apu-price-wrap');
+  if (chk.checked) {
+    priceWrap.removeAttribute('hidden');
+  } else {
+    priceWrap.setAttribute('hidden', '');
+    const tipo   = chk.dataset.tipo;
+    const cid    = chk.dataset.cid;
+    const block  = document.getElementById(`details-${tipo}-${cid}`);
+    const detBtn = priceWrap.querySelector('.apu-details-btn');
+    if (block)  { block.classList.remove('open'); }
+    if (detBtn) { detBtn.classList.remove('open'); detBtn.textContent = '+ detalles'; }
+  }
   apuDirtyIds.add(chk.dataset.cid);
   renderApuSummary(chk.dataset.cid);
 }
@@ -539,35 +598,69 @@ function closeApuestasModal() {
 
 async function saveApuestas() {
   if (!apuDirtyIds.size) { closeMini('modal-apuestas'); return; }
+  const missing = [];
+  for (const cid of apuDirtyIds) {
+    for (const chk of document.querySelectorAll(`input[type=checkbox][data-cid="${cid}"]:checked`)) {
+      const tipo   = chk.dataset.tipo;
+      const precio = parseFloat(document.getElementById(`price-${tipo}-${cid}`)?.value);
+      if (!precio || precio <= 0) {
+        const car = currentCarreras.find(c => c.id === cid);
+        const num = car?.numero_carrera_programa || car?.numero_turno || '?';
+        missing.push({ tipo, num });
+      }
+    }
+  }
+  if (missing.length) {
+    const ejemplos = missing.slice(0, 3).map(m => `${m.tipo} en Carrera ${m.num}`).join(', ');
+    const extra    = missing.length > 3 ? ` y ${missing.length - 3} más` : '';
+    toast(`Sin precio: ${ejemplos}${extra}. Cargá precio o destildá.`, 'error');
+    return;
+  }
   const btn = document.getElementById('btn-save-apuestas');
   btn.disabled = true; btn.textContent = 'Guardando…';
   const failed = [];
   for (const cid of apuDirtyIds) {
-    const checked = [...document.querySelectorAll(`input[type=checkbox][data-cid="${cid}"]:checked`)];
-    const hab = {};
-    checked.forEach(chk => {
-      const tipo = chk.dataset.tipo;
-      const priceEl = document.getElementById(`price-${tipo}-${cid}`);
-      hab[tipo] = priceEl ? (parseFloat(priceEl.value) || APU_PRECIO_DEFAULT[tipo]) : APU_PRECIO_DEFAULT[tipo];
-    });
-    const notas = document.getElementById(`apu-notas-${cid}`)?.value.trim() || null;
-    const { error } = await sb.from('carreras').update({ apuestas_habilitadas: hab, apuestas_notas: notas }).eq('id', cid);
-    if (error) {
-      failed.push(error);
-    } else {
-      const car = currentCarreras.find(c => c.id === cid);
-      if (car) { car.apuestas_habilitadas = hab; car.apuestas_notas = notas; }
-      apuDirtyIds.delete(cid);
+    const { error: delErr } = await sb.from('carrera_apuestas').delete().eq('carrera_id', cid);
+    if (delErr) { failed.push(delErr); continue; }
+    const rows = [];
+    let orden = 0;
+    for (const chk of document.querySelectorAll(`input[type=checkbox][data-cid="${cid}"]:checked`)) {
+      const tipo       = chk.dataset.tipo;
+      const precio     = parseFloat(document.getElementById(`price-${tipo}-${cid}`)?.value);
+      if (!precio || precio <= 0) continue;
+      const nombre     = document.getElementById(`nombre-${tipo}-${cid}`)?.value.trim() || null;
+      const asegurado  = parseFloat(document.getElementById(`asegurado-${tipo}-${cid}`)?.value) || null;
+      const incremento = parseFloat(document.getElementById(`incremento-${tipo}-${cid}`)?.value) || null;
+      rows.push({ carrera_id: cid, tipo, precio, nombre, asegurado, incremento, orden: orden++ });
     }
+    if (rows.length) {
+      const { error: insErr } = await sb.from('carrera_apuestas').insert(rows);
+      if (insErr) { failed.push(insErr); continue; }
+    }
+    const notas = document.getElementById(`apu-notas-${cid}`)?.value.trim() || null;
+    const { error: notErr } = await sb.from('carreras').update({ apuestas_notas: notas }).eq('id', cid);
+    if (notErr) { failed.push(notErr); continue; }
+    const car = currentCarreras.find(c => c.id === cid);
+    if (car) car.apuestas_notas = notas;
+    apuDirtyIds.delete(cid);
   }
   btn.disabled = false; btn.textContent = 'Guardar apuestas';
   if (failed.length) {
     toast(`Error en ${failed.length} carrera(s): ${failed[0].message}`, 'error');
     return;
   }
+  await loadCarreraApuestas(currentCarreras.map(c => c.id));
   toast('Apuestas guardadas');
   closeMini('modal-apuestas');
   renderPrograma(currentReunion, currentCarreras, currentInscripciones);
+}
+
+async function loadCarreraApuestas(carIds) {
+  currentApuestasMap = {};
+  if (!carIds?.length) return;
+  const { data } = await sb.from('carrera_apuestas')
+    .select('*').in('carrera_id', carIds).order('orden');
+  (data || []).forEach(row => { (currentApuestasMap[row.carrera_id] ??= []).push(row); });
 }
 
 function openPremiosModal() {

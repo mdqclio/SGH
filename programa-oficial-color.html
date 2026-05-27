@@ -300,12 +300,13 @@ async function load() {
   const profIds = [...new Set([...jockIds, ...entrIds])];
   const EMPTY   = ['00000000-0000-0000-0000-000000000000'];
 
-  const [{ data: spcs }, { data: profs }, { data: props }, { data: cabs }, { data: cats }] = await Promise.all([
+  const [{ data: spcs }, { data: profs }, { data: props }, { data: cabs }, { data: cats }, { data: apuRows }] = await Promise.all([
     sb.from('spcs').select('id,nombre,sexo,color,fecha_nacimiento,padrillo_nombre,madre_nombre,ult_performances').in('id', spcIds.length ? spcIds : EMPTY),
     sb.from('profesionales').select('id,nombre,apellido').in('id', profIds.length ? profIds : EMPTY),
     sb.from('propietarios').select('id,nombre').in('id', propIds.length ? propIds : EMPTY),
     sb.from('caballerizas').select('id,nombre').in('id', cabaIds.length ? cabaIds : EMPTY),
     sb.from('categorias_carrera').select('id,nombre,codigo').eq('club_id', clubId),
+    carIds.length ? sb.from('carrera_apuestas').select('*').in('carrera_id', carIds).order('orden') : Promise.resolve({ data: [] }),
   ]);
 
   const spcMap  = Object.fromEntries((spcs  || []).map(s => [s.id, s]));
@@ -313,6 +314,10 @@ async function load() {
   const propMap = Object.fromEntries((props || []).map(p => [p.id, p]));
   const cabMap  = Object.fromEntries((cabs  || []).map(c => [c.id, c]));
   const catMap  = Object.fromEntries((cats  || []).map(c => [c.id, c]));
+
+  const apuByCarrera = {};
+  (apuRows || []).forEach(row => { (apuByCarrera[row.carrera_id] ??= []).push(row); });
+  (carreras || []).forEach(c => { c._apuestas = apuByCarrera[c.id] || []; });
 
   const insByCarrera = {};
   (ins || []).forEach(i => { (insByCarrera[i.carrera_id] ??= []).push(i); });
@@ -494,30 +499,15 @@ function render(reunion, club, carreras, insByCarrera, maps, proximaReunion) {
   document.title = `Programa-Oficial-Color-Reunion-${reunion.numero || ''}-${reunion.fecha || ''}`;
 }
 
-const APU_NOMBRE_LARGO = {
-  GAN:'Ganador', SEG:'Segundo', TER:'Tercero',
-  EX:'Exacta', IM:'Imperfecta', TR:'Trifecta', TE:'Tómbola Exacta', CUAT:'Cuatrifecta',
-  X2:'Doble', X2P:'Doble a Place', X3:'Triplo', X4:'Cuaterna', X5:'Quíntuplo', CAD:'Cadena'
-};
-const APU_ORDEN = ['GAN','SEG','TER','EX','IM','TR','TE','CUAT','X2','X2P','X3','X4','X5','CAD'];
 function formatApuestasText(c) {
-  const hab = c.apuestas_habilitadas;
-  if (hab && typeof hab === 'object' && Object.keys(hab).length > 0) {
-    const tipos = APU_ORDEN.filter(t => t in hab);
-    if (!tipos.length) return '';
-    const grupos = [];
-    for (const t of tipos) {
-      const last = grupos[grupos.length - 1];
-      if (last && last.precio === hab[t]) last.tipos.push(t);
-      else grupos.push({ precio: hab[t], tipos: [t] });
-    }
-    const partes = grupos.map((g, gi) => {
-      const noms = g.tipos.map(t => APU_NOMBRE_LARGO[t] || t);
-      const lista = noms.length < 2 ? noms[0] : noms.slice(0,-1).join(', ') + ' y ' + noms[noms.length-1];
-      const pref = g.tipos[0] === 'GAN' ? 'A ' : '';
-      return (gi === 0 ? 'Apuestas: ' : '') + pref + lista + ' $' + g.precio + '.';
+  const apus = c._apuestas || [];
+  if (apus.length) {
+    const partes = apus.map(a => {
+      let txt = `${a.tipo} $${a.precio}`;
+      if (a.nombre) txt += ` ${a.nombre}`;
+      return txt;
     });
-    let txt = partes.join(' ');
+    let txt = 'Apuestas: ' + partes.join('. ') + '.';
     const notas = (c.apuestas_notas || '').trim();
     if (notas) txt += ' ' + notas;
     return txt;

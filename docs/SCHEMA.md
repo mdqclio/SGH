@@ -71,14 +71,21 @@ id UUID PK, reunion_id FK reuniones NOT NULL, carrera_id FK carreras nullable, s
 NOTA: incidentes y novedades durante la reunión (scratches tardíos, cambios de jockey, etc.); visibilidad 'interna' o 'publica'.
 
 ### carreras
-id UUID PK, reunion_id FK reuniones, numero_turno INTEGER, nombre, categoria_id FK categorias_carrera, tipo_pista ENUM(cesped/arena/tierra/sintetica), distancia_metros INTEGER, edad_minima_anos, edad_maxima_anos, condicion_sexo ENUM(ambos/machos/hembras/machos_castrados), condicion_handicap, condicion_adicional, bolsa_total DECIMAL, bolsa_bonos DECIMAL DEFAULT 0, distribucion_premios JSONB (incluye ganancia_minima), cupo_maximo, hora_estimada TIME, apertura_inscripcion, cierre_inscripcion, apertura_ratificacion, cierre_ratificacion, estado VARCHAR DEFAULT 'programada', numero_carrera_programa INTEGER, apuestas TEXT[] DEFAULT '{}', apuestas_habilitadas JSONB NOT NULL DEFAULT '{}', apuestas_notas TEXT NULL
+id UUID PK, reunion_id FK reuniones, numero_turno INTEGER, nombre, categoria_id FK categorias_carrera, tipo_pista ENUM(cesped/arena/tierra/sintetica), distancia_metros INTEGER, edad_minima_anos, edad_maxima_anos, condicion_sexo ENUM(ambos/machos/hembras/machos_castrados), condicion_handicap, condicion_adicional, bolsa_total DECIMAL, bolsa_bonos DECIMAL DEFAULT 0, distribucion_premios JSONB (incluye ganancia_minima), cupo_maximo, hora_estimada TIME, apertura_inscripcion, cierre_inscripcion, apertura_ratificacion, cierre_ratificacion, estado VARCHAR DEFAULT 'programada', numero_carrera_programa INTEGER, apuestas TEXT[] DEFAULT '{}', apuestas_notas TEXT NULL
 UNIQUE (reunion_id, numero_turno)
 NOTA condicion: condicion_handicap es la condición principal en texto libre. condicion_adicional es nota extra ("Peso x impresion" en casos especiales).
 NOTA estado: campo VARCHAR libre (sin ENUM). Valores especiales usados en UI: 'reabierta' (cupo no completado, se reabre), 'anulada' (cancelada). NULL = sin marca especial.
 NOTA apuestas (legacy): TEXT[] con texto libre del programa oficial ("Apuestas: A ganador, segundo…"). Sin uso funcional; queda intacta para referencia.
-NOTA apuestas_habilitadas: JSONB estructurado. Keys = códigos de apuesta habilitados en esa carrera; values = configuración de cada apuesta (base, pozo_asegurado, etc.). CHECK via fn apuestas_keys_validas() — keys válidas: GAN, SEG, TER, EX, IM, TR, X2, X2P, X3, X4, X5, CAD, TE.
-NOTA apuestas_notas: texto libre opcional para notas del programa (ej: "Triplo Inicial — Pozo asegurado $50.000").
-FUNCIÓN: apuestas_keys_validas(obj jsonb) RETURNS boolean IMMUTABLE — valida que todos los keys del JSONB pertenezcan al set de tipos válidos. Usada en CHECK constraint chk_carreras_apuestas_keys. Set actual: GAN, SEG, TER, EX, IM, TR, X2, X2P, X3, X4, X5, CAD, TE, CUAT.
+NOTA apuestas_notas: texto libre opcional para notas del programa (ej: "Triplo Inicial — Pozo asegurado $50.000"). Sigue como columna en carreras.
+COLUMNA ELIMINADA (may-2026): apuestas_habilitadas JSONB — reemplazada por tabla carrera_apuestas.
+FUNCIÓN ELIMINADA (may-2026): apuestas_keys_validas(jsonb) — ya no necesaria.
+
+### carrera_apuestas
+id UUID PK DEFAULT gen_random_uuid(), carrera_id UUID NOT NULL REFERENCES carreras(id) ON DELETE CASCADE, tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('GAN','SEG','TER','EX','IM','TR','CUAT','X2','X2P','X3','X4','X5','CAD')), precio NUMERIC NOT NULL CHECK (precio > 0), nombre TEXT NULL, asegurado NUMERIC NULL CHECK (asegurado >= 0), incremento NUMERIC NULL CHECK (incremento >= 0), orden SMALLINT NOT NULL DEFAULT 0, created_at TIMESTAMPTZ DEFAULT now()
+UNIQUE (carrera_id, tipo)
+INDEX idx_carrera_apuestas_carrera ON (carrera_id)
+RLS: policy allow_all
+NOTA: modelo relacional que reemplaza carreras.apuestas_habilitadas. Una fila por apuesta habilitada por carrera. nombre/asegurado/incremento son opcionales (detalles del programa).
 
 ### inscripciones
 id UUID PK, carrera_id FK carreras, spc_id FK spcs, propietario_id FK, entrenador_id FK, jockey_titular_id FK, jockey_suplente_id FK, caballeriza_id FK, peon VARCHAR, capataz VARCHAR, sereno VARCHAR, numero_partidor, peso_declarado, peso_final, estado ENUM(pre_inscripto/inscripto/confirmado/ratificado/forfait/no_presentado/mal_inscrito) DEFAULT 'inscripto', canal DEFAULT 'manual', motivo_estado VARCHAR, info_adicional, certificado_correr BOOLEAN, inscripto_por FK usuarios, ratificado_por FK usuarios
@@ -93,11 +100,12 @@ id UUID PK, carrera_id FK UNIQUE, estado ENUM(provisional/oficial/en_protesta), 
 id UUID PK DEFAULT gen_random_uuid(), resultado_id FK resultados ON DELETE CASCADE NOT NULL, tipo VARCHAR(10) NOT NULL, val_apu NUMERIC NOT NULL DEFAULT 100, composicion VARCHAR(60) NULL, pozo NUMERIC NULL, vales INTEGER NULL, div_orig NUMERIC NULL, div_inc NUMERIC NULL, vacante BOOLEAN NOT NULL DEFAULT false, orden SMALLINT NOT NULL DEFAULT 0, created_at TIMESTAMPTZ DEFAULT now()
 
 CONSTRAINTS:
-- CHECK chk_resultado_apuestas_tipo: tipo IN ('GAN','SEG','TER','EX','IM','TR','X2','X2P','X3','X4','X5','CAD','TE')
+- CHECK chk_resultado_apuestas_tipo: tipo IN ('GAN','SEG','TER','EX','IM','TR','CUAT','X2','X2P','X3','X4','X5','CAD')
 - UNIQUE INDEX idx_resultado_apuestas_resultado_tipo_orden ON (resultado_id, tipo, orden)
 - INDEX idx_resultado_apuestas_resultado_id ON (resultado_id)  ← no único, para lookup rápido
+NOTA: TE (Tómbola Exacta) eliminado del set válido en may-2026. La única fila existente fue eliminada en la migración.
 
-TIPOS DE APUESTA:
+TIPOS DE APUESTA (13 tipos válidos):
 | Código | Descripción          | Clasificación   |
 |--------|----------------------|-----------------|
 | GAN    | Ganador (1°)         | Per-carrera     |
@@ -106,7 +114,6 @@ TIPOS DE APUESTA:
 | EX     | Exacta               | Per-carrera     |
 | IM     | Imperfecta           | Per-carrera     |
 | TR     | Trifecta             | Per-carrera     |
-| TE     | Tómbola Exacta       | Per-carrera     |
 | CUAT   | Cuatrifecta          | Per-carrera     |
 | X2     | Doble                | Multi-carrera   |
 | X2P    | Doble a Place        | Multi-carrera   |
