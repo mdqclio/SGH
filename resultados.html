@@ -1036,7 +1036,7 @@ function renderTabla() {
     const comp = autoComp(a);
     return `<tr class="${sel}" onclick="selectRow(${pidx})">
       <td class="td-apu">${DIV_NOMBRE[a.tipo] || a.tipo || ''}</td>
-      <td class="td-r">${a.val_apu!=null ? fNum(a.val_apu) : ''}</td>
+      <td class="td-r">${a.val_apu!=null ? '$ '+fNum(a.val_apu) : ''}</td>
       <td class="td-comp">${comp}</td>
       <td class="td-r">${a.div_orig!=null ? '$ '+fNum(a.div_orig) : ''}</td>
       <td class="td-r">${a.div_inc!=null  ? '$ '+fNum(a.div_inc)  : ''}</td>
@@ -1566,7 +1566,7 @@ function renderOficial(carrera, res, pos, apus, insc) {
                   ${apus.length
                     ? apus.map(a=>`<tr>
                         <td class="td-apu">${DIV_NOMBRE[a.tipo]||a.tipo||''}</td>
-                        <td class="td-r">${a.val_apu!=null?fNum(a.val_apu):''}</td>
+                        <td class="td-r">${a.val_apu!=null?'$ '+fNum(a.val_apu):''}</td>
                         <td class="td-comp">${a.composicion||''}</td>
                         <td class="td-r">${a.div_orig!=null?'$ '+fNum(a.div_orig):''}</td>
                         <td class="td-r">${a.div_inc!=null?'$ '+fNum(a.div_inc):''}</td>
