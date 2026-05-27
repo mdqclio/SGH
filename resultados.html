@@ -190,39 +190,30 @@
     .tab.active { background: rgba(201,168,76,0.1); color: var(--accent); border-color: rgba(201,168,76,0.35); font-weight: 600; }
     .tab:hover:not(.active) { color: var(--text); }
 
-    /* ═══ TABLA DENSA DE DIVIDENDOS ═══ */
-    .divs-outer { margin: 0 22px; border: 1px solid var(--border); border-radius: 0 8px 8px 8px; overflow: hidden; }
-    .divs-scroll { max-height: 360px; overflow-y: auto; }
-    .divs-scroll::-webkit-scrollbar { width: 6px; }
-    .divs-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.15); }
-    .divs-scroll::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3); border-radius: 3px; }
-    table.divs { width: 100%; border-collapse: collapse; font-size: 12px; }
-    table.divs thead { position: sticky; top: 0; z-index: 1; }
-    table.divs thead th {
-      background: rgba(0,0,0,0.4); padding: 7px 8px; font-weight: 600;
-      color: var(--muted); font-size: 11px; text-transform: uppercase;
-      letter-spacing: 0.5px; border-bottom: 1px solid var(--border); white-space: nowrap;
-    }
-    table.divs thead th.th-l { text-align: left; padding-left: 12px; }
-    table.divs thead th.th-r { text-align: right; padding-right: 10px; }
-    table.divs tbody td {
-      padding: 3px 8px; border-bottom: 1px solid rgba(201,168,76,0.06);
-      height: 26px; white-space: nowrap; vertical-align: middle;
-    }
-    table.divs tbody td.td-apu  { text-align: left; padding-left: 12px; font-weight: 700; color: var(--accent); font-size: 12px; }
-    table.divs tbody td.td-r    { text-align: right; padding-right: 10px; font-variant-numeric: tabular-nums; color: var(--text); }
-    table.divs tbody td.td-comp { text-align: left; font-family: 'DM Sans', sans-serif; color: var(--text); }
-    table.divs tbody tr { cursor: pointer; transition: background 0.08s; }
-    table.divs tbody tr:hover:not(.sel-row) { background: rgba(201,168,76,0.05); }
-    table.divs tbody tr.sel-row { background: rgba(201,168,76,0.18); }
-    table.divs tbody tr.sel-row td { color: var(--text); }
-    .badge-vac { display: inline-block; background: rgba(224,82,82,0.15); color: #e09090; border: 1px solid rgba(224,82,82,0.25); border-radius: 5px; padding: 1px 7px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-
-    /* ── Navegador ── */
-    .nav-bar { display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.2); border-top: 1px solid var(--border); padding: 6px 12px; }
-    .nav-btn { width: 28px; height: 24px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: var(--accent); font-size: 15px; cursor: pointer; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; line-height: 1; }
-    .nav-btn:hover { background: rgba(201,168,76,0.15); border-color: rgba(201,168,76,0.5); }
-    .nav-info { font-size: 12px; color: var(--muted); min-width: 64px; text-align: center; font-variant-numeric: tabular-nums; }
+    /* ═══ VISTA DE DIVIDENDOS (PAPEL, READ-ONLY) ═══ */
+    #div-view-container { padding: 16px 22px 8px; }
+    .dv-empty-msg { color: var(--muted); font-size: 13px; padding: 24px 0; text-align: center; }
+    .dv-posicionales { display: flex; gap: 20px; flex-wrap: wrap; }
+    .dv-col { display: flex; flex-direction: column; }
+    .dv-col-hdr { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 8px; }
+    .dv-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+    .dv-pos-lbl { font-size: 11px; color: var(--muted); width: 18px; flex-shrink: 0; }
+    .dv-chip { width: 26px; height: 26px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+    .dv-chip-empty { width: 26px; height: 26px; border-radius: 4px; background: var(--border); flex-shrink: 0; }
+    .dv-amount { font-size: 13px; font-weight: 600; color: var(--text); background: rgba(0,0,0,0.3); border-radius: 5px; padding: 3px 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .dv-amount.dv-empty { color: var(--muted); background: transparent; font-weight: 400; }
+    .dv-vacante { display: inline-block; background: rgba(224,82,82,0.15); color: #e09090; border: 1px solid rgba(224,82,82,0.25); border-radius: 5px; padding: 1px 7px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+    .dv-sep { border-top: 1px solid var(--border); margin: 14px 0; }
+    .dv-section-hdr { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 10px; }
+    .dv-list { display: flex; flex-direction: column; }
+    .dv-list-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
+    .dv-list-nombre { font-size: 13px; font-weight: 600; color: var(--accent); min-width: 105px; flex-shrink: 0; }
+    .dv-list-comp { display: flex; align-items: center; gap: 4px; flex: 1; flex-wrap: wrap; }
+    .dv-comp-txt { font-size: 12px; color: var(--muted); }
+    .dv-sep-txt { font-size: 12px; color: var(--muted); }
+    .dv-list-monto-wrap { text-align: right; }
+    .dv-list-monto { font-size: 13px; font-weight: 600; color: var(--text); background: rgba(0,0,0,0.3); border-radius: 5px; padding: 3px 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .dv-inc { font-size: 11px; color: var(--muted); margin-top: 3px; }
 
     /* ── Barra de acciones ── */
     .actions-bar { padding: 12px 22px; border-top: 1px solid var(--border); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
@@ -249,13 +240,6 @@
     .btn-close { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; padding: 0 4px; }
     .modal-body { padding: 18px 22px; }
     .modal-footer { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
-    .mg { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
-    .mg label { font-size: 12px; font-weight: 500; color: var(--muted); }
-    .mg input, .mg select { padding: 8px 12px; font-size: 13px; border-radius: 8px; }
-    .mg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .chk-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-top: 4px; }
-    .chk-row input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--danger); }
-
     /* ── Pesos Balanza modal ── */
     .pb-th { text-align:left; padding:8px 14px; font-size:12px; color:var(--muted); font-weight:500; border-bottom:1px solid var(--border); }
     .pb-td { padding:8px 14px; font-size:13px; border-bottom:1px solid rgba(201,168,76,0.1); }
@@ -330,64 +314,6 @@
 </div>
 
 <!-- Modal: Agregar / Cambiar apuesta -->
-<div class="modal-overlay" id="modal-apuesta">
-  <div class="modal">
-    <div class="modal-header">
-      <h3 id="modal-title">Agregar apuesta</h3>
-      <button class="btn-close" onclick="closeModal()">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="mg-row">
-        <div class="mg">
-          <label>Tipo</label>
-          <!-- GAN/SEG/TER: máximo 1 por carrera. Para derivar qué caballo cobró cada uno,
-               JOIN resultado_posiciones WHERE posicion=1/2/3 → inscripcion → spc.
-               NO agregar spc_id a resultado_apuestas (normalización). -->
-          <select id="m-tipo">
-            <option value="GAN">GAN — Ganador (1°)</option>
-            <option value="SEG">SEG — Segundo (2°)</option>
-            <option value="TER">TER — Tercero (3°)</option>
-            <option value="EX">EX — Exacta</option>
-            <option value="IM">IM — Imperfecta</option>
-            <option value="TR">TR — Trifecta</option>
-            <option value="CUAT">CUAT — Cuatrifecta</option>
-            <option value="X2">X2 — Doble</option>
-            <option value="X2P">X2P — Doble a Place</option>
-            <option value="X3">X3 — Triplo</option>
-            <option value="X4">X4 — Cuaterna</option>
-            <option value="X5">X5 — Quíntuplo</option>
-            <option value="CAD">CAD — Cadena</option>
-          </select>
-        </div>
-        <div class="mg">
-          <label>Val. Apuesta ($)</label>
-          <input type="text" inputmode="decimal" id="m-val-apu" value="100,00">
-        </div>
-      </div>
-      <div class="mg">
-        <label>Composición (ej: 2/4/5)</label>
-        <input type="text" id="m-comp" placeholder="mandiles separados por /">
-      </div>
-      <div class="mg-row">
-        <div class="mg"><label>Pozo ($)</label><input type="text" inputmode="decimal" id="m-pozo"></div>
-        <div class="mg"><label>Vales</label><input type="number" id="m-vales" step="1" min="0"></div>
-      </div>
-      <div class="mg-row">
-        <div class="mg"><label>Div. Original ($)</label><input type="text" inputmode="decimal" id="m-dorig"></div>
-        <div class="mg"><label>Div. por Incidencia ($)</label><input type="text" inputmode="decimal" id="m-dinc"></div>
-      </div>
-      <div class="chk-row">
-        <input type="checkbox" id="m-vac">
-        <label for="m-vac" style="color:var(--danger)">VACANTE — sin boleto ganador</label>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-outline" onclick="closeModal()">Cancelar</button>
-      <button class="btn-primary" onclick="confirmApuesta()">Confirmar</button>
-    </div>
-  </div>
-</div>
-
 <div class="modal-overlay" id="modal-div">
   <div class="modal" style="max-width:480px;">
     <div class="modal-header">
@@ -423,9 +349,7 @@ function logout(){ sb.auth.signOut().then(()=>window.location.replace('login.htm
 let reuniones=[], carreras=[], inscripciones=[], resultados={}, posicionesMap={}, apuestasMap={}, carreraApuestasMap={};
 let spcsMap={}, profsMap={};
 let currentCarreraId = null;
-let pendingApuestas  = [];     // copia local de resultado_apuestas (la edición)
-let editIdx          = null;   // null=agregar, N=índice en pendingApuestas
-let selIdx           = -1;     // fila seleccionada en la tabla
+let pendingApuestas  = [];     // copia local de resultado_apuestas
 let loadedUpdatedAt  = null;   // updated_at del resultado al momento de cargarlo (optimistic lock)
 let isDirty          = false;  // hay cambios sin aplicar
 let chapaValues      = {};     // {posicion: {id, n}} — distancias entre puestos
@@ -600,8 +524,6 @@ function abrirResultado(carreraId) {
 function renderFormulario(carrera, res, pos, apus, insc) {
   isDirty          = false;
   pendingApuestas  = apus.map(a=>({...a}));
-  selIdx           = -1;
-  editIdx          = null;
   loadedUpdatedAt  = res?.updated_at || null;
 
   // Borrados
@@ -764,28 +686,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
             <div class="tab" id="tab-red" onclick="switchTab('red')">Vista Reducida</div>
             <div class="tab active" id="tab-det" onclick="switchTab('det')">Vista Detallada</div>
           </div>
-          <div class="divs-outer">
-            <div class="divs-scroll">
-              <table class="divs">
-                <thead><tr>
-                  <th class="th-l" style="width:120px">Apuesta</th>
-                  <th class="th-r" style="width:72px">Val.Apu</th>
-                  <th class="th-l" style="width:120px">Composición</th>
-                  <th class="th-r" style="width:104px">Div.Orig</th>
-                  <th class="th-r" style="width:104px">Div.Inc</th>
-                  <th style="width:88px"></th>
-                </tr></thead>
-                <tbody id="apu-tbody"></tbody>
-              </table>
-            </div>
-            <div class="nav-bar">
-              <button class="nav-btn" onclick="navFirst()" title="Primero">«</button>
-              <button class="nav-btn" onclick="navPrev()"  title="Anterior">‹</button>
-              <span class="nav-info" id="nav-info">0 / 0</span>
-              <button class="nav-btn" onclick="navNext()"  title="Siguiente">›</button>
-              <button class="nav-btn" onclick="navLast()"  title="Último">»</button>
-            </div>
-          </div>
+          <div id="div-view-container"></div>
 
           <!-- Acciones -->
           <div class="actions-bar no-print">
@@ -793,11 +694,6 @@ function renderFormulario(carrera, res, pos, apus, insc) {
               <button class="btn-outline" onclick="f8Dividendos()">Dividendos <kbd>F8</kbd></button>
               <button class="btn-outline" onclick="openDivModal()">Div. habilitadas</button>
               <button class="btn-outline" onclick="openPesoBalanza()">⚖️ Pesos balanza</button>
-            </div>
-            <div class="actions-grp">
-              <button class="btn-danger"  onclick="deleteApuesta()">Eliminar</button>
-              <button class="btn-outline" onclick="openModal(null)">Agregar</button>
-              <button class="btn-outline" onclick="openModal(selIdx)">Cambiar</button>
             </div>
             <div class="actions-grp">
               <button class="btn-primary" onclick="aplicar('${carrera.id}','provisional')">Aplicar <kbd>F10</kbd></button>
@@ -820,7 +716,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
       </div><!-- /det-cols -->
     </div><!-- /res-panel -->`;
 
-  setTimeout(() => renderTabla(), 0);
+  setTimeout(() => renderDivView(), 0);
 }
 
 /* ── Cambios en el marcador ── */
@@ -1002,161 +898,138 @@ function tipoPistaCollapse(carreraId, val) {
 function switchTab(tab) {
   document.getElementById('tab-red')?.classList.toggle('active', tab==='red');
   document.getElementById('tab-det')?.classList.toggle('active', tab==='det');
-  // Vista Reducida: ocultar filas VACANTE — TODO sesión 3
-  renderTabla();
+  renderDivView();
 }
 
 function isReducida() {
   return document.getElementById('tab-red')?.classList.contains('active');
 }
 
-/* ── Tabla de dividendos ── */
-function autoComp(a) {
-  if (a.composicion) return a.composicion;
-  const res = resultados[currentCarreraId];
-  if (!res) return '';
-  const posiciones = posicionesMap[res.id] || [];
-  if (!posiciones.length) return '';
-  const chapaForInsc = renumerarChapas(inscripciones.filter(i => i.carrera_id === currentCarreraId));
-  const chapaAt = pos => {
-    const p = posiciones.find(x => x.posicion === pos);
+/* ── Vista de dividendos (read-only, estilo papel) ── */
+function chapaChipMini(n) {
+  if (n == null) return `<div class="dv-chip-empty"></div>`;
+  const { bg, fg } = partidorColor(n);
+  const bdr = bg.toUpperCase() === '#FFFFFF' ? '1px solid #000' : '1px solid transparent';
+  return `<div class="dv-chip" style="background:${bg};color:${fg};border:${bdr};">${n}</div>`;
+}
+
+function renderCompChips(a, chapaAt) {
+  if (a.composicion) return `<span class="dv-comp-txt">${a.composicion}</span>`;
+  const sepMap = { EX:' – ', IM:' / ', TR:' – ', CUAT:' – ' };
+  const sep = (sepMap[a.tipo] || ' – ').trim();
+  const posMap = { EX:[1,2], IM:[1,2], TR:[1,2,3], CUAT:[1,2,3,4] };
+  const positions = posMap[a.tipo];
+  if (!positions) return '';
+  const chapas = positions.map(p => chapaAt(p));
+  if (chapas.some(c => c == null)) return '';
+  return chapas.map((c, i) =>
+    i < chapas.length - 1
+      ? `${chapaChipMini(c)}<span class="dv-sep-txt">${sep}</span>`
+      : chapaChipMini(c)
+  ).join('');
+}
+
+function buildChapaAt(resId, carreraId) {
+  const posiciones = posicionesMap[resId] || [];
+  const chapaForInsc = renumerarChapas(inscripciones.filter(i => i.carrera_id === carreraId));
+  return posIdx => {
+    const p = posiciones.find(x => x.posicion === posIdx);
     return p ? (chapaForInsc[p.inscripcion_id] ?? null) : null;
   };
-  const orden = a.orden || 1;
-  switch (a.tipo) {
-    case 'GAN': { const c=chapaAt(1);     return c!=null?String(c):''; }
-    case 'SEG': { const c=chapaAt(orden); return c!=null?String(c):''; }
-    case 'TER': { const c=chapaAt(orden); return c!=null?String(c):''; }
-    case 'EX':  { const [c1,c2]=[chapaAt(1),chapaAt(2)]; return c1!=null&&c2!=null?`${c1}-${c2}`:''; }
-    case 'IM':  { const [c1,c2]=[chapaAt(1),chapaAt(2)]; return c1!=null&&c2!=null?`${c1}/${c2}`:''; }
-    case 'TR':  { const [c1,c2,c3]=[chapaAt(1),chapaAt(2),chapaAt(3)]; return c1!=null&&c2!=null&&c3!=null?`${c1}-${c2}-${c3}`:''; }
-    case 'CUAT':{ const [c1,c2,c3,c4]=[chapaAt(1),chapaAt(2),chapaAt(3),chapaAt(4)]; return c1!=null&&c2!=null&&c3!=null&&c4!=null?`${c1}-${c2}-${c3}-${c4}`:''; }
-    default: return '—';
-  }
 }
 
-function renderTabla() {
-  const tbody = document.getElementById('apu-tbody');
-  if (!tbody) return;
+function renderDivHTML(apus, habMap, chapaAt, fullDetail) {
+  const POS_SLOTS = { GAN:1, SEG:2, TER:3 };
+  const byTipo = {};
+  apus.forEach(a => { (byTipo[a.tipo] ??= []).push(a); });
+  Object.values(byTipo).forEach(arr => arr.sort((a,b) => (a.orden||1)-(b.orden||1)));
 
-  const filas = isReducida()
-    ? pendingApuestas.filter(a => !a.vacante)
-    : pendingApuestas;
+  const SEP = `<div class="dv-sep"></div>`;
+  const parts = [];
 
-  if (!filas.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="padding:18px;text-align:center;color:var(--muted);">Sin apuestas cargadas. Usá Agregar.</td></tr>';
-    document.getElementById('nav-info').textContent = '0 / 0';
-    return;
+  // Posicionales: columnas GAN / SEG / TER (solo si habilitadas)
+  const posCols = ['GAN','SEG','TER'].filter(t => habMap[t]).map(tipo => {
+    const slots = POS_SLOTS[tipo];
+    const rows = Array.from({length: slots}, (_, i) => {
+      const slot = i + 1;
+      const a = (byTipo[tipo]||[]).find(x => (x.orden||1) === slot);
+      const chapa = chapaAt(slot);
+      const posLbl = tipo === 'GAN' ? '' : `<span class="dv-pos-lbl">${slot}°</span>`;
+      const monto = a?.div_orig != null ? `$ ${fNum(a.div_orig)}` : '—';
+      const amtCls = `dv-amount${a?.div_orig == null ? ' dv-empty' : ''}`;
+      const vac = a?.vacante ? `<span class="dv-vacante">VAC</span>` : '';
+      return `<div class="dv-row">${posLbl}${chapaChipMini(chapa)}<span class="${amtCls}">${monto}</span>${vac}</div>`;
+    }).join('');
+    return `<div class="dv-col"><div class="dv-col-hdr">${DIV_NOMBRE[tipo].toUpperCase()}</div>${rows}</div>`;
+  });
+  if (posCols.length) parts.push(`<div class="dv-posicionales">${posCols.join('')}</div>`);
+
+  if (fullDetail) {
+    // Apuestas directas (EX, IM, TR, CUAT) — solo las cargadas
+    const directas = ['EX','IM','TR','CUAT'].filter(t => byTipo[t]?.length);
+    if (directas.length) {
+      if (parts.length) parts.push(SEP);
+      parts.push(`<div class="dv-section-hdr">Apuestas directas</div>`);
+      const rows = directas.map(tipo => {
+        const a = byTipo[tipo][0];
+        const comp = renderCompChips(a, chapaAt);
+        const monto = a.vacante
+          ? `<span class="dv-vacante">VACANTE</span>`
+          : `<span class="dv-list-monto">$ ${fNum(a.div_orig)}</span>`;
+        const inc = (a.div_inc != null && a.div_inc > 0)
+          ? `<div class="dv-inc">Incremento: $ ${fNum(a.div_inc)}</div>` : '';
+        return `<div class="dv-list-row">
+          <span class="dv-list-nombre">${DIV_NOMBRE[tipo]}</span>
+          <span class="dv-list-comp">${comp}</span>
+          <div class="dv-list-monto-wrap">${monto}${inc}</div>
+        </div>`;
+      }).join('');
+      parts.push(`<div class="dv-list">${rows}</div>`);
+    }
+    // Apuestas combinadas (X2…CAD) — solo las cargadas
+    const combinadas = ['X2','X2P','X3','X4','X5','CAD'].filter(t => byTipo[t]?.length);
+    if (combinadas.length) {
+      if (parts.length) parts.push(SEP);
+      parts.push(`<div class="dv-section-hdr">Apuestas combinadas</div>`);
+      const rows = combinadas.map(tipo => {
+        const a = byTipo[tipo][0];
+        const monto = a.vacante
+          ? `<span class="dv-vacante">VACANTE</span>`
+          : `<span class="dv-list-monto">$ ${fNum(a.div_orig)}</span>`;
+        const inc = (a.div_inc != null && a.div_inc > 0)
+          ? `<div class="dv-inc">Incremento: $ ${fNum(a.div_inc)}</div>` : '';
+        return `<div class="dv-list-row">
+          <span class="dv-list-nombre">${DIV_NOMBRE[tipo]}</span>
+          <span class="dv-list-comp"></span>
+          <div class="dv-list-monto-wrap">${monto}${inc}</div>
+        </div>`;
+      }).join('');
+      parts.push(`<div class="dv-list">${rows}</div>`);
+    }
   }
 
-  const pendingIdxForFila = (filaIdx) => {
-    if (!isReducida()) return filaIdx;
-    const fila = filas[filaIdx];
-    return pendingApuestas.indexOf(fila);
-  };
-
-  tbody.innerHTML = filas.map((a, fi) => {
-    const pidx = pendingIdxForFila(fi);
-    const sel  = pidx === selIdx ? 'sel-row' : '';
-    const comp = autoComp(a);
-    return `<tr class="${sel}" onclick="selectRow(${pidx})">
-      <td class="td-apu">${DIV_NOMBRE[a.tipo] || a.tipo || ''}</td>
-      <td class="td-r">${a.val_apu!=null ? '$ '+fNum(a.val_apu) : ''}</td>
-      <td class="td-comp">${comp}</td>
-      <td class="td-r">${a.div_orig!=null ? '$ '+fNum(a.div_orig) : ''}</td>
-      <td class="td-r">${a.div_inc!=null  ? '$ '+fNum(a.div_inc)  : ''}</td>
-      <td style="text-align:left;padding-left:6px;">${a.vacante ? '<span class="badge-vac">VACANTE</span>' : ''}</td>
-    </tr>`;
-  }).join('');
-
-  document.getElementById('nav-info').textContent =
-    `${selIdx >= 0 ? selIdx+1 : '—'} / ${pendingApuestas.length}`;
-
-  if (selIdx >= 0 && selIdx < pendingApuestas.length) {
-    const pidx = pendingApuestas.indexOf(filas.find((_,fi)=>pendingIdxForFila(fi)===selIdx));
-    tbody.children[Math.max(0,pidx)]?.scrollIntoView({ block:'nearest' });
-  }
+  if (!parts.length) return '<div class="dv-empty-msg">Sin dividendos cargados. Usá "Div. habilitadas" para cargar.</div>';
+  return parts.join('');
 }
 
-function selectRow(pidx) { selIdx = pidx; renderTabla(); }
-
-// Navegador — opera sobre pendingApuestas (no sobre la vista filtrada)
-function navFirst() { if (pendingApuestas.length) selectRow(0); }
-function navLast()  { if (pendingApuestas.length) selectRow(pendingApuestas.length-1); }
-function navPrev()  { selectRow(Math.max(0, selIdx-1)); }
-function navNext()  { selectRow(Math.min(pendingApuestas.length-1, selIdx+1)); }
-
-/* ── Modal CRUD ── */
-function openModal(idx) {
-  editIdx = (typeof idx === 'number' && idx >= 0 && idx < pendingApuestas.length) ? idx : null;
-  const a = editIdx !== null ? pendingApuestas[editIdx] : null;
-  document.getElementById('modal-title').textContent = a ? 'Cambiar apuesta' : 'Agregar apuesta';
-  document.getElementById('m-tipo').value   = a?.tipo       || 'EX';
-  const arsEl = id => document.getElementById(id);
-  arsEl('m-val-apu').value = formatARS(a?.val_apu ?? 100);
-  arsEl('m-comp').value    = a?.composicion || '';
-  arsEl('m-pozo').value    = a?.pozo   != null ? formatARS(a.pozo)    : '';
-  arsEl('m-vales').value   = a?.vales  ?? '';
-  arsEl('m-dorig').value   = a?.div_orig != null ? formatARS(a.div_orig) : '';
-  arsEl('m-dinc').value    = a?.div_inc  != null ? formatARS(a.div_inc)  : '';
-  document.getElementById('m-vac').checked  = a?.vacante || false;
-  ['m-val-apu','m-pozo','m-dorig','m-dinc'].forEach(id => bindARSInput(arsEl(id)));
-  document.getElementById('modal-apuesta').classList.add('open');
-  document.getElementById('m-comp').focus();
-}
-function closeModal() { document.getElementById('modal-apuesta').classList.remove('open'); }
-
-function confirmApuesta() {
-  const tipo = document.getElementById('m-tipo').value.trim();
-  if (!tipo) { toast('Seleccioná un tipo', 'error'); return; }
-  // GAN/SEG/TER: solo 1 por carrera (el caballo se deriva por JOIN con resultado_posiciones)
-  if (['GAN','SEG','TER'].includes(tipo)) {
-    const dup = pendingApuestas.some((a, i) => a.tipo === tipo && i !== editIdx);
-    if (dup) { toast(`Ya existe un dividendo ${tipo} en esta carrera`, 'error'); return; }
-  }
-  const row = {
-    tipo,
-    val_apu:     parseARS(document.getElementById('m-val-apu').value) || 0,
-    composicion: document.getElementById('m-comp').value.trim() || null,
-    pozo:        parseARS(document.getElementById('m-pozo').value)  || null,
-    vales:       parseInt(document.getElementById('m-vales').value)   || null,
-    div_orig:    parseARS(document.getElementById('m-dorig').value) || null,
-    div_inc:     parseARS(document.getElementById('m-dinc').value)  || null,
-    vacante:     document.getElementById('m-vac').checked,
-  };
-  if (editIdx !== null) {
-    pendingApuestas[editIdx] = { ...pendingApuestas[editIdx], ...row };
-    selIdx = editIdx;
-  } else {
-    pendingApuestas.push(row);
-    selIdx = pendingApuestas.length - 1;
-  }
-  closeModal();
-  isDirty = true;
-  renderTabla();
-  setStatus(`${editIdx!==null?'Apuesta modificada':'Apuesta agregada'} — pendiente Aplicar`);
+function renderDivView() {
+  const container = document.getElementById('div-view-container');
+  if (!container) return;
+  const res = resultados[currentCarreraId];
+  const habilitadas = (carreraApuestasMap[currentCarreraId] || []).filter(a => a.precio > 0);
+  const habMap = Object.fromEntries(habilitadas.map(a => [a.tipo, a]));
+  const chapaAt = res ? buildChapaAt(res.id, currentCarreraId) : () => null;
+  container.innerHTML = renderDivHTML(pendingApuestas, habMap, chapaAt, !isReducida());
 }
 
-function deleteApuesta() {
-  if (selIdx < 0 || selIdx >= pendingApuestas.length) { toast('Seleccioná una fila primero','error'); return; }
-  const a = pendingApuestas[selIdx];
-  if (!confirm(`¿Eliminar fila "${a.tipo} ${a.composicion||''}"?`)) return;
-  pendingApuestas.splice(selIdx, 1);
-  selIdx = Math.min(selIdx, pendingApuestas.length - 1);
-  isDirty = true;
-  renderTabla();
-  setStatus('Apuesta eliminada — pendiente Aplicar');
-}
-
-/* F8: recarga desde DB */
+/* F8: recarga dividendos desde DB */
 async function f8Dividendos() {
   const res = resultados[currentCarreraId];
   if (!res) { toast('Guardá el resultado primero','error'); return; }
   const { data } = await sb.from('resultado_apuestas').select('*').eq('resultado_id', res.id).order('orden');
   apuestasMap[res.id] = data || [];
   pendingApuestas = (data||[]).map(a=>({...a}));
-  selIdx = -1;
-  renderTabla();
+  renderDivView();
   setStatus('Dividendos recargados desde la base de datos.');
 }
 
@@ -1336,7 +1209,7 @@ async function saveDivModal() {
 
   btn.disabled = false; btn.textContent = 'Guardar';
   divModalDirty = false;
-  renderTabla();
+  renderDivView();
   toast('Dividendos guardados');
   closeDivModal();
 }
@@ -1463,7 +1336,7 @@ async function aplicar(carreraId, estado) {
   const msg = estado==='provisional' ? 'Resultado provisional guardado' : 'Guardado';
   toast(msg);
   setStatus(`✓ ${msg} — ${new Date().toLocaleTimeString('es-AR')}`);
-  renderTabla();
+  renderDivView();
 }
 
 async function cancelar(carreraId) {
@@ -1539,6 +1412,17 @@ function renderOficial(carrera, res, pos, apus, insc) {
   const _isFirst = _cIdx <= 0;
   const _isLast  = _cIdx >= carreras.length - 1;
 
+  // Dividend view para oficial (siempre detalle completo)
+  const _habMap = Object.fromEntries(
+    (carreraApuestasMap[carrera.id] || []).filter(a => a.precio > 0).map(a => [a.tipo, a])
+  );
+  const _chapaForInsc = renumerarChapas(insc);
+  const _chapaAt = posIdx => {
+    const p = posOrdenadas.find(x => x.posicion === posIdx);
+    return p ? (_chapaForInsc[p.inscripcion_id] ?? null) : null;
+  };
+  const _divHtml = renderDivHTML(apus, _habMap, _chapaAt, true);
+
   document.getElementById('main-container').innerHTML = `
     <div class="res-panel">
       <div class="res-panel-header">
@@ -1592,36 +1476,10 @@ function renderOficial(carrera, res, pos, apus, insc) {
           </div>
         </div>
 
-        <!-- Tabla dividendos (read-only) -->
-        <div class="det-col-right" style="padding:14px 22px;">
-          <div class="res-section-title" style="margin-bottom:10px;">Dividendos</div>
-          <div class="divs-outer">
-            <div class="divs-scroll" style="max-height:480px;">
-              <table class="divs">
-                <thead><tr>
-                  <th class="th-l" style="width:120px">Apuesta</th>
-                  <th class="th-r" style="width:72px">Val.Apu</th>
-                  <th class="th-l" style="width:120px">Composición</th>
-                  <th class="th-r" style="width:104px">Div.Orig</th>
-                  <th class="th-r" style="width:104px">Div.Inc</th>
-                  <th style="width:88px"></th>
-                </tr></thead>
-                <tbody>
-                  ${apus.length
-                    ? apus.map(a=>`<tr>
-                        <td class="td-apu">${DIV_NOMBRE[a.tipo]||a.tipo||''}</td>
-                        <td class="td-r">${a.val_apu!=null?'$ '+fNum(a.val_apu):''}</td>
-                        <td class="td-comp">${a.composicion||''}</td>
-                        <td class="td-r">${a.div_orig!=null?'$ '+fNum(a.div_orig):''}</td>
-                        <td class="td-r">${a.div_inc!=null?'$ '+fNum(a.div_inc):''}</td>
-                        <td style="text-align:left;padding-left:6px;">${a.vacante?'<span class="badge-vac">VACANTE</span>':''}</td>
-                      </tr>`).join('')
-                    : '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--muted)">Sin dividendos cargados</td></tr>'
-                  }
-                </tbody>
-              </table>
-            </div>
-          </div>
+        <!-- Dividendos (read-only, estilo papel) -->
+        <div class="det-col-right">
+          <div class="res-section-title" style="margin:14px 22px 0;">Dividendos</div>
+          ${_divHtml}
         </div>
       </div>
     </div>`;
@@ -1644,9 +1502,9 @@ document.addEventListener('keydown', e => {
   if (e.key==='PageUp')   { e.preventDefault(); navCarrera(-1); }
 });
 
-document.addEventListener('input',  e => { if (!e.target.closest('#modal-apuesta') && !e.target.closest('#modal-div') && currentCarreraId) isDirty = true; });
+document.addEventListener('input',  e => { if (!e.target.closest('#modal-div') && currentCarreraId) isDirty = true; });
 // 'change' en text inputs dispara al perder foco (spurioso al navegar); solo capturar selects.
-document.addEventListener('change', e => { if (e.target.tagName === 'SELECT' && !e.target.closest('#modal-apuesta') && !e.target.closest('#modal-div') && e.target.id !== 'sel-reunion' && currentCarreraId) isDirty = true; });
+document.addEventListener('change', e => { if (e.target.tagName === 'SELECT' && !e.target.closest('#modal-div') && e.target.id !== 'sel-reunion' && currentCarreraId) isDirty = true; });
 // Cerrar chapa dropdown al hacer click fuera
 document.addEventListener('click', e => { if (!e.target.closest('.chapa-wrap') && !e.target.closest('.chapa-shared-dd')) closeChapaDropdown(); });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('input[type=number]')) e.target.blur(); }, true);
