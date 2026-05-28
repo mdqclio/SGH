@@ -741,7 +741,7 @@ function onMarcInput() {
     if (!found) continue;
     tempPos.push({ posicion: p, inscripcion_id: found.id });
   }
-  renderDivView(tempPos);
+  renderDivView(tempPos.length ? tempPos : undefined);
 }
 
 function updateMF() {
