@@ -226,6 +226,23 @@
     .dv-list-monto { font-size: 13px; font-weight: 600; color: var(--text); background: rgba(0,0,0,0.3); border-radius: 5px; padding: 3px 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .dv-inc { font-size: 11px; color: var(--muted); margin-top: 3px; }
 
+    /* ── Dividendos inline ── */
+    .dv-amount-inp-wrap { position: relative; display: inline-flex; }
+    .dv-amount-inp-wrap::before {
+      content: "$"; position: absolute; left: 6px; top: 50%; transform: translateY(-50%);
+      pointer-events: none; color: var(--muted); font-size: 11px;
+      font-family: 'DM Sans', sans-serif; font-weight: 600; z-index: 1;
+    }
+    .dv-amount-inp {
+      width: 108px; height: 28px;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(201,168,76,0.35);
+      color: var(--text); border-radius: 6px; padding: 0 6px 0 18px;
+      font-size: 13px; font-weight: 600; font-family: 'DM Sans', sans-serif;
+      font-variant-numeric: tabular-nums; text-align: right; outline: none;
+      transition: border-color 0.15s;
+    }
+    .dv-amount-inp:focus { border-color: var(--accent); }
+
     /* ── Barra de acciones ── */
     .actions-bar { padding: 12px 22px; border-top: 1px solid var(--border); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
     .actions-grp { display: flex; gap: 8px; align-items: center; }
@@ -255,11 +272,6 @@
     .pb-th { text-align:left; padding:8px 14px; font-size:12px; color:var(--muted); font-weight:500; border-bottom:1px solid var(--border); }
     .pb-td { padding:8px 14px; font-size:13px; border-bottom:1px solid rgba(201,168,76,0.1); }
     .pb-input { width:80px; padding:6px 8px; font-size:13px; border-radius:8px; background:var(--input-bg); border:1px solid var(--border); color:var(--text); text-align:right; font-family:'DM Sans',sans-serif; }
-
-    /* ── Div modal money input ── */
-    .div-money { display:flex;align-items:center;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;padding:0 6px;gap:3px; }
-    .div-money:focus-within { border-color:var(--accent); }
-    .div-money input[type=text] { border:none;background:transparent;outline:none;padding:5px 0;width:76px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px; }
 
     /* ── Auth overlay ── */
     #auth-overlay { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center; }
@@ -324,21 +336,6 @@
   </div>
 </div>
 
-<!-- Modal: Agregar / Cambiar apuesta -->
-<div class="modal-overlay" id="modal-div">
-  <div class="modal" style="max-width:480px;">
-    <div class="modal-header">
-      <h3 id="div-modal-title">Dividendos habilitados</h3>
-      <button class="btn-close" onclick="closeDivModal()">✕</button>
-    </div>
-    <div class="modal-body" id="div-modal-body" style="padding:8px 22px 4px;max-height:60vh;overflow-y:auto;"></div>
-    <div class="modal-footer">
-      <button class="btn-outline" onclick="closeDivModal()">Cancelar</button>
-      <button class="btn-primary" id="btn-save-div" onclick="saveDivModal()">Guardar</button>
-    </div>
-  </div>
-</div>
-
 <!-- Chapa dropdown compartido — posicionado via JS -->
 <div id="chapa-shared-dd" class="chapa-shared-dd"></div>
 
@@ -363,6 +360,7 @@ let currentCarreraId = null;
 let pendingApuestas  = [];     // copia local de resultado_apuestas
 let loadedUpdatedAt  = null;   // updated_at del resultado al momento de cargarlo (optimistic lock)
 let isDirty          = false;  // hay cambios sin aplicar
+let divViewEditable  = false;  // panel de dividendos en modo edición
 let chapaValues      = {};     // {posicion: {id, n}} — distancias entre puestos
 let chapaOpenPos     = null;   // posición cuyo dropdown está abierto
 
@@ -534,6 +532,7 @@ function abrirResultado(carreraId) {
 ═══════════════════════════════════════════════ */
 function renderFormulario(carrera, res, pos, apus, insc) {
   isDirty          = false;
+  divViewEditable  = true;
   pendingApuestas  = apus.map(a=>({...a}));
   loadedUpdatedAt  = res?.updated_at || null;
 
@@ -719,8 +718,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
           <!-- Acciones -->
           <div class="actions-bar no-print">
             <div class="actions-grp">
-              <button class="btn-outline" onclick="f8Dividendos()">Dividendos <kbd>F8</kbd></button>
-              <button class="btn-outline" onclick="openDivModal()">Div. habilitadas</button>
+              <button class="btn-outline" onclick="f8Dividendos()">Recargar dividendos <kbd>F8</kbd></button>
               <button class="btn-outline" onclick="openPesoBalanza()">⚖️ Pesos balanza</button>
             </div>
             <div class="actions-grp">
@@ -984,7 +982,7 @@ function buildChapaAt(resId, carreraId, overridePosiciones) {
   };
 }
 
-function renderDivHTML(apus, habMap, chapaAt, fullDetail) {
+function renderDivHTML(apus, habMap, chapaAt, fullDetail, editable = false) {
   const POS_SLOTS = { GAN:1, SEG:2, TER:3 };
   const byTipo = {};
   apus.forEach(a => { (byTipo[a.tipo] ??= []).push(a); });
@@ -1000,69 +998,143 @@ function renderDivHTML(apus, habMap, chapaAt, fullDetail) {
       const slot = i + 1;
       const a = (byTipo[tipo]||[]).find(x => (x.orden||1) === slot);
       const chapa = chapaAt(slot);
-      const posLbl = '';
-      const monto = a?.div_orig != null ? `$ ${fNum(a.div_orig)}` : '—';
-      const amtCls = `dv-amount${a?.div_orig == null ? ' dv-empty' : ''}`;
-      const vac = a?.vacante ? `<span class="dv-vacante">VAC</span>` : '';
-      return `<div class="dv-row">${posLbl}${chapaChipMini(chapa)}<span class="${amtCls}">${monto}</span>${vac}</div>`;
+      let amtCell;
+      if (editable) {
+        const raw = a?.div_orig != null ? formatARS(a.div_orig) : '';
+        amtCell = `<div class="dv-amount-inp-wrap"><input type="text" class="dv-amount-inp" id="div-inp-${tipo}-${slot}" value="${raw}" placeholder="0,00" data-ars="1" data-tipo="${tipo}" data-slot="${slot}"></div>`;
+      } else {
+        const monto = a?.div_orig != null ? `$ ${fNum(a.div_orig)}` : '—';
+        const amtCls = `dv-amount${a?.div_orig == null ? ' dv-empty' : ''}`;
+        const vac = a?.vacante ? `<span class="dv-vacante">VAC</span>` : '';
+        amtCell = `<span class="${amtCls}">${monto}</span>${vac}`;
+      }
+      return `<div class="dv-row">${chapaChipMini(chapa)}${amtCell}</div>`;
     }).join('');
     return `<div class="dv-col"><div class="dv-col-hdr">${DIV_NOMBRE[tipo].toUpperCase()}</div>${rows}</div>`;
   });
   if (posCols.length) parts.push(`<div class="dv-posicionales">${posCols.join('')}</div>`);
 
   if (fullDetail) {
-    // Apuestas directas y combinadas — un solo grid para que los montos alineen en la misma columna
-    const directas   = ['EX','IM','TR','CUAT'].filter(t => byTipo[t]?.length);
-    const combinadas = ['X2','X2P','X3','X4','X5','CAD'].filter(t => byTipo[t]?.length);
-    const directaRows = directas.map(tipo => {
-      const a = byTipo[tipo][0];
-      const comp = renderCompChips(a, chapaAt);
-      const monto = a.vacante
-        ? `<span class="dv-vacante">VACANTE</span>`
-        : `<span class="dv-list-monto">$ ${fNum(a.div_orig)}</span>`;
-      const inc = (a.div_inc != null && a.div_inc > 0)
-        ? `<div class="dv-inc">Incremento: $ ${fNum(a.div_inc)}</div>` : '';
-      return `<div class="dv-list-row">
-        <span class="dv-list-nombre">${DIV_NOMBRE[tipo]}</span>
-        <span class="dv-list-comp">${comp}</span>
-        <div class="dv-list-monto-wrap">${monto}${inc}</div>
-      </div>`;
-    });
-    const combinadaRows = combinadas.map(tipo => {
-      const a = byTipo[tipo][0];
-      const monto = a.vacante
-        ? `<span class="dv-vacante">VACANTE</span>`
-        : `<span class="dv-list-monto">$ ${fNum(a.div_orig)}</span>`;
-      const inc = (a.div_inc != null && a.div_inc > 0)
-        ? `<div class="dv-inc">Incremento: $ ${fNum(a.div_inc)}</div>` : '';
-      return `<div class="dv-list-row">
-        <span class="dv-list-nombre">${DIV_NOMBRE[tipo]}</span>
-        <span class="dv-list-comp"></span>
-        <div class="dv-list-monto-wrap">${monto}${inc}</div>
-      </div>`;
-    });
-    if (directaRows.length || combinadaRows.length) {
-      if (parts.length) parts.push(SEP);
-      let listContent = '';
-      if (directaRows.length)   listContent += `<div class="dv-list-section-hdr">Apuestas directas</div>${directaRows.join('')}`;
-      if (directaRows.length && combinadaRows.length) listContent += `<div class="dv-list-section-sep"></div>`;
-      if (combinadaRows.length) listContent += `<div class="dv-list-section-hdr">Apuestas combinadas</div>${combinadaRows.join('')}`;
-      parts.push(`<div class="dv-list">${listContent}</div>`);
+    const DIRECTAS   = ['EX','IM','TR','CUAT'];
+    const COMBINADAS = ['X2','X2P','X3','X4','X5','CAD'];
+
+    if (editable) {
+      // Modo edición: mostrar inputs para TODOS los tipos habilitados, con o sin valor guardado
+      const habDirectas   = DIRECTAS.filter(t => habMap[t]);
+      const habCombinadas = COMBINADAS.filter(t => habMap[t]);
+      const makeEditRow = (tipo) => {
+        const a = (byTipo[tipo] || [])[0];
+        const comp = a ? renderCompChips(a, chapaAt) : '';
+        const raw  = a?.div_orig != null ? formatARS(a.div_orig) : '';
+        const inp  = `<div class="dv-amount-inp-wrap"><input type="text" class="dv-amount-inp" id="div-inp-${tipo}-1" value="${raw}" placeholder="0,00" data-ars="1" data-tipo="${tipo}" data-slot="1"></div>`;
+        return `<div class="dv-list-row">
+          <span class="dv-list-nombre">${DIV_NOMBRE[tipo]}</span>
+          <span class="dv-list-comp">${comp}</span>
+          <div class="dv-list-monto-wrap">${inp}</div>
+        </div>`;
+      };
+      if (habDirectas.length || habCombinadas.length) {
+        if (parts.length) parts.push(SEP);
+        let listContent = '';
+        if (habDirectas.length)   listContent += `<div class="dv-list-section-hdr">Apuestas directas</div>${habDirectas.map(makeEditRow).join('')}`;
+        if (habDirectas.length && habCombinadas.length) listContent += `<div class="dv-list-section-sep"></div>`;
+        if (habCombinadas.length) listContent += `<div class="dv-list-section-hdr">Apuestas combinadas</div>${habCombinadas.map(makeEditRow).join('')}`;
+        parts.push(`<div class="dv-list">${listContent}</div>`);
+      }
+    } else {
+      // Modo lectura: solo mostrar tipos con datos guardados
+      const directas   = DIRECTAS.filter(t => byTipo[t]?.length);
+      const combinadas = COMBINADAS.filter(t => byTipo[t]?.length);
+      const directaRows = directas.map(tipo => {
+        const a = byTipo[tipo][0];
+        const comp = renderCompChips(a, chapaAt);
+        const monto = a.vacante
+          ? `<span class="dv-vacante">VACANTE</span>`
+          : `<span class="dv-list-monto">$ ${fNum(a.div_orig)}</span>`;
+        const inc = (a.div_inc != null && a.div_inc > 0)
+          ? `<div class="dv-inc">Incremento: $ ${fNum(a.div_inc)}</div>` : '';
+        return `<div class="dv-list-row">
+          <span class="dv-list-nombre">${DIV_NOMBRE[tipo]}</span>
+          <span class="dv-list-comp">${comp}</span>
+          <div class="dv-list-monto-wrap">${monto}${inc}</div>
+        </div>`;
+      });
+      const combinadaRows = combinadas.map(tipo => {
+        const a = byTipo[tipo][0];
+        const monto = a.vacante
+          ? `<span class="dv-vacante">VACANTE</span>`
+          : `<span class="dv-list-monto">$ ${fNum(a.div_orig)}</span>`;
+        const inc = (a.div_inc != null && a.div_inc > 0)
+          ? `<div class="dv-inc">Incremento: $ ${fNum(a.div_inc)}</div>` : '';
+        return `<div class="dv-list-row">
+          <span class="dv-list-nombre">${DIV_NOMBRE[tipo]}</span>
+          <span class="dv-list-comp"></span>
+          <div class="dv-list-monto-wrap">${monto}${inc}</div>
+        </div>`;
+      });
+      if (directaRows.length || combinadaRows.length) {
+        if (parts.length) parts.push(SEP);
+        let listContent = '';
+        if (directaRows.length)   listContent += `<div class="dv-list-section-hdr">Apuestas directas</div>${directaRows.join('')}`;
+        if (directaRows.length && combinadaRows.length) listContent += `<div class="dv-list-section-sep"></div>`;
+        if (combinadaRows.length) listContent += `<div class="dv-list-section-hdr">Apuestas combinadas</div>${combinadaRows.join('')}`;
+        parts.push(`<div class="dv-list">${listContent}</div>`);
+      }
     }
   }
 
-  if (!parts.length) return '<div class="dv-empty-msg">Sin dividendos cargados. Usá "Div. habilitadas" para cargar.</div>';
+  if (!parts.length) {
+    return editable
+      ? '<div class="dv-empty-msg">Sin apuestas habilitadas para esta carrera. Configuralas en el módulo Programa.</div>'
+      : '<div class="dv-empty-msg">Sin dividendos cargados.</div>';
+  }
   return parts.join('');
 }
 
-function renderDivView(overridePosiciones) {
+/* Captura valores actuales de los inputs inline y los persiste en pendingApuestas
+   antes de cualquier re-render, para que el usuario no pierda lo que está tipeando. */
+function syncDivInputsToPending() {
+  if (!currentCarreraId) return;
+  const container = document.getElementById('div-view-container');
+  if (!container) return;
+
+  // val_apu: mismo origen que carreraApuestasMap[carrera].precio (fallback 100)
+  const habPrecio = {};
+  (carreraApuestasMap[currentCarreraId] || []).forEach(a => { habPrecio[a.tipo] = a.precio; });
+
+  // Índice pendingApuestas por tipo → array ordenado por orden (slot 0-based = orden-1)
+  const byTipo = {};
+  pendingApuestas.forEach(a => { (byTipo[a.tipo] ??= []).push(a); });
+  Object.values(byTipo).forEach(arr => arr.sort((a,b) => (a.orden||1)-(b.orden||1)));
+
+  container.querySelectorAll('input[data-tipo][data-slot]').forEach(el => {
+    const tipo = el.dataset.tipo;
+    const slot = parseInt(el.dataset.slot, 10);
+    const val  = parseARS(el.value);
+    const list = byTipo[tipo] ??= [];
+    const existing = list[slot - 1];
+    if (existing) {
+      existing.div_orig = isNaN(val) ? null : val;
+    } else if (!isNaN(val) && val > 0) {
+      const newRow = { tipo, div_orig: val, orden: slot, val_apu: habPrecio[tipo] || 100, vacante: false };
+      pendingApuestas.push(newRow);
+      list[slot - 1] = newRow;
+    }
+  });
+}
+
+function renderDivView(overridePosiciones, skipSync = false) {
+  if (!skipSync) syncDivInputsToPending();
   const container = document.getElementById('div-view-container');
   if (!container) return;
   const res = resultados[currentCarreraId];
   const habilitadas = (carreraApuestasMap[currentCarreraId] || []).filter(a => a.precio > 0);
   const habMap = Object.fromEntries(habilitadas.map(a => [a.tipo, a]));
   const chapaAt = res ? buildChapaAt(res.id, currentCarreraId, overridePosiciones) : () => null;
-  container.innerHTML = renderDivHTML(pendingApuestas, habMap, chapaAt, !isReducida());
+  container.innerHTML = renderDivHTML(pendingApuestas, habMap, chapaAt, !isReducida(), divViewEditable);
+  if (divViewEditable) {
+    container.querySelectorAll('input[data-ars]').forEach(bindARSInput);
+  }
 }
 
 /* F8: recarga dividendos desde DB */
@@ -1072,190 +1144,16 @@ async function f8Dividendos() {
   const { data } = await sb.from('resultado_apuestas').select('*').eq('resultado_id', res.id).order('orden');
   apuestasMap[res.id] = data || [];
   pendingApuestas = (data||[]).map(a=>({...a}));
-  renderDivView();
+  renderDivView(undefined, true);  // skipSync: la recarga desde DB reemplaza los inputs
   setStatus('Dividendos recargados desde la base de datos.');
 }
-
-/* ═══════════════════════════════════════════════
-   MODAL DIVIDENDOS HABILITADOS
-═══════════════════════════════════════════════ */
-let divModalDirty = false;
 
 const DIV_NOMBRE = {
   GAN:'Ganador', SEG:'Segundo', TER:'Tercero',
   EX:'Exacta', IM:'Imperfecta', TR:'Trifecta', CUAT:'Cuatrifecta',
   X2:'Doble', X2P:'Doble a Place', X3:'Triplo', X4:'Cuaterna', X5:'Quíntuplo', CAD:'Cadena',
 };
-const DIV_ORDER = ['GAN','SEG','TER','EX','IM','TR','CUAT','X2','X2P','X3','X4','X5','CAD'];
-const DIV_SLOTS = { SEG:2, TER:3 }; // resto: 1
 
-function openDivModal() {
-  const res = resultados[currentCarreraId];
-  if (!res) { toast('Guardá el resultado primero', 'error'); return; }
-
-  const carrera = carreras.find(c => c.id === currentCarreraId);
-  const num = carrera?.numero_carrera_programa || carrera?.numero_turno || '?';
-  document.getElementById('div-modal-title').textContent = `Dividendos — C° N° ${num}`;
-
-  const habilitadas = (carreraApuestasMap[currentCarreraId] || [])
-    .filter(a => a.precio > 0)
-    .sort((a, b) => DIV_ORDER.indexOf(a.tipo) - DIV_ORDER.indexOf(b.tipo));
-
-  const body = document.getElementById('div-modal-body');
-  if (!habilitadas.length) {
-    body.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:8px 0;">No hay apuestas habilitadas para esta carrera. Cargalas primero en programa.</p>';
-  } else {
-    const byTipo = {};
-    for (const a of pendingApuestas) (byTipo[a.tipo] ??= []).push(a);
-
-    const POS   = ['GAN','SEG','TER'];
-    const COMBI = ['EX','IM','TR','CUAT'];
-    const MULTI = ['X2','X2P','X3','X4','X5','CAD'];
-    const habPOS   = habilitadas.filter(a => POS.includes(a.tipo));
-    const habCOMBI = habilitadas.filter(a => COMBI.includes(a.tipo));
-    const habMULTI = habilitadas.filter(a => MULTI.includes(a.tipo));
-
-    const SEP = '<div style="border-top:1px solid var(--border);margin:16px 0 12px;"></div>';
-    const secTitle = t => `<div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:8px;">${t}</div>`;
-
-    const parts = [];
-
-    // Chapa lookup para posicionales
-    const posiciones = posicionesMap[res.id] || [];
-    const chapaForInscDiv = renumerarChapas(inscripciones.filter(i => i.carrera_id === currentCarreraId));
-    const chapaForPos = pos => {
-      const p = posiciones.find(x => x.posicion === pos);
-      return p ? (chapaForInscDiv[p.inscripcion_id] ?? null) : null;
-    };
-    const chapaChip = chapa => {
-      if (chapa == null) return `<div style="width:28px;height:28px;border-radius:4px;background:var(--border);flex-shrink:0;"></div>`;
-      const { bg, fg } = partidorColor(chapa);
-      const bdr = bg.toUpperCase() === '#FFFFFF' ? '1px solid #000' : '1px solid transparent';
-      return `<div style="width:28px;height:28px;border-radius:4px;background:${bg};color:${fg};border:${bdr};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">${chapa}</div>`;
-    };
-    const moneyInput = (id, val) => {
-      const display = (val !== '' && val != null && !isNaN(parseFloat(val))) ? formatARS(parseFloat(val)) : '';
-      return `<div class="div-money"><span style="font-size:11px;color:var(--muted);">$</span><input type="text" inputmode="decimal" id="${id}" value="${display}" placeholder="0,00" data-ars="1"></div>`;
-    };
-
-    if (habPOS.length) {
-      const cols = habPOS.map(a => {
-        const slots = DIV_SLOTS[a.tipo] || 1;
-        const existing = byTipo[a.tipo] || [];
-        const inputs = Array.from({ length: slots }, (_, i) => {
-          const val = existing[i]?.div_orig ?? '';
-          const chip = chapaChip(chapaForPos(i + 1));
-          return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:${i < slots-1 ? '8px' : '0'};">
-            ${chip}${moneyInput(`div-${a.tipo}-${i+1}`, val)}
-          </div>`;
-        }).join('');
-        return `<div style="display:flex;flex-direction:column;gap:2px;">
-          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">${DIV_NOMBRE[a.tipo]}</div>
-          ${inputs}
-        </div>`;
-      }).join('');
-      parts.push(`<div style="display:flex;gap:20px;">${cols}</div>`);
-    }
-
-    const rowSection = (list) => list.map(a => {
-      const val = (byTipo[a.tipo] || [])[0]?.div_orig ?? '';
-      return `<div style="display:flex;align-items:center;gap:12px;padding:5px 0;">
-        <div style="width:130px;font-size:13px;color:var(--text);">${DIV_NOMBRE[a.tipo]}</div>
-        ${moneyInput(`div-${a.tipo}-1`, val)}
-      </div>`;
-    }).join('');
-
-    if (habCOMBI.length) parts.push(secTitle('Apuestas directas')   + rowSection(habCOMBI));
-    if (habMULTI.length) parts.push(secTitle('Apuestas combinadas') + rowSection(habMULTI));
-
-    body.innerHTML = parts.join(SEP);
-  }
-
-  divModalDirty = false;
-  const divBody = document.getElementById('div-modal-body');
-  divBody.querySelectorAll('input[data-ars]').forEach(bindARSInput);
-  divBody.addEventListener('input', () => { divModalDirty = true; }, { once: false, capture: false });
-  document.getElementById('modal-div').classList.add('open');
-}
-
-function closeDivModal() {
-  if (divModalDirty && !confirm('Hay dividendos sin guardar. ¿Cerrar de todas formas?')) return;
-  divModalDirty = false;
-  document.getElementById('modal-div').classList.remove('open');
-}
-
-async function saveDivModal() {
-  const res = resultados[currentCarreraId];
-  if (!res) return;
-
-  const habilitadas = (carreraApuestasMap[currentCarreraId] || [])
-    .filter(a => a.precio > 0)
-    .sort((a, b) => DIV_ORDER.indexOf(a.tipo) - DIV_ORDER.indexOf(b.tipo));
-  if (!habilitadas.length) { closeDivModal(); return; }
-
-  const newRows = [];
-  for (const a of habilitadas) {
-    const slots = DIV_SLOTS[a.tipo] || 1;
-    for (let i = 0; i < slots; i++) {
-      const raw = document.getElementById(`div-${a.tipo}-${i+1}`)?.value?.trim();
-      if (!raw) continue;
-      const val = parseARS(raw);
-      if (val <= 0) { toast('El dividendo debe ser mayor a $0', 'error'); return; }
-      newRows.push({ resultado_id: res.id, tipo: a.tipo, div_orig: val, orden: i + 1,
-                     val_apu: a.precio || 100, vacante: false });
-    }
-  }
-  if (!newRows.length) { toast('Cargá al menos un dividendo', 'error'); return; }
-
-  const btn = document.getElementById('btn-save-div');
-  btn.disabled = true; btn.textContent = 'Guardando…';
-
-  const tipos = [...new Set(newRows.map(r => r.tipo))];
-  const { error: delErr } = await sb.from('resultado_apuestas')
-    .delete().eq('resultado_id', res.id).in('tipo', tipos);
-  if (delErr) {
-    toast('Error al borrar: ' + delErr.message, 'error');
-    btn.disabled = false; btn.textContent = 'Guardar'; return;
-  }
-
-  const { error: insErr } = await sb.from('resultado_apuestas')
-    .insert(newRows.map(({ resultado_id, tipo, div_orig, orden, val_apu, vacante }) =>
-      ({ resultado_id, tipo, div_orig, orden, val_apu, vacante })));
-  if (insErr) {
-    toast('Error al guardar: ' + insErr.message, 'error');
-    btn.disabled = false; btn.textContent = 'Guardar'; return;
-  }
-
-  // Merge quirúrgico en pendingApuestas: actualiza div_orig por tipo/slot,
-  // preserva composicion/pozo/vales/etc. de filas existentes
-  const byTipo = {};
-  for (const a of pendingApuestas) (byTipo[a.tipo] ??= []).push(a);
-  for (const row of newRows) {
-    const existingList = byTipo[row.tipo] || [];
-    const existing = existingList[row.orden - 1];
-    if (existing) {
-      existing.div_orig = row.div_orig;
-      existing.orden = row.orden;
-    } else {
-      pendingApuestas.push({ ...row });
-      (byTipo[row.tipo] ??= []).push(row);
-    }
-  }
-
-  // Sincronizar apuestasMap
-  if (!apuestasMap[res.id]) apuestasMap[res.id] = [];
-  for (const row of newRows) {
-    const idx = apuestasMap[res.id].findIndex(a => a.tipo === row.tipo && a.orden === row.orden);
-    if (idx >= 0) apuestasMap[res.id][idx].div_orig = row.div_orig;
-    else apuestasMap[res.id].push({ ...row });
-  }
-
-  btn.disabled = false; btn.textContent = 'Guardar';
-  divModalDirty = false;
-  renderDivView();
-  toast('Dividendos guardados');
-  closeDivModal();
-}
 
 /* ═══════════════════════════════════════════════
    GUARDAR (F10-Aplicar)
@@ -1301,6 +1199,7 @@ function getTiempoGanador() {
 }
 
 async function aplicar(carreraId, estado) {
+  syncDivInputsToPending();  // capturar los inputs inline antes de construir apuestasArr
   const estadoPista = document.getElementById('estado-pista')?.value || null;
   const tiempoGan   = getTiempoGanador();
   if (tiempoGan === false) {
@@ -1382,7 +1281,7 @@ async function aplicar(carreraId, estado) {
   const msg = estado==='provisional' ? 'Resultado provisional guardado' : 'Guardado';
   toast(msg);
   setStatus(`✓ ${msg} — ${new Date().toLocaleTimeString('es-AR')}`);
-  renderDivView();
+  renderDivView(undefined, true);  // pendingApuestas ya está actualizado desde RPC
 }
 
 async function cancelar(carreraId) {
@@ -1435,6 +1334,7 @@ async function modificarOficial(resId, carreraId) {
 ═══════════════════════════════════════════════ */
 function renderOficial(carrera, res, pos, apus, insc) {
   isDirty = false;
+  divViewEditable = false;
   const posOrdenadas = [...pos].sort((a,b)=>(a.posicion||99)-(b.posicion||99));
   const borradas = insc.filter(i=>['forfait','mal_inscrito'].includes(i.estado))
                        .sort((a,b)=>(a.numero_partidor||999)-(b.numero_partidor||999));
@@ -1468,7 +1368,7 @@ function renderOficial(carrera, res, pos, apus, insc) {
     const p = posOrdenadas.find(x => x.posicion === posIdx);
     return p ? (_chapaForInsc[p.inscripcion_id] ?? null) : null;
   };
-  const _divHtml = renderDivHTML(apus, _habMap, _chapaAt, true);
+  const _divHtml = renderDivHTML(apus, _habMap, _chapaAt, true, false);
 
   document.getElementById('main-container').innerHTML = `
     <div class="res-panel">
@@ -1549,9 +1449,9 @@ document.addEventListener('keydown', e => {
   if (e.key==='PageUp')   { e.preventDefault(); navCarrera(-1); }
 });
 
-document.addEventListener('input',  e => { if (!e.target.closest('#modal-div') && currentCarreraId) isDirty = true; });
+document.addEventListener('input',  e => { if (currentCarreraId) isDirty = true; });
 // 'change' en text inputs dispara al perder foco (spurioso al navegar); solo capturar selects.
-document.addEventListener('change', e => { if (e.target.tagName === 'SELECT' && !e.target.closest('#modal-div') && e.target.id !== 'sel-reunion' && currentCarreraId) isDirty = true; });
+document.addEventListener('change', e => { if (e.target.tagName === 'SELECT' && e.target.id !== 'sel-reunion' && currentCarreraId) isDirty = true; });
 // Cerrar chapa dropdown al hacer click fuera
 document.addEventListener('click', e => { if (!e.target.closest('.chapa-wrap') && !e.target.closest('.chapa-shared-dd')) closeChapaDropdown(); });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('input[type=number]')) e.target.blur(); }, true);
