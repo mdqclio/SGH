@@ -21,26 +21,14 @@ const SS_DIR = '/workspaces/SGH/docs/smoke_screenshots';
 mkdirSync(SS_DIR, { recursive: true });
 
 const ORIGINAL_APUESTAS = [
-  { tipo:'TE',  val_apu:1,   composicion:'5',     pozo:3833.33,  vales:5500, div_orig:1.80,   div_inc:1.80,   vacante:false, orden:1  },
-  { tipo:'EX',  val_apu:100, composicion:'2/4',   pozo:80208,    vales:55,   div_orig:1458.30, div_inc:1458.30,vacante:false, orden:2  },
-  { tipo:'IM',  val_apu:100, composicion:'2/4',   pozo:33696,    vales:18,   div_orig:1872,    div_inc:1872,   vacante:false, orden:3  },
-  { tipo:'TR',  val_apu:100, composicion:'2/4/5', pozo:105408,   vales:11,   div_orig:9582.60, div_inc:9582.60,vacante:false, orden:4  },
-  { tipo:'X2',  val_apu:100, composicion:'4/1',   pozo:23760,    vales:null, div_orig:660,     div_inc:660,    vacante:true,  orden:5  },
-  { tipo:'X2',  val_apu:100, composicion:'4/2',   pozo:23760,    vales:null, div_orig:660,     div_inc:660,    vacante:true,  orden:6  },
-  { tipo:'X2',  val_apu:100, composicion:'4/3',   pozo:23760,    vales:null, div_orig:660,     div_inc:660,    vacante:true,  orden:7  },
-  { tipo:'X2',  val_apu:100, composicion:'4/6',   pozo:23760,    vales:null, div_orig:660,     div_inc:660,    vacante:true,  orden:8  },
-  { tipo:'X2',  val_apu:100, composicion:'5/1',   pozo:23760,    vales:null, div_orig:660,     div_inc:660,    vacante:true,  orden:9  },
-  { tipo:'X2',  val_apu:100, composicion:'5/2',   pozo:23760,    vales:36,   div_orig:660,     div_inc:660,    vacante:false, orden:10 },
-  { tipo:'X2',  val_apu:100, composicion:'5/3',   pozo:23760,    vales:null, div_orig:660,     div_inc:660,    vacante:true,  orden:11 },
-  { tipo:'X2',  val_apu:100, composicion:'5/6',   pozo:23760,    vales:null, div_orig:660,     div_inc:660,    vacante:true,  orden:12 },
-  { tipo:'X3',  val_apu:100, composicion:'8/4/1', pozo:38880,    vales:null, div_orig:5554.30, div_inc:5554.30,vacante:true,  orden:13 },
-  { tipo:'X3',  val_apu:100, composicion:'8/4/2', pozo:38880,    vales:null, div_orig:5554.30, div_inc:5554.30,vacante:true,  orden:14 },
-  { tipo:'X3',  val_apu:100, composicion:'8/4/3', pozo:38880,    vales:null, div_orig:5554.30, div_inc:5554.30,vacante:true,  orden:15 },
-  { tipo:'X3',  val_apu:100, composicion:'8/4/6', pozo:38880,    vales:null, div_orig:5554.30, div_inc:5554.30,vacante:true,  orden:16 },
-  { tipo:'X3',  val_apu:100, composicion:'8/5/1', pozo:38880,    vales:null, div_orig:5554.30, div_inc:5554.30,vacante:true,  orden:17 },
-  { tipo:'X3',  val_apu:100, composicion:'8/5/2', pozo:38880,    vales:7,    div_orig:5554.30, div_inc:5554.30,vacante:false, orden:18 },
-  { tipo:'X3',  val_apu:100, composicion:'8/5/3', pozo:38880,    vales:null, div_orig:5554.30, div_inc:5554.30,vacante:true,  orden:19 },
-  { tipo:'X3',  val_apu:100, composicion:'8/5/6', pozo:38880,    vales:null, div_orig:5554.30, div_inc:5554.30,vacante:true,  orden:20 },
+  { tipo:'GAN', val_apu:1,   composicion:null, pozo:null, vales:null, div_orig:4.85,     div_inc:4.85,    vacante:false, orden:1 },
+  { tipo:'SEG', val_apu:1,   composicion:null, pozo:null, vales:null, div_orig:8.15,     div_inc:8.15,    vacante:false, orden:2 },
+  { tipo:'TER', val_apu:1,   composicion:null, pozo:null, vales:null, div_orig:23.20,    div_inc:23.20,   vacante:false, orden:3 },
+  { tipo:'SEG', val_apu:1,   composicion:null, pozo:null, vales:null, div_orig:1.20,     div_inc:null,    vacante:false, orden:4 },
+  { tipo:'EX',  val_apu:200, composicion:null, pozo:null, vales:null, div_orig:1500.30,  div_inc:null,    vacante:false, orden:5 },
+  { tipo:'IM',  val_apu:200, composicion:null, pozo:null, vales:null, div_orig:755.20,   div_inc:null,    vacante:false, orden:6 },
+  { tipo:'X2',  val_apu:200, composicion:null, pozo:null, vales:null, div_orig:210.30,   div_inc:null,    vacante:false, orden:7 },
+  { tipo:'X3',  val_apu:200, composicion:null, pozo:null, vales:null, div_orig:57420.90, div_inc:null,    vacante:false, orden:8 },
 ];
 
 let ssCount = 0;
@@ -177,9 +165,8 @@ async function restoreOriginalData() {
       p_expected_updated_at: expected_at,
       p_carrera_id:          CARRERA_ID,
       p_estado:              'provisional',
-      p_tiempo_clima:        'BUENO',
-      p_estado_pista:        'normal',
-      p_tiempo_ganador:      '1:02.40',
+      p_estado_pista:        'seca',
+      p_tiempo_ganador:      '05:02.11',
       p_incidentes:          'Sin novedad',
       p_favorito_mandil:     2,
       p_redistribucion_legs: { "1":"gde","2":"al3","3":"al4","4":"al5","5":"al6" },
@@ -221,7 +208,7 @@ async function restoreOriginalData() {
     console.log('── T9: Bug 3b — borrar todo + reload ────');
 
     // Asegurar estado limpio inicial: restaurar si no hay 20
-    if (startRows !== 20) {
+    if (startRows !== 8) {
       console.log(`  [PRE-T9] Hay ${startRows} filas, restaurando primero...`);
       await restoreOriginalData();
       await reloadToTurno6(page);
@@ -274,7 +261,7 @@ async function restoreOriginalData() {
     console.log(`  [T16] Ctx B: ${cntB} filas cargadas (snapshot stale)`);
 
     // Ctx A guarda primero → updated_at del DB avanza
-    await page.locator('#tiempo-ganador').fill('1:03.00');
+    await page.locator('#tg').fill('1:03.00');
     await page.keyboard.press('F10');
     const toastA = await waitForToast(page, 8000);
     console.log(`  [T16] Ctx A toast: "${toastA}"`);
