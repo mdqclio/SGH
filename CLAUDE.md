@@ -67,6 +67,15 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 │   ├── ISSUES.md                Bugs conocidos y deudas técnicas
 │   ├── SNIPPETS.md              SQL y JS reutilizables
 │   └── SCHEMA.md                Schema extendido (copia con más detalle)
+├── tests/                       Probes Playwright contra prod (headless Chromium)
+│   ├── README.md                Instrucciones de ejecución
+│   ├── smoke_full.mjs           Suite completa T1–T17 (ciclo completo resultados.html)
+│   ├── smoke_t9_t16.mjs         Regresión bug 3b + optimistic lock
+│   ├── probe_bug2_mf_mandiles.mjs  Regresión Bug 2 (mandiles reales en M.(F)/Sport)
+│   ├── probe_bug3_chapa_at.mjs  Regresión Bug 3 + Fix A (marc-invalid) + Fix B (posicionesMap)
+│   ├── probe_nav_dirty.mjs      Navegación con cambios sin guardar
+│   ├── probe_tiempo_ganador.mjs Carga de tiempo ganador
+│   └── probe_estado_pista.mjs   Estado de pista
 ```
 
 ---
@@ -211,6 +220,9 @@ El MCP de Supabase en esta sesión es **read-only**. INSERT/UPDATE/DELETE/DDL ha
 ### Dinero
 Usar siempre `formatARS()` / `parseARS()` / `bindARSInput()` — NUNCA `.toLocaleString()` ni `.toFixed()` directo. El locale por defecto del browser suele ser en-US y da formato incorrecto (coma de miles vs punto de miles argentino).
 
+### Marcador — validación visual de mandil
+Cuando el mandil ingresado en el marcador de `resultados.html` no corresponde a un ratificado, el input recibe la clase `.marc-invalid` (borde rojo, fondo rojo suave). No bloquea la edición — es solo feedback visual. La celda de chapa del panel de dividendos queda `null` para ese slot, lo cual es semánticamente correcto (ese caballo no largó).
+
 ### Consultas Supabase
 Nunca usar `.catch(()=>{})` silencioso. Siempre:
 ```javascript
@@ -227,6 +239,16 @@ Nunca usar `.catch(()=>{})` silencioso. Siempre:
 - Si una decisión es de producto (no técnica), elegir la opción más conservadora y dejarla anotada en el resumen final
 - Antes de dar por terminado: verificar con `grep` o `curl` que los cambios llegaron a prod
 - Push frecuente — el codespace se puede dormir
+
+### Probes de regresión
+Después de fixear un bug en `resultados.html`, agregar o extender un probe en `tests/` que verifique el fix contra prod:
+```bash
+node tests/probe_bug2_mf_mandiles.mjs   # Bug 2 — mandiles reales en M.(F)/Sport
+node tests/probe_bug3_chapa_at.mjs      # Bug 3 — chapaAt + Fix A/B
+```
+El patrón está en `tests/probe_bug2_*.mjs`: auth con magic link → nav → DOM assertions vía Playwright.
+
+**Limitación crítica**: las variables internas de `resultados.html` (`currentCarreraId`, `inscripciones`, `posicionesMap`, etc.) son `let` de módulo y no están expuestas en `window.*`. Los probes deben basarse en evidencia DOM observable, no en estado interno JS.
 
 ### Reunión activa para testing
 Reunión 5 — 17/05/2026 — Hipódromo de Dolores (11 turnos, ~81 inscripciones).
@@ -266,7 +288,7 @@ Fijarla: `localStorage.setItem('sgh_active_reunion_id', 'UUID_REUNION_5')` o des
 14. **`propietarios.nombre`** — NO `nombre_completo` ni `razon_social`.
 15. **`comisariato` está en `clubs`, NO en `reuniones`** (esa columna fue dropeada).
 
-Ver `docs/GOTCHAS.md` para la lista completa (37 entradas).
+Ver `docs/GOTCHAS.md` para la lista completa (39 entradas).
 
 ---
 
@@ -279,8 +301,8 @@ Ver `docs/GOTCHAS.md` para la lista completa (37 entradas).
 - **ISSUE-023**: UI para `div_inc` y `val_apu` no implementada.
 - **ISSUE-024**: Sin UI para composición manual override en apuestas directas.
 - **ISSUE-025**: Pozo, pozo asegurado y vales sin UI de carga.
-- **Bug no numerado (28/05/2026)**: `sportCells` / `mfCells` iteran `m = 1..rowCount` (secuencial) en lugar de los mandiles reales de los inscriptos — starters con `mandil > rowCount` no tienen celda. Fix: iterar `activeInsc.sort(numero_partidor)`.
-- **Bug no numerado (28/05/2026)**: `renderDivHTML` línea ~972 usa `chapaAt(slot)` donde `slot` es el índice de fila de pago — GAN/SEG/TER muestran todos el chip del 1°. Fix: `chapaAt(POS_SLOTS[tipo])`.
+- ✅ **Bug 2 (28/05/2026 — RESUELTO)**: `sportCells` / `mfCells` iteraban `m = 1..rowCount` (secuencial) en lugar de los mandiles reales de los inscriptos — starters con `mandil > rowCount` no tenían celda. Fix: iterar `activeInsc` ordenado por `numero_partidor`. Probe: `tests/probe_bug2_mf_mandiles.mjs`.
+- ✅ **Bug 3 (28/05/2026 — RESUELTO)**: `renderDivHTML` usaba `chapaAt(slot)` donde `slot` es el índice de fila de pago — GAN/SEG/TER mostraban todos el chip del 1°. Fix: `chapaAt(POS_SLOTS[tipo])`. Además: Fix A — `onMarcInput` marca con `.marc-invalid` mandiles que no corresponden a un ratificado (feedback visual, no bloquea). Fix B — `renderDivView` recibe `undefined` (no `[]`) cuando el override está vacío; `onMarcInput` aplica `tempPos.length ? tempPos : undefined`. Probe: `tests/probe_bug3_chapa_at.mjs`.
 
 ### Otros módulos
 - **liquidaciones.html**: Bloques A+B completos. Bloque C (montas perdidas) y D (recibos) pendientes — prerequisito: validación Fede en resultados.
