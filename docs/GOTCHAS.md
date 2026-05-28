@@ -148,5 +148,13 @@ Usar siempre `renumerar-chapas.js` (helper centralizado). N = cantidad de inscri
 `bindARSInput(el)` agrega listeners focus+blur para normalizar moneda. Si se llama varias veces sobre el mismo elemento (ej: el modal se reabre), los listeners se acumulan y el valor se parsea/formatea múltiples veces, corrompiendo el input.
 Guard: `if (el._arsBound) return; el._arsBound = true;` al inicio de la función.
 
+## 38. Mandil no ratificado en marcador: .marc-invalid es feedback, no error (28/05/2026)
+`onMarcInput` en `resultados.html` descarta posiciones cuyo mandil no corresponde a un ratificado. La UI da feedback visual con la clase `.marc-invalid` (borde rojo, fondo suave). La celda de chapa correspondiente queda `null` en el panel de dividendos — eso es semánticamente correcto (ese caballo no largó), no es un bug a fixear. El input no se bloquea: el usuario puede corregirlo libremente.
+
+## 39. renderDivView espera `undefined`, no `[]`, para usar posicionesMap como fallback (28/05/2026)
+`renderDivView(carreraId, overridePosiciones)` usa `posicionesMap` (posiciones guardadas en DB) cuando `overridePosiciones` es `undefined`. Si se le pasa `[]` (array vacío), lo trata como override válido y muestra vista vacía.
+Convención en `onMarcInput`: `const tempPos = [...]; renderDivView(id, tempPos.length ? tempPos : undefined);`
+No pasar `[]` como fallback — siempre `undefined` para indicar "usar DB".
+
 ## 26. Funciones helper de RLS deben ser SECURITY DEFINER (12/05/2026)
 Si `fn_get_user_club_id()` o `fn_is_super_admin()` fueran SECURITY INVOKER (default), al ser invocadas desde una policy sobre la tabla `usuarios` (que ya tiene RLS), la función intentaría leer `usuarios` con los permisos del usuario llamante — que a su vez pasan por la misma RLS, causando recursión infinita o devolviendo NULL. SECURITY DEFINER hace que la función se ejecute con permisos del owner de la función, bypasseando la RLS de la tabla destino. Combinado siempre con `SET search_path = public` para evitar path injection via search_path hijacking.
