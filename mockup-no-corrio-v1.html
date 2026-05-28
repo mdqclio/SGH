@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MOCKUP V1 — No corrió (marcador + fila alineada)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+    :root {
+      --bg: #0e2318; --card: #1a3d26; --accent: #c9a84c;
+      --text: #f5f0e8; --muted: #a0b8a0; --danger: #e05252;
+      --success: #4caf82; --border: rgba(201,168,76,0.2); --input-bg: #0e2318;
+      --info: #74b0f7;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    h1,h2,h3 { font-family: 'Playfair Display', serif; }
+
+    /* Banner de mockup */
+    .mockup-banner {
+      background: #7b1fa2; color: #fff; text-align: center;
+      padding: 10px 20px; font-size: 13px; font-weight: 600; letter-spacing: 0.5px;
+      border-bottom: 2px solid #9c27b0;
+    }
+    .mockup-banner strong { font-size: 14px; }
+    .mockup-banner p { font-size: 12px; font-weight: 400; opacity: 0.9; margin-top: 2px; }
+
+    /* Topbar */
+    .topbar { background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 12px; }
+    .topbar h1 { font-size: 18px; color: var(--accent); flex: 1; }
+    .btn-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 7px 14px; border-radius: 8px; font-size: 13px; }
+
+    .content { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+    select, input[type=text], input[type=number] {
+      background: var(--input-bg); border: 1px solid var(--border); color: var(--text);
+      padding: 8px 12px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none;
+    }
+    select:focus, input:focus { border-color: var(--accent); }
+
+    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; white-space: nowrap; }
+    kbd { display: inline-block; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; padding: 1px 5px; font-size: 10px; font-family: monospace; color: var(--muted); margin-left: 4px; vertical-align: middle; }
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .badge-provisional { background: rgba(116,176,247,0.1); color: var(--info); border: 1px solid rgba(116,176,247,0.3); }
+
+    /* Panel */
+    .res-panel { background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+    .res-panel-header { padding: 16px 22px; background: rgba(201,168,76,0.07); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .res-panel-title { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--accent); }
+    .res-meta { font-size: 12px; color: var(--muted); }
+    .res-section { padding: 14px 22px; border-bottom: 1px solid var(--border); }
+    .res-section-title { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .res-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group label { font-size: 12px; font-weight: 500; color: var(--muted); }
+
+    /* 2 columnas */
+    .det-cols { display: grid; grid-template-columns: 340px 1fr; gap: 0; }
+    .det-col-left { border-right: 1px solid var(--border); padding: 14px 18px; }
+    .det-col-right { padding: 0; min-width: 0; }
+
+    /* Marcador */
+    .marc-grid { display: grid; grid-template-columns: 28px 54px 1fr; row-gap: 6px; column-gap: 8px; align-items: center; }
+    .marc-pos { font-size: 11px; font-weight: 500; color: var(--muted); text-align: right; padding-right: 2px; line-height: 34px; }
+    .marc-pos-1 { color: var(--accent); font-weight: 700; font-size: 12px; }
+    .marc-input {
+      height: 34px; background: rgba(255,255,255,0.04); border: 1px solid rgba(201,168,76,0.35); color: var(--text);
+      border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700;
+      text-align: center; padding: 0; width: 100%; outline: none; transition: border-color 0.15s;
+    }
+    .marc-input:focus { border-color: var(--accent); }
+    .marc-invalid { border-color: #e55 !important; background: rgba(229,85,85,0.08) !important; }
+    .chapa-btn {
+      display: flex; align-items: center; gap: 5px; height: 34px; padding: 0 7px 0 5px;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(201,168,76,0.35); border-radius: 8px;
+      cursor: default; min-width: 88px; font-family: 'DM Sans', sans-serif; color: var(--muted); font-size: 11px;
+    }
+    .chapa-empty { height: 34px; }
+
+    /* Sección No corrió — V1: NUEVA FILA ALINEADA DEBAJO DEL MARCADOR */
+    .nc-section { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+    .nc-section-title {
+      font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 1px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+    }
+    .nc-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* Grid de chips con checkbox: 5 columnas de 52px */
+    .nc-chips-grid { display: flex; gap: 6px; flex-wrap: wrap; }
+    .nc-horse {
+      display: flex; flex-direction: column; align-items: center; gap: 5px;
+      cursor: pointer; user-select: none;
+    }
+    .nc-chip {
+      width: 44px; height: 44px; border-radius: 8px; display: flex; align-items: center;
+      justify-content: center; font-size: 18px; font-weight: 700; position: relative;
+      transition: opacity 0.2s, filter 0.2s;
+      border: 2px solid transparent;
+    }
+    .nc-chip.nc-checked { opacity: 0.45; filter: grayscale(0.3); }
+    .nc-chip.nc-checked::after {
+      content: '✕'; position: absolute; inset: 0; display: flex; align-items: center;
+      justify-content: center; font-size: 22px; font-weight: 900;
+      color: rgba(255,255,255,0.9); text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+      background: rgba(0,0,0,0.35); border-radius: 6px;
+    }
+    .nc-chip-white { border: 2px solid #888; }
+    .nc-horse-name {
+      font-size: 9px; color: var(--muted); text-align: center; max-width: 50px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;
+    }
+    .nc-checkbox-wrap { display: flex; align-items: center; gap: 4px; }
+    .nc-cb { width: 14px; height: 14px; accent-color: var(--danger); cursor: pointer; }
+    .nc-cb-label { font-size: 10px; color: var(--muted); cursor: pointer; }
+    .nc-checked-label { color: var(--danger) !important; font-weight: 600; }
+
+    /* Tooltip de aviso */
+    .nc-hint {
+      margin-top: 10px; padding: 8px 12px; background: rgba(224,82,82,0.08);
+      border: 1px solid rgba(224,82,82,0.25); border-radius: 8px;
+      font-size: 11px; color: var(--danger); display: none;
+    }
+    .nc-hint.visible { display: block; }
+
+    /* Panel derecho */
+    .datos-layout { display: flex; gap: 20px; align-items: flex-start; padding: 14px 22px; border-bottom: 1px solid var(--border); }
+    .favorito-block { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+    .favorito-block label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .mf-rows-scroll { overflow-x: auto; min-width: 0; }
+    .mf-edit-row { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
+    .mf-edit-lbl { width: 84px; flex-shrink: 0; font-family: 'Playfair Display', serif; font-size: 13px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+    .mf-edit-lbl.mf-lbl-nc { color: var(--danger); font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding-top: 4px; }
+
+    /* Chips del panel M.(F) */
+    .mf-chip {
+      width: 44px; height: 32px; border-radius: 4px; display: flex; align-items: center;
+      justify-content: center; font-size: 15px; font-weight: 700; position: relative;
+      transition: opacity 0.2s; cursor: default; flex-shrink: 0;
+    }
+    .mf-chip.nc-out { opacity: 0.25; }
+    .mf-chip.nc-out::after {
+      content: 'NC'; position: absolute; inset: 0; display: flex; align-items: center;
+      justify-content: center; font-size: 9px; font-weight: 900; color: var(--danger);
+      background: rgba(0,0,0,0.5); border-radius: 3px; letter-spacing: 0.5px;
+    }
+    .mf-chip-white { border: 1px solid #888; }
+
+    /* Row "No corrió" en el panel derecho */
+    .nc-row-chip {
+      display: flex; flex-direction: column; align-items: center; gap: 3px; flex-shrink: 0;
+      width: 44px;
+    }
+    .nc-row-cb { width: 15px; height: 15px; accent-color: var(--danger); cursor: pointer; }
+
+    /* Div a GAN sport inputs */
+    .sport-wrap {
+      position: relative; width: 68px; height: 32px; flex-shrink: 0;
+    }
+    .sport-wrap::before {
+      content: "$"; position: absolute; left: 3px; top: 50%; transform: translateY(-50%);
+      pointer-events: none; color: var(--muted); font-size: 10px; font-weight: 600; z-index: 1;
+    }
+    .sport-wrap.nc-out::before { opacity: 0.2; }
+    .sport-inp {
+      height: 32px; width: 68px; border: 1px solid rgba(201,168,76,0.35); background: rgba(255,255,255,0.04);
+      color: var(--text); text-align: right; font-size: 11px; font-weight: 600; font-family: 'DM Sans', sans-serif;
+      border-radius: 2px; padding: 0 4px 0 13px; outline: none; -moz-appearance: textfield;
+    }
+    .sport-inp:disabled { opacity: 0.2; cursor: default; }
+
+    /* Actions */
+    .actions-bar { padding: 12px 22px; display: flex; justify-content: space-between; align-items: center; gap: 10px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+    .actions-grp { display: flex; gap: 8px; align-items: center; }
+    .status-bar { padding: 8px 22px 14px; display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 2px; padding: 14px 22px 0; }
+    .tab { padding: 6px 16px; border: 1px solid var(--border); border-bottom: none; font-size: 12px; font-weight: 500; cursor: pointer; color: var(--muted); border-radius: 8px 8px 0 0; background: rgba(0,0,0,0.1); }
+    .tab.active { background: rgba(201,168,76,0.1); color: var(--accent); border-color: rgba(201,168,76,0.35); font-weight: 600; }
+
+    /* Vista reducida placeholder */
+    .div-placeholder { padding: 18px 22px; }
+    .dv-col-hdr { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 8px; }
+    .dv-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+    .dv-pos-lbl { font-size: 11px; color: var(--muted); width: 18px; }
+    .dv-chip { width: 26px; height: 26px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+    .dv-chip-white { border: 1px solid #888; }
+    .dv-amount { font-size: 13px; font-weight: 600; background: rgba(0,0,0,0.3); border-radius: 5px; padding: 3px 10px; white-space: nowrap; }
+    .dv-empty { color: var(--muted); background: transparent !important; font-weight: 400; }
+    .tg-single { height: 34px; width: 110px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); border-radius: 8px; font-size: 14px; font-weight: 600; text-align: center; padding: 0 8px; outline: none; }
+
+    /* Warning inline en marcador */
+    .marc-invalid-hint { font-size: 10px; color: var(--danger); margin-top: 4px; display: none; }
+    .marc-invalid-hint.show { display: block; }
+  </style>
+</head>
+<body>
+
+<div class="mockup-banner">
+  <strong>MOCKUP — Variante 1: Marcador por posición + fila "No corrió" alineada en el panel de caballos</strong>
+  <p>Los checkboxes son interactivos. Tildá un caballo y escribí su número en el marcador para ver la validación visual. Sin guardado real.</p>
+</div>
+
+<div class="topbar">
+  <h1>Resultados</h1>
+  <span class="btn-back">← Carreras</span>
+</div>
+
+<div class="content">
+  <div class="res-panel">
+
+    <!-- Header -->
+    <div class="res-panel-header">
+      <div>
+        <div class="res-panel-title">Carrera 3 — Premio Apertura</div>
+        <div class="res-meta">1200m</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <span class="badge badge-provisional">provisional</span>
+        <span class="btn-outline" style="font-size:13px;">← Anterior</span>
+        <span style="font-size:13px;color:var(--muted);">Carrera 3 / 7</span>
+        <span class="btn-outline" style="font-size:13px;">Siguiente →</span>
+      </div>
+    </div>
+
+    <!-- Condiciones -->
+    <div class="res-section">
+      <div class="res-section-title">Condiciones de la carrera</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Estado de pista</label>
+          <select style="min-width:120px;"><option>Seca</option></select>
+        </div>
+        <div class="form-group">
+          <label>Tiempo del ganador</label>
+          <input type="text" class="tg-single" value="1:14.20" style="width:110px;">
+        </div>
+        <div class="form-group">
+          <label>Incidentes</label>
+          <input type="text" value="" placeholder="Notas…" style="min-width:240px;flex:1">
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 columnas -->
+    <div class="det-cols">
+
+      <!-- ── COLUMNA IZQUIERDA: MARCADOR ── -->
+      <div class="det-col-left">
+        <div class="res-section-title" style="margin-bottom:12px;">Marcador</div>
+
+        <!-- Marcador por posición (sin cambios vs. actual) -->
+        <div class="marc-grid" id="marc-grid">
+          <!-- 1° -->
+          <div class="marc-pos marc-pos-1">1°</div>
+          <input class="marc-input" id="marc-1" type="number" min="1" max="5" value="3" oninput="onMarcInput(1,this)">
+          <div class="chapa-empty"></div>
+          <!-- 2° -->
+          <div class="marc-pos">2°</div>
+          <input class="marc-input" id="marc-2" type="number" min="1" max="5" value="5" oninput="onMarcInput(2,this)">
+          <div class="chapa-btn">▷ nariz</div>
+          <!-- 3° -->
+          <div class="marc-pos">3°</div>
+          <input class="marc-input" id="marc-3" type="number" min="1" max="5" value="1" oninput="onMarcInput(3,this)">
+          <div class="chapa-btn">▷ pescuezo</div>
+          <!-- 4° -->
+          <div class="marc-pos">4°</div>
+          <input class="marc-input" id="marc-4" type="number" min="1" max="5" value="4" oninput="onMarcInput(4,this)">
+          <div class="chapa-btn">▷ 2 cpos</div>
+          <!-- 5° -->
+          <div class="marc-pos">5°</div>
+          <input class="marc-input" id="marc-5" type="number" min="1" max="5" value="" oninput="onMarcInput(5,this)" placeholder="">
+          <div class="chapa-empty"></div>
+        </div>
+
+        <div id="marc-hint" class="marc-invalid-hint">
+          ⚠ El mandil indicado está marcado como "no corrió"
+        </div>
+
+        <!-- ══ SECCIÓN NUEVA: No corrió ══ -->
+        <div class="nc-section">
+          <div class="nc-section-title">No corrió</div>
+          <div class="nc-chips-grid" id="nc-chips">
+            <!-- Generado por JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ── COLUMNA DERECHA ── -->
+      <div class="det-col-right">
+
+        <!-- Datos del resultado: Favorito + M.(F) + No corrió row + Sport -->
+        <div class="datos-layout">
+          <div class="favorito-block">
+            <label>Favorito</label>
+            <input type="number" value="3" style="width:72px">
+          </div>
+
+          <div class="mf-rows-scroll">
+            <!-- Fila de chips M.(F) -->
+            <div class="mf-edit-row" id="mf-row">
+              <span class="mf-edit-lbl"></span>
+              <!-- chips generados por JS -->
+            </div>
+
+            <!-- ═══ FILA NUEVA: No corrió alineada con los chips ═══ -->
+            <div class="mf-edit-row" id="nc-row" style="margin-top:4px;">
+              <span class="mf-edit-lbl mf-lbl-nc">No corrió</span>
+              <!-- checkboxes generados por JS, alineados con chips -->
+            </div>
+
+            <!-- Fila Div a GAN (Sport) -->
+            <div class="mf-edit-row" id="sport-row" style="margin-top:4px;">
+              <span class="mf-edit-lbl">Div a GAN</span>
+              <!-- inputs generados por JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+          <div class="tab">Vista Reducida</div>
+          <div class="tab active">Vista Detallada</div>
+        </div>
+
+        <!-- Vista reducida placeholder -->
+        <div class="div-placeholder">
+          <div class="dv-col-hdr">Ganador · Segundo · Tercero</div>
+          <div id="div-view">
+            <!-- generado por JS -->
+          </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="actions-bar">
+          <div class="actions-grp">
+            <button class="btn-outline">Recargar dividendos <kbd>F8</kbd></button>
+            <button class="btn-outline">⚖️ Pesos balanza</button>
+          </div>
+          <div class="actions-grp">
+            <button class="btn-primary">Aplicar <kbd>F10</kbd></button>
+            <button class="btn-outline">Cancelar <kbd>F9</kbd></button>
+          </div>
+        </div>
+        <div class="status-bar">
+          <span style="color:var(--success)">✓</span>
+          Resultado cargado. Aplicar con F10.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const HORSES = [
+    { mandil: 1, nombre: 'MILONGA DEL RIACHUELO', bg: '#D50000', fg: '#ffffff', white: false },
+    { mandil: 2, nombre: 'TORMENTA DEL SUR',      bg: '#FFFFFF', fg: '#000000', white: true  },
+    { mandil: 3, nombre: 'CAMPEÓN BRAVÍO',         bg: '#0047AB', fg: '#ffffff', white: false },
+    { mandil: 4, nombre: 'LUNA DORADA',            bg: '#FFD400', fg: '#000000', white: false },
+    { mandil: 5, nombre: 'VIENTO PAMPEANO',        bg: '#009B3A', fg: '#ffffff', white: false },
+  ];
+
+  // Estado: qué mandiles están marcados "no corrió"
+  const noCorrio = new Set([2]);
+
+  // Div a GAN pre-cargados por mandil
+  const divGan = { 1: '4.50', 3: '2.10', 4: '8.30', 5: '3.20' };
+
+  function renderAll() {
+    renderNcChips();
+    renderMfRow();
+    renderNcRow();
+    renderSportRow();
+    renderDivView();
+    validateMarc();
+  }
+
+  // Panel izquierdo: chips con checkbox debajo
+  function renderNcChips() {
+    const el = document.getElementById('nc-chips');
+    el.innerHTML = HORSES.map(h => {
+      const checked = noCorrio.has(h.mandil);
+      const border = h.white ? 'border:2px solid #888;' : '';
+      return `
+        <label class="nc-horse" onclick="toggleNc(${h.mandil})">
+          <div class="nc-chip${checked?' nc-checked':''}" style="background:${h.bg};color:${h.fg};${border}">
+            ${h.mandil}
+          </div>
+          <div class="nc-horse-name">${h.nombre.split(' ')[0]}</div>
+          <div class="nc-checkbox-wrap">
+            <input class="nc-cb" type="checkbox" ${checked?'checked':''} onclick="event.stopPropagation();toggleNc(${h.mandil})">
+            <span class="nc-cb-label${checked?' nc-checked-label':''}">N/C</span>
+          </div>
+        </label>`;
+    }).join('');
+  }
+
+  // Panel derecho: fila chips M.(F)
+  function renderMfRow() {
+    const row = document.getElementById('mf-row');
+    const chips = HORSES.map(h => {
+      const nc = noCorrio.has(h.mandil);
+      const border = h.white ? 'border:1px solid #888;' : '';
+      return `<div class="mf-chip${nc?' nc-out':''}" style="background:${h.bg};color:${h.fg};${border}">${h.mandil}</div>`;
+    }).join('');
+    // Keep the label span, rebuild the rest
+    row.innerHTML = `<span class="mf-edit-lbl"></span>${chips}`;
+  }
+
+  // Panel derecho: fila "No corrió" alineada
+  function renderNcRow() {
+    const row = document.getElementById('nc-row');
+    const checks = HORSES.map(h => {
+      const checked = noCorrio.has(h.mandil);
+      return `
+        <div class="nc-row-chip">
+          <input class="nc-row-cb" type="checkbox" ${checked?'checked':''} onchange="toggleNc(${h.mandil})"
+            style="accent-color:var(--danger);width:15px;height:15px;cursor:pointer;">
+        </div>`;
+    }).join('');
+    row.innerHTML = `<span class="mf-edit-lbl mf-lbl-nc">No corrió</span>${checks}`;
+  }
+
+  // Panel derecho: fila Div a GAN
+  function renderSportRow() {
+    const row = document.getElementById('sport-row');
+    const inputs = HORSES.map(h => {
+      const nc = noCorrio.has(h.mandil);
+      const val = divGan[h.mandil] || '';
+      return `
+        <div class="sport-wrap${nc?' nc-out':''}">
+          <input class="sport-inp" type="number" step="0.01" value="${val}" ${nc?'disabled':''} placeholder="—">
+        </div>`;
+    }).join('');
+    row.innerHTML = `<span class="mf-edit-lbl">Div a GAN</span>${inputs}`;
+  }
+
+  // Vista de dividendos (placeholder)
+  function renderDivView() {
+    // Solo posicionales
+    const positions = [
+      { pos: '1°', mandil: 3, amount: '$ 2,10' },
+      { pos: '2°', mandil: 5, amount: '$ 3,20' },
+      { pos: '3°', mandil: 1, amount: '$ 4,50' },
+    ];
+    const el = document.getElementById('div-view');
+    el.innerHTML = positions.map(p => {
+      const h = HORSES.find(x => x.mandil === p.mandil);
+      const border = h.white ? 'border:1px solid #888;' : '';
+      return `<div class="dv-row">
+        <span class="dv-pos-lbl">${p.pos}</span>
+        <div class="dv-chip" style="background:${h.bg};color:${h.fg};${border}">${h.mandil}</div>
+        <span class="dv-amount">${p.amount}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function toggleNc(mandil) {
+    if (noCorrio.has(mandil)) noCorrio.delete(mandil);
+    else noCorrio.add(mandil);
+    renderAll();
+  }
+
+  // Validación visual: si el mandil ingresado está en noCorrio → marc-invalid
+  function onMarcInput(pos, input) {
+    validateMarc();
+  }
+
+  function validateMarc() {
+    let anyInvalid = false;
+    for (let p = 1; p <= 5; p++) {
+      const inp = document.getElementById('marc-' + p);
+      if (!inp) continue;
+      const val = parseInt(inp.value, 10);
+      const invalid = !isNaN(val) && noCorrio.has(val);
+      inp.classList.toggle('marc-invalid', invalid);
+      if (invalid) anyInvalid = true;
+    }
+    document.getElementById('marc-hint').classList.toggle('show', anyInvalid);
+  }
+
+  renderAll();
+</script>
+</body>
+</html>
