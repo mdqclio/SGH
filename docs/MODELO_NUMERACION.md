@@ -65,10 +65,13 @@ El PDF de inscriptos (`inscripciones.html`) es la **única excepción**: muestra
 
 Los caballos con `estado IN ('forfait', 'mal_inscrito')` no largan.
 
-- **No aparecen en la secuencia 1..N** de mandiles (se excluyen antes de renumerarChapas).
-- En el marcador de `resultados.html` deben mostrarse como **"no corrió"** — una fila de solo lectura, sin input.
+- **No aparecen en la secuencia 1..N** de mandiles (se excluyen antes de `renumerarChapas`).
 - **No reciben dividendo a ganador** (no generan fila en `posData` → no entran al RPC `aplicar_resultado`).
-- El indicador "Borrados: X-Y (N)" muestra sus `numero_partidor` (gateras) separados con `-` y el total de inscriptos entre paréntesis — pendiente mejorar el separador (`,` en vez de `-` para evitar lectura como rango).
+- Los datos persisten en la DB (inscripciones con `estado = 'forfait'` o `'mal_inscrito'`); solo se dejaron de mostrar en la UI.
+
+### Decisión pendiente (28/05/2026)
+
+Visualización de "no corrió" removida temporalmente. Rediseñar con la lógica completa: hay más casos de caballos que no corrieron además de `forfait`/`mal_inscrito`. Definir con Fede antes de reimplementar.
 
 ---
 
