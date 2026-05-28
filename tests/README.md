@@ -44,6 +44,22 @@ node tests/smoke_t9_t16.mjs
 
 Duración: ~1 minuto.
 
+### Probes de regresión
+
+Scripts focalizados en bugs específicos. Se ejecutan directamente con `node`:
+
+```bash
+node tests/probe_bug2_mf_mandiles.mjs   # Bug 2 — mandiles reales en M.(F)/Sport
+node tests/probe_bug3_chapa_at.mjs      # Bug 3 — chapaAt(POS_SLOTS) + Fix A (marc-invalid) + Fix B (posicionesMap fallback)
+node tests/probe_nav_dirty.mjs          # Navegación con cambios sin guardar
+node tests/probe_tiempo_ganador.mjs     # Carga de tiempo ganador
+node tests/probe_estado_pista.mjs       # Estado de pista
+```
+
+Duración: ~20-40 segundos por probe. No modifican datos de producción (solo lectura + DOM assertions).
+
+**Patrón de los probes**: auth con magic link → navegación headless → assertions sobre DOM observable. Las variables internas de `resultados.html` (`currentCarreraId`, `inscripciones`, `posicionesMap`, etc.) son `let` de módulo y no están en `window.*` — los probes no pueden accederlas directamente; todas las verificaciones son DOM-based.
+
 ## Variables de entorno / credenciales
 
 Los scripts usan credenciales hardcodeadas para el entorno de desarrollo del cliente piloto (Hipódromo de Dolores). No subir a repositorios públicos sin reemplazarlas por env vars.
