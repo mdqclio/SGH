@@ -148,6 +148,12 @@ Usar siempre `renumerar-chapas.js` (helper centralizado). N = cantidad de inscri
 `bindARSInput(el)` agrega listeners focus+blur para normalizar moneda. Si se llama varias veces sobre el mismo elemento (ej: el modal se reabre), los listeners se acumulan y el valor se parsea/formatea múltiples veces, corrompiendo el input.
 Guard: `if (el._arsBound) return; el._arsBound = true;` al inicio de la función.
 
+## 40. numero_partidor es la GATERA (cajón de sorteo), no el mandil visible (28/05/2026)
+El mandil/chapa que ve el usuario (1..N consecutivo) se DERIVA con `renumerarChapas` — no se persiste.
+`numero_partidor` tiene huecos por diseño: se sortea de un pool de `cantidad_gateras` (Dolores = 16), no del N de competidores. El mismo caballo tiene gateras distintas en distintas carreras. NUNCA mostrar `numero_partidor` directo al usuario — siempre el 1..N derivado.
+El `chapaCell` del marcador es el margen de llegada (nariz/pescuezo/cuerpos), no el número del caballo — no confundir.
+Ver detalle completo: [docs/MODELO_NUMERACION.md](MODELO_NUMERACION.md)
+
 ## 38. Mandil no ratificado en marcador: .marc-invalid es feedback, no error (28/05/2026)
 `onMarcInput` en `resultados.html` descarta posiciones cuyo mandil no corresponde a un ratificado. La UI da feedback visual con la clase `.marc-invalid` (borde rojo, fondo suave). La celda de chapa correspondiente queda `null` en el panel de dividendos — eso es semánticamente correcto (ese caballo no largó), no es un bug a fixear. El input no se bloquea: el usuario puede corregirlo libremente.
 
