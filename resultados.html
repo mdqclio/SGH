@@ -726,6 +726,18 @@ function renderFormulario(carrera, res, pos, apus, insc) {
 /* ── Cambios en el marcador ── */
 function onMarcInput() {
   updateMF();
+  const insc = inscripciones.filter(i => i.carrera_id === currentCarreraId && i.estado === 'ratificado');
+  const tempPos = [];
+  for (let p = 1; p <= 20; p++) {
+    const raw = document.getElementById(`marc-${p}`)?.value?.trim();
+    if (!raw) continue;
+    const mandil = parseInt(raw, 10);
+    if (isNaN(mandil)) continue;
+    const found = insc.find(i => i.numero_partidor === mandil);
+    if (!found) continue;
+    tempPos.push({ posicion: p, inscripcion_id: found.id });
+  }
+  renderDivView(tempPos);
 }
 
 function updateMF() {
@@ -933,8 +945,8 @@ function renderCompChips(a, chapaAt) {
   ).join('');
 }
 
-function buildChapaAt(resId, carreraId) {
-  const posiciones = posicionesMap[resId] || [];
+function buildChapaAt(resId, carreraId, overridePosiciones) {
+  const posiciones = overridePosiciones ?? posicionesMap[resId] ?? [];
   const chapaForInsc = renumerarChapas(inscripciones.filter(i => i.carrera_id === carreraId));
   return posIdx => {
     const p = posiciones.find(x => x.posicion === posIdx);
@@ -1016,13 +1028,13 @@ function renderDivHTML(apus, habMap, chapaAt, fullDetail) {
   return parts.join('');
 }
 
-function renderDivView() {
+function renderDivView(overridePosiciones) {
   const container = document.getElementById('div-view-container');
   if (!container) return;
   const res = resultados[currentCarreraId];
   const habilitadas = (carreraApuestasMap[currentCarreraId] || []).filter(a => a.precio > 0);
   const habMap = Object.fromEntries(habilitadas.map(a => [a.tipo, a]));
-  const chapaAt = res ? buildChapaAt(res.id, currentCarreraId) : () => null;
+  const chapaAt = res ? buildChapaAt(res.id, currentCarreraId, overridePosiciones) : () => null;
   container.innerHTML = renderDivHTML(pendingApuestas, habMap, chapaAt, !isReducida());
 }
 
