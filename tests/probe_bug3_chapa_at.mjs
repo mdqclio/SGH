@@ -387,38 +387,35 @@ async function checkH2(page) {
       'posicionesMap vacío para esta carrera → H6 no aplica (no hay IDs guardados que verificar)');
 
     // ─────────────────────────────────────────────────────────────────────
-    section('FIX B — fallback a posicionesMap cuando override vacío');
+    section('FIX B — renderDivView recibe undefined (no []) cuando inputs vacíos');
     // ─────────────────────────────────────────────────────────────────────
-    const injectResult = await page.evaluate(() => {
-      const carreraId = window.currentCarreraId;
-      const res = window.resultados?.[carreraId];
-      const resId = res?.id;
-      if (!resId) return { ok: false, reason: 'no resId' };
-      const firstRatif = (window.inscripciones ?? [])
-        .filter(i => i.carrera_id === carreraId && i.estado === 'ratificado')
-        .sort((a,b) => (a.numero_partidor||999)-(b.numero_partidor||999))[0];
-      if (!firstRatif) return { ok: false, reason: 'no ratificado' };
-      window.posicionesMap = window.posicionesMap || {};
-      window.posicionesMap[resId] = [{ posicion: 1, inscripcion_id: firstRatif.id, dividendo: 0, diferencia: '' }];
-      return { ok: true, resId, mandil: firstRatif.numero_partidor };
+    // Interceptar renderDivView para capturar el argumento que onMarcInput le pasa
+    // cuando todos los inputs están en blanco.
+    // Con el bug: renderDivView([])         → arg es Array vacío
+    // Con el fix: renderDivView(undefined)  → arg es undefined
+    const fixBCapture = await page.evaluate(() => {
+      const original = window.renderDivView;
+      let capturedArg = 'NOT_CALLED';
+      window.renderDivView = function(arg) { capturedArg = arg; return original?.(arg); };
+      for (let p = 1; p <= 20; p++) {
+        const el = document.getElementById(`marc-${p}`);
+        if (el) el.value = '';
+      }
+      window.onMarcInput?.();
+      window.renderDivView = original;
+      return {
+        argWasUndefined: capturedArg === undefined,
+        argType:  typeof capturedArg,
+        argIsArr: Array.isArray(capturedArg),
+        argLen:   Array.isArray(capturedArg) ? capturedArg.length : null,
+        called:   capturedArg !== 'NOT_CALLED',
+      };
     });
-    console.log('  Inyección posicionesMap:', JSON.stringify(injectResult));
-
-    if (injectResult.ok) {
-      await clearMarcInputs(page);
-      await page.evaluate(() => window.onMarcInput?.());
-      await page.waitForTimeout(500);
-      const chipsD = await snapDivChips(page);
-      console.log('  DOM chips tras clear + posicionesMap inyectado:', JSON.stringify(chipsD));
-      const ganChips = chipsD['GANADOR'] || chipsD['Ganador'] || [];
-      const ganHasChip = ganChips.some(c => c !== null);
-      check('FIXB_POSMAP_FALLBACK', ganHasChip,
-        ganHasChip
-          ? 'Tras limpiar inputs: chips muestran posicionesMap inyectado (Fix B OK)'
-          : 'Tras limpiar inputs: chips vacíos — Fix B no fallback a posicionesMap');
-    } else {
-      check('FIXB_POSMAP_FALLBACK', false, `No se pudo inyectar: ${injectResult.reason}`);
-    }
+    console.log('  renderDivView interceptado:', JSON.stringify(fixBCapture));
+    check('FIXB_POSMAP_FALLBACK', fixBCapture.argWasUndefined,
+      fixBCapture.argWasUndefined
+        ? 'onMarcInput pasa undefined cuando inputs vacíos → Fix B OK (posicionesMap no ignorado)'
+        : `onMarcInput pasa ${fixBCapture.argIsArr ? `[](length ${fixBCapture.argLen})` : fixBCapture.argType} — Fix B no aplicado`);
 
     if (logs.length) console.log('\n  Console errors capturados:', logs);
 
