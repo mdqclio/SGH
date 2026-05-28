@@ -140,9 +140,10 @@ Campo redistribucion_legs en resultados (JSONB, pendiente validación semántica
 reserva futura para redistribución por pata — no usar aún.
 
 ### resultado_posiciones
-id UUID PK, resultado_id FK resultados, inscripcion_id FK inscripciones, posicion INTEGER, tiempo, diferencia, descalificado BOOLEAN, motivo_desc, empate BOOLEAN DEFAULT false
-UNIQUE (resultado_id, posicion)
+id UUID PK, resultado_id FK resultados, inscripcion_id FK inscripciones, posicion INTEGER NULL, tiempo, diferencia, descalificado BOOLEAN, motivo_desc, empate BOOLEAN DEFAULT false, no_largo BOOLEAN NOT NULL DEFAULT false
+UNIQUE (resultado_id, posicion) — NULL se trata como distinto en Postgres; múltiples no_largo=true con posicion=NULL son válidos
 CRÍTICO: borrar siempre antes de borrar inscripciones
+MODELO no_largo: cuando un ratificado no llega a largar, se inserta {posicion:null, no_largo:true}. Su mandil se conserva (hueco). Consultable para Bloque C liquidación.
 
 ### resultado_log
 id UUID PK, resultado_id FK, usuario_id FK, accion, datos_antes JSONB, datos_despues JSONB, created_at
@@ -227,6 +228,8 @@ ALTER TABLE clubs ADD COLUMN IF NOT EXISTS auditoria_retencion_meses INTEGER DEF
 -- Sesión 14/05/2026 (liquidaciones + resultados fixes):
 ALTER TABLE resultado_posiciones ADD COLUMN IF NOT EXISTS empate BOOLEAN DEFAULT false;
 ALTER TABLE resultado_posiciones ADD COLUMN IF NOT EXISTS dividendo NUMERIC(10,2); -- (22/05/2026) dividendo "a place" del puesto: pago de apuesta ganador/2°/3° por cada caballo según su posición
+ALTER TABLE resultado_posiciones ALTER COLUMN posicion DROP NOT NULL; -- (28/05/2026) posicion ahora nullable para soportar no_largo=true con posicion=NULL
+ALTER TABLE resultado_posiciones ADD COLUMN IF NOT EXISTS no_largo BOOLEAN NOT NULL DEFAULT false; -- (28/05/2026) caballo ratificado que no llega a largar; posicion=NULL, conserva mandil (hueco)
 ALTER TABLE resultados ADD COLUMN IF NOT EXISTS favorito_mandil INTEGER; -- (22/05/2026) número de partidor del caballo favorito antes de la carrera (para análisis de M.(F))
 -- Migraciones carga-resultados-v2 (22/05/2026):
 -- CREATE TABLE resultado_apuestas (id UUID PK, resultado_id FK, tipo VARCHAR(10), val_apu NUMERIC(10,2), composicion VARCHAR(60), pozo NUMERIC(15,2), vales INTEGER, div_orig NUMERIC(12,2), div_inc NUMERIC(12,2), vacante BOOLEAN, orden SMALLINT, created_at TIMESTAMPTZ)

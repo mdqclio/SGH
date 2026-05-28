@@ -8,9 +8,9 @@ Módulo: liquidaciones.html
 Estado: 🔄 En progreso — 2/4 bloques completos (14/05/2026)
 - ✅ Bloque A: schema fixes + resultados (14/05/2026)
 - ✅ Bloque B: motor de cálculo completo — 11 liquidaciones generadas vs. data sintética (14/05/2026)
-- ⏳ Bloque C: montas perdidas + incentivo entrenador (próxima sesión)
+- ⏳ Bloque C: montas perdidas — modelo confirmado con Fede (28/05/2026). ✅ (1) migración `no_largo` ejecutada en prod. ✅ (2) UI "no corrió" en resultados.html implementada (feat/no-corrio-v3). ⏳ (3) testing end-to-end con Fede. Query: `resultado_posiciones WHERE no_largo=true` JOIN inscripciones → jockey_titular_id.
 - ⏳ Bloque D: recibos imprimibles + resumen de reunión
-Prerequisito Bloque C: testing manual de Fede en resultados.html + correr generarLiquidaciones() contra reunión real de Dolores
+Prerequisito Bloque C: ✅ migración no_largo en prod — ✅ UI "no corrió" implementada — ⏳ testing manual Fede
 
 ### ISSUE-002: RLS sin configurar por club
 Descripción: Cualquier usuario autenticado puede leer/escribir datos de cualquier hipódromo

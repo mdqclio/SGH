@@ -1,6 +1,6 @@
 # Schema reference — SGH / Supabase
 
-> Reflects the live schema as of 2026-05-27. Generated from `information_schema` and `pg_catalog` via MCP.
+> Reflects the live schema as of 2026-05-28. Generated from `information_schema` and `pg_catalog` via MCP.
 
 ---
 
@@ -238,9 +238,15 @@ Array JSON de objetos, uno por fila de dividendos:
 
 ```json
 [
-  { "inscripcion_id": "<uuid>", "posicion": 1, "descalificado": false, "empate": false }
+  { "inscripcion_id": "<uuid>", "posicion": 1,    "descalificado": false, "empate": false, "no_largo": false },
+  { "inscripcion_id": "<uuid>", "posicion": null,  "no_largo": true }
 ]
 ```
+
+- `no_largo: true` → caballo ratificado que no llegó a largar. `posicion` debe ser `null`.
+- `no_largo` es opcional en cada elemento; se interpreta como `false` si ausente.
+- Invariante: un elemento no puede tener `no_largo: true` Y `posicion` no-null simultáneamente (validar en JS antes de llamar al RPC).
+- El UNIQUE `(resultado_id, posicion)` admite múltiples `null` simultáneos — PostgreSQL trata cada NULL como distinto.
 
 ### Retorno
 
@@ -285,7 +291,7 @@ Una fila por caballo inscripto en una carrera.
 | `spc_id` | `uuid` | NOT NULL | — | FK → `spcs(id)` — el caballo |
 | `jockey_titular_id` | `uuid` | YES | — | FK → `profesionales(id)` |
 | `numero_partidor` | `integer` | YES | — | mandil del caballo |
-| `estado` | `estado_inscripcion` | NOT NULL | `'pre_inscripto'` | forfait / mal_inscrito = no corrió |
+| `estado` | `estado_inscripcion` | NOT NULL | `'pre_inscripto'` | `forfait`/`mal_inscrito` = borrado pre-carrera. "No corrió" post-largada se registra con `resultado_posiciones.no_largo=true` — el estado queda `ratificado` |
 | `peso_declarado` | `numeric` | YES | — | peso asignado pre-carrera (handicap) |
 | `peso_final` | `numeric` | YES | — | peso final post-ratificación |
 | `peso_balanza` | `numeric(5,2)` | YES | — | **peso real medido en balanza post-carrera** — lo carga sistemas desde el dato de veterinaria |

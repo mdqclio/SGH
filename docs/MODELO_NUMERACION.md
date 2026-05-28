@@ -69,9 +69,45 @@ Los caballos con `estado IN ('forfait', 'mal_inscrito')` no largan.
 - **No reciben dividendo a ganador** (no generan fila en `posData` → no entran al RPC `aplicar_resultado`).
 - Los datos persisten en la DB (inscripciones con `estado = 'forfait'` o `'mal_inscrito'`); solo se dejaron de mostrar en la UI.
 
-### Decisión pendiente (28/05/2026)
+---
 
-Visualización de "no corrió" removida temporalmente. Rediseñar con la lógica completa: hay más casos de caballos que no corrieron además de `forfait`/`mal_inscrito`. Definir con Fede antes de reimplementar.
+## "No corrió" en resultados — modelo confirmado con Fede (28/05/2026)
+
+Caso distinto a `forfait`/`mal_inscrito`: un caballo `ratificado` (con mandil 1..N asignado) que **no llega a largar** el día de la carrera.
+
+### Reglas de negocio
+
+| Regla | Detalle |
+|---|---|
+| Se registra en la etapa de **resultados**, no en ratificación | El estado de la inscripción sigue siendo `'ratificado'` — no se cambia el ENUM |
+| **Conserva su número** (mandil/chapa) | El programa ya se publicó con esos mandiles; renumerar crearía confusión |
+| El hueco queda | Igual que con forfaits: si largan mandiles 1,3,4 → el 2 queda vacío en el marcador |
+| Flag booleano simple, sin motivo | Un solo flag `no_largo` — la razón (incidente, problema sanitario, etc.) no se persiste |
+| `renumerarChapas` sin cambios | Solo filtra `estado === 'ratificado'`; los "no corrió" también son ratificados, mantienen su mandil |
+
+### Almacenamiento — Opción B (implementada — 28/05/2026)
+
+**Columna `no_largo BOOLEAN NOT NULL DEFAULT false` en `resultado_posiciones`. `posicion` es nullable.**
+
+Cuando un caballo no corrió se inserta una fila con:
+```json
+{ "inscripcion_id": "<uuid>", "posicion": null, "no_largo": true }
+```
+
+- `posicion = NULL` porque no llegó en ningún puesto.
+- El UNIQUE `(resultado_id, posicion)` admite múltiples `NULL` simultáneos: PostgreSQL trata cada NULL como distinto en constraints UNIQUE (comportamiento estándar). ✓
+- El caballo sigue `estado = 'ratificado'` en `inscripciones` — no se toca.
+
+### Efecto en liquidación
+
+El flag `no_largo = true` queda directamente consultable para el **Bloque C** (montas perdidas):
+```sql
+SELECT rp.inscripcion_id, i.jockey_titular_id, i.spc_id
+FROM resultado_posiciones rp
+JOIN inscripciones i ON i.id = rp.inscripcion_id
+WHERE rp.resultado_id = '<id>'
+  AND rp.no_largo = true;
+```
 
 ---
 
