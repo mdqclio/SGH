@@ -208,13 +208,16 @@
     .dv-vacante { display: inline-block; background: rgba(224,82,82,0.15); color: #e09090; border: 1px solid rgba(224,82,82,0.25); border-radius: 5px; padding: 1px 7px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
     .dv-sep { border-top: 1px solid var(--border); margin: 14px 0; }
     .dv-section-hdr { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 10px; }
-    .dv-list { display: flex; flex-direction: column; }
-    .dv-list-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
-    .dv-list-nombre { font-size: 13px; font-weight: 600; color: var(--accent); min-width: 105px; flex-shrink: 0; }
-    .dv-list-comp { display: flex; align-items: center; gap: 4px; flex: 1; flex-wrap: wrap; }
+    .dv-list { display: grid; grid-template-columns: 120px auto 130px; column-gap: 8px; align-items: center; width: fit-content; }
+    .dv-list-row { display: contents; }
+    .dv-list-section-hdr { grid-column: 1 / -1; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); padding: 8px 0 2px; }
+    .dv-list-section-hdr:first-child { padding-top: 0; }
+    .dv-list-section-sep { grid-column: 1 / -1; border-top: 1px solid var(--border); margin: 8px 0; }
+    .dv-list-nombre { font-size: 13px; font-weight: 600; color: var(--accent); padding: 4px 0; }
+    .dv-list-comp { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
     .dv-comp-txt { font-size: 12px; color: var(--muted); }
     .dv-sep-txt { font-size: 12px; color: var(--muted); }
-    .dv-list-monto-wrap { text-align: right; }
+    .dv-list-monto-wrap { text-align: right; padding: 4px 0; }
     .dv-list-monto { font-size: 13px; font-weight: 600; color: var(--text); background: rgba(0,0,0,0.3); border-radius: 5px; padding: 3px 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .dv-inc { font-size: 11px; color: var(--muted); margin-top: 3px; }
 
@@ -991,46 +994,43 @@ function renderDivHTML(apus, habMap, chapaAt, fullDetail) {
   if (posCols.length) parts.push(`<div class="dv-posicionales">${posCols.join('')}</div>`);
 
   if (fullDetail) {
-    // Apuestas directas (EX, IM, TR, CUAT) — solo las cargadas
-    const directas = ['EX','IM','TR','CUAT'].filter(t => byTipo[t]?.length);
-    if (directas.length) {
-      if (parts.length) parts.push(SEP);
-      parts.push(`<div class="dv-section-hdr">Apuestas directas</div>`);
-      const rows = directas.map(tipo => {
-        const a = byTipo[tipo][0];
-        const comp = renderCompChips(a, chapaAt);
-        const monto = a.vacante
-          ? `<span class="dv-vacante">VACANTE</span>`
-          : `<span class="dv-list-monto">$ ${fNum(a.div_orig)}</span>`;
-        const inc = (a.div_inc != null && a.div_inc > 0)
-          ? `<div class="dv-inc">Incremento: $ ${fNum(a.div_inc)}</div>` : '';
-        return `<div class="dv-list-row">
-          <span class="dv-list-nombre">${DIV_NOMBRE[tipo]}</span>
-          <span class="dv-list-comp">${comp}</span>
-          <div class="dv-list-monto-wrap">${monto}${inc}</div>
-        </div>`;
-      }).join('');
-      parts.push(`<div class="dv-list">${rows}</div>`);
-    }
-    // Apuestas combinadas (X2…CAD) — solo las cargadas
+    // Apuestas directas y combinadas — un solo grid para que los montos alineen en la misma columna
+    const directas   = ['EX','IM','TR','CUAT'].filter(t => byTipo[t]?.length);
     const combinadas = ['X2','X2P','X3','X4','X5','CAD'].filter(t => byTipo[t]?.length);
-    if (combinadas.length) {
+    const directaRows = directas.map(tipo => {
+      const a = byTipo[tipo][0];
+      const comp = renderCompChips(a, chapaAt);
+      const monto = a.vacante
+        ? `<span class="dv-vacante">VACANTE</span>`
+        : `<span class="dv-list-monto">$ ${fNum(a.div_orig)}</span>`;
+      const inc = (a.div_inc != null && a.div_inc > 0)
+        ? `<div class="dv-inc">Incremento: $ ${fNum(a.div_inc)}</div>` : '';
+      return `<div class="dv-list-row">
+        <span class="dv-list-nombre">${DIV_NOMBRE[tipo]}</span>
+        <span class="dv-list-comp">${comp}</span>
+        <div class="dv-list-monto-wrap">${monto}${inc}</div>
+      </div>`;
+    });
+    const combinadaRows = combinadas.map(tipo => {
+      const a = byTipo[tipo][0];
+      const monto = a.vacante
+        ? `<span class="dv-vacante">VACANTE</span>`
+        : `<span class="dv-list-monto">$ ${fNum(a.div_orig)}</span>`;
+      const inc = (a.div_inc != null && a.div_inc > 0)
+        ? `<div class="dv-inc">Incremento: $ ${fNum(a.div_inc)}</div>` : '';
+      return `<div class="dv-list-row">
+        <span class="dv-list-nombre">${DIV_NOMBRE[tipo]}</span>
+        <span class="dv-list-comp"></span>
+        <div class="dv-list-monto-wrap">${monto}${inc}</div>
+      </div>`;
+    });
+    if (directaRows.length || combinadaRows.length) {
       if (parts.length) parts.push(SEP);
-      parts.push(`<div class="dv-section-hdr">Apuestas combinadas</div>`);
-      const rows = combinadas.map(tipo => {
-        const a = byTipo[tipo][0];
-        const monto = a.vacante
-          ? `<span class="dv-vacante">VACANTE</span>`
-          : `<span class="dv-list-monto">$ ${fNum(a.div_orig)}</span>`;
-        const inc = (a.div_inc != null && a.div_inc > 0)
-          ? `<div class="dv-inc">Incremento: $ ${fNum(a.div_inc)}</div>` : '';
-        return `<div class="dv-list-row">
-          <span class="dv-list-nombre">${DIV_NOMBRE[tipo]}</span>
-          <span class="dv-list-comp"></span>
-          <div class="dv-list-monto-wrap">${monto}${inc}</div>
-        </div>`;
-      }).join('');
-      parts.push(`<div class="dv-list">${rows}</div>`);
+      let listContent = '';
+      if (directaRows.length)   listContent += `<div class="dv-list-section-hdr">Apuestas directas</div>${directaRows.join('')}`;
+      if (directaRows.length && combinadaRows.length) listContent += `<div class="dv-list-section-sep"></div>`;
+      if (combinadaRows.length) listContent += `<div class="dv-list-section-hdr">Apuestas combinadas</div>${combinadaRows.join('')}`;
+      parts.push(`<div class="dv-list">${listContent}</div>`);
     }
   }
 
