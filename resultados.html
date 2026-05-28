@@ -121,12 +121,6 @@
     }
     .marc-input:focus { border-color: var(--accent); }
     .marc-invalid { border-color: #e55 !important; background: rgba(229, 85, 85, 0.08); }
-    .marc-nc-sep   { grid-column: 1 / -1; border-top: 1px dashed rgba(255,255,255,0.1); margin: 2px 0; }
-    .marc-nc-lbl   { font-size: 11px; color: var(--muted); text-align: right; padding-right: 2px; opacity: 0.6; line-height: 34px; }
-    .marc-nc-pill  { height: 34px; display: flex; align-items: center; padding: 0 10px; font-size: 12px; color: var(--muted); background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.12); border-radius: 8px; white-space: nowrap; }
-    .marc-nc-nombre { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.7; padding-left: 2px; }
-    .marc-nc-estado { font-size: 10px; opacity: 0.55; margin-left: 5px; }
-
     /* ── Chapa picker ── */
     .chapa-wrap { display: flex; align-items: center; }
     .chapa-btn  { display: flex; align-items: center; gap: 5px; height: 34px; padding: 0 7px 0 5px; background: rgba(255,255,255,0.04); border: 1px solid rgba(201,168,76,0.35); border-radius: 8px; cursor: pointer; min-width: 88px; font-family: 'DM Sans', sans-serif; color: var(--text); transition: border-color 0.15s; }
@@ -536,13 +530,6 @@ function renderFormulario(carrera, res, pos, apus, insc) {
   pendingApuestas  = apus.map(a=>({...a}));
   loadedUpdatedAt  = res?.updated_at || null;
 
-  // Borrados
-  const borradas = insc.filter(i=>['forfait','mal_inscrito'].includes(i.estado))
-                       .sort((a,b)=>(a.numero_partidor||999)-(b.numero_partidor||999));
-  const borradosTxt = borradas.length
-    ? borradas.map(i=>spcsMap[i.spc_id]?.nombre||'?').join(', ') + ` (${insc.length})`
-    : `Ninguno (${insc.length})`;
-
   // Caballos que largan y sus mandiles 1..N (gatera → mandil comprimido)
   const activeInsc   = insc.filter(i => i.estado === 'ratificado');
   const rowCount     = Math.max(1, activeInsc.length);
@@ -590,18 +577,6 @@ function renderFormulario(carrera, res, pos, apus, insc) {
       <input class="marc-input" id="marc-${p}" type="number" min="1" max="${rowCount}" value="${val}" oninput="onMarcInput()">
       ${chapaCell}`;
   }).join('');
-
-  // Filas "no corrió" para borrados (solo lectura, no afectan posData)
-  const ncRows = borradas.length ? [
-    `<div class="marc-nc-sep"></div>`,
-    ...borradas.map(i => {
-      const nombre = spcsMap[i.spc_id]?.nombre || '—';
-      const estadoLbl = i.estado === 'forfait' ? 'forfait' : 'mal insc.';
-      return `<div class="marc-nc-lbl">—</div>
-        <div class="marc-nc-pill">no corrió</div>
-        <div class="marc-nc-nombre">${nombre}<span class="marc-nc-estado">${estadoLbl}</span></div>`;
-    })
-  ].join('') : '';
 
   // Normalizar tiempo_ganador — formato viejo "M:SS:CC" → nuevo "M:SS.CC"
   const _tgRaw = res?.tiempo_ganador || '';
@@ -669,9 +644,6 @@ function renderFormulario(carrera, res, pos, apus, insc) {
             <label>Incidentes</label>
             <input type="text" id="incidentes" value="${res?.incidentes||''}" placeholder="Notas…" style="min-width:240px;flex:1">
           </div>
-          <div class="form-group" style="margin-left:auto;font-size:13px;color:var(--muted);align-self:flex-end;">
-            Borrados: <strong style="color:var(--text)">${borradosTxt}</strong>
-          </div>
         </div>
       </div>
 
@@ -681,7 +653,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
         <!-- ─── MARCADOR ─── -->
         <div class="det-col-left">
           <div class="res-section-title" style="margin-bottom:12px;">Marcador</div>
-          <div class="marc-grid">${marcRows}${ncRows}</div>
+          <div class="marc-grid">${marcRows}</div>
         </div>
 
         <!-- ─── PANEL DERECHO ─── -->
@@ -1336,12 +1308,6 @@ function renderOficial(carrera, res, pos, apus, insc) {
   isDirty = false;
   divViewEditable = false;
   const posOrdenadas = [...pos].sort((a,b)=>(a.posicion||99)-(b.posicion||99));
-  const borradas = insc.filter(i=>['forfait','mal_inscrito'].includes(i.estado))
-                       .sort((a,b)=>(a.numero_partidor||999)-(b.numero_partidor||999));
-  const borradosTxt = borradas.length
-    ? borradas.map(i=>spcsMap[i.spc_id]?.nombre||'?').join(', ') + ` (${insc.length})`
-    : `Ninguno (${insc.length})`;
-
   const _chapaForInsc = renumerarChapas(insc);   // inscripcion_id → mandil 1..N
 
   const mbp = {};
@@ -1388,12 +1354,7 @@ function renderOficial(carrera, res, pos, apus, insc) {
         </div>
       </div>
 
-      <div class="res-section">
-        <div class="form-row" style="gap:20px;font-size:13px;">
-          <div>Borrados: <strong>${borradosTxt}</strong></div>
-          ${res.favorito_mandil!=null?`<div>Favorito: <strong style="color:var(--accent)">${res.favorito_mandil}</strong></div>`:''}
-        </div>
-      </div>
+      ${res.favorito_mandil!=null?`<div class="res-section"><div class="form-row" style="gap:20px;font-size:13px;"><div>Favorito: <strong style="color:var(--accent)">${res.favorito_mandil}</strong></div></div></div>`:''}
 
       <div class="det-cols">
         <!-- Posiciones -->
