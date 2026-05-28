@@ -120,6 +120,7 @@
       text-align: center; padding: 0; width: 100%; outline: none; transition: border-color 0.15s;
     }
     .marc-input:focus { border-color: var(--accent); }
+    .marc-invalid { border-color: #e55 !important; background: rgba(229, 85, 85, 0.08); }
 
     /* ── Chapa picker ── */
     .chapa-wrap { display: flex; align-items: center; }
@@ -730,11 +731,13 @@ function onMarcInput() {
   const insc = inscripciones.filter(i => i.carrera_id === currentCarreraId && i.estado === 'ratificado');
   const tempPos = [];
   for (let p = 1; p <= 20; p++) {
-    const raw = document.getElementById(`marc-${p}`)?.value?.trim();
-    if (!raw) continue;
+    const el  = document.getElementById(`marc-${p}`);
+    const raw = el?.value?.trim();
+    if (!raw) { el?.classList.remove('marc-invalid'); continue; }
     const mandil = parseInt(raw, 10);
     if (isNaN(mandil)) continue;
     const found = insc.find(i => i.numero_partidor === mandil);
+    el?.classList.toggle('marc-invalid', !found);
     if (!found) continue;
     tempPos.push({ posicion: p, inscripcion_id: found.id });
   }
