@@ -536,15 +536,21 @@ function renderFormulario(carrera, res, pos, apus, insc) {
     ? `${borradas.map(i=>i.numero_partidor).filter(Boolean).join('-')} (${insc.length})`
     : `Ninguno (${insc.length})`;
 
-  // Mandil por puesto (desde posiciones guardadas)
+  // Caballos que largan y sus mandiles 1..N (gatera → mandil comprimido)
+  const activeInsc   = insc.filter(i => i.estado === 'ratificado');
+  const rowCount     = Math.max(1, activeInsc.length);
+  const chapaForInsc = renumerarChapas(activeInsc);   // inscripcion_id → mandil 1..N
+
+  // Mandil 1..N por puesto (desde posiciones guardadas)
   const mbp = {};
   pos.forEach(p => {
-    const i = insc.find(x=>x.id===p.inscripcion_id);
-    if (i?.numero_partidor) mbp[p.posicion] = i.numero_partidor;
+    const i = insc.find(x => x.id === p.inscripcion_id);
+    const n = i ? (chapaForInsc[i.id] ?? null) : null;
+    if (n != null) mbp[p.posicion] = n;
   });
-  // Puesto por mandil (inverso de mbp) — para M.(F) y Sport ordenados por mandil
+  // Puesto por mandil 1..N (inverso de mbp) — para Sport
   const pxm = {};
-  Object.entries(mbp).forEach(([puesto, mandil]) => { pxm[mandil] = parseInt(puesto); });
+  Object.entries(mbp).forEach(([puesto, n]) => { pxm[n] = parseInt(puesto); });
 
   // Marcador HTML con chapa picker por puesto 2+
   chapaValues = {};
@@ -555,12 +561,9 @@ function renderFormulario(carrera, res, pos, apus, insc) {
     if (px.dividendo != null) divMap[px.posicion] = px.dividendo;
   });
 
-  const activeInsc = insc.filter(i => i.estado === 'ratificado');
-  const rowCount   = Math.max(1, activeInsc.length);
-
   const marcRows = Array.from({length: rowCount}, (_, i) => {
     const p   = i + 1;
-    const val = mbp[p] || '';
+    const val = mbp[p] ?? '';
     let chapaCell = '<div></div>';
     if (p > 1) {
       const st = parseDif(difMap[p] || null);
@@ -577,7 +580,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
     }
     const posClass = p === 1 ? 'marc-pos marc-pos-1' : 'marc-pos';
     return `<div class="${posClass}">${p}°</div>
-      <input class="marc-input" id="marc-${p}" type="number" min="1" max="30" value="${val}" oninput="onMarcInput()">
+      <input class="marc-input" id="marc-${p}" type="number" min="1" max="${rowCount}" value="${val}" oninput="onMarcInput()">
       ${chapaCell}`;
   }).join('');
 
@@ -592,23 +595,22 @@ function renderFormulario(carrera, res, pos, apus, insc) {
       `<option value="${v}" ${res?.estado_pista===v?'selected':''}>${v.charAt(0).toUpperCase()+v.slice(1)}</option>`
     ).join('');
 
-  // M.(F) — ordenado por MANDIL real de cada ratificado (no 1..rowCount secuencial).
+  // M.(F) y Sport — ordenados por gatera ASC (preserva orden físico = orden mandil 1..N)
   const sortedInsc = [...activeInsc].sort((a, b) => (a.numero_partidor || 999) - (b.numero_partidor || 999));
   const mfColStyle = `grid-template-columns:repeat(${sortedInsc.length},68px)`;
   const mfCells = sortedInsc.map(ins => {
-    const m = ins.numero_partidor;
-    const { bg, fg } = partidorColor(m);
+    const n = chapaForInsc[ins.id];
+    const { bg, fg } = partidorColor(n);
     const bdr = bg.toUpperCase() === '#FFFFFF' ? '#ccc' : bg;
-    return `<div class="mf-cell" data-mandil="${m}" id="mf-${m}" style="background:${bg};color:${fg};border-color:${bdr}">${m}</div>`;
+    return `<div class="mf-cell" data-mandil="${n}" id="mf-${n}" style="background:${bg};color:${fg};border-color:${bdr}">${n}</div>`;
   }).join('');
 
-  // Sport — ordenado por MANDIL real. Dividendo = resultado_posiciones.dividendo del mandil M.
   const sportColStyle = `grid-template-columns:repeat(${sortedInsc.length},68px)`;
   const sportCells = sortedInsc.map(ins => {
-    const m = ins.numero_partidor;
-    const puesto = pxm[m] || null;
+    const n = chapaForInsc[ins.id];
+    const puesto = pxm[n] || null;
     const val = puesto != null && divMap[puesto] != null ? Number(divMap[puesto]).toFixed(2) : '';
-    return `<div class="sport-cell-wrap"><input class="sport-cell" id="sport-${m}" type="number" step="0.01" min="0" value="${val}" placeholder="—"></div>`;
+    return `<div class="sport-cell-wrap"><input class="sport-cell" id="sport-${n}" type="number" step="0.01" min="0" value="${val}" placeholder="—"></div>`;
   }).join('');
 
   const _cIdx    = carreras.findIndex(c => c.id === carrera.id);
@@ -728,15 +730,19 @@ function renderFormulario(carrera, res, pos, apus, insc) {
 /* ── Cambios en el marcador ── */
 function onMarcInput() {
   updateMF();
-  const insc = inscripciones.filter(i => i.carrera_id === currentCarreraId && i.estado === 'ratificado');
+  const activeInsc   = inscripciones.filter(i => i.carrera_id === currentCarreraId && i.estado === 'ratificado');
+  const chapaForInsc = renumerarChapas(activeInsc);
+  const chapaToInsc  = {};
+  Object.entries(chapaForInsc).forEach(([id, n]) => { chapaToInsc[n] = activeInsc.find(i => i.id === id); });
+
   const tempPos = [];
   for (let p = 1; p <= 20; p++) {
     const el  = document.getElementById(`marc-${p}`);
     const raw = el?.value?.trim();
     if (!raw) { el?.classList.remove('marc-invalid'); continue; }
-    const mandil = parseInt(raw, 10);
-    if (isNaN(mandil)) continue;
-    const found = insc.find(i => i.numero_partidor === mandil);
+    const n = parseInt(raw, 10);
+    if (isNaN(n)) continue;
+    const found = chapaToInsc[n];
     el?.classList.toggle('marc-invalid', !found);
     if (!found) continue;
     tempPos.push({ posicion: p, inscripcion_id: found.id });
@@ -1292,24 +1298,27 @@ async function aplicar(carreraId, estado) {
 
   const redistribucion_legs = resultados[carreraId]?.redistribucion_legs || {};
 
-  const res  = resultados[carreraId];
-  const insc = inscripciones.filter(i=>i.carrera_id===carreraId);
+  const res          = resultados[carreraId];
+  const activeInsc   = inscripciones.filter(i => i.carrera_id === carreraId && i.estado === 'ratificado');
+  const chapaForInsc = renumerarChapas(activeInsc);
+  const chapaToInsc  = {};
+  Object.entries(chapaForInsc).forEach(([id, n]) => { chapaToInsc[n] = activeInsc.find(i => i.id === id); });
 
-  // Posiciones: marcador → inscripcion_id (validación local antes de llamar la RPC)
+  // Posiciones: marcador (mandil 1..N) → inscripcion_id
   const posData = [];
   const usados  = new Set();
-  for (let p=1; p<=20; p++) {
+  for (let p = 1; p <= 20; p++) {
     const raw = document.getElementById(`marc-${p}`)?.value?.trim();
     if (!raw) continue;
-    const mandil = parseInt(raw);
-    if (isNaN(mandil)) continue;
-    if (usados.has(mandil)) { toast(`Mandil ${mandil} duplicado en el marcador`,'error'); return; }
-    usados.add(mandil);
-    const inscr = insc.find(i=>i.numero_partidor===mandil);
-    if (!inscr) { toast(`Mandil ${mandil} no encontrado entre los inscriptos`,'error'); return; }
-    const divRaw = document.getElementById(`sport-${mandil}`)?.value?.trim();
+    const n = parseInt(raw);
+    if (isNaN(n)) continue;
+    if (usados.has(n)) { toast(`Mandil ${n} duplicado en el marcador`, 'error'); return; }
+    usados.add(n);
+    const inscr = chapaToInsc[n];
+    if (!inscr) { toast(`Mandil ${n} no está entre los ratificados`, 'error'); return; }
+    const divRaw = document.getElementById(`sport-${n}`)?.value?.trim();
     const dividendo = divRaw ? parseFloat(divRaw) : null;
-    posData.push({ inscripcion_id:inscr.id, posicion:p, descalificado:false, empate:false,
+    posData.push({ inscripcion_id: inscr.id, posicion: p, descalificado: false, empate: false,
                    diferencia: p === 1 ? null : (chapaGetCodigo(chapaValues[p]) || null),
                    dividendo });
   }
@@ -1416,14 +1425,16 @@ function renderOficial(carrera, res, pos, apus, insc) {
     ? `${borradas.map(i=>i.numero_partidor).filter(Boolean).join('-')} (${insc.length})`
     : `Ninguno (${insc.length})`;
 
+  const _chapaForInsc = renumerarChapas(insc);   // inscripcion_id → mandil 1..N
+
   const mbp = {};
   posOrdenadas.forEach(p => {
-    const i = insc.find(x=>x.id===p.inscripcion_id);
-    if (i?.numero_partidor) mbp[p.posicion] = i.numero_partidor;
+    const i = insc.find(x => x.id === p.inscripcion_id);
+    if (i) mbp[p.posicion] = _chapaForInsc[i.id] ?? null;
   });
 
   const mfCells = [1,2,3,4,5,6,7].map(p => {
-    const m = mbp[p]||'';
+    const m = mbp[p] != null ? mbp[p] : '';
     const cls = p===2?'mf-2': p===3?'mf-3': p===4?'mf-4':'';
     return `<div class="mf-cell ${cls}">${m}</div>`;
   }).join('');
@@ -1436,7 +1447,6 @@ function renderOficial(carrera, res, pos, apus, insc) {
   const _habMap = Object.fromEntries(
     (carreraApuestasMap[carrera.id] || []).filter(a => a.precio > 0).map(a => [a.tipo, a])
   );
-  const _chapaForInsc = renumerarChapas(insc);
   const _chapaAt = posIdx => {
     const p = posOrdenadas.find(x => x.posicion === posIdx);
     return p ? (_chapaForInsc[p.inscripcion_id] ?? null) : null;
@@ -1476,7 +1486,7 @@ function renderOficial(carrera, res, pos, apus, insc) {
             ${posOrdenadas.map(p=>{
               const i = insc.find(x=>x.id===p.inscripcion_id);
               const spc = i ? spcsMap[i.spc_id] : null;
-              const mandil = i?.numero_partidor ? `[${i.numero_partidor}]` : '';
+              const mandil = i ? `[${_chapaForInsc[i.id] ?? '?'}]` : '';
               return `<li>
                 <div class="pos-num">${p.posicion}°</div>
                 <div>
