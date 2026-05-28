@@ -591,19 +591,20 @@ function renderFormulario(carrera, res, pos, apus, insc) {
       `<option value="${v}" ${res?.estado_pista===v?'selected':''}>${v.charAt(0).toUpperCase()+v.slice(1)}</option>`
     ).join('');
 
-  // M.(F) — ordenado por MANDIL (1..N). Color = color SBARG del propio mandil.
-  const mfColStyle = `grid-template-columns:repeat(${rowCount},68px)`;
-  const mfCells = Array.from({length: rowCount}, (_, i) => {
-    const m = i + 1;
+  // M.(F) — ordenado por MANDIL real de cada ratificado (no 1..rowCount secuencial).
+  const sortedInsc = [...activeInsc].sort((a, b) => (a.numero_partidor || 999) - (b.numero_partidor || 999));
+  const mfColStyle = `grid-template-columns:repeat(${sortedInsc.length},68px)`;
+  const mfCells = sortedInsc.map(ins => {
+    const m = ins.numero_partidor;
     const { bg, fg } = partidorColor(m);
     const bdr = bg.toUpperCase() === '#FFFFFF' ? '#ccc' : bg;
     return `<div class="mf-cell" data-mandil="${m}" id="mf-${m}" style="background:${bg};color:${fg};border-color:${bdr}">${m}</div>`;
   }).join('');
 
-  // Sport — ordenado por MANDIL (1..N). Dividendo = resultado_posiciones.dividendo del mandil M.
-  const sportColStyle = `grid-template-columns:repeat(${rowCount},68px)`;
-  const sportCells = Array.from({length: rowCount}, (_, i) => {
-    const m = i + 1;
+  // Sport — ordenado por MANDIL real. Dividendo = resultado_posiciones.dividendo del mandil M.
+  const sportColStyle = `grid-template-columns:repeat(${sortedInsc.length},68px)`;
+  const sportCells = sortedInsc.map(ins => {
+    const m = ins.numero_partidor;
     const puesto = pxm[m] || null;
     const val = puesto != null && divMap[puesto] != null ? Number(divMap[puesto]).toFixed(2) : '';
     return `<div class="sport-cell-wrap"><input class="sport-cell" id="sport-${m}" type="number" step="0.01" min="0" value="${val}" placeholder="—"></div>`;
