@@ -121,6 +121,23 @@
     }
     .marc-input:focus { border-color: var(--accent); }
     .marc-invalid { border-color: #e55 !important; background: rgba(229, 85, 85, 0.08); }
+
+    /* ── No corrió ── */
+    .mf-cell.nc-out { opacity: 0.3; position: relative; }
+    .mf-cell.nc-out::after { content: 'NC'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 900; color: var(--danger); background: rgba(0,0,0,0.45); border-radius: 2px; letter-spacing: 0.5px; }
+    .nc-marc-chip-cell { height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(224,82,82,0.35); background: rgba(224,82,82,0.06); }
+    .nc-marc-chip { width: 34px; height: 26px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+    .nc-tag { display: flex; align-items: center; height: 34px; padding: 0 10px; background: rgba(224,82,82,0.08); border: 1px solid rgba(224,82,82,0.3); border-radius: 8px; font-size: 11px; font-weight: 700; color: var(--danger); letter-spacing: 0.4px; text-transform: uppercase; white-space: nowrap; }
+    .v3-nc-btn { display: block; width: 100%; margin-top: 14px; padding: 9px 16px; border-radius: 9px; background: transparent; border: 1px dashed rgba(224,82,82,0.5); color: #e88; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+    .v3-nc-btn:hover { background: rgba(224,82,82,0.08); border-style: solid; }
+    .v3-nc-btn.nc-done { border-style: solid; border-color: rgba(76,175,130,0.45); color: var(--success); }
+    .v3-nc-btn.nc-done:hover { background: rgba(76,175,130,0.07); }
+    .nc-confirm-panel { margin-top: 12px; padding: 12px 14px; background: rgba(224,82,82,0.07); border: 1px solid rgba(224,82,82,0.28); border-radius: 10px; }
+    .nc-confirm-title { font-size: 11px; font-weight: 700; color: #e88; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px; }
+    .nc-confirm-horses { display: flex; flex-wrap: wrap; gap: 8px; }
+    .nc-confirm-horse { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 6px 10px; }
+    .nc-confirm-chip { width: 28px; height: 28px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+    .nc-confirm-name { font-size: 12px; color: var(--text); font-weight: 500; }
     /* ── Chapa picker ── */
     .chapa-wrap { display: flex; align-items: center; }
     .chapa-btn  { display: flex; align-items: center; gap: 5px; height: 34px; padding: 0 7px 0 5px; background: rgba(255,255,255,0.04); border: 1px solid rgba(201,168,76,0.35); border-radius: 8px; cursor: pointer; min-width: 88px; font-family: 'DM Sans', sans-serif; color: var(--text); transition: border-color 0.15s; }
@@ -359,6 +376,7 @@ let isDirty          = false;  // hay cambios sin aplicar
 let divViewEditable  = false;  // panel de dividendos en modo edición
 let chapaValues      = {};     // {posicion: {id, n}} — distancias entre puestos
 let chapaOpenPos     = null;   // posición cuyo dropdown está abierto
+let noLargoMandiles  = new Set(); // mandiles marcados como "no corrió" en el marcador actual
 
 /* ── Guard de cambios pendientes ── */
 function guardDirty(fn) {
@@ -523,6 +541,139 @@ function abrirResultado(carreraId) {
   else                          renderFormulario(carrera, res, pos, apus, insc);
 }
 
+/* ─────────────────────────────────────────────
+   NO CORRIÓ — helpers
+───────────────────────────────────────────── */
+function buildMarcGridHTML(rowCount, mbp, activeInsc, chapaForInsc) {
+  const sorted = [...activeInsc].sort((a,b) => (a.numero_partidor||999) - (b.numero_partidor||999));
+  const ncQueue = noLargoMandiles.size > 0
+    ? sorted.filter(ins => noLargoMandiles.has(chapaForInsc[ins.id]))
+    : [];
+  let ncIdx = 0;
+  return Array.from({length: rowCount}, (_, i) => {
+    const p = i + 1;
+    const val = mbp[p] ?? null;
+    const posClass = p === 1 ? 'marc-pos marc-pos-1' : 'marc-pos';
+    if (val === null && ncIdx < ncQueue.length) {
+      const ins = ncQueue[ncIdx++];
+      const n = chapaForInsc[ins.id];
+      const { bg, fg } = partidorColor(n);
+      const bdrs = bg.toUpperCase() === '#FFFFFF' ? 'border:1px solid #888;' : '';
+      return `<div class="${posClass}">${p}°</div>
+        <div class="nc-marc-chip-cell"><div class="nc-marc-chip" style="background:${bg};color:${fg};${bdrs}">${n}</div></div>
+        <div class="nc-tag">no corrió</div>`;
+    }
+    let chapaCell = '<div></div>';
+    if (p > 1) {
+      const svg = chapaGetSvg(chapaValues[p]);
+      const cod = chapaGetCodigo(chapaValues[p]) || '—';
+      chapaCell = `<div class="chapa-wrap" id="chapa-wrap-${p}">
+        <button type="button" class="chapa-btn" id="chapa-btn-${p}" onclick="openChapaDropdown(${p})">
+          <span class="chapa-btn-icon" id="chapa-icon-${p}">${svg}</span>
+          <span class="chapa-btn-code" id="chapa-code-${p}">${cod}</span>
+          <span class="chapa-caret">▾</span>
+        </button>
+      </div>`;
+    }
+    return `<div class="${posClass}">${p}°</div>
+      <input class="marc-input" id="marc-${p}" type="number" min="1" max="${rowCount}" value="${val ?? ''}" oninput="onMarcInput()">
+      ${chapaCell}`;
+  }).join('');
+}
+
+function reRenderMarcGrid() {
+  const grid = document.getElementById('marc-grid-inner');
+  if (!grid || !currentCarreraId) return;
+  const activeInsc   = inscripciones.filter(i => i.carrera_id === currentCarreraId && i.estado === 'ratificado');
+  const rowCount     = Math.max(1, activeInsc.length);
+  const chapaForInsc = renumerarChapas(activeInsc);
+  const mbp = {};
+  for (let p = 1; p <= rowCount; p++) {
+    const raw = document.getElementById(`marc-${p}`)?.value?.trim();
+    if (raw) { const n = parseInt(raw, 10); if (!isNaN(n)) mbp[p] = n; }
+  }
+  grid.innerHTML = buildMarcGridHTML(rowCount, mbp, activeInsc, chapaForInsc);
+}
+
+function marcarNoCurrio() {
+  if (!currentCarreraId) return;
+  if (noLargoMandiles.size > 0) {
+    noLargoMandiles = new Set();
+    reRenderMarcGrid();
+    renderNcUI();
+    isDirty = true;
+    return;
+  }
+  const activeInsc   = inscripciones.filter(i => i.carrera_id === currentCarreraId && i.estado === 'ratificado');
+  const chapaForInsc = renumerarChapas(activeInsc);
+  const rowCount     = Math.max(1, activeInsc.length);
+  const entered = new Set();
+  for (let p = 1; p <= rowCount; p++) {
+    const raw = document.getElementById(`marc-${p}`)?.value?.trim();
+    if (raw) { const n = parseInt(raw, 10); if (!isNaN(n)) entered.add(n); }
+  }
+  const ncMandiles = new Set(
+    activeInsc.filter(ins => !entered.has(chapaForInsc[ins.id])).map(ins => chapaForInsc[ins.id])
+  );
+  if (ncMandiles.size === 0) {
+    toast('Todos los caballos tienen resultado. No hay "no corrió".', 'success');
+    return;
+  }
+  noLargoMandiles = ncMandiles;
+  reRenderMarcGrid();
+  renderNcUI();
+  isDirty = true;
+}
+
+function renderNcUI() {
+  const btn = document.getElementById('nc-btn');
+  if (btn) {
+    if (noLargoMandiles.size > 0) {
+      const n = noLargoMandiles.size;
+      btn.textContent = `← Deshacer (${n} marcado${n !== 1 ? 's' : ''})`;
+      btn.classList.add('nc-done');
+    } else {
+      btn.textContent = 'Marcar no corrió';
+      btn.classList.remove('nc-done');
+    }
+  }
+  const panel = document.getElementById('nc-confirm-panel');
+  if (panel) {
+    if (noLargoMandiles.size > 0 && currentCarreraId) {
+      const activeInsc   = inscripciones.filter(i => i.carrera_id === currentCarreraId && i.estado === 'ratificado');
+      const chapaForInsc = renumerarChapas(activeInsc);
+      const sorted       = [...activeInsc].sort((a,b) => (a.numero_partidor||999) - (b.numero_partidor||999));
+      const ncHorses     = sorted.filter(ins => noLargoMandiles.has(chapaForInsc[ins.id]));
+      const n = ncHorses.length;
+      panel.innerHTML = `
+        <div class="nc-confirm-title">✓ ${n} caballo${n !== 1 ? 's' : ''} marcado${n !== 1 ? 's' : ''} como no corrió</div>
+        <div class="nc-confirm-horses">${ncHorses.map(ins => {
+          const m = chapaForInsc[ins.id];
+          const { bg, fg } = partidorColor(m);
+          const bdrs = bg.toUpperCase() === '#FFFFFF' ? 'border:1px solid #888;' : '';
+          return `<div class="nc-confirm-horse">
+            <div class="nc-confirm-chip" style="background:${bg};color:${fg};${bdrs}">${m}</div>
+            <div class="nc-confirm-name">${spcsMap[ins.spc_id]?.nombre || '—'}</div>
+          </div>`;
+        }).join('')}</div>`;
+      panel.style.display = 'block';
+    } else {
+      panel.style.display = 'none';
+      panel.innerHTML = '';
+    }
+  }
+  if (!currentCarreraId) return;
+  const ai = inscripciones.filter(i => i.carrera_id === currentCarreraId && i.estado === 'ratificado');
+  const cf = renumerarChapas(ai);
+  ai.forEach(ins => {
+    const n   = cf[ins.id];
+    const isNC = noLargoMandiles.has(n);
+    document.getElementById(`mf-${n}`)?.classList.toggle('nc-out', isNC);
+    const sp = document.getElementById(`sport-${n}`);
+    if (sp) sp.disabled = isNC;
+  });
+}
+
 /* ═══════════════════════════════════════════════
    FORMULARIO DE CARGA
 ═══════════════════════════════════════════════ */
@@ -537,9 +688,17 @@ function renderFormulario(carrera, res, pos, apus, insc) {
   const rowCount     = Math.max(1, activeInsc.length);
   const chapaForInsc = renumerarChapas(activeInsc);   // inscripcion_id → mandil 1..N
 
-  // Mandil 1..N por puesto (desde posiciones guardadas)
+  // Inicializar no_largo desde posiciones guardadas
+  noLargoMandiles = new Set();
+  pos.filter(p => p.no_largo).forEach(p => {
+    const i = insc.find(x => x.id === p.inscripcion_id);
+    const n = i ? (chapaForInsc[i.id] ?? null) : null;
+    if (n != null) noLargoMandiles.add(n);
+  });
+
+  // Mandil 1..N por puesto (desde posiciones guardadas, excluir no_largo)
   const mbp = {};
-  pos.forEach(p => {
+  pos.filter(p => !p.no_largo).forEach(p => {
     const i = insc.find(x => x.id === p.inscripcion_id);
     const n = i ? (chapaForInsc[i.id] ?? null) : null;
     if (n != null) mbp[p.posicion] = n;
@@ -556,29 +715,12 @@ function renderFormulario(carrera, res, pos, apus, insc) {
     if (px.diferencia) difMap[px.posicion] = px.diferencia;
     if (px.dividendo != null) divMap[px.posicion] = px.dividendo;
   });
+  for (let p = 2; p <= rowCount; p++) {
+    const st = parseDif(difMap[p] || null);
+    if (st) chapaValues[p] = st;
+  }
 
-  const marcRows = Array.from({length: rowCount}, (_, i) => {
-    const p   = i + 1;
-    const val = mbp[p] ?? '';
-    let chapaCell = '<div></div>';
-    if (p > 1) {
-      const st = parseDif(difMap[p] || null);
-      if (st) chapaValues[p] = st;
-      const svg = chapaGetSvg(chapaValues[p]);
-      const cod = chapaGetCodigo(chapaValues[p]) || '—';
-      chapaCell = `<div class="chapa-wrap" id="chapa-wrap-${p}">
-        <button type="button" class="chapa-btn" id="chapa-btn-${p}" onclick="openChapaDropdown(${p})">
-          <span class="chapa-btn-icon" id="chapa-icon-${p}">${svg}</span>
-          <span class="chapa-btn-code" id="chapa-code-${p}">${cod}</span>
-          <span class="chapa-caret">▾</span>
-        </button>
-      </div>`;
-    }
-    const posClass = p === 1 ? 'marc-pos marc-pos-1' : 'marc-pos';
-    return `<div class="${posClass}">${p}°</div>
-      <input class="marc-input" id="marc-${p}" type="number" min="1" max="${rowCount}" value="${val}" oninput="onMarcInput()">
-      ${chapaCell}`;
-  }).join('');
+  const marcRows = buildMarcGridHTML(rowCount, mbp, activeInsc, chapaForInsc);
 
   // Normalizar tiempo_ganador — formato viejo "M:SS:CC" → nuevo "M:SS.CC"
   const _tgRaw = res?.tiempo_ganador || '';
@@ -655,7 +797,9 @@ function renderFormulario(carrera, res, pos, apus, insc) {
         <!-- ─── MARCADOR ─── -->
         <div class="det-col-left">
           <div class="res-section-title" style="margin-bottom:12px;">Marcador</div>
-          <div class="marc-grid">${marcRows}</div>
+          <div class="marc-grid" id="marc-grid-inner">${marcRows}</div>
+          <div id="nc-confirm-panel" style="display:none"></div>
+          <button class="v3-nc-btn" id="nc-btn" onclick="marcarNoCurrio()">Marcar no corrió</button>
         </div>
 
         <!-- ─── PANEL DERECHO ─── -->
@@ -716,7 +860,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
       </div><!-- /det-cols -->
     </div><!-- /res-panel -->`;
 
-  setTimeout(() => renderDivView(), 0);
+  setTimeout(() => { renderDivView(); renderNcUI(); }, 0);
 }
 
 /* ── Cambios en el marcador ── */
@@ -735,7 +879,7 @@ function onMarcInput() {
     const n = parseInt(raw, 10);
     if (isNaN(n)) continue;
     const found = chapaToInsc[n];
-    el?.classList.toggle('marc-invalid', !found);
+    el?.classList.toggle('marc-invalid', !found || noLargoMandiles.has(n));
     if (!found) continue;
     tempPos.push({ posicion: p, inscripcion_id: found.id });
   }
@@ -1210,9 +1354,38 @@ async function aplicar(carreraId, estado) {
     if (!inscr) { toast(`Mandil ${n} no está entre los ratificados`, 'error'); return; }
     const divRaw = document.getElementById(`sport-${n}`)?.value?.trim();
     const dividendo = divRaw ? parseFloat(divRaw) : null;
-    posData.push({ inscripcion_id: inscr.id, posicion: p, descalificado: false, empate: false,
+    posData.push({ inscripcion_id: inscr.id, posicion: p, no_largo: false, descalificado: false, empate: false,
                    diferencia: p === 1 ? null : (chapaGetCodigo(chapaValues[p]) || null),
                    dividendo });
+  }
+
+  // Validar exclusividad: ningún mandil puede tener posición Y ser no_largo
+  for (const pd of posData) {
+    const n = chapaForInsc[pd.inscripcion_id];
+    if (noLargoMandiles.has(n)) {
+      toast(`Mandil ${n} está en el marcador y también marcado como "no corrió". Corregí el marcador.`, 'error');
+      return;
+    }
+  }
+
+  // Safety net: ratificados sin posición ni marca no_largo
+  const enteredIds = new Set(posData.map(pd => pd.inscripcion_id));
+  const sinResolver = activeInsc.filter(ins => !enteredIds.has(ins.id) && !noLargoMandiles.has(chapaForInsc[ins.id]));
+  if (sinResolver.length > 0) {
+    const n = sinResolver.length;
+    if (!confirm(`Hay ${n} caballo${n !== 1 ? 's' : ''} sin resultado ni marca de "no corrió".\n¿Marcarlos como "no corrió" y guardar?`)) return;
+    sinResolver.forEach(ins => noLargoMandiles.add(chapaForInsc[ins.id]));
+    reRenderMarcGrid();
+    renderNcUI();
+  }
+
+  // Agregar filas no_largo al payload
+  for (const n of noLargoMandiles) {
+    const ins = activeInsc.find(i => chapaForInsc[i.id] === n);
+    if (ins && !enteredIds.has(ins.id)) {
+      posData.push({ inscripcion_id: ins.id, posicion: null, no_largo: true,
+                     descalificado: false, empate: false, diferencia: null, dividendo: null });
+    }
   }
 
   const apuestasArr = pendingApuestas.map((a,i) => ({
@@ -1279,7 +1452,7 @@ async function oficializar(carreraId) {
   const inscs = inscripciones.filter(i=>i.carrera_id===carreraId);
   const carrera = carreras.find(c=>c.id===carreraId);
   const { data: reun } = await sb.from('reuniones').select('fecha,hipodromos(nombre,sigla)').eq('id', document.getElementById('sel-reunion').value).single();
-  const perfInserts = posiciones.map(pos => {
+  const perfInserts = posiciones.filter(pos => !pos.no_largo).map(pos => {
     const insc = inscs.find(i=>i.id===pos.inscripcion_id);
     if (!insc) return null;
     return { spc_id:insc.spc_id, carrera_id:carreraId, fecha_carrera:reun?.fecha,
@@ -1311,7 +1484,7 @@ async function modificarOficial(resId, carreraId) {
 function renderOficial(carrera, res, pos, apus, insc) {
   isDirty = false;
   divViewEditable = false;
-  const posOrdenadas = [...pos].sort((a,b)=>(a.posicion||99)-(b.posicion||99));
+  const posOrdenadas = [...pos].filter(p => !p.no_largo).sort((a,b)=>(a.posicion||99)-(b.posicion||99));
   const _chapaForInsc = renumerarChapas(insc);   // inscripcion_id → mandil 1..N
 
   const mbp = {};
