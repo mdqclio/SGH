@@ -33,7 +33,7 @@ Duración: ~3-4 minutos. Deja screenshots en `docs/smoke_screenshots/`.
 
 ### `smoke_t9_t16.mjs` — Regresión bug 3b + optimistic lock
 
-Versión focalizada para verificar rápidamente los dos bugs críticos corregidos en `carga-resultados-v2`:
+Versión focalizada para verificar rápidamente los dos bugs críticos:
 
 - **T9**: borrar todas las filas → F10 → reload → tabla vacía (fix bug 3b)
 - **T16**: Ctx A guarda → Ctx B intenta sin recargar → debe recibir toast de conflicto
@@ -46,19 +46,30 @@ Duración: ~1 minuto.
 
 ### Probes de regresión
 
-Scripts focalizados en bugs específicos. Se ejecutan directamente con `node`:
+Scripts focalizados en comportamientos críticos. Se ejecutan directamente con `node`:
 
 ```bash
-node tests/probe_bug2_mf_mandiles.mjs   # Bug 2 — mandiles reales en M.(F)/Sport
-node tests/probe_bug3_chapa_at.mjs      # Bug 3 — chapaAt(POS_SLOTS) + Fix A (marc-invalid) + Fix B (posicionesMap fallback)
-node tests/probe_nav_dirty.mjs          # Navegación con cambios sin guardar
-node tests/probe_tiempo_ganador.mjs     # Carga de tiempo ganador
-node tests/probe_estado_pista.mjs       # Estado de pista
+node tests/probe_modelo_chapa.mjs   # Modelo mandil 1..N — regresión del refactor e953679/dee1b64
+node tests/probe_nav_dirty.mjs      # Navegación con cambios sin guardar
+node tests/probe_tiempo_ganador.mjs # Carga de tiempo ganador
+node tests/probe_estado_pista.mjs   # Estado de pista
 ```
 
-Duración: ~20-40 segundos por probe. No modifican datos de producción (solo lectura + DOM assertions).
+Duración: ~20-60 segundos por probe.
 
-**Patrón de los probes**: auth con magic link → navegación headless → assertions sobre DOM observable. Las variables internas de `resultados.html` (`currentCarreraId`, `inscripciones`, `posicionesMap`, etc.) son `let` de módulo y no están en `window.*` — los probes no pueden accederlas directamente; todas las verificaciones son DOM-based.
+#### `probe_modelo_chapa.mjs` — 28 checks (el más importante)
+
+Verifica que el modelo mandil 1..N funciona correctamente end-to-end:
+
+| Bloque | Qué verifica |
+|--------|-------------|
+| **T4** (8 starters, 0 borrados) | mf-cells = [1..8] sin huecos; no usa gateras raw [1,3,7,8,9,10,11,13] |
+| **T1** (9 starters, 2 forfait) | mf-cells = [1..9]; marc-invalid para valor > rowCount |
+| **T2 mapeo** | Ganador (Malenuchi Jack, gatera 5) aparece como mandil 2, no como 5 |
+| **Dividendos** | Chip GAN = "2", chips SEG = ["2","1"] |
+| **Save/reload** | Guardar con Aplicar → recargar → marcador idéntico, mapeo estable |
+
+**Patrón de los probes**: auth con magic link → navegación headless → assertions sobre DOM observable. Variables internas de `resultados.html` (`currentCarreraId`, `inscripciones`, etc.) son `let` de script y no están expuestas en `window.*` — todas las verificaciones son DOM-based.
 
 ## Variables de entorno / credenciales
 
@@ -73,8 +84,8 @@ Los scripts usan credenciales hardcodeadas para el entorno de desarrollo del cli
 ## Advertencia
 
 **Estos tests pegan directamente a la base de datos de producción.** Cada ejecución:
-- Modifica `resultados` y `resultado_apuestas` para el turno de prueba.
-- Restaura el dataset original al finalizar (20 filas hardcodeadas en `ORIGINAL_APUESTAS`).
+- Puede modificar `resultados` y `resultado_apuestas` para el turno de prueba.
+- `smoke_full.mjs` restaura el dataset original al finalizar (20 filas hardcodeadas en `ORIGINAL_APUESTAS`).
 - Genera magic links de autenticación reales.
 
 No ejecutar en CI sin una base de datos de staging separada.
