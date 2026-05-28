@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>No corrió — V1: Checkbox por caballo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+    :root {
+      --bg: #0e2318; --card: #1a3d26; --accent: #c9a84c;
+      --text: #f5f0e8; --muted: #8a9e90; --danger: #e05252;
+      --success: #4caf82; --border: rgba(201,168,76,0.2); --input-bg: #0e2318;
+      --info: #74b0f7;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    h1, h2, h3 { font-family: 'Playfair Display', serif; }
+
+    .mockup-banner {
+      background: #7b1fa2; color: #fff; text-align: center;
+      padding: 10px 20px; font-size: 13px; font-weight: 600; letter-spacing: 0.5px;
+      border-bottom: 2px solid #9c27b0;
+    }
+    .mockup-banner strong { font-size: 14px; }
+    .mockup-banner p { font-size: 12px; font-weight: 400; opacity: 0.9; margin-top: 2px; }
+
+    .topbar { background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 12px; }
+    .topbar h1 { font-size: 18px; color: var(--accent); flex: 1; }
+    .btn-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 7px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+
+    .content { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+    select, input[type=text], input[type=number] {
+      background: var(--input-bg); border: 1px solid var(--border); color: var(--text);
+      padding: 8px 12px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none;
+    }
+    select:focus, input:focus { border-color: var(--accent); }
+
+    .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; white-space: nowrap; }
+    kbd { display: inline-block; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; padding: 1px 5px; font-size: 10px; font-family: monospace; color: var(--muted); margin-left: 4px; vertical-align: middle; }
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .badge-provisional { background: rgba(116,176,247,0.1); color: var(--info); border: 1px solid rgba(116,176,247,0.3); }
+
+    .res-panel { background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+    .res-panel-header { padding: 16px 22px; background: rgba(201,168,76,0.07); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .res-panel-title { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--accent); }
+    .res-meta { font-size: 12px; color: var(--muted); }
+    .res-section { padding: 14px 22px; border-bottom: 1px solid var(--border); }
+    .res-section-title { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .res-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group label { font-size: 12px; font-weight: 500; color: var(--muted); }
+
+    .det-cols { display: grid; grid-template-columns: 340px 1fr; gap: 0; }
+    .det-col-left { border-right: 1px solid var(--border); padding: 14px 18px; }
+    .det-col-right { padding: 0; min-width: 0; }
+
+    /* Marcador */
+    .marc-grid { display: grid; grid-template-columns: 28px 54px 1fr; row-gap: 6px; column-gap: 8px; align-items: center; }
+    .marc-pos { font-size: 11px; font-weight: 500; color: var(--muted); text-align: right; padding-right: 2px; line-height: 34px; }
+    .marc-pos-1 { color: var(--accent); font-weight: 700; font-size: 12px; }
+    .marc-input {
+      height: 34px; background: rgba(255,255,255,0.04); border: 1px solid rgba(201,168,76,0.35); color: var(--text);
+      border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700;
+      text-align: center; padding: 0; width: 100%; outline: none;
+    }
+    .chapa-btn { display: flex; align-items: center; gap: 5px; height: 34px; padding: 0 7px 0 5px;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(201,168,76,0.35); border-radius: 8px;
+      cursor: default; min-width: 88px; font-family: 'DM Sans', sans-serif; color: var(--muted); font-size: 11px; }
+    .chapa-empty { height: 34px; }
+
+    /* NC chips */
+    .nc-section { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+    .nc-section-title { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 1px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .nc-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .nc-chips-grid { display: flex; gap: 6px; flex-wrap: wrap; }
+    .nc-horse { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
+    .nc-chip { width: 44px; height: 44px; border-radius: 8px; display: flex; align-items: center;
+      justify-content: center; font-size: 18px; font-weight: 700; position: relative; border: 2px solid transparent; }
+    .nc-chip.nc-checked { opacity: 0.45; filter: grayscale(0.3); }
+    .nc-chip.nc-checked::after {
+      content: '✕'; position: absolute; inset: 0; display: flex; align-items: center;
+      justify-content: center; font-size: 22px; font-weight: 900; color: rgba(255,255,255,0.9);
+      text-shadow: 0 1px 3px rgba(0,0,0,0.7); background: rgba(0,0,0,0.35); border-radius: 6px; }
+    .nc-horse-name { font-size: 9px; color: var(--muted); text-align: center; max-width: 50px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
+    .nc-checkbox-wrap { display: flex; align-items: center; gap: 4px; }
+    .nc-cb { width: 14px; height: 14px; accent-color: var(--danger); cursor: pointer; }
+    .nc-cb-label { font-size: 10px; color: var(--muted); cursor: pointer; }
+    .nc-checked-label { color: var(--danger) !important; font-weight: 600; }
+
+    /* Hint under marker */
+    .nc-hint {
+      margin-top: 10px; padding: 8px 12px; background: rgba(76,175,130,0.07);
+      border: 1px solid rgba(76,175,130,0.25); border-radius: 8px;
+      font-size: 11px; color: var(--success);
+    }
+
+    /* Right panel */
+    .datos-layout { display: flex; gap: 20px; align-items: flex-start; padding: 14px 22px; border-bottom: 1px solid var(--border); }
+    .favorito-block { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+    .favorito-block label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .mf-rows-scroll { overflow-x: auto; min-width: 0; }
+    .mf-edit-row { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
+    .mf-edit-lbl { width: 84px; flex-shrink: 0; font-family: 'Playfair Display', serif; font-size: 13px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+    .mf-chip { width: 44px; height: 32px; border-radius: 4px; display: flex; align-items: center;
+      justify-content: center; font-size: 15px; font-weight: 700; position: relative; cursor: default; flex-shrink: 0; }
+    .mf-chip.nc-out { opacity: 0.25; }
+    .mf-chip.nc-out::after { content: 'NC'; position: absolute; inset: 0; display: flex; align-items: center;
+      justify-content: center; font-size: 9px; font-weight: 900; color: var(--danger);
+      background: rgba(0,0,0,0.5); border-radius: 3px; letter-spacing: 0.5px; }
+    .mf-chip-white { border: 1px solid #888; }
+    .sport-wrap { position: relative; width: 68px; height: 32px; flex-shrink: 0; }
+    .sport-wrap::before { content: "$"; position: absolute; left: 3px; top: 50%; transform: translateY(-50%);
+      pointer-events: none; color: var(--muted); font-size: 10px; font-weight: 600; z-index: 1; }
+    .sport-wrap.nc-out::before { opacity: 0.2; }
+    .sport-inp { height: 32px; width: 68px; border: 1px solid rgba(201,168,76,0.35); background: rgba(255,255,255,0.04);
+      color: var(--text); text-align: right; font-size: 11px; font-weight: 600; font-family: 'DM Sans', sans-serif;
+      border-radius: 2px; padding: 0 4px 0 13px; outline: none; }
+    .sport-inp:disabled { opacity: 0.2; cursor: default; }
+    .tabs { display: flex; gap: 2px; padding: 14px 22px 0; }
+    .tab { padding: 6px 16px; border: 1px solid var(--border); border-bottom: none; font-size: 12px; font-weight: 500;
+      cursor: pointer; color: var(--muted); border-radius: 8px 8px 0 0; background: rgba(0,0,0,0.1); }
+    .tab.active { background: rgba(201,168,76,0.1); color: var(--accent); border-color: rgba(201,168,76,0.35); font-weight: 600; }
+    .div-placeholder { padding: 18px 22px; }
+    .dv-col-hdr { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 8px; }
+    .dv-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+    .dv-pos-lbl { font-size: 11px; color: var(--muted); width: 18px; }
+    .dv-chip { width: 26px; height: 26px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+    .dv-chip-white { border: 1px solid #888; }
+    .dv-amount { font-size: 13px; font-weight: 600; background: rgba(0,0,0,0.3); border-radius: 5px; padding: 3px 10px; white-space: nowrap; }
+    .actions-bar { padding: 12px 22px; display: flex; justify-content: space-between; align-items: center; gap: 10px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+    .actions-grp { display: flex; gap: 8px; align-items: center; }
+    .status-bar { padding: 8px 22px 14px; display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<div class="mockup-banner">
+  <strong>VARIANTE 1 — Checkbox por caballo</strong>
+  <p>El operador tilda los caballos que <em>no corrieron</em>. El marcador carga las posiciones solo de los que corrieron (7 de 9).</p>
+</div>
+
+<div class="topbar">
+  <h1>Resultados</h1>
+  <span class="btn-back">← Carreras</span>
+</div>
+
+<div class="content">
+  <div class="res-panel">
+
+    <div class="res-panel-header">
+      <div>
+        <div class="res-panel-title">Carrera 3 — Premio Apertura</div>
+        <div class="res-meta">1400m · 9 ratificados · 7 corrieron · 2 no corrieron</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <span class="badge badge-provisional">provisional</span>
+        <span class="btn-outline" style="font-size:13px;">← Anterior</span>
+        <span style="font-size:13px;color:var(--muted);">Carrera 3 / 7</span>
+        <span class="btn-outline" style="font-size:13px;">Siguiente →</span>
+      </div>
+    </div>
+
+    <div class="res-section">
+      <div class="res-section-title">Condiciones de la carrera</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Estado de pista</label>
+          <select style="min-width:120px;"><option>Seca</option></select>
+        </div>
+        <div class="form-group">
+          <label>Tiempo del ganador</label>
+          <input type="text" value="1:22.40" style="width:110px;">
+        </div>
+        <div class="form-group" style="flex:1;">
+          <label>Incidentes</label>
+          <input type="text" placeholder="Notas…" style="min-width:240px;width:100%;">
+        </div>
+      </div>
+    </div>
+
+    <div class="det-cols">
+
+      <div class="det-col-left">
+        <div class="res-section-title" style="margin-bottom:12px;">Marcador</div>
+        <div id="marc-grid" class="marc-grid"></div>
+        <div class="nc-hint">
+          ✓ 7 posiciones cargadas — marcador completo
+        </div>
+
+        <div class="nc-section">
+          <div class="nc-section-title">No corrió</div>
+          <div class="nc-chips-grid" id="nc-chips"></div>
+        </div>
+      </div>
+
+      <div class="det-col-right">
+        <div class="datos-layout">
+          <div class="favorito-block">
+            <label>Favorito</label>
+            <input type="number" value="3" style="width:72px;">
+          </div>
+          <div class="mf-rows-scroll">
+            <div class="mf-edit-row" id="mf-row"><span class="mf-edit-lbl"></span></div>
+            <div class="mf-edit-row" id="sport-row" style="margin-top:4px;"><span class="mf-edit-lbl">Div a GAN</span></div>
+          </div>
+        </div>
+        <div class="tabs">
+          <div class="tab">Vista Reducida</div>
+          <div class="tab active">Vista Detallada</div>
+        </div>
+        <div class="div-placeholder">
+          <div class="dv-col-hdr">Ganador · Segundo · Tercero</div>
+          <div id="div-view"></div>
+        </div>
+        <div class="actions-bar">
+          <div class="actions-grp">
+            <button class="btn-outline">Recargar dividendos <kbd>F8</kbd></button>
+            <button class="btn-outline">⚖️ Pesos balanza</button>
+          </div>
+          <div class="actions-grp">
+            <button class="btn-primary">Aplicar <kbd>F10</kbd></button>
+            <button class="btn-outline">Cancelar <kbd>F9</kbd></button>
+          </div>
+        </div>
+        <div class="status-bar">
+          <span style="color:var(--success)">✓</span>
+          Resultado cargado. Verificá los "no corrió" y aplicá con F10.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const HORSES = [
+    { m: 1, n: 'MILONGA DEL RIACHUELO', bg: '#D50000', fg: '#fff', w: false },
+    { m: 2, n: 'TORMENTA DEL SUR',      bg: '#FFFFFF', fg: '#000', w: true  },
+    { m: 3, n: 'CAMPEÓN BRAVÍO',        bg: '#0047AB', fg: '#fff', w: false },
+    { m: 4, n: 'LUNA DORADA',           bg: '#FFD400', fg: '#000', w: false },
+    { m: 5, n: 'VIENTO PAMPEANO',       bg: '#009B3A', fg: '#fff', w: false },
+    { m: 6, n: 'RELÁMPAGO NEGRO',       bg: '#1A1A1A', fg: '#fff', w: false },
+    { m: 7, n: 'PAMPA LIBRE',           bg: '#7B1FA2', fg: '#fff', w: false },
+    { m: 8, n: 'SOL NACIENTE',          bg: '#E65100', fg: '#fff', w: false },
+    { m: 9, n: 'CRIOLLO FUGAZ',         bg: '#00695C', fg: '#fff', w: false },
+  ];
+  const NC = new Set([4, 7]);
+  const POSITIONS = [3, 9, 1, 5, 2, 8, 6];
+  const DIFFS     = [null, 'nariz', '1/2 cpo', '2 cpos', '1 cpo', 'pescuezo', '3 cpos'];
+  const DIV_GAN   = { 3: '2.10', 9: '1.80', 1: '4.50', 5: '3.20', 2: '7.80' };
+
+  function cs(h, bw) {
+    return `background:${h.bg};color:${h.fg};${h.w ? `border:${bw||'1px'} solid #888;` : ''}`;
+  }
+
+  // Marcador (7 posiciones)
+  document.getElementById('marc-grid').innerHTML = POSITIONS.map((m, i) => {
+    const pos = i + 1;
+    return `
+      <div class="${pos===1?'marc-pos marc-pos-1':'marc-pos'}">${pos}°</div>
+      <input class="marc-input" type="number" value="${m}" readonly>
+      ${pos===1 ? '<div class="chapa-empty"></div>' : `<div class="chapa-btn">▷ ${DIFFS[i]}</div>`}
+    `;
+  }).join('');
+
+  // NC chips
+  document.getElementById('nc-chips').innerHTML = HORSES.map(h => {
+    const checked = NC.has(h.m);
+    return `
+      <label class="nc-horse">
+        <div class="nc-chip${checked?' nc-checked':''}" style="${cs(h,'2px')}">${h.m}</div>
+        <div class="nc-horse-name">${h.n.split(' ')[0]}</div>
+        <div class="nc-checkbox-wrap">
+          <input class="nc-cb" type="checkbox" ${checked?'checked':''}>
+          <span class="nc-cb-label${checked?' nc-checked-label':''}">N/C</span>
+        </div>
+      </label>`;
+  }).join('');
+
+  // M.(F) row
+  document.getElementById('mf-row').innerHTML =
+    `<span class="mf-edit-lbl"></span>` +
+    HORSES.map(h => `<div class="mf-chip${NC.has(h.m)?' nc-out':''}${h.w?' mf-chip-white':''}" style="${cs(h)}">${h.m}</div>`).join('');
+
+  // Div a GAN row
+  document.getElementById('sport-row').innerHTML =
+    `<span class="mf-edit-lbl">Div a GAN</span>` +
+    HORSES.map(h => {
+      const nc = NC.has(h.m);
+      return `<div class="sport-wrap${nc?' nc-out':''}"><input class="sport-inp" type="number" value="${DIV_GAN[h.m]||''}" ${nc?'disabled':''} placeholder="—"></div>`;
+    }).join('');
+
+  // Vista detallada (top 3)
+  document.getElementById('div-view').innerHTML = [
+    { pos: '1°', m: 3, amt: '$ 2,10' },
+    { pos: '2°', m: 9, amt: '$ 1,80' },
+    { pos: '3°', m: 1, amt: '$ 4,50' },
+  ].map(p => {
+    const h = HORSES.find(x => x.m === p.m);
+    return `<div class="dv-row">
+      <span class="dv-pos-lbl">${p.pos}</span>
+      <div class="dv-chip${h.w?' dv-chip-white':''}" style="${cs(h)}">${h.m}</div>
+      <span class="dv-amount">${p.amt}</span>
+    </div>`;
+  }).join('');
+</script>
+</body>
+</html>
