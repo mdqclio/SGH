@@ -196,6 +196,8 @@
     #div-view-container { padding: 16px 22px 8px; }
     .dv-empty-msg { color: var(--muted); font-size: 13px; padding: 24px 0; text-align: center; }
     .dv-posicionales { display: flex; gap: 20px; flex-wrap: wrap; }
+    .dv-top-row { display: grid; grid-template-columns: auto auto; gap: 24px; align-items: start; justify-content: start; }
+    @media (max-width: 640px) { .dv-top-row { grid-template-columns: 1fr; } }
     .dv-col { display: flex; flex-direction: column; }
     .dv-col-hdr { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 8px; }
     .dv-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
@@ -984,11 +986,14 @@ function renderDivHTML(apus, habMap, chapaAt, fullDetail, editable = false) {
     }).join('');
     return `<div class="dv-col"><div class="dv-col-hdr">${DIV_NOMBRE[tipo].toUpperCase()}</div>${rows}</div>`;
   });
-  if (posCols.length) parts.push(`<div class="dv-posicionales">${posCols.join('')}</div>`);
-
-  if (fullDetail) {
+  if (!fullDetail) {
+    if (posCols.length) parts.push(`<div class="dv-posicionales">${posCols.join('')}</div>`);
+  } else {
     const DIRECTAS   = ['EX','IM','TR','CUAT'];
     const COMBINADAS = ['X2','X2P','X3','X4','X5','CAD'];
+
+    let directasRows = '';
+    let combinadasRows = '';
 
     if (editable) {
       // Modo edición: mostrar inputs para TODOS los tipos habilitados, con o sin valor guardado
@@ -1005,19 +1010,13 @@ function renderDivHTML(apus, habMap, chapaAt, fullDetail, editable = false) {
           <div class="dv-list-monto-wrap">${inp}</div>
         </div>`;
       };
-      if (habDirectas.length || habCombinadas.length) {
-        if (parts.length) parts.push(SEP);
-        let listContent = '';
-        if (habDirectas.length)   listContent += `<div class="dv-list-section-hdr">Apuestas directas</div>${habDirectas.map(makeEditRow).join('')}`;
-        if (habDirectas.length && habCombinadas.length) listContent += `<div class="dv-list-section-sep"></div>`;
-        if (habCombinadas.length) listContent += `<div class="dv-list-section-hdr">Apuestas combinadas</div>${habCombinadas.map(makeEditRow).join('')}`;
-        parts.push(`<div class="dv-list">${listContent}</div>`);
-      }
+      directasRows   = habDirectas.map(makeEditRow).join('');
+      combinadasRows = habCombinadas.map(makeEditRow).join('');
     } else {
       // Modo lectura: solo mostrar tipos con datos guardados
       const directas   = DIRECTAS.filter(t => byTipo[t]?.length);
       const combinadas = COMBINADAS.filter(t => byTipo[t]?.length);
-      const directaRows = directas.map(tipo => {
+      directasRows = directas.map(tipo => {
         const a = byTipo[tipo][0];
         const comp = renderCompChips(a, chapaAt);
         const monto = a.vacante
@@ -1030,8 +1029,8 @@ function renderDivHTML(apus, habMap, chapaAt, fullDetail, editable = false) {
           <span class="dv-list-comp">${comp}</span>
           <div class="dv-list-monto-wrap">${monto}${inc}</div>
         </div>`;
-      });
-      const combinadaRows = combinadas.map(tipo => {
+      }).join('');
+      combinadasRows = combinadas.map(tipo => {
         const a = byTipo[tipo][0];
         const monto = a.vacante
           ? `<span class="dv-vacante">VACANTE</span>`
@@ -1043,15 +1042,20 @@ function renderDivHTML(apus, habMap, chapaAt, fullDetail, editable = false) {
           <span class="dv-list-comp"></span>
           <div class="dv-list-monto-wrap">${monto}${inc}</div>
         </div>`;
-      });
-      if (directaRows.length || combinadaRows.length) {
-        if (parts.length) parts.push(SEP);
-        let listContent = '';
-        if (directaRows.length)   listContent += `<div class="dv-list-section-hdr">Apuestas directas</div>${directaRows.join('')}`;
-        if (directaRows.length && combinadaRows.length) listContent += `<div class="dv-list-section-sep"></div>`;
-        if (combinadaRows.length) listContent += `<div class="dv-list-section-hdr">Apuestas combinadas</div>${combinadaRows.join('')}`;
-        parts.push(`<div class="dv-list">${listContent}</div>`);
-      }
+      }).join('');
+    }
+
+    // Fila superior: posicionales + directas lado a lado
+    const posHtml = posCols.length
+      ? `<div class="dv-posicionales">${posCols.join('')}</div>` : '';
+    const dirHtml = directasRows
+      ? `<div class="dv-directas"><div class="dv-section-hdr">Apuestas directas</div><div class="dv-list">${directasRows}</div></div>` : '';
+    if (posHtml || dirHtml) parts.push(`<div class="dv-top-row">${posHtml}${dirHtml}</div>`);
+
+    // Combinadas debajo
+    if (combinadasRows) {
+      parts.push(SEP);
+      parts.push(`<div><div class="dv-section-hdr">Apuestas combinadas</div><div class="dv-list">${combinadasRows}</div></div>`);
     }
   }
 
