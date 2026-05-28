@@ -122,14 +122,18 @@ clubs → reuniones → carreras → inscripciones → resultado_posiciones
 | `categorias_carrera` | 4 categorías por club (OC, ONC, NO, CC). |
 | `caballeriza_responsables` | Propietario + copropietarios de una caballeriza (relacional). |
 
-### Chapa vs Mandil — distinción crítica
+### Gatera, Mandil y Chapa — modelo confirmado con Fede (28/05/2026)
+
+Ver detalle completo en [`docs/MODELO_NUMERACION.md`](docs/MODELO_NUMERACION.md).
 
 | Concepto | Campo DB | Descripción |
 |---|---|---|
-| **Mandil** | `inscripciones.numero_partidor` | Número visible en el caballo durante la carrera. Puede ser no-secuencial (ej: 2, 5, 7, 12). |
-| **Chapa** | (calculado) | Numeración secuencial 1..N asignada a los ratificados, ordenados por `numero_partidor` ASC. |
+| **Gatera** | `inscripciones.numero_partidor` | Cajón de largada asignado por sorteo. Por-carrera, aleatorio, puede tener huecos. **Nunca se muestra al usuario.** |
+| **Mandil = Chapa** | (calculado) | Número visible en el dorsal durante la carrera. Siempre 1..N consecutivo, sin huecos. |
 
-La chapa se calcula con `renumerarChapas(inscripciones)` en `renumerar-chapas.js`. Regla: **filtro positivo** `estado === 'ratificado'` (NO listas de exclusión negativas — genera chapas extra). La chapa identifica al caballo en los dividendos y en los chips visuales.
+El mandil/chapa se calcula con `renumerarChapas(inscripciones)` en `renumerar-chapas.js`: filtrar `estado === 'ratificado'`, ordenar por `numero_partidor` ASC, asignar 1..N. **No se persiste.** Regla de oro: en la UI siempre mostrar el 1..N derivado, nunca `numero_partidor` directo (excepción: PDF de inscriptos, que muestra el resultado del sorteo de cajones).
+
+El `chapaCell` en el marcador de `resultados.html` es el **margen de llegada** (nariz/pescuezo/cuerpos), no el número del caballo — no confundir.
 
 ### Apuestas — 13 tipos válidos
 
@@ -151,8 +155,9 @@ Función atómica que guarda posiciones + apuestas en una transacción, con opti
 
 | Término | Significado |
 |---|---|
-| **Mandil** | Número de partidor visible en el dorsal del caballo durante la carrera |
-| **Chapa** | Numeración 1..N de los ratificados que efectivamente largan, por orden de mandil |
+| **Gatera** | Cajón de largada (numero_partidor en DB): asignado por sorteo, puede tener huecos |
+| **Mandil** | Número visible en el dorsal durante la carrera. Siempre 1..N consecutivo (= Chapa) |
+| **Chapa** | Sinónimo de Mandil. Derivado de la gatera con renumerarChapas. No se persiste. |
 | **Borrados** | Caballos que no corren: `forfait` (retirado) o `mal_inscrito` (fuera de condición) |
 | **Ratificados** | Caballos confirmados para largar (`estado = 'ratificado'`) |
 | **Marcador** | Editor del orden de llegada en `resultados.html` — se ingresa el mandil por posición |
@@ -288,7 +293,7 @@ Fijarla: `localStorage.setItem('sgh_active_reunion_id', 'UUID_REUNION_5')` o des
 14. **`propietarios.nombre`** — NO `nombre_completo` ni `razon_social`.
 15. **`comisariato` está en `clubs`, NO en `reuniones`** (esa columna fue dropeada).
 
-Ver `docs/GOTCHAS.md` para la lista completa (39 entradas).
+Ver `docs/GOTCHAS.md` para la lista completa (40 entradas).
 
 ---
 
