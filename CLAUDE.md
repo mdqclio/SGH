@@ -115,7 +115,7 @@ clubs → reuniones → carreras → inscripciones → resultado_posiciones
 | `inscripciones` | Un ejemplar inscripto en un turno. Estado ENUM: `inscripto → ratificado → forfait / mal_inscrito`. |
 | `spcs` | Ejemplares del Stud Book. **Globales** (sin `club_id` obligatorio). |
 | `resultados` | Una fila por carrera. Estado: `provisional / oficial / anulado`. |
-| `resultado_posiciones` | Orden de llegada. FK → inscripciones. Columnas: `posicion`, `dividendo`, `diferencia`. |
+| `resultado_posiciones` | Orden de llegada. FK → inscripciones. Columnas: `posicion` (NULL si no largó), `dividendo`, `diferencia`, `no_largo BOOLEAN DEFAULT false`. Ratificado que no llega a largar: `{posicion:null, no_largo:true}`, conserva mandil (hueco). |
 | `resultado_apuestas` | Dividendos pagados por tipo. FK → resultados. Reemplazado en bloque por RPC `aplicar_resultado`. |
 | `carrera_apuestas` | Apuestas habilitadas por carrera (reemplaza `carreras.apuestas_habilitadas JSONB` dropeada). |
 | `liquidaciones` | Premios calculados por carrera y puesto. |
