@@ -1122,7 +1122,7 @@ function renderDivHTML(apus, habMap, chapaAt, fullDetail, editable = false) {
     const slots = POS_SLOTS[tipo];
     const rows = Array.from({length: slots}, (_, i) => {
       const slot = i + 1;
-      const a = (byTipo[tipo]||[]).find(x => (x.orden||1) === slot);
+      const a = (byTipo[tipo]||[])[slot - 1];
       const chapa = chapaAt(slot);
       let amtCell;
       if (editable) {
