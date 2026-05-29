@@ -77,17 +77,44 @@ async function waitForToast(page, timeoutMs = 6000) {
   catch { return false; }
 }
 
-// Resetea resultado_apuestas de T1 a estado base conocido: GAN/EX/X2 con vacante=false
-async function resetApuestasT1() {
+// Snapshot del estado actual de T1 + reset a estado base para el test
+let snapshot = null;
+
+async function setupT1() {
   const { data: resRow } = await adminSb.from('resultados').select('id').eq('carrera_id', CARRERA_T1).single();
-  if (!resRow) return;
+  if (!resRow) throw new Error('No resultado para T1');
   const resId = resRow.id;
-  // Eliminar tipos que no son el estado base
-  await adminSb.from('resultado_apuestas')
-    .delete().eq('resultado_id', resId).not('tipo', 'in', '(GAN,EX,X2)');
-  // Resetear vacante=false en los que quedan
-  await adminSb.from('resultado_apuestas')
-    .update({ vacante: false }).eq('resultado_id', resId);
+
+  // Snapshot completo: posiciones + apuestas actuales
+  const [{ data: pos }, { data: apu }] = await Promise.all([
+    adminSb.from('resultado_posiciones').select('*').eq('resultado_id', resId),
+    adminSb.from('resultado_apuestas').select('*').eq('resultado_id', resId),
+  ]);
+  snapshot = { resId, pos: pos || [], apu: apu || [] };
+
+  // Reset apuestas a estado base: GAN/EX/X2 con vacante=false
+  await adminSb.from('resultado_apuestas').delete().eq('resultado_id', resId).not('tipo', 'in', '(GAN,EX,X2)');
+  await adminSb.from('resultado_apuestas').update({ vacante: false }).eq('resultado_id', resId);
+}
+
+// Restaura T1 exactamente al estado previo al test (idempotente)
+async function teardownT1() {
+  if (!snapshot) return;
+  const { resId, pos, apu } = snapshot;
+
+  // Restaurar apuestas (strip PK y timestamp, Supabase regenera)
+  await adminSb.from('resultado_apuestas').delete().eq('resultado_id', resId);
+  if (apu.length) {
+    const rows = apu.map(({ id: _id, created_at: _ca, ...rest }) => rest);
+    await adminSb.from('resultado_apuestas').insert(rows);
+  }
+
+  // Restaurar posiciones
+  await adminSb.from('resultado_posiciones').delete().eq('resultado_id', resId);
+  if (pos.length) {
+    const rows = pos.map(({ id: _id, created_at: _ca, ...rest }) => rest);
+    await adminSb.from('resultado_posiciones').insert(rows);
+  }
 }
 
 (async () => {
@@ -98,8 +125,8 @@ async function resetApuestasT1() {
   const page    = await ctx.newPage();
 
   try {
-    // ── Cleanup: estado base conocido ─────────────────────────────────────────
-    await resetApuestasT1();
+    // ── Setup: snapshot + reset a estado base ────────────────────────────────
+    await setupT1();
 
     // ── Auth ─────────────────────────────────────────────────────────────────
     const session = await buildSession();
@@ -270,6 +297,7 @@ async function resetApuestasT1() {
 
   } finally {
     await browser.close();
+    await teardownT1();
   }
 
   console.log(`\n${'─'.repeat(50)}`);
