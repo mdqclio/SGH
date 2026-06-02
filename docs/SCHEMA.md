@@ -227,7 +227,7 @@ ALTER TABLE hipodromos ADD COLUMN IF NOT EXISTS cantidad_gateras INTEGER DEFAULT
 ALTER TABLE clubs ADD COLUMN IF NOT EXISTS auditoria_retencion_meses INTEGER DEFAULT 12;
 -- Sesión 14/05/2026 (liquidaciones + resultados fixes):
 ALTER TABLE resultado_posiciones ADD COLUMN IF NOT EXISTS empate BOOLEAN DEFAULT false;
-ALTER TABLE resultado_posiciones ADD COLUMN IF NOT EXISTS dividendo NUMERIC(10,2); -- (22/05/2026) dividendo "a place" del puesto: pago de apuesta ganador/2°/3° por cada caballo según su posición
+ALTER TABLE resultado_posiciones ADD COLUMN IF NOT EXISTS dividendo NUMERIC(10,2); -- (22/05/2026) cotización a ganador POR CABALLO (no pago por puesto): se carga a mano por mandil en la sección M.(F)/Sport. Poblada para todos los starters; el favorito = argmin. Verificado contra R5C1 (el 6° pagaba 2,20)
 ALTER TABLE resultado_posiciones ALTER COLUMN posicion DROP NOT NULL; -- (28/05/2026) posicion ahora nullable para soportar no_largo=true con posicion=NULL
 ALTER TABLE resultado_posiciones ADD COLUMN IF NOT EXISTS no_largo BOOLEAN NOT NULL DEFAULT false; -- (28/05/2026) caballo ratificado que no llega a largar; posicion=NULL, conserva mandil (hueco)
 ALTER TABLE resultados ADD COLUMN IF NOT EXISTS favorito_mandil INTEGER; -- (22/05/2026) número de partidor del caballo favorito antes de la carrera (para análisis de M.(F))
