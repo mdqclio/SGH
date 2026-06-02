@@ -72,6 +72,8 @@ function bono68Oracle(dist, pos) {
 (async () => {
   let snapResEstados = null, snapLiqs = null, snapDets = null, mutatedRes = [];
   let snapInscs = null;
+  let snapTieEmpate = null, tieCarId = null, tieBonoLead = null, tieBonoMonto = null, tieBonoInscIds = [];
+  let tiePremioLead = null, tiePremioInscIds = [], tiePremioEsperado = null;
   let phase = 'init';
   try {
     // ════ SNAPSHOT ════════════════════════════════════════════════════════
@@ -119,6 +121,71 @@ function bono68Oracle(dist, pos) {
     }
     console.log(`[mutate] inscripciones ubicadas con roles asignados: ${snapInscs.length}`);
 
+    // ── Setup de empates (dead-heat) ALINEADO AL SCHEMA: NO se mueve `posicion` (la constraint
+    // UNIQUE (resultado_id,posicion) lo prohíbe). Se marca `empate=true` en finishers que YA
+    // están en posiciones consecutivas. Snapshot+restore de `empate` (R4 honesto: hay mutación
+    // real que revertir, a diferencia del intento viejo que fallaba antes de mutar).
+    //   • Empate de BONO  (C2): dos finishers consecutivos dentro de [desde,hasta] (p.ej. 6°-7°).
+    //   • Empate de PREMIO (C3): dos finishers consecutivos en 1..5 (p.ej. 1°-2°) — la plata grande.
+    // Se exige un hueco (≥1 puesto) entre ambos pares para que el agrupamiento no los fusione.
+    phase = 'mutate-tie';
+    const firstConsecutivePair = (rows, lo, hi) => {
+      for (let i = 0; i + 1 < rows.length; i++) {
+        if (rows[i].posicion >= lo && rows[i + 1].posicion <= hi &&
+            rows[i + 1].posicion === rows[i].posicion + 1) return [rows[i], rows[i + 1]];
+      }
+      return null;
+    };
+    const bonoCars = cars.filter(c => {
+      const d = c.distribucion_premios || {};
+      return d.bono_posicion_desde && d.bono_posicion_hasta && d.bono_posicion_monto;
+    });
+    let tieCand = null;   // preferimos una carrera que soporte AMBOS empates
+    for (const c of bonoCars) {
+      const resB = resAll.find(r => r.carrera_id === c.id);
+      if (!resB) continue;
+      const { data: posB } = await sb.from('resultado_posiciones')
+        .select('id,inscripcion_id,posicion,empate').eq('resultado_id', resB.id)
+        .not('posicion', 'is', null).eq('descalificado', false).eq('no_largo', false)
+        .order('posicion', { ascending: true });
+      if (!posB || posB.length < 2) continue;
+      const dist = c.distribucion_premios;
+      const bonoPair = firstConsecutivePair(posB, dist.bono_posicion_desde, dist.bono_posicion_hasta);
+      if (!bonoPair) continue;
+      const premioPairRaw = firstConsecutivePair(posB, 1, 5);
+      // hueco: el par de premio debe terminar al menos 1 puesto antes del de bono (no fusión).
+      const premioPair = (premioPairRaw && premioPairRaw[1].posicion + 1 < bonoPair[0].posicion) ? premioPairRaw : null;
+      const cand = { c, dist, bonoPair, premioPair };
+      if (premioPair) { tieCand = cand; break; }   // ideal: soporta bono + premio
+      if (!tieCand) tieCand = cand;                 // respaldo: solo bono
+    }
+    if (tieCand) {
+      const { c, dist, bonoPair, premioPair } = tieCand;
+      const flipped = [...bonoPair, ...(premioPair || [])];
+      snapTieEmpate = flipped.map(p => ({ id: p.id, empate: p.empate === true }));
+      for (const p of flipped) {
+        const { error } = await sb.from('resultado_posiciones').update({ empate: true }).eq('id', p.id);
+        if (error) throw new Error(`tie setup ${p.id}: ${error.message}`);
+      }
+      tieCarId = c.id;
+      tieBonoLead = bonoPair[0].posicion;
+      tieBonoMonto = parseFloat(dist.bono_posicion_monto);
+      tieBonoInscIds = bonoPair.map(p => p.inscripcion_id);
+      console.log(`[mutate] empate BONO: turno ${c.numero_turno}, ${tieBonoLead}°-${bonoPair[1].posicion}° (bono ${tieBonoMonto} → ${tieBonoMonto / 2} c/u)`);
+      if (premioPair) {
+        tiePremioLead = premioPair[0].posicion;
+        tiePremioInscIds = premioPair.map(p => p.inscripcion_id);
+        const pa = premioOracle(dist, c.bolsa_total, premioPair[0].posicion);
+        const pb = premioOracle(dist, c.bolsa_total, premioPair[1].posicion);
+        tiePremioEsperado = (pa + pb) / 2;   // dead-heat: Σ premios del grupo / N
+        console.log(`[mutate] empate PREMIO: turno ${c.numero_turno}, ${tiePremioLead}°-${premioPair[1].posicion}° (premioEf ${Math.round(tiePremioEsperado)} c/u)`);
+      } else {
+        console.log('[mutate] ⚠ sin par de PREMIO con hueco — C3 quedará en skip');
+      }
+    } else {
+      console.log('[mutate] ⚠ no se pudo armar empate (ninguna carrera con bono+par consecutivo)');
+    }
+
     // ════ EJECUTAR el código REAL de generarLiquidaciones() ═══════════════
     phase = 'run';
     const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'liquidaciones.html'), 'utf8');
@@ -144,8 +211,34 @@ function bono68Oracle(dist, pos) {
     const { data: inscs } = await sb.from('inscripciones').select('id,carrera_id,propietario_id').in('carrera_id', carIds);
     const inscById = Object.fromEntries(inscs.map(i => [i.id, i]));
     const { data: poss } = await sb.from('resultado_posiciones')
-      .select('resultado_id,inscripcion_id,posicion,no_largo,descalificado').in('resultado_id', resAll.map(r => r.id));
+      .select('resultado_id,inscripcion_id,posicion,no_largo,descalificado,empate').in('resultado_id', resAll.map(r => r.id));
     const resCar = Object.fromEntries(resAll.map(r => [r.id, r.carrera_id]));
+
+    // ── Oráculo de grupos de empate — ESPEJA el agrupamiento de liquidaciones.html ──
+    // grupo = corrida de finishers consecutivos con empate=true; lead = primera posición del grupo.
+    // premioEf = Σ premioOracle(lead..lead+N-1) / N ; bonoEf = bono68Oracle(lead) / N.
+    // Las líneas generadas usan posicion = lead para TODOS los miembros del grupo.
+    const groupInfo = {};   // inscripcion_id -> { lead, n, premioEf, bonoEf }
+    const possByResA = {};
+    for (const p of poss) {
+      if (p.posicion == null || p.descalificado || p.no_largo) continue;
+      if (!possByResA[p.resultado_id]) possByResA[p.resultado_id] = [];
+      possByResA[p.resultado_id].push(p);
+    }
+    for (const [rid, rows] of Object.entries(possByResA)) {
+      rows.sort((a, b) => a.posicion - b.posicion);
+      const car = carById[resCar[rid]];
+      const dist = car.distribucion_premios, bolsa = car.bolsa_total;
+      for (let i = 0; i < rows.length; i++) {
+        const grp = [rows[i]];
+        while (i + 1 < rows.length && rows[i].empate && rows[i + 1].empate &&
+               rows[i + 1].posicion === rows[i].posicion + 1) grp.push(rows[++i]);
+        const lead = grp[0].posicion, n = grp.length;
+        let pSum = 0; for (let k = 0; k < n; k++) pSum += premioOracle(dist, bolsa, lead + k);
+        const premioEf = pSum / n, bonoEf = bono68Oracle(dist, lead) / n;
+        for (const g of grp) groupInfo[g.inscripcion_id] = { lead, n, premioEf, bonoEf };
+      }
+    }
 
     // ── A. Liquidación CLUB (fondo solidario): exactamente 1, sin persona ──
     const clubLiqs = liqsAfter.filter(l => !l.propietario_id && !l.profesional_id);
@@ -158,16 +251,19 @@ function bono68Oracle(dist, pos) {
     ok('A3 fondo_solidario: beneficiario_tipo=club + beneficiario_id=CLUB_ID + descuento 0',
        fondoLines.length > 0 && fondoLines.every(d => d.beneficiario_tipo === 'club' && d.beneficiario_id === CLUB_ID && Number(d.monto_descuento) === 0));
 
-    // ── B. Por cada ubicado 1-5: reparto completo 70/10/10/4/3/1 + fondo 2% = 100% ──
+    // ── B. Por cada ubicado con premio (1-5): reparto completo 70/10/10/4/3/1 + fondo 2% = 100% ──
+    // premioEfectivo sale del ORÁCULO de grupos (empate-aware): un empate de premio se reparte
+    // promediado (Σ premios del grupo / N). Las líneas usan posicion = lead del grupo.
     let ubic15 = 0, b1 = 0, b2 = 0, b3 = 0;
     const bad = [];
     for (const p of poss) {
       if (p.posicion == null || p.descalificado || p.no_largo) continue;
-      const car = carById[resCar[p.resultado_id]];
-      const premioEf = premioOracle(car.distribucion_premios, car.bolsa_total, p.posicion);
+      const gi = groupInfo[p.inscripcion_id];
+      const premioEf = gi ? gi.premioEf : 0;
       if (premioEf <= 0) continue; // posiciones 6-8 no tienen premio (solo bono)
       ubic15++;
-      const lines = dets.filter(d => d.inscripcion_id === p.inscripcion_id && d.posicion === p.posicion);
+      const car = carById[resCar[p.resultado_id]];
+      const lines = dets.filter(d => d.inscripcion_id === p.inscripcion_id && d.posicion === gi.lead);
       const prop  = lines.find(d => d.concepto_tipo === 'premio' && d.beneficiario_tipo === 'propietario');
       const fondo = lines.find(d => d.concepto_tipo === 'fondo_solidario');
       if (prop && fondo) b1++; else { bad.push(`t${car.numero_turno}/p${p.posicion}:prop=${!!prop},fondo=${!!fondo}`); continue; }
@@ -182,24 +278,60 @@ function bono68Oracle(dist, pos) {
     ok('B2 fondo_solidario = 2% de premioEfectivo', b2 === ubic15 && ubic15 > 0, `ok=${b2}/${ubic15}`);
     ok('B3 propietario=70% y suma total = 100% (98% roles + 2% fondo)', b3 === ubic15 && ubic15 > 0, `ok=${b3}/${ubic15}`);
 
-    // ── C. Bono 6-8: línea 'bono' 100% propietario, neto ──
+    // ── C1. Bono 6-8: línea 'bono' 100% propietario, neto. Empate → bono(lead)/N (oráculo) ──
     let bonoEsperados = 0, bonoOK = 0;
     for (const p of poss) {
       if (p.posicion == null || p.descalificado || p.no_largo) continue;
-      const car = carById[resCar[p.resultado_id]];
-      const b = bono68Oracle(car.distribucion_premios, p.posicion);
-      if (b <= 0) continue;
+      const gi = groupInfo[p.inscripcion_id];
+      const bEsperado = gi ? gi.bonoEf : 0;
+      if (bEsperado <= 0) continue;
       bonoEsperados++;
       const insc = inscById[p.inscripcion_id];
-      const line = dets.find(d => d.inscripcion_id === p.inscripcion_id && d.posicion === p.posicion && d.concepto_tipo === 'bono');
-      if (line && near(Number(line.monto_bruto), b, 1) && Number(line.monto_descuento) === 0 &&
+      const line = dets.find(d => d.inscripcion_id === p.inscripcion_id && d.posicion === gi.lead && d.concepto_tipo === 'bono');
+      if (line && near(Number(line.monto_bruto), bEsperado, 1) && Number(line.monto_descuento) === 0 &&
           line.beneficiario_tipo === 'propietario' && line.beneficiario_id === insc?.propietario_id &&
           line.liquidacion_id && liqsAfter.find(l => l.id === line.liquidacion_id)?.propietario_id === insc?.propietario_id) {
         bonoOK++;
       }
     }
-    ok('C1 bono 6-8 genera línea bono=monto, 100% propietario, neto', bonoEsperados > 0 && bonoOK === bonoEsperados,
-       `ok=${bonoOK}/${bonoEsperados} (esperados>0 porque R5 tiene 6°/7°)`);
+    ok('C1 bono 6-8 genera línea bono (=monto, o monto/empatados), 100% propietario, neto',
+       bonoEsperados > 0 && bonoOK === bonoEsperados, `ok=${bonoOK}/${bonoEsperados}`);
+
+    // ── C2. Empate de BONO: 2 caballos comparten UN bono → cada uno 50%, suma = monto ──
+    // Tras el fix, las 2 líneas de bono usan posicion = lead del grupo (no la física de cada uno).
+    if (tieCarId && tieBonoInscIds.length === 2) {
+      const tieLines = dets.filter(d => d.concepto_tipo === 'bono' && d.posicion === tieBonoLead &&
+                                        tieBonoInscIds.includes(d.inscripcion_id));
+      const dos   = tieLines.length === 2;
+      const mitad = dos && tieLines.every(d => near(Number(d.monto_bruto), tieBonoMonto / 2, 1));
+      const suma  = dos && near(tieLines.reduce((s, d) => s + Number(d.monto_bruto), 0), tieBonoMonto, 2);
+      const props = dos && tieLines.every(d => d.beneficiario_tipo === 'propietario' && Number(d.monto_descuento) === 0);
+      ok('C2 empate bono: 2 líneas bono, cada una = monto/2, suma = monto, 100% propietario neto',
+         dos && mitad && suma && props,
+         `lineas=${tieLines.length} c/u≈${tieBonoMonto / 2} suma≈${tieBonoMonto}`);
+    } else {
+      ok('C2 empate bono (setup)', false, 'no se pudo forzar el empate de bono en R5');
+    }
+
+    // ── C3. Empate de PREMIO (la plata grande): 2 caballos comparten el premio PROMEDIADO ──
+    // Cada uno cobra (Σ premios del grupo)/N como premioEfectivo; el reparto 70/.../fondo se
+    // aplica sobre ESE split. Verificamos: línea propietario = 70% del split, y suma TODAS = split.
+    if (tiePremioLead != null && tiePremioInscIds.length === 2) {
+      const propLines = tiePremioInscIds.map(id =>
+        dets.find(d => d.inscripcion_id === id && d.posicion === tiePremioLead &&
+                       d.concepto_tipo === 'premio' && d.beneficiario_tipo === 'propietario'));
+      const dos    = propLines.every(Boolean);
+      const split  = dos && propLines.every(d => near(Number(d.monto_bruto), tiePremioEsperado * 0.70, 2));
+      const cien   = dos && tiePremioInscIds.every(id => {
+        const ls = dets.filter(d => d.inscripcion_id === id && d.posicion === tiePremioLead);
+        return near(ls.reduce((s, d) => s + Number(d.monto_bruto), 0), tiePremioEsperado, 3);
+      });
+      ok('C3 empate premio: cada caballo cobra premio promediado (split), reparto 70/.../fondo sobre el split',
+         dos && split && cien,
+         `prop c/u≈${Math.round(tiePremioEsperado * 0.70)} de split≈${Math.round(tiePremioEsperado)}`);
+    } else {
+      ok('C3 empate premio (setup)', false, 'no se pudo forzar el empate de premio en R5 (skip)');
+    }
 
     // ── D. Incentivos: monto 0 → NO se generan ──
     const incLines = dets.filter(d => d.concepto_tipo === 'incentivo_jockey' || d.concepto_tipo === 'incentivo_entrenador');
@@ -246,6 +378,10 @@ function bono68Oracle(dist, pos) {
         const orig = {}; for (const f of ROLE_FIELDS) orig[f] = ins[f];
         await sb.from('inscripciones').update(orig).eq('id', ins.id);
       }
+      // 3c. Restaurar el flag `empate` que flipeamos para forzar los empates (bono + premio).
+      for (const t of (snapTieEmpate || [])) {
+        await sb.from('resultado_posiciones').update({ empate: t.empate }).eq('id', t.id);
+      }
       // 4. Verificar restore.
       const { data: liqsFin } = await sb.from('liquidaciones').select('id,estado').eq('reunion_id', R5);
       const { data: resFin }  = await sb.from('resultados').select('id,estado').in('id', (snapResEstados || []).map(s => s.id));
@@ -264,6 +400,14 @@ function bono68Oracle(dist, pos) {
         });
       }
       ok('R3 restore roles de inscripciones (propietario/entrenador/jockey/subs)', inscRestored);
+      // R4 restore del flag `empate` que flipeamos para los dead-heats forzados.
+      let tieRestored = true;
+      if (snapTieEmpate?.length) {
+        const { data: empFin } = await sb.from('resultado_posiciones')
+          .select('id,empate').in('id', snapTieEmpate.map(t => t.id));
+        tieRestored = snapTieEmpate.every(t => (empFin.find(r => r.id === t.id)?.empate === true) === t.empate);
+      }
+      ok('R4 restore flag empate (dead-heat forzado)', tieRestored);
     } catch (e) {
       ok('RESTORE FALLÓ — REVISAR R5 MANUALMENTE', false, e.message);
       console.error('[restore]', e);

@@ -193,8 +193,22 @@ Hoy Dolores **no tiene filas en `comision_config`** → `descPct=0` → solo act
 ## 44. generarLiquidaciones solo procesa resultados estado='oficial' (02/06/2026)
 El motor filtra `resultados.estado='oficial'`. Carreras en `provisional` (como casi toda R5) NO liquidan. Para liquidar hay que oficializar primero (botón "Oficializar reunión" — Fase 2bis, pendiente). En testing, poner el resultado en oficial y restaurarlo (ver `probe_fase2_liquidaciones.mjs`).
 
-## 45. Bono 6°-8° era código muerto en calcPremio (02/06/2026)
-El bono por posición 6-8 estaba dentro de `calcPremio`, pero `calcPremio` hace `if(!pct) return 0` antes: para puestos 6-8 no hay `pct` en `distribucion_premios`, así que retornaba 0 y nunca aplicaba el bono. Fase 2 lo extrajo a `calcBono68` → paga 100% al propietario, neto. **PENDIENTE confirmación de Fede antes de activar en prod:** 29/30 carreras reales tienen `bono_posicion_monto=100000` cargado, así que al regenerar se paga plata nueva que antes no salía.
+## 45. Detección de empate por `posicion` duplicada era código muerto — afectaba PREMIOS (02/06/2026)
+**Hallazgo real:** `generarLiquidaciones` detectaba empates agrupando por `posicion` duplicada (`byPos[p.posicion]`). Pero el schema **nunca** representa un dead-heat con dos filas en el mismo puesto: la constraint `UNIQUE (resultado_id, posicion)` lo prohíbe. Un empate se modela como filas en posiciones **distintas y consecutivas**, cada una con `empate=true` (ej. empate de dos en 6° → filas `posicion=6` y `posicion=7`, ambas `empate=true`). Resultado: `byPos` nunca agrupaba nada → la rama de reparto empate-aware (promedio de premios) era **código muerto**. Impacto en **PREMIOS (la plata grande)**: dos caballos empatados cobraban cada uno el premio de su posición física (6° y 7°) en vez del promedio `(premio6+premio7)/2`. **Fix (02/06/2026):** agrupar corridas de filas consecutivas con `empate=true`; `posNum` = puesto líder del grupo; premio efectivo = `Σ calcPremio(lead..lead+N-1)/N`. Probe: `tests/probe_fase2_liquidaciones.mjs` → **C3 (empate de premio)** + C2 (empate de bono). El probe fuerza el empate flipeando `empate=true` en dos finishers ya consecutivos (sin tocar `posicion`, respetando la constraint) y restaura el flag (R4).
+
+**Relacionado (mismo Fase 2):** el bono 6-8 también era código muerto dentro de `calcPremio` (`if(!pct) return 0` corta antes para puestos 6-8, que no tienen `pct`); se extrajo a `calcBono68`.
+
+**NÚCLEO CONFIRMADO por Fede (02/06/2026) — comportamiento estable, NO pendiente:**
+- El bono 6-8 **se paga**: 100% al propietario, neto, `concepto_tipo='bono'`; monto y rango configurables por carrera (`bono_posicion_monto`, `bono_posicion_desde/hasta`).
+- **Empate enteramente dentro del rango** (ej. 6°-7° con rango 6-8): el grupo comparte **UN** bono del puesto líder, dividido `monto/N` (2 → 50% c/u), 100% propietario c/u. ("50% a cada uno" ≠ bono entero × 2.) Probe C2.
+- **Empate de premio** (ubicados 1-5): premio promediado `Σ calcPremio(lead..lead+N-1)/N`, repartido por roles sobre ese split. Probe C3.
+
+**EDGES PENDIENTES-Fede (decisiones de producto, defaults ya codeados):**
+1. **(edge #1) Empates adyacentes sin caballo "limpio" en medio** (ej. empate 2°-3°-4° pegado a empate 5°-6°): el booleano `empate` solo no permite separarlos → se **fusionan** en un único grupo. Es rarísimo. Para soportarlo haría falta un `grupo_empate_id` en `resultado_posiciones`. **No se implementa hasta confirmar con Fede** (limitación conocida).
+2. **(edge #3) Cruce de borde (empate 5°-6° con rango 6-8):** default = posición del **líder** → `calcBono68(5)=0` → **0 bono** para todo el grupo. ¿Correcto, o un empate 5°-6° cobra medio bono (½ de bono(6))? — codeado: 0.
+3. **(edge #4) Bono al ganador en empate de 1°:** `bono_ganador` está fundido en `calcPremio(1)`, así que en un empate de 1° (1°-2°) se reparte vía el **promedio** `(calcPremio(1)+calcPremio(2))/2` → cada empatado se lleva la mitad del bono al ganador. ¿Correcto, o el bono al ganador va completo a uno / a ambos? — codeado: promediado (cae naturalmente del split de premio).
+
+**Igual NO paga nada hoy:** todo el camino del propietario (premio 70% y bono) sigue gateado por `inscripciones.propietario_id` NULL (GOTCHA #47) — sin propietario no se genera la línea.
 
 ## 46. liquidaciones.html usa formatMonto/parseMonto propios, no formatARS/parseARS (02/06/2026)
 A diferencia del resto del proyecto (que usa `formatARS()`/`parseARS()`), `liquidaciones.html` define su propio par `formatMonto`/`parseMonto` (+ alias `fmt`). No es bug, pero revisar que el locale argentino (punto de miles) sea consistente con el resto antes de unificar.

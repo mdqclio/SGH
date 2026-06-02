@@ -12,7 +12,8 @@ HECHO (en branch, salvo donde se aclara):
 - ✅ Bloque B: motor de cálculo (reparto directo 70/10/10/4/3/1) (14/05/2026)
 - ✅ Fase 0: schema C+D — 5 ENUMs, `liquidacion_config`/`club_secuencias`/`recibos`, 10 columnas en `liquidacion_detalle`, `fn_siguiente_recibo`, RLS+auditoría, seed Dolores. **VIGENTE en prod** (`migrations/liquidaciones_cd_fase0.sql`).
 - ✅ Fase 1: % de reparto e incentivos por club desde `liquidacion_config`.
-- ✅ Fase 2: fondo solidario 2% al club + bono 6-8 (100% propietario, neto) + incentivos jockey/entrenador. Probe `tests/probe_fase2_liquidaciones.mjs` (14 checks).
+- ✅ Fase 2: fondo solidario 2% al club + bono 6-8 (100% propietario, neto) + incentivos jockey/entrenador. Probe `tests/probe_fase2_liquidaciones.mjs`.
+- ✅ Fix detección de empate (02/06/2026): la detección agrupaba por `posicion` duplicada (`byPos`), que **nunca** ocurre (constraint `UNIQUE (resultado_id, posicion)`); el dead-heat se modela como posiciones distintas consecutivas con `empate=true`. La rama empate-aware era código muerto → **los empates de PREMIO no se promediaban** (cada uno cobraba el premio de su posición física en vez de `Σ/N`). Ahora se agrupan corridas consecutivas con `empate=true` y se promedia premio y bono. Probe: checks C2 (empate bono) + C3 (empate premio). Ver GOTCHA #45.
 
 PENDIENTE:
 - ⏳ Fase 2bis: botón "Oficializar reunión" (setea `resultados.estado='oficial'` en bloque; sin schema).
@@ -22,8 +23,12 @@ PENDIENTE:
 - ⏳ Fase 6: validar A+B contra datos reales de R5.
 - ⏳ **propietario_id null en inscripciones (bloqueante para liquidación real):** 0/87 inscripciones tienen `propietario_id` y `spc_propietarios` está vacía → no se liquida el propietario (70%) ni el bono 6-8. NO es bug del motor (lee `insc.propietario_id`, el campo correcto). Fix upstream en 2 partes: (1) poblar `spc_propietarios` (Stud Book), (2) setear `inscripciones.propietario_id` al inscribir/ratificar (auto desde el dueño activo). Decisión pendiente: ¿agregar además fallback de código en el generador (resolver dueño vía `spc_id → spc_propietarios`)? — solo útil tras (1). Ver GOTCHA #47.
 
-DECISIONES ABIERTAS (Fede):
-- Bono 6-8: ¿se paga? + tratamiento de empates (hoy default: cada empatado cobra completo).
+DECISIONES (Fede):
+- ✅ **Bono 6-8 — NÚCLEO CONFIRMADO (02/06/2026):** se paga, 100% propietario, neto; monto/rango configurables (`bono_posicion_monto`, `bono_posicion_desde/hasta`); empate **dentro del rango** → bono del puesto dividido `monto/N` (2 → 50% c/u); empate de premio promediado `Σ/N`. Probe C2/C3. **Sigue gateado por `propietario_id` NULL (GOTCHA #47): no paga nada hasta poblar el dueño.**
+- ⏳ **Edges de empate PENDIENTES-Fede (defaults ya codeados, ver GOTCHA #45):**
+  1. (edge #1) Empates adyacentes sin caballo limpio en medio se fusionan (limitación del booleano `empate`; necesitaría `grupo_empate_id`). Rarísimo, no implementado hasta confirmar.
+  2. (edge #3) Cruce de borde (empate 5°-6° con rango 6-8): default = posición del líder → bono 0 para el grupo. ¿Correcto, o medio bono? — codeado: 0.
+  3. (edge #4) Bono al ganador en empate de 1°: hoy se reparte vía el promedio de premio (`(calcPremio(1)+calcPremio(2))/2`) → mitad del bono al ganador a cada empatado. ¿Correcto, o va completo? — codeado: promediado.
 - Montos de incentivo jockey/entrenador (hoy 0 en `liquidacion_config` → no se generan líneas).
 - Beneficiario de las sub-líneas peón/capataz/sereno (hoy = entrenador, ADR-025; confirmar en Fase 4).
 
