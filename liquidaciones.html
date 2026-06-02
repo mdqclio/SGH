@@ -463,7 +463,10 @@ function renderLiquidaciones() {
   document.getElementById('liq-container').innerHTML = `<div class="liq-grid">${liquidaciones.map(l => {
     const prof = l.profesional_id ? profesionales[l.profesional_id] : null;
     const prop = l.propietario_id ? propietariosMap[l.propietario_id] : null;
-    const nombre = prof ? `${prof.apellido}, ${prof.nombre}` : (prop ? prop.nombre : '—');
+    // Liquidación club (fondo solidario): sin propietario ni profesional.
+    const nombre = prof ? `${prof.apellido}, ${prof.nombre}`
+                 : prop ? prop.nombre
+                 : (!l.profesional_id && !l.propietario_id) ? 'Fondo solidario (club)' : '—';
     return `<div class="liq-card ${l.estado}">
       <div class="liq-header">
         <div>
