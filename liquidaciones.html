@@ -672,10 +672,10 @@ async function generarLiquidaciones() {
     // prohíbe dos filas en el mismo puesto. Un grupo de empate = corrida de filas consecutivas
     // con empate=true. NO agrupamos por `posicion` duplicado (eso nunca ocurre en datos reales
     // y dejaba el reparto empate-aware como código muerto — ver GOTCHA #45).
-    // LIMITACIÓN (GOTCHA #45, pendiente-Fede): con un solo booleano no se pueden separar dos
-    // dead-heats adyacentes sin un caballo "limpio" en medio (ej. empate 2°-3°-4° pegado a
-    // empate 5°-6°): se fusionarían en un único grupo. Es rarísimo; si Dolores lo necesita,
-    // haría falta un `grupo_empate_id`. No se implementa hasta confirmar con Fede.
+    // LIMITACIÓN TÉCNICA conocida (GOTCHA #45, del modelo `empate=true`, NO decisión de
+    // producto): con un solo booleano no se pueden separar dos dead-heats adyacentes sin un
+    // caballo "limpio" en medio (ej. empate 2°-3°-4° pegado a empate 5°-6°): se fusionarían en
+    // un único grupo. Es rarísimo; si alguna vez hace falta, requeriría un `grupo_empate_id`.
     const ordered = [...carPoss].filter(p => p.posicion != null).sort((a, b) => a.posicion - b.posicion);
     const groups = [];
     for (let i = 0; i < ordered.length; i++) {
@@ -690,9 +690,10 @@ async function generarLiquidaciones() {
       const posNum = poses[0].posicion;   // puesto líder del grupo (p.ej. 6 en un empate 6°-7°)
       let premioEfectivo;
       if (poses.length > 1) {
-        // Empate: promedio de los premios de las posiciones N a N+k-1.
-        // EDGE #4 (pendiente-Fede): calcPremio(1) incluye bono_ganador fundido, así que en un
-        // empate de 1° el bono al ganador se reparte vía este promedio (mitad a cada empatado).
+        // Empate: promedio de los premios de las posiciones N a N+k-1 (convención dead-heat).
+        // calcPremio(1) incluye bono_ganador fundido, así que en un empate de 1° el bono al
+        // ganador también se reparte vía este promedio (mitad a cada empatado) — mismo principio
+        // Fede "50% c/u". CONFIRMADO.
         let sum = 0;
         for (let i = 0; i < poses.length; i++) sum += calcPremio(car, posNum + i);
         premioEfectivo = sum / poses.length;
@@ -703,10 +704,10 @@ async function generarLiquidaciones() {
       // posición ocupada: 2 empatados en 6° (filas 6 y 7) NO cobran bono(6)+bono(7), cobran
       // bono(6) dividido. El slot 7° "desaparece" como bono propio (CONFIRMADO Fede: empate
       // dentro del rango → monto/N; 50% c/u, no bono entero a cada uno).
-      // CRUCE DE BORDE (edge #3, pendiente-Fede): si el grupo arranca FUERA del rango de bono
-      // (ej. empate 5°-6° con rango 6-8), el líder es 5° → calcBono68(5)=0 → 0 para todo el
-      // grupo. Default = posición del líder. Confirmar con Fede si un empate 5°-6° cobra medio
-      // bono. Para empates enteramente dentro de 6-8 el monto es plano y no hay ambigüedad.
+      // CRUCE DE BORDE (CONFIRMADO, convención dead-heat): si el grupo arranca FUERA del rango
+      // de bono (ej. empate 5°-6° con rango 6-8), el líder es 5° → calcBono68(5)=0 → 0 para
+      // todo el grupo. El grupo toma la posición del líder (es "5°", y 5° no está en rango), no
+      // es ambigüedad. Para empates enteramente dentro de 6-8 el monto es plano.
       const bono68 = calcBono68(car, posNum);
       if (!premioEfectivo && !bono68) continue;
       // Empate: el bono del puesto se DIVIDE en partes iguales entre los empatados

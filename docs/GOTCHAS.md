@@ -198,15 +198,14 @@ El motor filtra `resultados.estado='oficial'`. Carreras en `provisional` (como c
 
 **Relacionado (mismo Fase 2):** el bono 6-8 también era código muerto dentro de `calcPremio` (`if(!pct) return 0` corta antes para puestos 6-8, que no tienen `pct`); se extrajo a `calcBono68`.
 
-**NÚCLEO CONFIRMADO por Fede (02/06/2026) — comportamiento estable, NO pendiente:**
+**CONFIRMADO por Fede (02/06/2026) — comportamiento estable, NO pendiente.** Todo se deriva de dos reglas: el **principio de Fede** ("empate → 50% a cada uno") y la **convención de dead-heat** (el grupo toma la posición del **líder**):
 - El bono 6-8 **se paga**: 100% al propietario, neto, `concepto_tipo='bono'`; monto y rango configurables por carrera (`bono_posicion_monto`, `bono_posicion_desde/hasta`).
-- **Empate enteramente dentro del rango** (ej. 6°-7° con rango 6-8): el grupo comparte **UN** bono del puesto líder, dividido `monto/N` (2 → 50% c/u), 100% propietario c/u. ("50% a cada uno" ≠ bono entero × 2.) Probe C2.
+- **Empate dentro del rango** (ej. 6°-7° con rango 6-8): el grupo comparte **UN** bono del puesto líder, dividido `monto/N` (2 → 50% c/u), 100% propietario c/u. ("50% a cada uno" ≠ bono entero × 2.) Probe C2.
 - **Empate de premio** (ubicados 1-5): premio promediado `Σ calcPremio(lead..lead+N-1)/N`, repartido por roles sobre ese split. Probe C3.
+- **Cruce de borde (empate 5°-6° con rango 6-8):** el grupo toma la posición del líder → `calcBono68(5)=0` → **sin bono**. No es ambigüedad: es la convención de dead-heat aplicada (el grupo es "5°", y 5° no está en rango).
+- **Bono al ganador en empate de 1°:** `bono_ganador` está fundido en `calcPremio(1)`, así que en un empate de 1° (1°-2°) se reparte vía el **promedio** `(calcPremio(1)+calcPremio(2))/2` → mitad a cada empatado. Es el mismo principio "50% a cada uno".
 
-**EDGES PENDIENTES-Fede (decisiones de producto, defaults ya codeados):**
-1. **(edge #1) Empates adyacentes sin caballo "limpio" en medio** (ej. empate 2°-3°-4° pegado a empate 5°-6°): el booleano `empate` solo no permite separarlos → se **fusionan** en un único grupo. Es rarísimo. Para soportarlo haría falta un `grupo_empate_id` en `resultado_posiciones`. **No se implementa hasta confirmar con Fede** (limitación conocida).
-2. **(edge #3) Cruce de borde (empate 5°-6° con rango 6-8):** default = posición del **líder** → `calcBono68(5)=0` → **0 bono** para todo el grupo. ¿Correcto, o un empate 5°-6° cobra medio bono (½ de bono(6))? — codeado: 0.
-3. **(edge #4) Bono al ganador en empate de 1°:** `bono_ganador` está fundido en `calcPremio(1)`, así que en un empate de 1° (1°-2°) se reparte vía el **promedio** `(calcPremio(1)+calcPremio(2))/2` → cada empatado se lleva la mitad del bono al ganador. ¿Correcto, o el bono al ganador va completo a uno / a ambos? — codeado: promediado (cae naturalmente del split de premio).
+**Limitación técnica conocida (del modelo `empate=true`, NO es decisión de producto):** empates **adyacentes** sin un caballo "limpio" en medio (ej. empate 2°-3°-4° pegado a empate 5°-6°) no se pueden separar con un solo booleano → se **fusionan** en un único grupo. Es rarísimo en datos reales. Si alguna vez hace falta distinguirlos, requeriría un `grupo_empate_id` en `resultado_posiciones`.
 
 **Igual NO paga nada hoy:** todo el camino del propietario (premio 70% y bono) sigue gateado por `inscripciones.propietario_id` NULL (GOTCHA #47) — sin propietario no se genera la línea.
 
