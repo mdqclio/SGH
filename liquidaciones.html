@@ -614,19 +614,35 @@ async function generarLiquidaciones() {
     capataz:     parseFloat(liqConfig.pct_capataz)     / 100,
     sereno:      parseFloat(liqConfig.pct_sereno)      / 100,
   };
+  // Tajada del reparto que va al club (98% roles + este 2% = 100%) e incentivos por reunión.
+  const fondoPct  = parseFloat(liqConfig.pct_fondo_solidario)        || 0;
+  const incJockey = parseFloat(liqConfig.incentivo_jockey_monto)     || 0;
+  const incEntr   = parseFloat(liqConfig.incentivo_entrenador_monto) || 0;
 
+  // Premio base por puesto: bolsa*pct + bono al ganador (1°) + piso ganancia_minima.
+  // El bono al ganador (bono_ganador) queda FUNDIDO en el premio del 1° y se reparte
+  // por roles (Fase 2 P3: tratamiento distinto al bono 6-8, a propósito).
   const calcPremio = (car, posicion) => {
     const dist = car.distribucion_premios || DIST_FALLBACK;
     const pct = dist[String(posicion)];
     if (!pct) return 0;
     let p = parseFloat(car.bolsa_total) * pct / 100;
     if (posicion === 1 && dist.bono_ganador) p += parseFloat(dist.bono_ganador);
-    if (dist.bono_posicion_desde && dist.bono_posicion_hasta && dist.bono_posicion_monto &&
-        posicion >= dist.bono_posicion_desde && posicion <= dist.bono_posicion_hasta) {
-      p += parseFloat(dist.bono_posicion_monto);
-    }
     const minimo = parseFloat(dist.ganancia_minima) || 0;
     return minimo > 0 && p < minimo ? minimo : p;
+  };
+
+  // Bono 6°-8° (carreras.distribucion_premios.bono_posicion_monto): NO es premio
+  // repartible. Va 100% al propietario, neto, concepto_tipo='bono' (Fase 2 P2).
+  // Antes vivía dentro de calcPremio pero era código muerto: para posiciones 6-8
+  // no hay pct en distribucion_premios, así que calcPremio retornaba 0 antes de llegar.
+  const calcBono68 = (car, posicion) => {
+    const dist = car.distribucion_premios || DIST_FALLBACK;
+    if (dist.bono_posicion_desde && dist.bono_posicion_hasta && dist.bono_posicion_monto &&
+        posicion >= dist.bono_posicion_desde && posicion <= dist.bono_posicion_hasta) {
+      return parseFloat(dist.bono_posicion_monto);
+    }
+    return 0;
   };
 
   // actorMap: id → { tipo, items[] }
@@ -664,34 +680,89 @@ async function generarLiquidaciones() {
       } else {
         premioEfectivo = calcPremio(car, posNum);
       }
-      if (!premioEfectivo) continue;
+      const bono68 = calcBono68(car, posNum);
+      if (!premioEfectivo && !bono68) continue;
       const turno = car.numero_turno || '';
       const conceptoBase = `Turno ${turno} — ${posNum}° puesto`;
       const bolsaFmt = fmt(premioEfectivo);
       for (const pos of poses) {
         const insc = (inscs||[]).find(i => i.id === pos.inscripcion_id);
         if (!insc) continue;
-        const subs = [
-          {nombre: insc.peon,    rol: 'Peón',   pct: PCTS.peon},
-          {nombre: insc.capataz, rol: 'Capataz', pct: PCTS.capataz},
-          {nombre: insc.sereno,  rol: 'Sereno',  pct: PCTS.sereno},
-        ].filter(s => s.nombre && s.nombre.trim());
-        addActor(insc.propietario_id, 'propietario', {
-          premio: premioEfectivo, pct: PCTS.propietario, subs: [],
-          concepto: conceptoBase, descripcion: `${conceptoBase} — Propietario (bolsa: ${bolsaFmt})`,
-          posicion: posNum, inscripcion_id: insc.id,
-        });
-        addActor(insc.entrenador_id, 'entrenador', {
-          premio: premioEfectivo, pct: PCTS.entrenador, subs,
-          concepto: conceptoBase, descripcion: `${conceptoBase} — Entrenador (bolsa: ${bolsaFmt})`,
-          posicion: posNum, inscripcion_id: insc.id,
-        });
-        addActor(insc.jockey_titular_id, 'jockey', {
-          premio: premioEfectivo, pct: PCTS.jockey, subs: [],
-          concepto: conceptoBase, descripcion: `${conceptoBase} — Jockey (bolsa: ${bolsaFmt})`,
-          posicion: posNum, inscripcion_id: insc.id,
-        });
+        // Premio repartible: solo para ubicados con premio > 0 (puestos 1-5).
+        if (premioEfectivo > 0) {
+          const subs = [
+            {nombre: insc.peon,    rol: 'Peón',   pct: PCTS.peon},
+            {nombre: insc.capataz, rol: 'Capataz', pct: PCTS.capataz},
+            {nombre: insc.sereno,  rol: 'Sereno',  pct: PCTS.sereno},
+          ].filter(s => s.nombre && s.nombre.trim());
+          addActor(insc.propietario_id, 'propietario', {
+            premio: premioEfectivo, pct: PCTS.propietario, subs: [], conceptoTipo: 'premio',
+            concepto: conceptoBase, descripcion: `${conceptoBase} — Propietario (bolsa: ${bolsaFmt})`,
+            posicion: posNum, inscripcion_id: insc.id,
+          });
+          addActor(insc.entrenador_id, 'entrenador', {
+            premio: premioEfectivo, pct: PCTS.entrenador, subs, conceptoTipo: 'premio',
+            concepto: conceptoBase, descripcion: `${conceptoBase} — Entrenador (bolsa: ${bolsaFmt})`,
+            posicion: posNum, inscripcion_id: insc.id,
+          });
+          addActor(insc.jockey_titular_id, 'jockey', {
+            premio: premioEfectivo, pct: PCTS.jockey, subs: [], conceptoTipo: 'premio',
+            concepto: conceptoBase, descripcion: `${conceptoBase} — Jockey (bolsa: ${bolsaFmt})`,
+            posicion: posNum, inscripcion_id: insc.id,
+          });
+          // Fondo solidario: 2% del premio efectivo (incluye bono ganador y piso),
+          // ruteado al CLUB como tajada del reparto. NO incluye el bono 6-8.
+          if (fondoPct > 0) {
+            addActor(CLUB_ID, 'club', {
+              premio: premioEfectivo, pct: fondoPct / 100, subs: [], conceptoTipo: 'fondo_solidario',
+              concepto: `${conceptoBase} — Fondo solidario`,
+              descripcion: `Fondo solidario ${fondoPct}% (premio: ${bolsaFmt})`,
+              posicion: posNum, inscripcion_id: insc.id,
+            });
+          }
+        }
+        // Bono 6°-8°: 100% al propietario, neto, sin reparto. Cada empatado cobra completo.
+        if (bono68 > 0) {
+          addActor(insc.propietario_id, 'propietario', {
+            premio: bono68, pct: 1, subs: [], conceptoTipo: 'bono',
+            concepto: `Turno ${turno} — Bono ${posNum}° puesto`,
+            descripcion: `Bono ${posNum}° puesto (100% propietario): ${fmt(bono68)}`,
+            posicion: posNum, inscripcion_id: insc.id,
+          });
+        }
       }
+    }
+  }
+
+  // INCENTIVOS (Bloque C): monto fijo por reunión desde liquidacion_config.
+  // Una línea por jockey/entrenador que LARGÓ al menos una vez (no_largo=false) estando
+  // ratificado. Independiente del premio: el profesional entra al actorMap por haber
+  // largado, no por cobrar. Neto (sin descuentos). Si el monto es 0/null → no se genera.
+  if (incJockey > 0 || incEntr > 0) {
+    const { data: largaron } = await sb.from('resultado_posiciones')
+      .select('inscripcion_id').in('resultado_id', resIds).eq('no_largo', false);
+    const jockeysSet = new Set(), entrenadoresSet = new Set();
+    for (const lp of (largaron||[])) {
+      const insc = (inscs||[]).find(i => i.id === lp.inscripcion_id);
+      if (!insc || insc.estado !== 'ratificado') continue;   // blindaje: solo ratificados
+      if (insc.jockey_titular_id) jockeysSet.add(insc.jockey_titular_id);
+      if (insc.entrenador_id)     entrenadoresSet.add(insc.entrenador_id);
+    }
+    if (incJockey > 0) for (const jid of jockeysSet) {
+      addActor(jid, 'jockey', {
+        premio: incJockey, pct: 1, subs: [], conceptoTipo: 'incentivo_jockey',
+        concepto: 'Incentivo jockey',
+        descripcion: `Incentivo jockey por actuación en la reunión: ${fmt(incJockey)}`,
+        posicion: null, inscripcion_id: null,
+      });
+    }
+    if (incEntr > 0) for (const eid of entrenadoresSet) {
+      addActor(eid, 'entrenador', {
+        premio: incEntr, pct: 1, subs: [], conceptoTipo: 'incentivo_entrenador',
+        concepto: 'Incentivo entrenador',
+        descripcion: `Incentivo entrenador por actuación en la reunión: ${fmt(incEntr)}`,
+        posicion: null, inscripcion_id: null,
+      });
     }
   }
 
@@ -702,15 +773,19 @@ async function generarLiquidaciones() {
     const descPct = ((cfg?.descuento_fondo_solidario_pct||0) + (cfg?.descuento_incentivo_pct||0));
     const detalleRows = [];
     let totalBruto = 0, totalDesc = 0;
+    const bTipo = actorData.tipo === 'propietario' ? 'propietario'
+                : actorData.tipo === 'club'        ? 'club'
+                : 'profesional';
     for (const item of actorData.items) {
       const bruto = item.premio * item.pct;
-      const desc = bruto * descPct / 100;
+      // descPct (comision_config) solo sobre premios; bono/incentivo/fondo van netos.
+      const aplicaDesc = item.conceptoTipo === 'premio';
+      const desc = aplicaDesc ? bruto * descPct / 100 : 0;
       totalBruto += bruto; totalDesc += desc;
-      const bTipo = actorData.tipo === 'propietario' ? 'propietario' : 'profesional';
       // monto_neto es columna generada en DB — no incluir en el insert
       detalleRows.push({ concepto: item.concepto, descripcion: item.descripcion,
-        monto_bruto: bruto, porcentaje_desc: descPct||null, monto_descuento: desc,
-        concepto_tipo: 'premio', posicion: item.posicion, inscripcion_id: item.inscripcion_id,
+        monto_bruto: bruto, porcentaje_desc: aplicaDesc ? (descPct||null) : null, monto_descuento: desc,
+        concepto_tipo: item.conceptoTipo, posicion: item.posicion, inscripcion_id: item.inscripcion_id,
         beneficiario_tipo: bTipo, beneficiario_id: actorId, reunion_id: rid });
       // Peón/capataz/sereno como sub-líneas en la liquidación del entrenador (ADR-025)
       for (const sub of (item.subs||[])) {
@@ -732,7 +807,8 @@ async function generarLiquidaciones() {
       // total_neto es columna generada — Postgres la calcula automáticamente
     };
     if (actorData.tipo === 'propietario') liqPayload.propietario_id = actorId;
-    else liqPayload.profesional_id = actorId;
+    else if (actorData.tipo !== 'club')   liqPayload.profesional_id = actorId;
+    // club (fondo solidario): liquidación sin persona (propietario_id/profesional_id null)
     const { data: liqData, error } = await sb.from('liquidaciones').insert(liqPayload).select().single();
     if (error) { console.error('Error al crear liquidación:', error); continue; }
     const dRows = detalleRows.map((d, i) => ({...d, liquidacion_id: liqData.id, orden_display: i+1}));
