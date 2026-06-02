@@ -181,6 +181,14 @@
 <!-- COMISIONES PANEL -->
 <div class="tab-panel" id="panel-comisiones">
   <div class="content">
+    <!-- Reparto de premios (liquidacion_config) -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+      <h2 style="font-size:18px;color:var(--accent);">Reparto de premios</h2>
+      <button class="btn-sm btn-aprobar" onclick="openRepartoModal()">✏️ Editar reparto</button>
+    </div>
+    <div id="reparto-container" style="margin-bottom:28px;"></div>
+    <hr style="border:none;border-top:1px solid var(--verde-borde);margin-bottom:24px;">
+    <!-- Comisiones granulares (comision_config) -->
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
       <h2 style="font-size:18px;color:var(--accent);">Configuración de Comisiones</h2>
       <button class="btn-primary" onclick="openComisionModal()">+ Nueva configuración</button>
@@ -200,6 +208,35 @@
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeModal('modal-detalle')">Cerrar</button>
       <button class="btn-outline" onclick="imprimirRecibo()">🖨️ Imprimir recibo</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL REPARTO -->
+<div class="modal-overlay" id="modal-reparto">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <h2>Reparto de premios</h2>
+      <button class="btn-close" onclick="closeModal('modal-reparto')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;">La suma de los 7 porcentajes debe ser exactamente 100.</p>
+      <div class="form-grid">
+        <div class="form-group"><label>Propietario (%)</label><input type="number" id="rp-propietario" min="0" max="100" step="0.001"></div>
+        <div class="form-group"><label>Entrenador (%)</label><input type="number" id="rp-entrenador" min="0" max="100" step="0.001"></div>
+        <div class="form-group"><label>Jockey (%)</label><input type="number" id="rp-jockey" min="0" max="100" step="0.001"></div>
+        <div class="form-group"><label>Peón (%)</label><input type="number" id="rp-peon" min="0" max="100" step="0.001"></div>
+        <div class="form-group"><label>Capataz (%)</label><input type="number" id="rp-capataz" min="0" max="100" step="0.001"></div>
+        <div class="form-group"><label>Sereno (%)</label><input type="number" id="rp-sereno" min="0" max="100" step="0.001"></div>
+        <div class="form-group"><label>Fondo solidario (%)</label><input type="number" id="rp-fondo" min="0" max="100" step="0.001"></div>
+        <div class="form-group"><label>Incentivo jockey ($)</label><input type="text" id="rp-inc-jockey" placeholder="0" oninput="fmtInput(this)"></div>
+        <div class="form-group"><label>Incentivo entrenador ($)</label><input type="text" id="rp-inc-entrenador" placeholder="0" oninput="fmtInput(this)"></div>
+        <div class="form-group"><label>Días antidoping</label><input type="number" id="rp-antidoping" min="0" max="365"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-reparto')">Cancelar</button>
+      <button class="btn-primary" id="btn-save-reparto" onclick="saveReparto()">Guardar</button>
     </div>
   </div>
 </div>
@@ -286,7 +323,7 @@ async function initAuth(){const{createClient}=supabase;sb=createClient('https://
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
 let profesionales={}, propietariosMap={}, liquidaciones=[], detalles={}, club=null;
-let currentLiqId=null;
+let currentLiqId=null, liqConfig=null;
 
 function toast(msg,type='success') {
   const t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
@@ -316,16 +353,83 @@ function fmtInput(el) {
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',['liquidaciones','comisiones'][i]===name));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id===`panel-${name}`));
-  if (name==='comisiones') loadComisiones();
+  if (name==='comisiones') { loadReparto(); loadComisiones(); }
+}
+
+function loadReparto() {
+  const el = document.getElementById('reparto-container');
+  if (!liqConfig) {
+    el.innerHTML = '<div class="empty-state" style="padding:20px 0;"><div class="icon">⚙️</div><h3>Sin configuración de reparto. Hacé clic en "Editar reparto" para crear una.</h3></div>';
+    return;
+  }
+  const c = liqConfig;
+  el.innerHTML = `<div class="config-card" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;">
+    <div class="config-row">Propietario <span>${c.pct_propietario}%</span></div>
+    <div class="config-row">Entrenador <span>${c.pct_entrenador}%</span></div>
+    <div class="config-row">Jockey <span>${c.pct_jockey}%</span></div>
+    <div class="config-row">Peón <span>${c.pct_peon}%</span></div>
+    <div class="config-row">Capataz <span>${c.pct_capataz}%</span></div>
+    <div class="config-row">Sereno <span>${c.pct_sereno}%</span></div>
+    <div class="config-row">Fondo solidario <span>${c.pct_fondo_solidario}%</span></div>
+    <div class="config-row">Inc. jockey <span>${fmt(c.incentivo_jockey_monto)}</span></div>
+    <div class="config-row">Inc. entrenador <span>${fmt(c.incentivo_entrenador_monto)}</span></div>
+    <div class="config-row">Días antidoping <span>${c.dias_antidoping}</span></div>
+  </div>`;
+}
+
+function openRepartoModal() {
+  const c = liqConfig || {};
+  document.getElementById('rp-propietario').value  = c.pct_propietario   ?? 70;
+  document.getElementById('rp-entrenador').value   = c.pct_entrenador    ?? 10;
+  document.getElementById('rp-jockey').value       = c.pct_jockey        ?? 10;
+  document.getElementById('rp-peon').value         = c.pct_peon          ?? 4;
+  document.getElementById('rp-capataz').value      = c.pct_capataz       ?? 3;
+  document.getElementById('rp-sereno').value       = c.pct_sereno        ?? 1;
+  document.getElementById('rp-fondo').value        = c.pct_fondo_solidario ?? 2;
+  document.getElementById('rp-inc-jockey').value   = c.incentivo_jockey_monto     ? formatMonto(c.incentivo_jockey_monto)     : '';
+  document.getElementById('rp-inc-entrenador').value = c.incentivo_entrenador_monto ? formatMonto(c.incentivo_entrenador_monto) : '';
+  document.getElementById('rp-antidoping').value   = c.dias_antidoping   ?? 30;
+  document.getElementById('modal-reparto').classList.add('open');
+}
+
+async function saveReparto() {
+  const get = id => parseFloat(document.getElementById(id).value) || 0;
+  const suma = get('rp-propietario') + get('rp-entrenador') + get('rp-jockey') +
+               get('rp-peon') + get('rp-capataz') + get('rp-sereno') + get('rp-fondo');
+  if (Math.abs(suma - 100) > 0.001) { toast(`La suma de porcentajes es ${suma.toFixed(3)}%, debe ser 100%.`, 'error'); return; }
+  const btn = document.getElementById('btn-save-reparto');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  const payload = {
+    club_id: CLUB_ID,
+    pct_propietario: get('rp-propietario'), pct_entrenador: get('rp-entrenador'),
+    pct_jockey: get('rp-jockey'), pct_peon: get('rp-peon'),
+    pct_capataz: get('rp-capataz'), pct_sereno: get('rp-sereno'),
+    pct_fondo_solidario: get('rp-fondo'),
+    incentivo_jockey_monto: parseMonto(document.getElementById('rp-inc-jockey').value) || 0,
+    incentivo_entrenador_monto: parseMonto(document.getElementById('rp-inc-entrenador').value) || 0,
+    dias_antidoping: parseInt(document.getElementById('rp-antidoping').value) || 30,
+    activo: true,
+  };
+  const { data, error } = liqConfig?.id
+    ? await sb.from('liquidacion_config').update(payload).eq('id', liqConfig.id).select().single()
+    : await sb.from('liquidacion_config').insert(payload).select().single();
+  btn.disabled = false; btn.textContent = 'Guardar';
+  if (error) { toast(error.message, 'error'); return; }
+  liqConfig = data;
+  toast('Reparto guardado');
+  closeModal('modal-reparto');
+  loadReparto();
 }
 
 async function init() {
-  const [{ data: reuns }, { data: profs }, { data: clubData }, { data: props }] = await Promise.all([
+  const [{ data: reuns }, { data: profs }, { data: clubData }, { data: props }, { data: liqCfgData }] = await Promise.all([
     sb.from('reuniones').select('id,numero,fecha,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
     sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID).order('apellido'),
     sb.from('clubs').select('*').eq('id', CLUB_ID).single(),
     sb.from('propietarios').select('id,nombre').eq('activo', true),
+    sb.from('liquidacion_config').select('*').eq('club_id', CLUB_ID).eq('activo', true).maybeSingle(),
   ]);
+  liqConfig = liqCfgData || null;
   (profs||[]).forEach(p=>{ profesionales[p.id]=p; });
   (props||[]).forEach(p=>{ propietariosMap[p.id]=p; });
   club = clubData;
@@ -501,7 +605,15 @@ async function generarLiquidaciones() {
 
   // Distribuciones base nacionales
   const DIST_FALLBACK = {'1':60,'2':19,'3':12,'4':6,'5':3};
-  const PCTS = { propietario:0.70, entrenador:0.10, jockey:0.10, peon:0.04, capataz:0.03, sereno:0.01 };
+  if (!liqConfig) { toast('No hay configuración de reparto para este club. Configurala en la pestaña Comisiones.', 'error'); return; }
+  const PCTS = {
+    propietario: parseFloat(liqConfig.pct_propietario) / 100,
+    entrenador:  parseFloat(liqConfig.pct_entrenador)  / 100,
+    jockey:      parseFloat(liqConfig.pct_jockey)      / 100,
+    peon:        parseFloat(liqConfig.pct_peon)        / 100,
+    capataz:     parseFloat(liqConfig.pct_capataz)     / 100,
+    sereno:      parseFloat(liqConfig.pct_sereno)      / 100,
+  };
 
   const calcPremio = (car, posicion) => {
     const dist = car.distribucion_premios || DIST_FALLBACK;
@@ -567,14 +679,17 @@ async function generarLiquidaciones() {
         addActor(insc.propietario_id, 'propietario', {
           premio: premioEfectivo, pct: PCTS.propietario, subs: [],
           concepto: conceptoBase, descripcion: `${conceptoBase} — Propietario (bolsa: ${bolsaFmt})`,
+          posicion: posNum, inscripcion_id: insc.id,
         });
         addActor(insc.entrenador_id, 'entrenador', {
           premio: premioEfectivo, pct: PCTS.entrenador, subs,
           concepto: conceptoBase, descripcion: `${conceptoBase} — Entrenador (bolsa: ${bolsaFmt})`,
+          posicion: posNum, inscripcion_id: insc.id,
         });
         addActor(insc.jockey_titular_id, 'jockey', {
           premio: premioEfectivo, pct: PCTS.jockey, subs: [],
           concepto: conceptoBase, descripcion: `${conceptoBase} — Jockey (bolsa: ${bolsaFmt})`,
+          posicion: posNum, inscripcion_id: insc.id,
         });
       }
     }
@@ -591,9 +706,12 @@ async function generarLiquidaciones() {
       const bruto = item.premio * item.pct;
       const desc = bruto * descPct / 100;
       totalBruto += bruto; totalDesc += desc;
+      const bTipo = actorData.tipo === 'propietario' ? 'propietario' : 'profesional';
       // monto_neto es columna generada en DB — no incluir en el insert
       detalleRows.push({ concepto: item.concepto, descripcion: item.descripcion,
-        monto_bruto: bruto, porcentaje_desc: descPct||null, monto_descuento: desc });
+        monto_bruto: bruto, porcentaje_desc: descPct||null, monto_descuento: desc,
+        concepto_tipo: 'premio', posicion: item.posicion, inscripcion_id: item.inscripcion_id,
+        beneficiario_tipo: bTipo, beneficiario_id: actorId, reunion_id: rid });
       // Peón/capataz/sereno como sub-líneas en la liquidación del entrenador (ADR-025)
       for (const sub of (item.subs||[])) {
         const sb2 = item.premio * sub.pct;
@@ -601,7 +719,9 @@ async function generarLiquidaciones() {
         totalBruto += sb2; totalDesc += sd2;
         detalleRows.push({ concepto: `${sub.rol} — ${sub.nombre}`,
           descripcion: `${item.concepto} — A redistribuir (${Math.round(sub.pct*100)}%)`,
-          monto_bruto: sb2, porcentaje_desc: descPct||null, monto_descuento: sd2 });
+          monto_bruto: sb2, porcentaje_desc: descPct||null, monto_descuento: sd2,
+          concepto_tipo: 'actuacion', posicion: item.posicion, inscripcion_id: item.inscripcion_id,
+          beneficiario_tipo: 'profesional', beneficiario_id: actorId, reunion_id: rid });
       }
     }
     if (!detalleRows.length) continue;
