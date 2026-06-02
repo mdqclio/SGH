@@ -629,7 +629,7 @@ function marcarNoCurrio() {
   noLargoMandiles = ncMandiles;
   reRenderMarcGrid();
   renderNcUI();
-  applyAutoVacante();
+  renderDivView();
   isDirty = true;
 }
 
@@ -1262,43 +1262,8 @@ function syncDivInputsToPending() {
   });
 }
 
-/* ── Vacante híbrido ── */
-const VACANTE_REQUIRED  = { GAN:1, SEG:2, TER:3, EX:2, IM:2, TR:3, CUAT:4 };
+/* ── Vacante manual ── */
 const VACANTE_MULTISLOT = { SEG:2, TER:3 };
-
-function applyAutoVacante() {
-  if (!currentCarreraId) return;
-  syncDivInputsToPending();
-
-  const activeInsc = inscripciones.filter(i => i.carrera_id === currentCarreraId && i.estado === 'ratificado');
-  const finishers  = activeInsc.length - noLargoMandiles.size;
-
-  const habPrecio = {};
-  (carreraApuestasMap[currentCarreraId] || []).forEach(ca => { habPrecio[ca.tipo] = ca.precio; });
-
-  const existingTipos = new Set(pendingApuestas.map(a => a.tipo));
-
-  // Unidireccional: solo marca true, nunca false
-  pendingApuestas.forEach(a => {
-    if (!(a.tipo in VACANTE_REQUIRED)) return;
-    if (a.vacante) return;
-    if (finishers < VACANTE_REQUIRED[a.tipo]) a.vacante = true;
-  });
-
-  // Crear entradas mínimas para tipos habilitados sin pending que son structural-vacante
-  Object.keys(VACANTE_REQUIRED).forEach(tipo => {
-    if (!habPrecio[tipo]) return;
-    if (existingTipos.has(tipo)) return;
-    if (finishers < VACANTE_REQUIRED[tipo]) {
-      const n = VACANTE_MULTISLOT[tipo] || 1;
-      for (let s = 1; s <= n; s++) {
-        pendingApuestas.push({ tipo, div_orig: null, orden: s, val_apu: habPrecio[tipo] || 100, vacante: true });
-      }
-    }
-  });
-
-  renderDivView();
-}
 
 function toggleVacante(tipo) {
   syncDivInputsToPending();
