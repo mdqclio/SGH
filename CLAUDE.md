@@ -310,7 +310,7 @@ Ver `docs/GOTCHAS.md` para la lista completa (40 entradas).
 - ✅ **Bug 3 (28/05/2026 — RESUELTO)**: `renderDivHTML` usaba `chapaAt(slot)` donde `slot` es el índice de fila de pago — GAN/SEG/TER mostraban todos el chip del 1°. Fix: `chapaAt(POS_SLOTS[tipo])`. Además: Fix A — `onMarcInput` marca con `.marc-invalid` mandiles que no corresponden a un ratificado (feedback visual, no bloquea). Fix B — `renderDivView` recibe `undefined` (no `[]`) cuando el override está vacío; `onMarcInput` aplica `tempPos.length ? tempPos : undefined`. Probe: `tests/probe_bug3_chapa_at.mjs`.
 
 ### Otros módulos
-- **liquidaciones.html**: Bloques A+B completos. Bloque C (montas perdidas) y D (recibos) pendientes — prerequisito: validación Fede en resultados.
+- **liquidaciones.html**: ver `docs/ISSUES.md` (ISSUE-001) para el estado real. Resumen: Fase 0 (schema C+D) vigente en prod; Fase 1 (config por club) y Fase 2 (fondo solidario, bono 6-8, incentivos) en branch `feat/liquidaciones-cd`, NO en prod. Bloqueante conocido: `inscripciones.propietario_id` null (no se liquida propietario ni bono 6-8 — GOTCHA #47). Pendientes: oficializar reunión, recibos, anti-doping, validación Fede.
 - **portal.html / registro-profesional.html**: no construidos.
 - **ISSUE-018**: XSS — `innerHTML` con datos de DB sin escapar en varios módulos.
 - **ISSUE-007**: Calendario puede mostrar N-1 reuniones (bug de timezone).

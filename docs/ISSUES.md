@@ -2,15 +2,34 @@
 
 ## CRÍTICOS
 
-### ISSUE-001: Liquidaciones — motor de cálculo
-Descripción: liquidaciones.html — motor de cálculo de premios y recibos
-Módulo: liquidaciones.html
-Estado: 🔄 En progreso — 2/4 bloques completos (14/05/2026)
+### ISSUE-001: Liquidaciones C+D — motor de cálculo, fondo, bonos, incentivos y recibos
+Descripción: liquidaciones.html — motor de premios + capa de cobro (recibos)
+Módulo: liquidaciones.html · Branch: `feat/liquidaciones-cd`
+Estado: 🔄 En progreso — Fase 0/1/2 hechas (Fase 0 en prod; 1 y 2 solo en branch) (02/06/2026)
+
+HECHO (en branch, salvo donde se aclara):
 - ✅ Bloque A: schema fixes + resultados (14/05/2026)
-- ✅ Bloque B: motor de cálculo completo — 11 liquidaciones generadas vs. data sintética (14/05/2026)
-- ⏳ Bloque C: montas perdidas — modelo confirmado con Fede (28/05/2026). ✅ (1) migración `no_largo` ejecutada en prod. ✅ (2) UI "no corrió" en resultados.html implementada (feat/no-corrio-v3). ⏳ (3) testing end-to-end con Fede. Query: `resultado_posiciones WHERE no_largo=true` JOIN inscripciones → jockey_titular_id.
-- ⏳ Bloque D: recibos imprimibles + resumen de reunión
-Prerequisito Bloque C: ✅ migración no_largo en prod — ✅ UI "no corrió" implementada — ⏳ testing manual Fede
+- ✅ Bloque B: motor de cálculo (reparto directo 70/10/10/4/3/1) (14/05/2026)
+- ✅ Fase 0: schema C+D — 5 ENUMs, `liquidacion_config`/`club_secuencias`/`recibos`, 10 columnas en `liquidacion_detalle`, `fn_siguiente_recibo`, RLS+auditoría, seed Dolores. **VIGENTE en prod** (`migrations/liquidaciones_cd_fase0.sql`).
+- ✅ Fase 1: % de reparto e incentivos por club desde `liquidacion_config`.
+- ✅ Fase 2: fondo solidario 2% al club + bono 6-8 (100% propietario, neto) + incentivos jockey/entrenador. Probe `tests/probe_fase2_liquidaciones.mjs` (14 checks).
+
+PENDIENTE:
+- ⏳ Fase 2bis: botón "Oficializar reunión" (setea `resultados.estado='oficial'` en bloque; sin schema).
+- ⏳ Fase 3: estados de línea (impago/pagado/retenido) + retención anti-doping 1°/2° (~30 días, ADR-047) + idempotencia de regeneración.
+- ⏳ Fase 4: recibos por persona on-demand (capa `recibos`, numeración con `fn_siguiente_recibo`, forma de pago/cobrador).
+- ⏳ Fase 5: resumen de reunión (total pagado + pendientes de cobro).
+- ⏳ Fase 6: validar A+B contra datos reales de R5.
+- ⏳ **propietario_id null en inscripciones (bloqueante para liquidación real):** 0/87 inscripciones tienen `propietario_id` y `spc_propietarios` está vacía → no se liquida el propietario (70%) ni el bono 6-8. NO es bug del motor (lee `insc.propietario_id`, el campo correcto). Fix upstream en 2 partes: (1) poblar `spc_propietarios` (Stud Book), (2) setear `inscripciones.propietario_id` al inscribir/ratificar (auto desde el dueño activo). Decisión pendiente: ¿agregar además fallback de código en el generador (resolver dueño vía `spc_id → spc_propietarios`)? — solo útil tras (1). Ver GOTCHA #47.
+
+DECISIONES ABIERTAS (Fede):
+- Bono 6-8: ¿se paga? + tratamiento de empates (hoy default: cada empatado cobra completo).
+- Montos de incentivo jockey/entrenador (hoy 0 en `liquidacion_config` → no se generan líneas).
+- Beneficiario de las sub-líneas peón/capataz/sereno (hoy = entrenador, ADR-025; confirmar en Fase 4).
+
+TÉCNICO PENDIENTE:
+- Rotar y sacar del repo la `service_role` key hardcodeada en `tests/` (varios probes).
+- Evaluar `concepto_tipo` NOT NULL una vez que Fase 2 lo setea en todas las líneas nuevas (cuidado con filas viejas).
 
 ### ISSUE-002: RLS sin configurar por club
 Descripción: Cualquier usuario autenticado puede leer/escribir datos de cualquier hipódromo

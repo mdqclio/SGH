@@ -185,3 +185,28 @@ Excepción: el modal "Div. habilitadas" mantiene las etiquetas de posición para
 Decisión: Guardar números DECIMAL planos en Postgres. En UI mostrar siempre $1.234.567,89 (punto miles, coma decimal, 2 decimales fijos).
 Funciones: formatMonto() y parseMonto() en SNIPPETS.md. En resultados.html: `formatARS()` / `parseARS()` / `bindARSInput()`.
 Inputs: type="text" inputmode="decimal" con normalización en blur. Guard `el._arsBound` previene listeners duplicados.
+
+## ADR-042: La LÍNEA (liquidacion_detalle) como unidad de deuda — arquitectura C1 (02/06/2026)
+Decisión: cada `liquidacion_detalle` lleva su propio `estado_linea` (impago/pagado/retenido) y su beneficiario denormalizado (`beneficiario_tipo` + `beneficiario_id`). `recibos` es una capa de cobro separada que agrupa líneas impagas — potencialmente cross-reunión — vía `liquidacion_detalle.recibo_id`.
+Justificación: el cobro real en Dolores es por persona y puede cruzar reuniones; `liquidaciones.reunion_id` es obligatorio y no permite consolidar. Poner el estado en la línea (no en la liquidación) permite pagar parcial y agrupar libremente al emitir el recibo.
+Alternativa rechazada: estado a nivel `liquidaciones` — no permite consolidación cross-reunión ni pago parcial.
+
+## ADR-043: inscripcion_id + posicion en la línea (02/06/2026)
+Decisión: las líneas de premio/bono/actuación/fondo guardan `inscripcion_id` y `posicion` (caballo + puesto que las originó). Las líneas de incentivo van con ambos en NULL (son por reunión, no por carrera).
+Justificación: trazabilidad por caballo/puesto y reconstrucción del reparto; los incentivos no tienen puesto asociado.
+
+## ADR-044: Numeración de recibo correlativa POR CLUB (02/06/2026)
+Decisión: el correlativo de recibo se lleva por club en `club_secuencias (club_id, tipo)` y se obtiene con `fn_siguiente_recibo(club_id)` (SECURITY DEFINER, UPSERT con lock).
+Justificación: cada hipódromo numera sus propios recibos desde 1; un lock evita colisiones de numeración concurrente.
+
+## ADR-045: Fondo solidario como concepto del club (02/06/2026)
+Decisión: el 2% del reparto se rutea a una línea `concepto_tipo='fondo_solidario'` con `beneficiario_tipo='club'` y `beneficiario_id=CLUB_ID`, agrupada en una liquidación `club` por reunión (sin propietario ni profesional). NO se paga a una persona ni genera recibo.
+Justificación: el fondo es del club (accidentes/choques). El modelo de línea con beneficiario polimórfico lo soporta sin tabla extra. Ver GOTCHA #43 (no confundir con el descuento por-actor de comision_config).
+
+## ADR-046: Retención DGI nullable, sin cálculo (02/06/2026)
+Decisión: `liquidacion_config.retencion_dgi_pct` y `recibos.retencion_dgi` son nullables y NO se calculan. Dolores no retiene.
+Justificación: evita imponer una escala impositiva que el cliente piloto no usa; queda el campo para clubes que sí retengan, sin lógica hasta que se necesite.
+
+## ADR-047: Retención anti-doping de 1° y 2° (~30 días) — pendiente Fase 3 (02/06/2026)
+Decisión: las líneas de premio de 1° y 2° quedarán en `estado_linea='retenido'` con `fecha_liberacion` a `dias_antidoping` (default 30) de la reunión, liberándose después. El schema ya tiene las columnas (`estado_linea`, `fecha_liberacion`, `liquidacion_config.dias_antidoping`); la lógica es Fase 3 (no implementada).
+Justificación: práctica de control anti-doping del hipódromo; se modela ahora en schema para no re-migrar.

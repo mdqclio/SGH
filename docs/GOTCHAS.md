@@ -183,3 +183,21 @@ El orden recomendado cuando se corren todos juntos: **dividendos_inline → no_l
 
 ## 26. Funciones helper de RLS deben ser SECURITY DEFINER (12/05/2026)
 Si `fn_get_user_club_id()` o `fn_is_super_admin()` fueran SECURITY INVOKER (default), al ser invocadas desde una policy sobre la tabla `usuarios` (que ya tiene RLS), la función intentaría leer `usuarios` con los permisos del usuario llamante — que a su vez pasan por la misma RLS, causando recursión infinita o devolviendo NULL. SECURITY DEFINER hace que la función se ejecute con permisos del owner de la función, bypasseando la RLS de la tabla destino. Combinado siempre con `SET search_path = public` para evitar path injection via search_path hijacking.
+
+## 43. DOBLE mecanismo de fondo solidario — no deben coexistir (02/06/2026)
+Hay dos formas de "fondo solidario" en el código y NO deben aplicarse juntas o se cobra el fondo dos veces:
+(a) **Correcto (Fase 2):** la tajada del 2% del reparto que va al club como línea `concepto_tipo='fondo_solidario'` (98% roles + 2% fondo = 100%). Vive en `liquidacion_config.pct_fondo_solidario`.
+(b) **Legacy:** `comision_config.descuento_fondo_solidario_pct` — un descuento porcentual por-actor sobre el neto. `generarLiquidaciones` aún lo aplica como `descPct` (solo a líneas `premio`).
+Hoy Dolores **no tiene filas en `comision_config`** → `descPct=0` → solo actúa el mecanismo (a). Si se cargara `comision_config` con `descuento_fondo_solidario_pct != 0`, se estaría descontando el fondo a cada actor ADEMÁS de la tajada al club. Decidir explícitamente cuál usar antes de poblar `comision_config`.
+
+## 44. generarLiquidaciones solo procesa resultados estado='oficial' (02/06/2026)
+El motor filtra `resultados.estado='oficial'`. Carreras en `provisional` (como casi toda R5) NO liquidan. Para liquidar hay que oficializar primero (botón "Oficializar reunión" — Fase 2bis, pendiente). En testing, poner el resultado en oficial y restaurarlo (ver `probe_fase2_liquidaciones.mjs`).
+
+## 45. Bono 6°-8° era código muerto en calcPremio (02/06/2026)
+El bono por posición 6-8 estaba dentro de `calcPremio`, pero `calcPremio` hace `if(!pct) return 0` antes: para puestos 6-8 no hay `pct` en `distribucion_premios`, así que retornaba 0 y nunca aplicaba el bono. Fase 2 lo extrajo a `calcBono68` → paga 100% al propietario, neto. **PENDIENTE confirmación de Fede antes de activar en prod:** 29/30 carreras reales tienen `bono_posicion_monto=100000` cargado, así que al regenerar se paga plata nueva que antes no salía.
+
+## 46. liquidaciones.html usa formatMonto/parseMonto propios, no formatARS/parseARS (02/06/2026)
+A diferencia del resto del proyecto (que usa `formatARS()`/`parseARS()`), `liquidaciones.html` define su propio par `formatMonto`/`parseMonto` (+ alias `fmt`). No es bug, pero revisar que el locale argentino (punto de miles) sea consistente con el resto antes de unificar.
+
+## 47. inscripciones.propietario_id puede estar NULL — bloquea liquidar al propietario (02/06/2026)
+`generarLiquidaciones` lee `insc.propietario_id`; si es null, NO se liquida al propietario (70%) NI el bono 6-8 (que es 100% propietario). Estado real de la base: 0/87 inscripciones tienen `propietario_id`, y la fuente de verdad `spc_propietarios` está VACÍA (0 filas). `spcs` no tiene `propietario_id`; el dueño se modela en `spc_propietarios` (spc_id + propietario_id + %). El flujo `inscripciones.html`/`ratificacion.html` nunca escribe `propietario_id`. NO es bug del motor (lee el campo correcto): es gap de carga de datos. Fix upstream: poblar `spc_propietarios` + setear `inscripciones.propietario_id` al inscribir (derivado del dueño activo). Fallback opcional en el generador (resolver vía spc_id) solo sirve una vez que `spc_propietarios` tenga datos. Ver ISSUE-001 (pendiente).

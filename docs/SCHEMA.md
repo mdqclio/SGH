@@ -152,12 +152,58 @@ id UUID PK, resultado_id FK, usuario_id FK, accion, datos_antes JSONB, datos_des
 id UUID PK, club_id FK clubs NOT NULL, hipodromo_id FK hipodromos nullable, categoria_id FK categorias_carrera nullable, tipo_profesional ENUM nullable, tipo_cobro ENUM NOT NULL, porcentaje NUMERIC nullable, monto_fijo NUMERIC nullable, posicion_bono INTEGER nullable, monto_bono NUMERIC nullable, descuento_fondo_solidario_pct NUMERIC DEFAULT 0, descuento_incentivo_pct NUMERIC DEFAULT 0, otros_descuentos JSONB nullable, vigente_desde DATE NOT NULL, vigente_hasta DATE nullable, descripcion TEXT nullable, activo BOOLEAN NOT NULL DEFAULT true
 NOTA: diseño granular (reemplaza el modelo original de 7 porcentajes fijos). tipo_cobro determina si aplica porcentaje, monto_fijo o bono por posición.
 
+### ENUMs de liquidación C+D (Fase 0 — vigente)
+- `estado_linea_liq` = ('impago','pagado','retenido')
+- `concepto_liq` = ('premio','bono','actuacion','incentivo_jockey','incentivo_entrenador','fondo_solidario')
+- `beneficiario_tipo` = ('profesional','propietario','club')
+- `forma_pago_recibo` = ('efectivo','transferencia')
+- `estado_recibo` = ('emitido','anulado')
+Regla ENUM: solo `ADD VALUE IF NOT EXISTS`, nunca quitar valores.
+
+### liquidacion_config (Fase 0 — vigente)
+id UUID PK, club_id FK clubs NOT NULL, pct_propietario/pct_entrenador/pct_jockey/pct_peon/pct_capataz/pct_sereno/pct_fondo_solidario NUMERIC(6,3) NOT NULL (defaults 70/10/10/4/3/1/2), incentivo_jockey_monto NUMERIC(15,2) NOT NULL DEFAULT 0, incentivo_entrenador_monto NUMERIC(15,2) NOT NULL DEFAULT 0, dias_antidoping INTEGER NOT NULL DEFAULT 30, retencion_dgi_pct NUMERIC(6,3) NULLABLE, vigente_desde DATE NOT NULL DEFAULT CURRENT_DATE, vigente_hasta DATE, activo BOOLEAN NOT NULL DEFAULT true, created_at
+CHECK `chk_reparto_suma_100`: pct_propietario + pct_entrenador + pct_jockey + pct_peon + pct_capataz + pct_sereno + pct_fondo_solidario = 100
+NOTA: saca de hardcode del JS los % de reparto e incentivos (config por club). Seed para Dolores con los defaults. Distinta de `comision_config` (ver GOTCHA #43 — doble fondo solidario).
+
+### club_secuencias (Fase 0 — vigente)
+club_id UUID FK clubs NOT NULL, tipo TEXT NOT NULL, ultimo_numero INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (club_id, tipo)
+NOTA: numeración correlativa por club. Alimenta `fn_siguiente_recibo`.
+
+### recibos (Fase 0 — vigente, capa de cobro)
+id UUID PK, club_id FK clubs NOT NULL, numero_recibo INTEGER NOT NULL, beneficiario_tipo `beneficiario_tipo` NOT NULL, profesional_id FK profesionales NULLABLE, propietario_id FK propietarios NULLABLE, forma_pago `forma_pago_recibo` NOT NULL, total_premios/total_descuentos NUMERIC(15,2) NOT NULL DEFAULT 0, retencion_dgi NUMERIC(15,2) NULLABLE, neto_a_cobrar NUMERIC(15,2) GENERATED (total_premios - total_descuentos - COALESCE(retencion_dgi,0)) STORED, cobrador_nombre/cobrador_documento/comprobante_url TEXT, estado `estado_recibo` NOT NULL DEFAULT 'emitido', emitido_por FK usuarios, emitido_at, anulado_at, notas, created_at
+CHECK `uq_recibo_por_club` UNIQUE (club_id, numero_recibo)
+CHECK `chk_recibo_beneficiario`: (profesional con profesional_id y sin propietario_id) OR (propietario con propietario_id y sin profesional_id)
+CRÍTICO: neto_a_cobrar es GENERATED — no incluir en INSERT/UPDATE.
+
+### fn_siguiente_recibo(p_club_id UUID) → INTEGER (Fase 0 — vigente)
+SECURITY DEFINER, search_path=public. UPSERT con lock sobre `club_secuencias` (club_id,'recibo') → devuelve el siguiente correlativo. Uso: numeración de recibos por club en Fase 4.
+
+### RLS liquidación C+D (Fase 0 — vigente)
+`liquidacion_config`, `recibos`, `club_secuencias`: RLS ON, policy `*_rls` FOR ALL TO authenticated USING/WITH CHECK (fn_is_super_admin() OR club_id = fn_get_user_club_id()). Auditoría: triggers `trg_audit_recibos` y `trg_audit_liquidacion_config` → `fn_auditoria_log`.
+
+Modelo de negocio detallado: ver [LIQUIDACIONES_MODELO.md](LIQUIDACIONES_MODELO.md). Migración fuente: `migrations/liquidaciones_cd_fase0.sql`.
+
 ### liquidaciones
 id UUID PK, club_id FK NOT NULL, reunion_id FK NOT NULL, profesional_id FK nullable, propietario_id FK nullable, periodo_desde DATE nullable, periodo_hasta DATE nullable, total_bruto DECIMAL NOT NULL DEFAULT 0, total_descuentos DECIMAL NOT NULL DEFAULT 0, total_neto DECIMAL GENERATED ALWAYS AS (total_bruto - total_descuentos) STORED, estado ENUM(borrador/aprobada/pagada/anulada) NOT NULL DEFAULT 'borrador', numero_recibo VARCHAR nullable, recibo_pdf_url TEXT nullable, aprobado_por FK usuarios nullable, pagado_at TIMESTAMPTZ nullable, notas TEXT nullable, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 CRÍTICO: total_neto es columna generada — no se puede actualizar directamente
 
 ### liquidacion_detalle
-id UUID PK, liquidacion_id FK, carrera_id FK, concepto, descripcion, monto_bruto DECIMAL, porcentaje_desc DECIMAL, monto_descuento DECIMAL, monto_neto DECIMAL GENERATED
+id UUID PK, liquidacion_id FK, carrera_id FK, concepto, descripcion, monto_bruto DECIMAL, porcentaje_desc DECIMAL, monto_descuento DECIMAL, monto_neto DECIMAL GENERATED (monto_bruto - monto_descuento)
+
+**Columnas C+D (Fase 0 — vigente, migración `liquidaciones_cd_fase0.sql`):** la LÍNEA es la unidad de deuda (ADR-042).
+| Columna | Tipo | Nota |
+|---|---|---|
+| `estado_linea` | `estado_linea_liq` NOT NULL DEFAULT `'impago'` | impago/pagado/retenido |
+| `concepto_tipo` | `concepto_liq` | premio/bono/actuacion/incentivo_jockey/incentivo_entrenador/fondo_solidario |
+| `posicion` | INTEGER | puesto que originó la línea (null en incentivos) |
+| `inscripcion_id` | UUID FK inscripciones | caballo/puesto (null en incentivos) |
+| `fecha_liberacion` | DATE | liberación anti-doping (Fase 3, sin uso aún) |
+| `pagado_at` | TIMESTAMPTZ | sello de pago (Fase 4) |
+| `recibo_id` | UUID FK recibos | agrupa la línea en un recibo (Fase 4) |
+| `beneficiario_tipo` | `beneficiario_tipo` | profesional/propietario/club (denormalizado) |
+| `beneficiario_id` | UUID | polimórfico, SIN FK |
+| `reunion_id` | UUID FK reuniones | desnormalizado para consolidación cross-reunión |
+Índices: `idx_liqdet_beneficiario (beneficiario_tipo, beneficiario_id, estado_linea)`, `idx_liqdet_recibo (recibo_id)`.
 
 ### resoluciones
 id UUID PK, club_id FK, reunion_id FK, numero VARCHAR UNIQUE, fecha DATE, tipo, texto, documento_url, estado DEFAULT 'borrador', creado_por FK

@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+### `feat/liquidaciones-cd` — Liquidaciones C+D (⚠️ Fase 1 y 2 SOLO en branch, NO en prod)
+
+> **Estado de deploy:** la migración de schema (Fase 0) **YA está aplicada en la base de prod**. La lógica JS (Fase 1 y Fase 2) está **solo en `feat/liquidaciones-cd`** — NO está en `main`/prod (GitHub Pages sirve `main`). Pendiente validación de Fede antes de mergear.
+
+#### Schema — Fase 0 (vigente en DB)
+- Migración `migrations/liquidaciones_cd_fase0.sql` (idempotente). 5 ENUMs (`estado_linea_liq`, `concepto_liq`, `beneficiario_tipo`, `forma_pago_recibo`, `estado_recibo`); 3 tablas (`liquidacion_config` con CHECK suma=100, `club_secuencias`, `recibos` con `neto_a_cobrar` GENERATED + CHECK beneficiario + UNIQUE club+numero); 10 columnas nuevas en `liquidacion_detalle` (la LÍNEA como unidad de deuda); `fn_siguiente_recibo` SECURITY DEFINER; RLS + auditoría en las 3 tablas; seed de Dolores. Ver SCHEMA.md y ADR-042..047.
+
+#### Fase 1 — config por club (branch)
+- `generarLiquidaciones` lee % de reparto e incentivos desde `liquidacion_config` (antes hardcodeados). Pestaña "Reparto de premios" en liquidaciones.html.
+
+#### Fase 2 — fondo solidario + bono 6-8 + incentivos (branch)
+- **Fondo solidario 2%:** una línea por ubicado 1-5 (`concepto_tipo='fondo_solidario'`, `beneficiario_tipo='club'`, `beneficiario_id=CLUB_ID`), 2% de `premioEfectivo` (incluye bono al ganador y piso; NO el bono 6-8). Agrupadas en una liquidación `club` por reunión (sin persona). 98% roles + 2% fondo = 100%.
+- **Bono 6°-8°:** sacado de `calcPremio` (era código muerto, ver GOTCHA #45) → helper `calcBono68`. Paga 100% al propietario, neto, `concepto_tipo='bono'`.
+- **Bono al ganador:** sin cambios — sigue fundido en el premio del 1° y repartido por roles (`concepto_tipo='premio'`).
+- **Incentivos (Bloque C):** líneas `incentivo_jockey`/`incentivo_entrenador` desde `liquidacion_config`, una por profesional que largó (`no_largo=false`) estando ratificado, neto, independiente del premio. Guard: monto 0/null → no genera (hoy ambos en 0 → no se generan).
+- **Cosmético:** `renderLiquidaciones` muestra "Fondo solidario (club)" para la liquidación club.
+- **Descuentos:** `descPct` (comision_config) aplica solo a `premio`; bono/incentivo/fondo van netos.
+
+#### Tests
+- `tests/probe_fase2_liquidaciones.mjs` — 14 checks de FORMA de líneas sobre R5 (extrae el cuerpo real de `generarLiquidaciones` y lo corre sin browser). Snapshot+restore de resultados/liquidaciones/roles. Solo valida forma; no aprueba/paga.
+
+#### Sin cambios de schema en Fase 1 y 2
+- Todo se apoya en ENUMs/columnas de Fase 0.
+
+#### Pendiente / bloqueante conocido
+- `inscripciones.propietario_id` está NULL (0/87) y `spc_propietarios` vacía → no se liquida al propietario (70%) ni el bono 6-8. Gap de carga de datos, no del motor. Ver GOTCHA #47 / ISSUE-001.
+
+---
+
 ### `feat/vacante-vac-inline` — vacante escribiendo "VAC" en el input (pedido de Fede)
 
 Reemplaza el checkbox de `feat/vacante-manual` por un único campo "monto-o-VAC". El dato de vacante es **solo informativo** (lo consumen el Stud Book y la página); **no entra en liquidación** (eso va por bolsa de premios + bonos), así que un campo único alcanza.
