@@ -22,6 +22,7 @@ PENDIENTE:
 - ⏳ Fase 5: resumen de reunión (total pagado + pendientes de cobro).
 - ⏳ Fase 6: validar A+B contra datos reales de R5.
 - ⏳ **propietario_id null en inscripciones (bloqueante para liquidación real):** 0/87 inscripciones tienen `propietario_id` y `spc_propietarios` está vacía → no se liquida el propietario (70%) ni el bono 6-8. NO es bug del motor (lee `insc.propietario_id`, el campo correcto). Fix upstream en 2 partes: (1) poblar `spc_propietarios` (Stud Book), (2) setear `inscripciones.propietario_id` al inscribir/ratificar (auto desde el dueño activo). Decisión pendiente: ¿agregar además fallback de código en el generador (resolver dueño vía `spc_id → spc_propietarios`)? — solo útil tras (1). Ver GOTCHA #47.
+  - **Verificación a fondo (02/06/2026):** confirmado que NINGÚN flujo escribe `propietario_id`. Barrido de todo el repo de `from('inscripciones').insert/.update/.upsert`: payloads con campos explícitos (sin spreads ni alias `propietario/dueño/owner`); `inscripciones.html` (insert L638) y los UPDATE de `ratificacion.html` no lo tocan; el form de inscripción NO tiene campo de dueño. Único setter: `portal.html:574` (rol propietario), portal sin construir → 0 filas (`canal='web'`: 0/87). No hay trigger/RPC server-side (ninguna migración; y si existiera, las 87 reales lo tendrían). Las 87 son carga manual real por UI (`canal='manual'` 87/87, `created_at` repartido 27/04→23/05), NO seeds → el 0/87 es lo que produce el flujo, no casualidad. **Hay que AGREGAR la captura/derivación al inscribir/ratificar; el fix se planea aparte.**
 
 DECISIONES (Fede):
 - ✅ **Bono 6-8 + empate — CONFIRMADO (02/06/2026):** se paga, 100% propietario, neto; monto/rango configurables (`bono_posicion_monto`, `bono_posicion_desde/hasta`). Empate (principio Fede "50% c/u" + convención dead-heat "el grupo toma la posición del líder"): grupo comparte **un** bono dividido `monto/N` (2 → 50% c/u); empate de premio promediado `Σ/N`; cruce de borde (5°-6°) → grupo es "5°" → sin bono; bono al ganador en empate de 1° → repartido vía el promedio (mitad c/u). Probe C2/C3. **Sigue gateado por `propietario_id` NULL (GOTCHA #47): no paga nada hasta poblar el dueño.**
@@ -71,6 +72,11 @@ Estado: ✅ Resuelto — logo PNG con transparencia (140px, sesión may-2026)
 
 ### ISSUE-009: Emails no implementados
 Estado: Pendiente Resend/SendGrid
+
+### ISSUE-026: spcs.html — `id` HTML duplicado rompe la captura de caballeriza (y sexo)
+Descripción: `spcs.html` reutiliza el mismo `id` en filtro de toolbar y campo de modal: `f-caballeriza` (L150 toolbar / L206 modal) y `f-sexo` (L144 / L189). `getElementById` agarra siempre el primero del DOM (el toolbar), así que el select de caballeriza del modal queda sin opciones y, en alta, `spcs.caballeriza_id` se guarda **siempre null**; en edición no se puede cambiar. `f-sexo` zafa de casualidad (openModal setea el toolbar a un valor válido antes de leerlo). Esto explica por qué el link caballo→caballeriza no se llena al cargar caballos por esta pantalla.
+Módulo: spcs.html · Ver GOTCHA #48
+Estado: ⏳ Documentado, fix NO implementado. Fix conceptual: renombrar el `id` del modal (`f-caballeriza-form`), apuntar populate (L329) / openModal (L446) / saveRecord (L484) al select del modal; ídem `f-sexo`. Agregar probe de la captura.
 
 ## BAJOS
 
