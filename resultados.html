@@ -1276,19 +1276,26 @@ function renderDivView(overridePosiciones, skipSync = false) {
 async function f8Dividendos() {
   const res = resultados[currentCarreraId];
   if (!res) { toast('Guardá el resultado primero','error'); return; }
+
+  // Capturar lo que el operador tipeó (incluido "VAC") antes de mergear: con VAC
+  // inline ya no hay un onChange que sincronice, así que el VAC vive solo en el DOM.
+  syncDivInputsToPending();
+
   const { data } = await sb.from('resultado_apuestas').select('*').eq('resultado_id', res.id).order('orden');
   apuestasMap[res.id] = data || [];
 
   // Opción A: F8 trae dividendos/pozos desde DB pero NO pisa el vacante.
   // El vacante en memoria manda siempre: las filas que vienen de DB conservan su
   // vacante en memoria, y las filas memory-only marcadas vacante (sin guardar
-  // todavía) sobreviven a la recarga.
+  // todavía) sobreviven a la recarga. Una fila vacante fuerza div_orig=null
+  // (no arrastrar un monto viejo de DB bajo un VAC).
   const vacKey  = a => `${a.tipo}-${a.orden}`;
   const memByKey = new Map(pendingApuestas.map(a => [vacKey(a), a]));
   const dbKeys   = new Set((data||[]).map(vacKey));
   const merged   = (data||[]).map(a => {
     const mem = memByKey.get(vacKey(a));
-    return mem ? { ...a, vacante: mem.vacante } : { ...a };
+    if (!mem) return { ...a };
+    return mem.vacante ? { ...a, vacante: true, div_orig: null } : { ...a, vacante: false };
   });
   const memOnlyVac = pendingApuestas.filter(a => a.vacante && !dbKeys.has(vacKey(a)));
   pendingApuestas = [...merged, ...memOnlyVac.map(a => ({ ...a }))];
