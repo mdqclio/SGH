@@ -255,9 +255,7 @@
       transition: border-color 0.15s;
     }
     .dv-amount-inp:focus { border-color: var(--accent); }
-    .dv-inp-vacante { opacity: 0.38; }
-    .dv-vac-chk { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; color: var(--muted); cursor: pointer; margin-left: 6px; user-select: none; white-space: nowrap; }
-    .dv-vac-chk input { cursor: pointer; accent-color: #e05252; margin: 0; }
+    .dv-inp-vacante { color: #e09090; font-weight: 600; letter-spacing: 0.5px; }
 
     /* ── Barra de acciones ── */
     .actions-bar { padding: 12px 22px; border-top: 1px solid var(--border); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
@@ -434,12 +432,14 @@ function bindARSInput(el) {
   if (el._arsBound) return;
   el._arsBound = true;
   el.addEventListener('focus', () => {
+    if (/^vac$/i.test(el.value.trim())) { el.value = 'VAC'; return; }  // no borrar un VAC tipeado
     const v = parseARS(el.value);
     el.value = isNaN(v) ? '' : String(v);
   });
   el.addEventListener('blur', () => {
     const raw = el.value.trim();
     if (raw === '') return;
+    if (/^vac$/i.test(raw)) { el.value = 'VAC'; return; }  // normalizar a mayúsculas
     const v = parseARS(raw);
     el.value = isNaN(v) ? raw : formatARS(v);
   });
@@ -1116,17 +1116,16 @@ function renderDivHTML(apus, habMap, chapaAt, fullDetail, editable = false) {
   // Posicionales: columnas GAN / SEG / TER (solo si habilitadas)
   const posCols = ['GAN','SEG','TER'].filter(t => habMap[t]).map(tipo => {
     const slots = POS_SLOTS[tipo];
-    const vacOn = (byTipo[tipo]||[]).some(a => a?.vacante);
     const rows = Array.from({length: slots}, (_, i) => {
       const slot = i + 1;
       const a = (byTipo[tipo]||[])[slot - 1];
       const chapa = chapaAt(slot);
       let amtCell;
       if (editable) {
-        const raw = a?.div_orig != null ? formatARS(a.div_orig) : '';
-        const vacCls = vacOn ? ' dv-inp-vacante' : '';
-        const dis    = vacOn ? ' disabled' : '';
-        amtCell = `<div class="dv-amount-inp-wrap"><input type="text" class="dv-amount-inp${vacCls}" id="div-inp-${tipo}-${slot}" value="${raw}" placeholder="0,00" data-ars="1" data-tipo="${tipo}" data-slot="${slot}"${dis}></div>`;
+        const isVac  = !!a?.vacante;
+        const val    = isVac ? 'VAC' : (a?.div_orig != null ? formatARS(a.div_orig) : '');
+        const vacCls = isVac ? ' dv-inp-vacante' : '';
+        amtCell = `<div class="dv-amount-inp-wrap"><input type="text" class="dv-amount-inp${vacCls}" id="div-inp-${tipo}-${slot}" value="${val}" placeholder="0,00 o VAC" data-ars="1" data-tipo="${tipo}" data-slot="${slot}"></div>`;
       } else {
         const monto = a?.div_orig != null ? `$ ${fNum(a.div_orig)}` : '—';
         const amtCls = `dv-amount${a?.div_orig == null ? ' dv-empty' : ''}`;
@@ -1135,10 +1134,7 @@ function renderDivHTML(apus, habMap, chapaAt, fullDetail, editable = false) {
       }
       return `<div class="dv-row">${chapaChipMini(chapa)}${amtCell}</div>`;
     }).join('');
-    const chk = editable
-      ? `<label class="dv-vac-chk"><input type="checkbox" ${vacOn?'checked':''} onchange="onVacanteChk('${tipo}', this.checked)">vac.</label>`
-      : '';
-    return `<div class="dv-col"><div class="dv-col-hdr">${DIV_NOMBRE[tipo].toUpperCase()}${chk}</div>${rows}</div>`;
+    return `<div class="dv-col"><div class="dv-col-hdr">${DIV_NOMBRE[tipo].toUpperCase()}</div>${rows}</div>`;
   });
   if (!fullDetail) {
     if (posCols.length) parts.push(`<div class="dv-posicionales">${posCols.join('')}</div>`);
@@ -1153,19 +1149,14 @@ function renderDivHTML(apus, habMap, chapaAt, fullDetail, editable = false) {
       // Modo edición: mostrar inputs para TODOS los tipos habilitados, con o sin valor guardado
       const habDirectas   = DIRECTAS.filter(t => habMap[t]);
       const habCombinadas = COMBINADAS.filter(t => habMap[t]);
-      const DIRECTAS_SET = new Set(['EX','IM','TR','CUAT']);
       const makeEditRow = (tipo) => {
         const a = (byTipo[tipo] || [])[0];
         const comp = a ? renderCompChips(a, chapaAt) : '';
-        const raw  = a?.div_orig != null ? formatARS(a.div_orig) : '';
-        const isSingle = DIRECTAS_SET.has(tipo);
-        const vacOn  = isSingle && (byTipo[tipo]||[]).some(x => x?.vacante);
-        const vacCls = vacOn ? ' dv-inp-vacante' : '';
-        const dis    = vacOn ? ' disabled' : '';
-        const chk = isSingle
-          ? `<label class="dv-vac-chk"><input type="checkbox" ${vacOn?'checked':''} onchange="onVacanteChk('${tipo}', this.checked)">vac.</label>`
-          : '';
-        const inp = `<div class="dv-amount-inp-wrap"><input type="text" class="dv-amount-inp${vacCls}" id="div-inp-${tipo}-1" value="${raw}" placeholder="0,00" data-ars="1" data-tipo="${tipo}" data-slot="1"${dis}>${chk}</div>`;
+        // VAC inline aplica a directas y combinadas (ambas tienen input editable)
+        const isVac  = !!a?.vacante;
+        const val    = isVac ? 'VAC' : (a?.div_orig != null ? formatARS(a.div_orig) : '');
+        const vacCls = isVac ? ' dv-inp-vacante' : '';
+        const inp = `<div class="dv-amount-inp-wrap"><input type="text" class="dv-amount-inp${vacCls}" id="div-inp-${tipo}-1" value="${val}" placeholder="0,00 o VAC" data-ars="1" data-tipo="${tipo}" data-slot="1"></div>`;
         return `<div class="dv-list-row">
           <span class="dv-list-nombre">${DIV_NOMBRE[tipo]}</span>
           <span class="dv-list-comp">${comp}</span>
@@ -1182,7 +1173,7 @@ function renderDivHTML(apus, habMap, chapaAt, fullDetail, editable = false) {
         const a = byTipo[tipo][0];
         const comp = renderCompChips(a, chapaAt);
         const monto = a.vacante
-          ? `<span class="dv-vacante">VACANTE</span>`
+          ? `<span class="dv-vacante">VAC</span>`
           : `<span class="dv-list-monto">$ ${fNum(a.div_orig)}</span>`;
         const inc = (a.div_inc != null && a.div_inc > 0)
           ? `<div class="dv-inc">Incremento: $ ${fNum(a.div_inc)}</div>` : '';
@@ -1195,7 +1186,7 @@ function renderDivHTML(apus, habMap, chapaAt, fullDetail, editable = false) {
       combinadasRows = combinadas.map(tipo => {
         const a = byTipo[tipo][0];
         const monto = a.vacante
-          ? `<span class="dv-vacante">VACANTE</span>`
+          ? `<span class="dv-vacante">VAC</span>`
           : `<span class="dv-list-monto">$ ${fNum(a.div_orig)}</span>`;
         const inc = (a.div_inc != null && a.div_inc > 0)
           ? `<div class="dv-inc">Incremento: $ ${fNum(a.div_inc)}</div>` : '';
@@ -1248,48 +1239,23 @@ function syncDivInputsToPending() {
   container.querySelectorAll('input[data-tipo][data-slot]').forEach(el => {
     const tipo = el.dataset.tipo;
     const slot = parseInt(el.dataset.slot, 10);
-    const val  = parseARS(el.value);
+    const rawTxt = el.value.trim();
+    const isVac  = /^vac$/i.test(rawTxt);          // "VAC" (case-insensitive) marca vacante
+    const val    = isVac ? NaN : parseARS(rawTxt);
     const list = byTipo[tipo] ??= [];
     const existing = list[slot - 1];
+    // El input es dueño de div_orig Y vacante para su fila/slot:
+    //   VAC → vacante=true, div_orig=null  |  número → vacante=false, div_orig=n  |  vacío → false/null
     if (existing) {
-      existing.div_orig = isNaN(val) ? null : val;
-    } else if (!isNaN(val) && val > 0) {
-      const newRow = { tipo, div_orig: val, orden: slot, val_apu: habPrecio[tipo] || 100, vacante: false };
+      existing.vacante  = isVac;
+      existing.div_orig = isVac ? null : (isNaN(val) ? null : val);
+    } else if (isVac || (!isNaN(val) && val > 0)) {
+      const newRow = { tipo, orden: slot, val_apu: habPrecio[tipo] || 100,
+                       div_orig: isVac ? null : val, vacante: isVac };
       pendingApuestas.push(newRow);
       list[slot - 1] = newRow;
     }
   });
-}
-
-/* ── Vacante manual ── */
-const VACANTE_MULTISLOT = { SEG:2, TER:3 };
-
-/* onChange del checkbox por apuesta — única vía para marcar/desmarcar vacante */
-function onVacanteChk(tipo, checked) {
-  if (checked) markVacante(tipo);
-  else         toggleVacante(tipo);
-}
-
-function toggleVacante(tipo) {
-  syncDivInputsToPending();
-  pendingApuestas.filter(a => a.tipo === tipo).forEach(a => { a.vacante = false; });
-  renderDivView();
-}
-
-function markVacante(tipo) {
-  syncDivInputsToPending();
-  const entries = pendingApuestas.filter(a => a.tipo === tipo);
-  if (entries.length) {
-    entries.forEach(a => { a.vacante = true; });
-  } else {
-    const habPrecio = {};
-    (carreraApuestasMap[currentCarreraId] || []).forEach(ca => { habPrecio[ca.tipo] = ca.precio; });
-    const n = VACANTE_MULTISLOT[tipo] || 1;
-    for (let s = 1; s <= n; s++) {
-      pendingApuestas.push({ tipo, div_orig: null, orden: s, val_apu: habPrecio[tipo] || 100, vacante: true });
-    }
-  }
-  renderDivView();
 }
 
 function renderDivView(overridePosiciones, skipSync = false) {
@@ -1310,19 +1276,26 @@ function renderDivView(overridePosiciones, skipSync = false) {
 async function f8Dividendos() {
   const res = resultados[currentCarreraId];
   if (!res) { toast('Guardá el resultado primero','error'); return; }
+
+  // Capturar lo que el operador tipeó (incluido "VAC") antes de mergear: con VAC
+  // inline ya no hay un onChange que sincronice, así que el VAC vive solo en el DOM.
+  syncDivInputsToPending();
+
   const { data } = await sb.from('resultado_apuestas').select('*').eq('resultado_id', res.id).order('orden');
   apuestasMap[res.id] = data || [];
 
-  // Opción A: F8 trae dividendos/pozos desde DB pero NO pisa el tilde de vacante.
+  // Opción A: F8 trae dividendos/pozos desde DB pero NO pisa el vacante.
   // El vacante en memoria manda siempre: las filas que vienen de DB conservan su
-  // vacante en memoria, y las filas memory-only marcadas vacante (creadas por
-  // markVacante sin guardar todavía) sobreviven a la recarga.
+  // vacante en memoria, y las filas memory-only marcadas vacante (sin guardar
+  // todavía) sobreviven a la recarga. Una fila vacante fuerza div_orig=null
+  // (no arrastrar un monto viejo de DB bajo un VAC).
   const vacKey  = a => `${a.tipo}-${a.orden}`;
   const memByKey = new Map(pendingApuestas.map(a => [vacKey(a), a]));
   const dbKeys   = new Set((data||[]).map(vacKey));
   const merged   = (data||[]).map(a => {
     const mem = memByKey.get(vacKey(a));
-    return mem ? { ...a, vacante: mem.vacante } : { ...a };
+    if (!mem) return { ...a };
+    return mem.vacante ? { ...a, vacante: true, div_orig: null } : { ...a, vacante: false };
   });
   const memOnlyVac = pendingApuestas.filter(a => a.vacante && !dbKeys.has(vacKey(a)));
   pendingApuestas = [...merged, ...memOnlyVac.map(a => ({ ...a }))];
@@ -1451,12 +1424,17 @@ async function aplicar(carreraId, estado) {
     }
   }
 
-  const apuestasArr = pendingApuestas.map((a,i) => ({
-    tipo:a.tipo, val_apu:a.val_apu, composicion:a.composicion||null,
-    pozo:a.pozo||null, vales:a.vales||null,
-    div_orig:a.div_orig||null, div_inc:a.div_inc||null,
-    vacante:a.vacante||false, orden:i+1,
-  }));
+  // Purgar filas sin información: las que quedaron tras escribir "VAC" y luego vaciar
+  // el input (vacante=false, div_orig=null) no aportan nada y no deben persistir.
+  const apuestasArr = pendingApuestas
+    .filter(a => a.vacante || a.div_orig != null || a.div_inc != null
+                 || a.pozo != null || a.vales != null || a.composicion)
+    .map((a,i) => ({
+      tipo:a.tipo, val_apu:a.val_apu, composicion:a.composicion||null,
+      pozo:a.pozo||null, vales:a.vales||null,
+      div_orig:a.div_orig||null, div_inc:a.div_inc||null,
+      vacante:a.vacante||false, orden:i+1,
+    }));
 
   const { data: rpcData, error: rpcErr } = await sb.rpc('aplicar_resultado', {
     p_resultado_id:        res?.id || null,
