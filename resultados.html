@@ -256,12 +256,8 @@
     }
     .dv-amount-inp:focus { border-color: var(--accent); }
     .dv-inp-vacante { opacity: 0.38; }
-    .dv-wrap-vacante { align-items: center; gap: 6px; }
-    .dv-wrap-vacante::before { display: none; }
-    .dv-vacante-x { cursor: pointer; margin-left: 2px; font-size: 11px; opacity: 0.75; }
-    .dv-vacante-x:hover { opacity: 1; }
-    .dv-vacante-toggle { font-size: 10px; color: var(--muted); cursor: pointer; white-space: nowrap; margin-left: 4px; user-select: none; }
-    .dv-vacante-toggle:hover { color: var(--oro-suave); }
+    .dv-vac-chk { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; color: var(--muted); cursor: pointer; margin-left: 6px; user-select: none; white-space: nowrap; }
+    .dv-vac-chk input { cursor: pointer; accent-color: #e05252; margin: 0; }
 
     /* ── Barra de acciones ── */
     .actions-bar { padding: 12px 22px; border-top: 1px solid var(--border); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
@@ -629,7 +625,7 @@ function marcarNoCurrio() {
   noLargoMandiles = ncMandiles;
   reRenderMarcGrid();
   renderNcUI();
-  applyAutoVacante();
+  renderDivView();
   isDirty = true;
 }
 
@@ -1120,6 +1116,7 @@ function renderDivHTML(apus, habMap, chapaAt, fullDetail, editable = false) {
   // Posicionales: columnas GAN / SEG / TER (solo si habilitadas)
   const posCols = ['GAN','SEG','TER'].filter(t => habMap[t]).map(tipo => {
     const slots = POS_SLOTS[tipo];
+    const vacOn = (byTipo[tipo]||[]).some(a => a?.vacante);
     const rows = Array.from({length: slots}, (_, i) => {
       const slot = i + 1;
       const a = (byTipo[tipo]||[])[slot - 1];
@@ -1127,11 +1124,9 @@ function renderDivHTML(apus, habMap, chapaAt, fullDetail, editable = false) {
       let amtCell;
       if (editable) {
         const raw = a?.div_orig != null ? formatARS(a.div_orig) : '';
-        if (a?.vacante) {
-          amtCell = `<div class="dv-amount-inp-wrap dv-wrap-vacante"><input type="text" class="dv-amount-inp dv-inp-vacante" id="div-inp-${tipo}-${slot}" value="${raw}" placeholder="0,00" data-ars="1" data-tipo="${tipo}" data-slot="${slot}" disabled><span class="dv-vacante">VAC <span class="dv-vacante-x" onclick="toggleVacante('${tipo}')">×</span></span></div>`;
-        } else {
-          amtCell = `<div class="dv-amount-inp-wrap"><input type="text" class="dv-amount-inp" id="div-inp-${tipo}-${slot}" value="${raw}" placeholder="0,00" data-ars="1" data-tipo="${tipo}" data-slot="${slot}"><span class="dv-vacante-toggle" onclick="markVacante('${tipo}')">vacante</span></div>`;
-        }
+        const vacCls = vacOn ? ' dv-inp-vacante' : '';
+        const dis    = vacOn ? ' disabled' : '';
+        amtCell = `<div class="dv-amount-inp-wrap"><input type="text" class="dv-amount-inp${vacCls}" id="div-inp-${tipo}-${slot}" value="${raw}" placeholder="0,00" data-ars="1" data-tipo="${tipo}" data-slot="${slot}"${dis}></div>`;
       } else {
         const monto = a?.div_orig != null ? `$ ${fNum(a.div_orig)}` : '—';
         const amtCls = `dv-amount${a?.div_orig == null ? ' dv-empty' : ''}`;
@@ -1140,7 +1135,10 @@ function renderDivHTML(apus, habMap, chapaAt, fullDetail, editable = false) {
       }
       return `<div class="dv-row">${chapaChipMini(chapa)}${amtCell}</div>`;
     }).join('');
-    return `<div class="dv-col"><div class="dv-col-hdr">${DIV_NOMBRE[tipo].toUpperCase()}</div>${rows}</div>`;
+    const chk = editable
+      ? `<label class="dv-vac-chk"><input type="checkbox" ${vacOn?'checked':''} onchange="onVacanteChk('${tipo}', this.checked)">vac.</label>`
+      : '';
+    return `<div class="dv-col"><div class="dv-col-hdr">${DIV_NOMBRE[tipo].toUpperCase()}${chk}</div>${rows}</div>`;
   });
   if (!fullDetail) {
     if (posCols.length) parts.push(`<div class="dv-posicionales">${posCols.join('')}</div>`);
@@ -1161,12 +1159,13 @@ function renderDivHTML(apus, habMap, chapaAt, fullDetail, editable = false) {
         const comp = a ? renderCompChips(a, chapaAt) : '';
         const raw  = a?.div_orig != null ? formatARS(a.div_orig) : '';
         const isSingle = DIRECTAS_SET.has(tipo);
-        let inp;
-        if (isSingle && a?.vacante) {
-          inp = `<div class="dv-amount-inp-wrap dv-wrap-vacante"><input type="text" class="dv-amount-inp dv-inp-vacante" id="div-inp-${tipo}-1" value="${raw}" placeholder="0,00" data-ars="1" data-tipo="${tipo}" data-slot="1" disabled><span class="dv-vacante">VACANTE <span class="dv-vacante-x" onclick="toggleVacante('${tipo}')">×</span></span></div>`;
-        } else {
-          inp = `<div class="dv-amount-inp-wrap"><input type="text" class="dv-amount-inp" id="div-inp-${tipo}-1" value="${raw}" placeholder="0,00" data-ars="1" data-tipo="${tipo}" data-slot="1">${isSingle ? `<span class="dv-vacante-toggle" onclick="markVacante('${tipo}')">vacante</span>` : ''}</div>`;
-        }
+        const vacOn  = isSingle && (byTipo[tipo]||[]).some(x => x?.vacante);
+        const vacCls = vacOn ? ' dv-inp-vacante' : '';
+        const dis    = vacOn ? ' disabled' : '';
+        const chk = isSingle
+          ? `<label class="dv-vac-chk"><input type="checkbox" ${vacOn?'checked':''} onchange="onVacanteChk('${tipo}', this.checked)">vac.</label>`
+          : '';
+        const inp = `<div class="dv-amount-inp-wrap"><input type="text" class="dv-amount-inp${vacCls}" id="div-inp-${tipo}-1" value="${raw}" placeholder="0,00" data-ars="1" data-tipo="${tipo}" data-slot="1"${dis}>${chk}</div>`;
         return `<div class="dv-list-row">
           <span class="dv-list-nombre">${DIV_NOMBRE[tipo]}</span>
           <span class="dv-list-comp">${comp}</span>
@@ -1262,42 +1261,13 @@ function syncDivInputsToPending() {
   });
 }
 
-/* ── Vacante híbrido ── */
-const VACANTE_REQUIRED  = { GAN:1, SEG:2, TER:3, EX:2, IM:2, TR:3, CUAT:4 };
+/* ── Vacante manual ── */
 const VACANTE_MULTISLOT = { SEG:2, TER:3 };
 
-function applyAutoVacante() {
-  if (!currentCarreraId) return;
-  syncDivInputsToPending();
-
-  const activeInsc = inscripciones.filter(i => i.carrera_id === currentCarreraId && i.estado === 'ratificado');
-  const finishers  = activeInsc.length - noLargoMandiles.size;
-
-  const habPrecio = {};
-  (carreraApuestasMap[currentCarreraId] || []).forEach(ca => { habPrecio[ca.tipo] = ca.precio; });
-
-  const existingTipos = new Set(pendingApuestas.map(a => a.tipo));
-
-  // Unidireccional: solo marca true, nunca false
-  pendingApuestas.forEach(a => {
-    if (!(a.tipo in VACANTE_REQUIRED)) return;
-    if (a.vacante) return;
-    if (finishers < VACANTE_REQUIRED[a.tipo]) a.vacante = true;
-  });
-
-  // Crear entradas mínimas para tipos habilitados sin pending que son structural-vacante
-  Object.keys(VACANTE_REQUIRED).forEach(tipo => {
-    if (!habPrecio[tipo]) return;
-    if (existingTipos.has(tipo)) return;
-    if (finishers < VACANTE_REQUIRED[tipo]) {
-      const n = VACANTE_MULTISLOT[tipo] || 1;
-      for (let s = 1; s <= n; s++) {
-        pendingApuestas.push({ tipo, div_orig: null, orden: s, val_apu: habPrecio[tipo] || 100, vacante: true });
-      }
-    }
-  });
-
-  renderDivView();
+/* onChange del checkbox por apuesta — única vía para marcar/desmarcar vacante */
+function onVacanteChk(tipo, checked) {
+  if (checked) markVacante(tipo);
+  else         toggleVacante(tipo);
 }
 
 function toggleVacante(tipo) {
@@ -1342,8 +1312,22 @@ async function f8Dividendos() {
   if (!res) { toast('Guardá el resultado primero','error'); return; }
   const { data } = await sb.from('resultado_apuestas').select('*').eq('resultado_id', res.id).order('orden');
   apuestasMap[res.id] = data || [];
-  pendingApuestas = (data||[]).map(a=>({...a}));
-  renderDivView(undefined, true);  // skipSync: la recarga desde DB reemplaza los inputs
+
+  // Opción A: F8 trae dividendos/pozos desde DB pero NO pisa el tilde de vacante.
+  // El vacante en memoria manda siempre: las filas que vienen de DB conservan su
+  // vacante en memoria, y las filas memory-only marcadas vacante (creadas por
+  // markVacante sin guardar todavía) sobreviven a la recarga.
+  const vacKey  = a => `${a.tipo}-${a.orden}`;
+  const memByKey = new Map(pendingApuestas.map(a => [vacKey(a), a]));
+  const dbKeys   = new Set((data||[]).map(vacKey));
+  const merged   = (data||[]).map(a => {
+    const mem = memByKey.get(vacKey(a));
+    return mem ? { ...a, vacante: mem.vacante } : { ...a };
+  });
+  const memOnlyVac = pendingApuestas.filter(a => a.vacante && !dbKeys.has(vacKey(a)));
+  pendingApuestas = [...merged, ...memOnlyVac.map(a => ({ ...a }))];
+
+  renderDivView(undefined, true);  // skipSync: la recarga desde DB reemplaza los inputs de dividendos
   setStatus('Dividendos recargados desde la base de datos.');
 }
 

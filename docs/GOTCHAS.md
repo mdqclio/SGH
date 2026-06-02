@@ -165,7 +165,7 @@ No pasar `[]` como fallback — siempre `undefined` para indicar "usar DB".
 ## 41. renderDivHTML — lookup posicional por índice, no por orden===slot (29/05/2026)
 El array `byTipo[tipo]` se ordena por `a.orden` al inicio de `renderDivHTML`. El lookup para slot N se hace por índice: `byTipo[tipo][slot - 1]`, NO con `find(x => x.orden === slot)`.
 
-El guardado usa `i+1` global (posición en `pendingApuestas`) como `orden` en DB, así que el primer slot de SEG puede tener `orden=4`, no `orden=1`. Si se usa `find`, falla silenciosamente: `a` queda `undefined`, `a?.vacante` es falso, y el badge VACANTE no aparece. El acceso por índice es correcto porque el sort ya garantiza el orden físico.
+El guardado usa `i+1` global (posición en `pendingApuestas`) como `orden` en DB, así que el primer slot de SEG puede tener `orden=4`, no `orden=1`. Si se usa `find`, falla silenciosamente: `a` queda `undefined`, `a?.vacante` es falso, y el estado vacante no se refleja (checkbox sin tildar, input sin `disabled`). El acceso por índice es correcto porque el sort ya garantiza el orden físico.
 
 **No revertir al patrón `find(x => x.orden === slot)` — es un bug confirmado en producción.**
 
@@ -176,10 +176,10 @@ Los probes de regresión comparten las mismas carreras de producción. Sin setup
 |---|---|---|
 | **Estado limpio** (`DELETE resultado + posiciones + apuestas`) | Probe que crea su propio resultado desde cero | `probe_no_largo`: borra el resultado de T1 antes de correr para que no haya NC previos |
 | **Estado real** (reponer posiciones de carrera reales) | Probe que depende de la secuencia de resultados ya guardada | `probe_dividendos_inline`: necesita pos1=mandil2, pos2=mandil3, etc. (resultado de carrera real) |
-| **Snapshot + restore** (`setupT1` guarda todo antes, `teardownT1` repone en `finally`) | Probe que escribe via F10 pero no debe dejar rastro | `probe_vacante_hibrido`: snapshot de posiciones+apuestas → test → restore garantizado aunque el probe falle |
+| **Snapshot + restore** (`setupT1` guarda todo antes, `teardownT1` repone en `finally`) | Probe que escribe via F10 pero no debe dejar rastro | `probe_vacante_manual`: snapshot de posiciones+apuestas → test → restore garantizado aunque el probe falle |
 | **Carrera dedicada** (usar un turno que ningún otro probe toca) | Probe de una feature nueva que no puede interferir con los anteriores | Opción para próximos features que modifiquen lógica de T1/T2 |
 
-El orden recomendado cuando se corren todos juntos: **dividendos_inline → no_largo → vacante_hibrido → smoke_t9_t16 → modelo_chapa**. Corridos fuera de orden pueden fallar por state pollution, no por bugs reales.
+El orden recomendado cuando se corren todos juntos: **dividendos_inline → no_largo → vacante_manual → smoke_t9_t16 → modelo_chapa**. Corridos fuera de orden pueden fallar por state pollution, no por bugs reales.
 
 ## 26. Funciones helper de RLS deben ser SECURITY DEFINER (12/05/2026)
 Si `fn_get_user_club_id()` o `fn_is_super_admin()` fueran SECURITY INVOKER (default), al ser invocadas desde una policy sobre la tabla `usuarios` (que ya tiene RLS), la función intentaría leer `usuarios` con los permisos del usuario llamante — que a su vez pasan por la misma RLS, causando recursión infinita o devolviendo NULL. SECURITY DEFINER hace que la función se ejecute con permisos del owner de la función, bypasseando la RLS de la tabla destino. Combinado siempre con `SET search_path = public` para evitar path injection via search_path hijacking.
