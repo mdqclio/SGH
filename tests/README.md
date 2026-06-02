@@ -52,7 +52,7 @@ Scripts focalizados en comportamientos críticos. Cinco probes activos:
 node tests/probe_modelo_chapa.mjs      # Modelo mandil 1..N (→ prod)
 node tests/probe_dividendos_inline.mjs # Inputs de dividendos inline + E2E save (→ localhost)
 node tests/probe_no_largo.mjs          # Botón "no corrió" + deducción automática (→ localhost)
-node tests/probe_vacante_manual.mjs    # Vacante manual por checkbox + F8 no pisa tilde (→ localhost)
+node tests/probe_vacante_vac.mjs       # Vacante escribiendo "VAC" en el input + F8 no pisa VAC (→ localhost)
 node tests/smoke_t9_t16.mjs            # Bug 3b + optimistic lock concurrencia (→ prod)
 ```
 
@@ -63,10 +63,10 @@ Duración: ~20-90 segundos por probe.
 | `probe_modelo_chapa` | 28 | prod | ninguno — solo lectura |
 | `probe_dividendos_inline` | 22 | localhost | T1 con resultado real (pos1=mandil2, etc.) |
 | `probe_no_largo` | 16 | localhost | T1 sin resultado previo (DELETE resultado completo) |
-| `probe_vacante_manual` | 7 | localhost | snapshot+restore automático vía `setupT1`/`teardownT1` |
+| `probe_vacante_vac` | 6 | localhost | snapshot+restore automático vía `setupT1`/`teardownT1` |
 | `smoke_t9_t16` | 3 | prod | ninguno (usa T6, independiente) |
 
-**Orden recomendado para correr todos juntos**: `dividendos_inline → no_largo → vacante_manual → smoke_t9_t16 → modelo_chapa`. Corridos fuera de orden pueden fallar por state pollution, no por bugs reales (ver GOTCHAS #42).
+**Orden recomendado para correr todos juntos**: `dividendos_inline → no_largo → vacante_vac → smoke_t9_t16 → modelo_chapa`. Corridos fuera de orden pueden fallar por state pollution, no por bugs reales (ver GOTCHAS #42).
 
 #### `probe_modelo_chapa.mjs` — 28 checks (el más importante)
 
@@ -80,18 +80,18 @@ Verifica que el modelo mandil 1..N funciona correctamente end-to-end:
 | **Dividendos** | Chip GAN = "2", chips SEG = ["2","1"] |
 | **Save/reload** | Guardar con Aplicar → recargar → marcador idéntico, mapeo estable |
 
-#### `probe_vacante_manual.mjs` — 7 checks
+#### `probe_vacante_vac.mjs` — 6 checks
 
-Verifica el flujo 100% manual de vacante por checkbox (feat/vacante-manual). Ya no hay auto-cálculo: el checkbox es la única vía.
+Verifica el flujo de vacante por "VAC" inline (feat/vacante-vac-inline). Vacante se marca escribiendo `VAC` en el mismo input del monto; dato solo informativo (no liquida).
 
 | Check | Qué verifica |
 |---|---|
-| T01-T02 | Panel editable presente; checkbox GAN destildado en base |
-| T03 | Tildar GAN → input GAN-1 queda `disabled` |
-| T04 | F10 + reload → tilde persiste (checkbox tildado, DB `vacante=true`) |
-| T05 | Destildar + F10 → DB `vacante=false` |
-| T06 | F8 con fila preexistente tildada (sin guardar) → sigue tildada (memoria manda sobre DB) |
-| T07 | F8 con tipo SIN fila en DB (create-path de `markVacante`) → sigue tildado y `disabled` |
+| T01 | Panel editable presente |
+| T02 | `VAC` en GAN → F10 → DB `vacante=true`, `div_orig=null` |
+| T03 | número en GAN → F10 → DB `vacante=false`, `div_orig=número` |
+| T04 | `VAC` en combinada X2 → F10 → DB `vacante=true`, `div_orig=null` |
+| T05 | F8 con fila preexistente: `VAC` tipeado sin guardar → input sigue `VAC` |
+| T06 | F8 con tipo sin fila en DB (SEG, create-path) → input sigue `VAC` |
 
 **Patrón de los probes**: auth con magic link → navegación headless → assertions sobre DOM observable. Variables internas de `resultados.html` (`currentCarreraId`, `inscripciones`, etc.) son `let` de script y no están expuestas en `window.*` — todas las verificaciones son DOM-based.
 
