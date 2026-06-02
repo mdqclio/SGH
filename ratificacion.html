@@ -555,8 +555,9 @@ function renderAll(carreras, inscripciones) {
       const isForf = i.estado==='forfait';
       const isMalInsc = i.estado==='mal_inscrito';
       const hasColision = !carCerrada && !!i.jockey_titular_id && jockeyCount[i.jockey_titular_id] >= 2;
+      const sinCab = !i.caballeriza_id;
       const dc = `disabled title="${car.estado === 'confirmada' ? 'Carrera cerrada' : car.estado === 'anulada' ? 'Carrera anulada' : 'Ratificación cerrada'}" style="opacity:0.4;cursor:not-allowed;"`;
-      return `<tr id="row-${i.id}" data-carrera="${car.id}" data-jockey="${i.jockey_titular_id||''}" class="${isRat?'':'no-ratificado'}${hasColision?' jockey-duplicado':''}">
+      return `<tr id="row-${i.id}" data-carrera="${car.id}" data-jockey="${i.jockey_titular_id||''}" data-caballeriza="${i.caballeriza_id||''}" class="${isRat?'':'no-ratificado'}${hasColision?' jockey-duplicado':''}">
         <td class="num-part print-hide">${idx + 1}</td>
         <td><div class="spc-name">${spc?.nombre||i.spc_id}</div></td>
         <td style="font-size:12px;color:var(--muted)">${cab?.nombre||'—'}</td>
@@ -568,7 +569,9 @@ function renderAll(carreras, inscripciones) {
           ${!isRat&&!isForf&&!isMalInsc?(
             carCerrada
               ?`<button class="btn-sm btn-rat" ${dc}>✅ Ratificar</button>`
-              :`<button class="btn-sm btn-rat" onclick="ratificar('${i.id}')">✅ Ratificar</button>`)
+              : sinCab
+                ?`<button class="btn-sm btn-rat" disabled title="Sin caballeriza asignada — asignarla en Inscripciones o Stud Book" style="opacity:0.4;cursor:not-allowed;">✅ Ratificar</button>`
+                :`<button class="btn-sm btn-rat" onclick="ratificar('${i.id}')">✅ Ratificar</button>`)
           :''}
           ${isRat||isMalInsc?`<button class="btn-sm btn-volver" ${carCerrada?dc:`onclick="volverInscripto('${i.id}')"`}>↩ Volver</button>`:''}
           ${!isForf&&!isMalInsc?`<button class="btn-sm btn-fort" ${carCerrada?dc:`onclick="openForfait('${i.id}')"`}>❌ Forfait</button>`:''}
@@ -826,6 +829,11 @@ async function onJockeyChange(sel) {
 }
 
 async function ratificar(inscId) {
+  const row = document.getElementById(`row-${inscId}`);
+  if (row && !row.dataset.caballeriza) {
+    toast('Falta la caballeriza — asignarla en Inscripciones o Stud Book antes de ratificar','error');
+    return;
+  }
   const pesoEl = document.getElementById(`peso-${inscId}`);
   const peso = parseFloat(pesoEl?.value) || null;
   const { error } = await sb.from('inscripciones').update({ estado:'ratificado', peso_final: peso }).eq('id', inscId);
@@ -833,7 +841,6 @@ async function ratificar(inscId) {
   toast('Ratificado ✅');
   const badge = document.getElementById(`badge-${inscId}`);
   if (badge) { badge.className='badge badge-ratificado'; badge.textContent='ratificado'; }
-  const row = document.getElementById(`row-${inscId}`);
   if (row) {
     row.classList.remove('no-ratificado');
     const btnRat = row.querySelector('.btn-rat');
@@ -863,9 +870,10 @@ async function volverInscripto(inscId) {
     const actionCell = row.querySelector('.action-btns');
     if (actionCell) {
       const tieneJockey = !!row.dataset.jockey;
-      const btnRat = tieneJockey
+      const tieneCab = !!row.dataset.caballeriza;
+      const btnRat = (tieneJockey && tieneCab)
         ? `<button class="btn-sm btn-rat" onclick="ratificar('${inscId}')">✅ Ratificar</button>`
-        : `<button class="btn-sm btn-rat" disabled title="Sin jockey asignado — asignarlo primero en Inscripciones" style="opacity:0.4;cursor:not-allowed;">✅ Ratificar</button>`;
+        : `<button class="btn-sm btn-rat" disabled title="${!tieneCab ? 'Sin caballeriza asignada — asignarla en Inscripciones o Stud Book' : 'Sin jockey asignado — asignarlo primero en Inscripciones'}" style="opacity:0.4;cursor:not-allowed;">✅ Ratificar</button>`;
       actionCell.innerHTML = `${btnRat}<button class="btn-sm btn-fort" onclick="openForfait('${inscId}')">❌ Forfait</button><button class="btn-sm btn-malinsc" onclick="openMalInscrito('${inscId}')">⚠ Mal inscripto</button>`;
     }
   }

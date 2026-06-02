@@ -186,7 +186,7 @@
         </div>
         <div class="form-group">
           <label>Sexo *</label>
-          <select id="f-sexo" required>
+          <select id="f-sexo-form" required>
             <option value="macho">Macho</option>
             <option value="hembra">Hembra</option>
             <option value="castrado">Castrado</option>
@@ -203,7 +203,7 @@
         <div class="section-label">Asignaciones</div>
         <div class="form-group">
           <label>Caballeriza</label>
-          <select id="f-caballeriza"></select>
+          <select id="f-caballeriza-form"></select>
         </div>
         <div class="form-group">
           <label>Entrenador</label>
@@ -325,12 +325,11 @@ async function load() {
   }
 
   // Populate filters & selects
-  const cabSel = document.getElementById('f-caballeriza');
+  const cabSel = document.getElementById('f-caballeriza-form');
   cabSel.innerHTML = '<option value="">— Sin asignar —</option>' + caballerizas.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
   document.getElementById('f-entrenador').innerHTML = '<option value="">— Sin asignar —</option>' + entrenadores.map(p=>`<option value="${p.id}">${p.apellido}, ${p.nombre}</option>`).join('');
   document.getElementById('f-jockey').innerHTML = '<option value="">— Sin asignar —</option>' + jockeys.map(p=>`<option value="${p.id}">${p.apellido}, ${p.nombre}</option>`).join('');
 
-  const filterCab = document.getElementById('f-caballeriza');
   const filterCabOpt = `<option value="">Todas las caballerizas</option>` + caballerizas.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
   // fill filter select differently from form select
   const filterCabEl = document.querySelector('.toolbar #f-caballeriza');
@@ -440,10 +439,10 @@ function openModal(rec=null) {
   document.getElementById('f-nombre').value = rec?.nombre || '';
   document.getElementById('f-registro').value = rec?.registro_stud_book || '';
   document.getElementById('f-nacimiento').value = rec?.fecha_nacimiento || '';
-  document.getElementById('f-sexo').value = rec?.sexo || 'macho';
+  document.getElementById('f-sexo-form').value = rec?.sexo || 'macho';
   document.getElementById('f-color').value = rec?.color || '';
   document.getElementById('f-marcas').value = rec?.marcas || '';
-  document.getElementById('f-caballeriza').value = rec?.caballeriza_id || '';
+  document.getElementById('f-caballeriza-form').value = rec?.caballeriza_id || '';
   document.getElementById('f-entrenador').value = rec?.entrenador_id || '';
   document.getElementById('f-jockey').value = rec?.jockey_habitual_id || '';
   document.getElementById('f-estado-spc').value = rec?.estado || 'activo';
@@ -478,10 +477,10 @@ async function saveRecord() {
     nombre,
     registro_stud_book: document.getElementById('f-registro').value.trim() || null,
     fecha_nacimiento: document.getElementById('f-nacimiento').value || null,
-    sexo: document.getElementById('f-sexo').value,
+    sexo: document.getElementById('f-sexo-form').value,
     color: document.getElementById('f-color').value.trim() || null,
     marcas: document.getElementById('f-marcas').value.trim() || null,
-    caballeriza_id: document.getElementById('f-caballeriza').value || null,
+    caballeriza_id: document.getElementById('f-caballeriza-form').value || null,
     entrenador_id: document.getElementById('f-entrenador').value || null,
     jockey_habitual_id: document.getElementById('f-jockey').value || null,
     estado: document.getElementById('f-estado-spc').value,

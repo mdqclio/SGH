@@ -77,7 +77,20 @@ Estado: Pendiente Resend/SendGrid
 ### ISSUE-026: spcs.html — `id` HTML duplicado rompe la captura de caballeriza (y sexo)
 Descripción: `spcs.html` reutiliza el mismo `id` en filtro de toolbar y campo de modal: `f-caballeriza` (L150 toolbar / L206 modal) y `f-sexo` (L144 / L189). `getElementById` agarra siempre el primero del DOM (el toolbar), así que el select de caballeriza del modal queda sin opciones y, en alta, `spcs.caballeriza_id` se guarda **siempre null**; en edición no se puede cambiar. `f-sexo` zafa de casualidad (openModal setea el toolbar a un valor válido antes de leerlo). Esto explica por qué el link caballo→caballeriza no se llena al cargar caballos por esta pantalla.
 Módulo: spcs.html · Ver GOTCHA #48
-Estado: ⏳ Documentado, fix NO implementado. Fix conceptual: renombrar el `id` del modal (`f-caballeriza-form`), apuntar populate (L329) / openModal (L446) / saveRecord (L484) al select del modal; ídem `f-sexo`. Agregar probe de la captura.
+Estado: ✅ RESUELTO (02/06/2026, branch `feat/liquidaciones-cd` — fix D). Selects del modal renombrados a `f-caballeriza-form` / `f-sexo-form`; populate/openModal/saveRecord apuntan al modal; variable muerta `filterCab` eliminada. Toolbar (`.toolbar #f-...`, filterRender) sin cambios. Probe `tests/probe_spcs_caballeriza.mjs` (11/11): jsdom con el HTML real (semántica getElementById→primer match) + saveRecord real con decoy en el toolbar + roundtrip real a DB (insert→read-back→delete). **NO en main todavía** (va con el merge de la branch).
+
+### ISSUE-027: Caballeriza obligatoria al ratificar (fix E — captura hacia adelante de propietario)
+Descripción: cierra la captura de `caballeriza_id` hacia adelante para que la derivación de propietario (migración `liquidaciones_cd_propietario_derivacion.sql`, triggers C/C3) tenga de dónde derivar. Complementa el fix D (ISSUE-026).
+Módulo: ratificacion.html (E1) + inscripciones.html (E2) · Branch: `feat/liquidaciones-cd`
+Estado: ✅ Implementado en branch (02/06/2026). 
+- **E1 — `ratificacion.html` (HARD block):** no se puede ratificar sin caballeriza. Botón Ratificar deshabilitado si `!caballeriza_id` (en render inicial y en `volverInscripto`) + guard duro en `ratificar()` (lee `row.dataset.caballeriza`, aborta con toast). Se agregó `data-caballeriza` al `<tr>`.
+- **E2 — `inscripciones.html` (SOFT warning):** `saveRecord` muestra un `confirm()` si se inscribe sin caballeriza (deja continuar). 
+
+> ⛔ **BLOQUEANTE DE MERGE A MAIN (E1) — NO mergear hasta cumplir AMBAS:**
+> 1. **Fede al tanto del cambio de workflow:** a partir de E1 *no se puede ratificar un ejemplar sin caballeriza asignada*. Es un cambio de proceso operativo, no solo técnico — requiere su OK explícito.
+> 2. **Backfill de `caballeriza_id` en los SPC activos:** HOY casi ningún SPC tiene caballeriza (consecuencia del bug ISSUE-026, recién arreglado por D). Si E1 entra a prod *sin* ese backfill, **Fede no podría ratificar NADA** el día que se aplique. El backfill (asignar caballeriza a los SPC/inscripciones activos) es prerequisito duro de E1 en prod.
+>
+> E2 (warning blando) y D (fix del bug) pueden ir a main antes; **E1 (hard block) va separado y al final**, después del backfill. Considerar feature-flag o merge en dos pasos.
 
 ## BAJOS
 

@@ -35,6 +35,13 @@
 - **Cobertura histórica: 3/87 inscripciones** quedaron con `propietario_id` (las únicas de R5 con `caballeriza_id` + titular resuelto). El resto sigue sin propietario porque **no tiene `caballeriza_id`** (76/87) — causa raíz: el alta de SPC pierde la caballeriza (ISSUE-026). Los triggers C/C3 cubren la captura **hacia adelante**.
 - Probe `tests/probe_propietario_derivacion.mjs` — 11 checks (cadena estática BAUTY MI→OLGUIN + triggers C y C3 en vivo con revert/cleanup). Todo OK.
 
+#### Captura de caballeriza hacia adelante (02/06/2026 — branch, alimenta la derivación)
+- **Fix D — `spcs.html` (ISSUE-026, id duplicado):** los selects del modal (`f-sexo`, `f-caballeriza`) colisionaban con los filtros del toolbar → `getElementById` agarraba el toolbar y `caballeriza_id` se guardaba **siempre null** (causa raíz de los 76/87 sin caballeriza). Renombrados a `f-sexo-form` / `f-caballeriza-form`; populate/openModal/saveRecord apuntan al modal. Probe `tests/probe_spcs_caballeriza.mjs` (11/11, jsdom + roundtrip real a DB).
+- **Fix E — caballeriza obligatoria al ratificar:**
+  - **E1 (`ratificacion.html`, HARD):** no se ratifica sin caballeriza (botón disabled + guard en `ratificar()` + `data-caballeriza` en el row).
+  - **E2 (`inscripciones.html`, SOFT):** `confirm()` de advertencia al inscribir sin caballeriza (deja continuar).
+  - ⛔ **E1 NO mergea a main** hasta (a) Fede al tanto del cambio de workflow y (b) backfill de `caballeriza_id` en los SPC activos — sin eso, en prod Fede no podría ratificar nada. Ver ISSUE-027.
+
 #### Pendiente / bloqueante conocido
 - ~~`inscripciones.propietario_id` está NULL (0/87)~~ **Mitigado:** derivación aplicada (ver arriba). Quedan 84/87 sin propietario por falta de `caballeriza_id` histórico; `spc_propietarios` sigue vacía. Captura hacia adelante cubierta por triggers + fixes D (spcs.html) / E (ratificación). Ver GOTCHA #47 / ISSUE-001 / ISSUE-026.
 

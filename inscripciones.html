@@ -615,13 +615,15 @@ function closeModal() { document.getElementById('modal').classList.remove('open'
 async function saveRecord() {
   const spcId = document.getElementById('f-spc-id').value;
   if (!spcId || !currentCarreraId) { toast('Seleccionar un SPC','error'); return; }
+  const cabId = document.getElementById('f-caballeriza').value || null;
+  if (!cabId && !confirm('Esta inscripción no tiene caballeriza asignada.\nSin caballeriza no se podrá ratificar ni derivar el propietario.\n¿Continuar igual?')) return;
   const btn=document.getElementById('btn-save');
   btn.disabled=true; btn.textContent='Guardando…';
   const id=document.getElementById('f-id').value;
   const payload = {
     carrera_id: currentCarreraId,
     spc_id: spcId,
-    caballeriza_id: document.getElementById('f-caballeriza').value || null,
+    caballeriza_id: cabId,
     entrenador_id: document.getElementById('f-entrenador').value || null,
     jockey_titular_id: document.getElementById('f-jockey-titular').value || null,
     jockey_suplente_id: document.getElementById('f-jockey-suplente').value || null,
