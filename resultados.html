@@ -1312,8 +1312,22 @@ async function f8Dividendos() {
   if (!res) { toast('Guardá el resultado primero','error'); return; }
   const { data } = await sb.from('resultado_apuestas').select('*').eq('resultado_id', res.id).order('orden');
   apuestasMap[res.id] = data || [];
-  pendingApuestas = (data||[]).map(a=>({...a}));
-  renderDivView(undefined, true);  // skipSync: la recarga desde DB reemplaza los inputs
+
+  // Opción A: F8 trae dividendos/pozos desde DB pero NO pisa el tilde de vacante.
+  // El vacante en memoria manda siempre: las filas que vienen de DB conservan su
+  // vacante en memoria, y las filas memory-only marcadas vacante (creadas por
+  // markVacante sin guardar todavía) sobreviven a la recarga.
+  const vacKey  = a => `${a.tipo}-${a.orden}`;
+  const memByKey = new Map(pendingApuestas.map(a => [vacKey(a), a]));
+  const dbKeys   = new Set((data||[]).map(vacKey));
+  const merged   = (data||[]).map(a => {
+    const mem = memByKey.get(vacKey(a));
+    return mem ? { ...a, vacante: mem.vacante } : { ...a };
+  });
+  const memOnlyVac = pendingApuestas.filter(a => a.vacante && !dbKeys.has(vacKey(a)));
+  pendingApuestas = [...merged, ...memOnlyVac.map(a => ({ ...a }))];
+
+  renderDivView(undefined, true);  // skipSync: la recarga desde DB reemplaza los inputs de dividendos
   setStatus('Dividendos recargados desde la base de datos.');
 }
 
