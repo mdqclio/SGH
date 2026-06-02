@@ -26,8 +26,17 @@
 #### Sin cambios de schema en Fase 1 y 2
 - Todo se apoya en ENUMs/columnas de Fase 0.
 
+#### Derivación de propietario (02/06/2026 — APLICADA en prod)
+- Migración `migrations/liquidaciones_cd_propietario_derivacion.sql` (aplicada por MCP). Construye el puente `caballeriza_responsables (titular) → propietarios` y deriva `inscripciones.propietario_id` desde la caballeriza:
+  - **A1/A2:** columna `caballeriza_responsables.propietario_id` (FK) + índice único parcial `ux_propietarios_club_doc (club_id, documento_tipo, documento_nro) WHERE documento_nro IS NOT NULL`.
+  - **B1/B2:** import de **213 propietarios** de Dolores desde responsables titulares con DNI (`propietarios` 7 → 220; `prop_dolores` 0 → 213; sin duplicados) + backfill del puente por documento. 5 titulares sin DNI quedan como excepción (no se importan).
+  - **C/C2:** trigger `trg_insc_set_propietario` (BEFORE INSERT/UPDATE OF caballeriza_id) que deriva `propietario_id` desde el titular activo de la caballeriza; backfill de existentes.
+  - **C3:** trigger gemelo `trg_cab_resp_set_propietario` (BEFORE INSERT/UPDATE) que al alta/edición de un titular resuelve `v_club` desde la caballeriza (guard `RAISE` si NULL) y crea/enlaza el propietario (idempotente por documento).
+- **Cobertura histórica: 3/87 inscripciones** quedaron con `propietario_id` (las únicas de R5 con `caballeriza_id` + titular resuelto). El resto sigue sin propietario porque **no tiene `caballeriza_id`** (76/87) — causa raíz: el alta de SPC pierde la caballeriza (ISSUE-026). Los triggers C/C3 cubren la captura **hacia adelante**.
+- Probe `tests/probe_propietario_derivacion.mjs` — 11 checks (cadena estática BAUTY MI→OLGUIN + triggers C y C3 en vivo con revert/cleanup). Todo OK.
+
 #### Pendiente / bloqueante conocido
-- `inscripciones.propietario_id` está NULL (0/87) y `spc_propietarios` vacía → no se liquida al propietario (70%) ni el bono 6-8. Gap de carga de datos, no del motor. Ver GOTCHA #47 / ISSUE-001.
+- ~~`inscripciones.propietario_id` está NULL (0/87)~~ **Mitigado:** derivación aplicada (ver arriba). Quedan 84/87 sin propietario por falta de `caballeriza_id` histórico; `spc_propietarios` sigue vacía. Captura hacia adelante cubierta por triggers + fixes D (spcs.html) / E (ratificación). Ver GOTCHA #47 / ISSUE-001 / ISSUE-026.
 
 ---
 

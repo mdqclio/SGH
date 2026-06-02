@@ -220,7 +220,7 @@ Función atómica que guarda posiciones + apuestas en una transacción, con opti
 ```
 
 ### Supabase MCP
-El MCP de Supabase en esta sesión es **read-only**. INSERT/UPDATE/DELETE/DDL hay que ejecutarlos en el SQL Editor del dashboard, no desde el agente. Documentar el SQL ejecutado en el doc de sesión correspondiente.
+El MCP de Supabase en esta sesión tiene **escritura** (DDL/DML): `apply_migration` (DDL), `execute_sql` (DML/consultas). NO es read-only. Verificado el 02/06/2026 (se aplicaron `ENABLE RLS` + la migración `liquidaciones_cd_propietario_derivacion.sql` directo por MCP). Aun así: usar `apply_migration` para DDL (queda como migración trackeada), preferir el archivo `.sql` versionado en `migrations/` como fuente de verdad, y documentar el SQL ejecutado en el doc/CHANGELOG correspondiente. El `get_advisors` puede pedir surfacear hallazgos de seguridad (p.ej. RLS) — hacerlo siempre.
 
 ### Dinero
 Usar siempre `formatARS()` / `parseARS()` / `bindARSInput()` — NUNCA `.toLocaleString()` ni `.toFixed()` directo. El locale por defecto del browser suele ser en-US y da formato incorrecto (coma de miles vs punto de miles argentino).
