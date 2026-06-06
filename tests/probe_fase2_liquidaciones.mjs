@@ -11,7 +11,7 @@
  *  - Solo valida la FORMA; NO aprueba ni paga nada.
  *  - Limpia todo lo generado y deja R5 idéntica a como estaba.
  *
- * SEGURIDAD: usa la service_role hardcodeada (igual que el resto de tests/). Hace ESCRITURAS
+ * SEGURIDAD: usa la service_role (vía env SUPABASE_SERVICE_ROLE_KEY, igual que el resto de tests/). Hace ESCRITURAS
  * (set resultados a 'oficial', generar/borrar liquidaciones de prueba) — todo revertido al final.
  */
 import { createClient } from '@supabase/supabase-js';
@@ -19,8 +19,18 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
+// ── Credenciales por entorno (no hardcodear) ─────────────────────────────────
+// Las keys salen de variables de entorno. Ej:
+//   SUPABASE_SERVICE_ROLE_KEY=... SUPABASE_ANON_KEY=... node tests/probe_fase2_liquidaciones.mjs
+function requireEnv(name) {
+  const v = process.env[name];
+  if (!v) throw new Error(`Falta la variable de entorno ${name}. Exportala antes de correr el test (NO hardcodear la key).`);
+  return v;
+}
+
+
 const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
-const SERVICE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjcyNDQ5NywiZXhwIjoyMDkyMzAwNDk3fQ.drl2zQmZ3NMEksHSv14Jd_1p0HQWQg-_ACihQi3vQcE';
+const SERVICE_KEY  = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
 const CLUB_ID = '0649e9c5-9e87-4aad-842f-101458e6b33c';
 const R5      = 'c90b6186-268d-4089-8cc6-71626b627cf8';
 

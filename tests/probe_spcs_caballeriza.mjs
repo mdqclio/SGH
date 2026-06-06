@@ -18,8 +18,18 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
+// ── Credenciales por entorno (no hardcodear) ─────────────────────────────────
+// Las keys salen de variables de entorno. Ej:
+//   SUPABASE_SERVICE_ROLE_KEY=... SUPABASE_ANON_KEY=... node tests/probe_spcs_caballeriza.mjs
+function requireEnv(name) {
+  const v = process.env[name];
+  if (!v) throw new Error(`Falta la variable de entorno ${name}. Exportala antes de correr el test (NO hardcodear la key).`);
+  return v;
+}
+
+
 const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
-const SERVICE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjcyNDQ5NywiZXhwIjoyMDkyMzAwNDk3fQ.drl2zQmZ3NMEksHSv14Jd_1p0HQWQg-_ACihQi3vQcE';
+const SERVICE_KEY  = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
 
 // Caballerizas reales y activas de Dolores (FK válida para spcs.caballeriza_id)
 const CAB_MODAL = 'a643bac6-bae0-4fe8-a2cd-13f1c2c4fa8b'; // BAUTY MI  → lo que el usuario elige en el modal

@@ -1,2 +1,8 @@
 node_modules/
 docs/smoke_screenshots/
+
+# Secretos / credenciales — NUNCA commitear
+.env
+.env.*
+*.key
+*service*account*.json

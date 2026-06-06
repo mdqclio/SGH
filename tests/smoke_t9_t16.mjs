@@ -6,9 +6,19 @@ import { chromium } from 'playwright';
 import { createClient } from '@supabase/supabase-js';
 import { mkdirSync } from 'fs';
 
+// ── Credenciales por entorno (no hardcodear) ─────────────────────────────────
+// Las keys salen de variables de entorno. Ej:
+//   SUPABASE_SERVICE_ROLE_KEY=... SUPABASE_ANON_KEY=... node tests/smoke_t9_t16.mjs
+function requireEnv(name) {
+  const v = process.env[name];
+  if (!v) throw new Error(`Falta la variable de entorno ${name}. Exportala antes de correr el test (NO hardcodear la key).`);
+  return v;
+}
+
+
 const SUPABASE_URL  = 'https://unlhcuanfrtpatoipwve.supabase.co';
-const ANON_KEY      = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM';
-const SERVICE_KEY   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjcyNDQ5NywiZXhwIjoyMDkyMzAwNDk3fQ.drl2zQmZ3NMEksHSv14Jd_1p0HQWQg-_ACihQi3vQcE';
+const ANON_KEY      = requireEnv('SUPABASE_ANON_KEY');
+const SERVICE_KEY   = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
 const STORAGE_KEY   = 'sb-unlhcuanfrtpatoipwve-auth-token';
 const REUNION_ID    = 'c90b6186-268d-4089-8cc6-71626b627cf8';
 const CARRERA_ID    = 'ee373aea-bb8d-4866-9a11-1f34282dbb73';

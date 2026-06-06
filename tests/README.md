@@ -10,7 +10,7 @@ npm install          # instala playwright y @supabase/supabase-js
 npx playwright install-deps chromium
 ```
 
-Los scripts leen credenciales hardcodeadas (ver sección Seguridad).
+Los scripts leen credenciales desde variables de entorno (ver sección "Variables de entorno / credenciales").
 
 ## Scripts
 
@@ -112,13 +112,23 @@ NO usa browser (Playwright no instala chromium en ubuntu26.04): extrae el cuerpo
 
 ## Variables de entorno / credenciales
 
-Los scripts usan credenciales hardcodeadas para el entorno de desarrollo del cliente piloto (Hipódromo de Dolores). No subir a repositorios públicos sin reemplazarlas por env vars.
+Los scripts leen las keys de Supabase desde **variables de entorno** (ya no están hardcodeadas).
+Si falta alguna, el test aborta con un error claro (`requireEnv`). Exportalas antes de correr:
 
-| Variable implícita | Descripción |
-|--------------------|-------------|
-| `DOLORES_EMAIL` | Email del usuario de prueba (`dolores@sgh.com`) |
-| `SERVICE_KEY` | Supabase service role key (permite `auth.admin.generateLink`) |
-| `ANON_KEY` | Supabase anon key |
+```bash
+export SUPABASE_SERVICE_ROLE_KEY='...'   # service role (bypasea RLS — NUNCA commitear)
+export SUPABASE_ANON_KEY='...'            # anon key (pública, usada por smoke_full / smoke_t9_t16)
+node tests/smoke_full.mjs
+```
+
+| Variable de entorno | Descripción |
+|---------------------|-------------|
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (permite `auth.admin.generateLink`; **bypasea toda la RLS**) |
+| `SUPABASE_ANON_KEY` | Supabase anon key (pública por diseño) |
+| `DOLORES_EMAIL` | Email del usuario de prueba (`dolores@sgh.com`, sigue inline) |
+
+> ⚠️ **No commitear nunca la service_role key.** Si se filtró en el historial, hay que rotarla en
+> el dashboard de Supabase y purgar el historial — ver `docs/auditoria/SGH-REMEDIACION.md`.
 
 ## Advertencia
 

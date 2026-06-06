@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://raw.githubusercontent.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/png" sizes="32x32" href="logo32x32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="logo180x180.png">
@@ -237,6 +238,12 @@ function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html
 
 let allData = [];
 
+// Escapa datos tipeados por el usuario antes de interpolarlos en innerHTML (anti-XSS).
+function escapeHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function formatDNI(num) {
   if (!num) return '';
   const limpio = String(num).replace(/\D/g, '');
@@ -309,27 +316,27 @@ function renderList(data) {
 }
 
 function cardHTML(r) {
-  const nombre = `${r.apellido}, ${r.nombre}`;
+  const nombre = `${escapeHtml(r.apellido)}, ${escapeHtml(r.nombre)}`;
   return `<div class="card">
     <div class="card-header">
       <div class="card-avatar">🎽</div>
       <div class="card-info">
         <div class="card-name">${nombre}</div>
-        ${r.matricula_nro ? `<div class="card-mat">Mat. ${r.matricula_nro}</div>` : ''}
+        ${r.matricula_nro ? `<div class="card-mat">Mat. ${escapeHtml(r.matricula_nro)}</div>` : ''}
       </div>
       <div class="badges">
-        ${r.categoria_jockey ? `<span class="badge ${catBadge[r.categoria_jockey]||''}">${r.categoria_jockey}</span>` : ''}
+        ${r.categoria_jockey ? `<span class="badge ${catBadge[r.categoria_jockey]||''}">${escapeHtml(r.categoria_jockey)}</span>` : ''}
         ${estadoBadge(r.estado || 'activo')}
       </div>
     </div>
     <div class="card-detail">
-      ${r.documento_nro ? `<div>🪪 <span>${r.documento_tipo||''} ${formatDNI(r.documento_nro)}</span></div>` : ''}
+      ${r.documento_nro ? `<div>🪪 <span>${escapeHtml(r.documento_tipo||'')} ${escapeHtml(formatDNI(r.documento_nro))}</span></div>` : ''}
       ${r.fecha_nacimiento ? `<div>🎂 <span>${new Date(r.fecha_nacimiento).toLocaleDateString('es-AR')}</span></div>` : ''}
-      ${r.telefono ? `<div>📞 <span>${r.telefono}</span></div>` : ''}
+      ${r.telefono ? `<div>📞 <span>${escapeHtml(r.telefono)}</span></div>` : ''}
     </div>
     <div class="card-actions">
       <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(r)})'>✏️ Editar</button>
-      <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}','${r.apellido} ${r.nombre}')">🗑️ Eliminar</button>
+      <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}','${escapeHtml((r.apellido||'')+' '+(r.nombre||'')).replace(/'/g,'&#39;')}')">🗑️ Eliminar</button>
     </div>
   </div>`;
 }

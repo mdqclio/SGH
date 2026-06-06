@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://raw.githubusercontent.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/png" sizes="32x32" href="logo32x32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="logo180x180.png">
@@ -280,6 +281,12 @@ function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html
 let allData = [], caballerizas = [], entrenadores = [], jockeys = [], propietarios = [], propOwners = {};
 let editingId = null;
 
+// Escapa datos tipeados por el usuario antes de interpolarlos en innerHTML (anti-XSS).
+function escapeHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function toast(msg, type='success') {
   const t = document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
   document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),3500);
@@ -326,11 +333,11 @@ async function load() {
 
   // Populate filters & selects
   const cabSel = document.getElementById('f-caballeriza-form');
-  cabSel.innerHTML = '<option value="">— Sin asignar —</option>' + caballerizas.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
-  document.getElementById('f-entrenador').innerHTML = '<option value="">— Sin asignar —</option>' + entrenadores.map(p=>`<option value="${p.id}">${p.apellido}, ${p.nombre}</option>`).join('');
-  document.getElementById('f-jockey').innerHTML = '<option value="">— Sin asignar —</option>' + jockeys.map(p=>`<option value="${p.id}">${p.apellido}, ${p.nombre}</option>`).join('');
+  cabSel.innerHTML = '<option value="">— Sin asignar —</option>' + caballerizas.map(c=>`<option value="${c.id}">${escapeHtml(c.nombre)}</option>`).join('');
+  document.getElementById('f-entrenador').innerHTML = '<option value="">— Sin asignar —</option>' + entrenadores.map(p=>`<option value="${p.id}">${escapeHtml(p.apellido)}, ${escapeHtml(p.nombre)}</option>`).join('');
+  document.getElementById('f-jockey').innerHTML = '<option value="">— Sin asignar —</option>' + jockeys.map(p=>`<option value="${p.id}">${escapeHtml(p.apellido)}, ${escapeHtml(p.nombre)}</option>`).join('');
 
-  const filterCabOpt = `<option value="">Todas las caballerizas</option>` + caballerizas.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
+  const filterCabOpt = `<option value="">Todas las caballerizas</option>` + caballerizas.map(c=>`<option value="${c.id}">${escapeHtml(c.nombre)}</option>`).join('');
   // fill filter select differently from form select
   const filterCabEl = document.querySelector('.toolbar #f-caballeriza');
   if (filterCabEl) filterCabEl.innerHTML = filterCabOpt;
@@ -380,16 +387,16 @@ function renderList(data) {
       return p ? `${p.nombre} (${o.porcentaje}%)` : '';
     }).filter(Boolean).join(' / ') || '—';
     return `<tr>
-      <td><div class="spc-name">${r.nombre}</div>${r.registro_stud_book?`<div class="spc-reg">${r.registro_stud_book}</div>`:''}</td>
+      <td><div class="spc-name">${escapeHtml(r.nombre)}</div>${r.registro_stud_book?`<div class="spc-reg">${escapeHtml(r.registro_stud_book)}</div>`:''}</td>
       <td><span class="badge ${sexoBadge[r.sexo]||''}">${r.sexo||'—'}</span></td>
       <td>${calcEdad(r.fecha_nacimiento)}</td>
       <td><span class="badge ${estadoBadge[r.estado]||''}">${r.estado||'—'}</span></td>
-      <td>${cab}</td>
-      <td>${entrNombre}</td>
-      <td style="max-width:180px;font-size:12px;">${ownerNames}</td>
+      <td>${escapeHtml(cab)}</td>
+      <td>${escapeHtml(entrNombre)}</td>
+      <td style="max-width:180px;font-size:12px;">${escapeHtml(ownerNames)}</td>
       <td class="actions-cell">
         <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(r)})'>✏️</button>
-        <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}','${r.nombre}')">🗑️</button>
+        <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}','${(r.nombre||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">🗑️</button>
       </td>
     </tr>`;
   }).join('');
@@ -411,7 +418,7 @@ function addPropRow(propId='', pct='') {
   div.innerHTML = `
     <select onchange="updatePctTotal()" data-prop>
       <option value="">— Seleccionar propietario —</option>
-      ${propietarios.map(p=>`<option value="${p.id}" ${p.id===propId?'selected':''}>${p.nombre}</option>`).join('')}
+      ${propietarios.map(p=>`<option value="${p.id}" ${p.id===propId?'selected':''}>${escapeHtml(p.nombre)}</option>`).join('')}
     </select>
     <input type="number" class="prop-pct" min="0" max="100" step="0.01" placeholder="%" value="${pct}" oninput="updatePctTotal()" data-pct>
     <button class="btn-rem-prop" onclick="removePropRow(this)">✕</button>`;
