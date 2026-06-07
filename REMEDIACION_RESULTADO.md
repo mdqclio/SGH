@@ -298,13 +298,17 @@ git push origin --force --all && git push origin --force --tags
 5. **Manual (dueño)**: activar leaked-password protection en Supabase Auth; corregir GOTCHA #2 obsoleto en docs.
 6. **Correr los 5 probes browser** en una máquina con chromium, sirviendo la rama en localhost:8080.
 
-### Archivos generados/modificados (sin commit)
+### Archivos generados/modificados
 ```
 Nuevos:    SECURITY_AUDIT.md, REMEDIACION_RESULTADO.md,
            migrations/security_hardening_fase{1,2,2b,2c}_*.sql,
            tests/probe_rls_no_permissive.mjs
 Modificados: 30 archivos frontend (swap key) + supabase.js (key+URL),
            docs/auditoria/SGH-REMEDIACION.md (scrub),
+           CLAUDE.md + docs/GOTCHAS.md (fix GOTCHA #2 obsoleto),
            tests/{smoke_t9_t16,probe_modelo_chapa,probe_dividendos_inline,probe_no_largo,probe_vacante_vac}.mjs (keys)
 Migraciones MCP aplicadas: 20260607195357, …195414, …195552, …195807 (registradas en Supabase)
 ```
+
+---
+mergea
