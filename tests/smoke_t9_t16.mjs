@@ -17,8 +17,8 @@ function requireEnv(name) {
 
 
 const SUPABASE_URL  = 'https://unlhcuanfrtpatoipwve.supabase.co';
-const ANON_KEY      = requireEnv('SUPABASE_ANON_KEY');
-const SERVICE_KEY   = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
+const ANON_KEY      = (process.env.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
+const SERVICE_KEY   = (process.env.SUPABASE_SECRET_KEY || requireEnv('SUPABASE_SERVICE_ROLE_KEY'));
 const STORAGE_KEY   = 'sb-unlhcuanfrtpatoipwve-auth-token';
 const REUNION_ID    = 'c90b6186-268d-4089-8cc6-71626b627cf8';
 const CARRERA_ID    = 'ee373aea-bb8d-4866-9a11-1f34282dbb73';

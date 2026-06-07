@@ -15,7 +15,7 @@
 
 La **`service_role` key de Supabase sigue siendo válida y comprometida** hasta que el dueño la **rote en el dashboard de Supabase**.
 
-- La key estaba hardcodeada en 12 archivos de `tests/` (working tree) **y permanece en el historial de git** (presente en **14 commits**, ver §Pendiente 2).
+- La key estaba hardcodeada en 12 archivos de `tests/` (working tree) **y permanece en el historial de git** (presente en **142 commits**, ver §Pendiente 2).
 - Quitarla del working tree (hecho ✅) **NO la invalida**: cualquiera que haya clonado/forkeado el repo, o que acceda al historial, sigue teniendo una key con `role: service_role` y `exp: 2092300497` (año 2036).
 - La `service_role` **bypasea TODA la RLS**. Mientras no se rote, **el excelente trabajo de RLS documentado en `docs/SECURITY.md` queda anulado** para quien tenga la key: acceso de lectura/escritura total a la base de producción de todos los clubs.
 
@@ -116,7 +116,7 @@ Esto **invalida la key filtrada** (la del historial deja de servir). Mientras no
 
 ### 2. Purgar la key del historial de git
 
-La key sigue en **14 commits** del historial aunque ya no esté en el working tree. Purgala **después** de rotarla.
+La key sigue en **142 commits** del historial aunque ya no esté en el working tree. Purgala **después** de rotarla.
 
 > Backup primero: `git clone --mirror git@github.com:mdqclio/SGH.git SGH-backup.git`
 
@@ -127,7 +127,7 @@ cd /home/clio/dev/SGH
 
 # 1. archivo con el/los secretos a reemplazar en TODO el historial
 cat > /tmp/secrets.txt <<'EOF'
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjcyNDQ5NywiZXhwIjoyMDkyMzAwNDk3fQ.drl2zQmZ3NMEksHSv14Jd_1p0HQWQg-_ACihQi3vQcE==>SUPABASE_SERVICE_ROLE_KEY_PURGED
+<PEGAR_SERVICE_ROLE_JWT_REVOCADA_AQUI>==>SUPABASE_SERVICE_ROLE_KEY_PURGED
 EOF
 
 # 2. reescribir el historial reemplazando el valor por un placeholder
@@ -142,7 +142,7 @@ git push origin --force --tags
 **Opción B — BFG Repo-Cleaner:**
 ```bash
 # descargar bfg.jar de https://rtyley.github.io/bfg-repo-cleaner/
-echo 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjcyNDQ5NywiZXhwIjoyMDkyMzAwNDk3fQ.drl2zQmZ3NMEksHSv14Jd_1p0HQWQg-_ACihQi3vQcE' > /tmp/secrets.txt
+echo '<PEGAR_SERVICE_ROLE_JWT_REVOCADA_AQUI>' > /tmp/secrets.txt   # valor real (ya revocado) lo pega el dueño al correr la purga
 git clone --mirror git@github.com:mdqclio/SGH.git SGH.git
 java -jar bfg.jar --replace-text /tmp/secrets.txt SGH.git
 cd SGH.git && git reflog expire --expire=now --all && git gc --prune=now --aggressive
@@ -180,7 +180,7 @@ node tests/probe_estado_pista.mjs   # debe autenticar/operar con la key nueva
 | Tema | Antes | Después de esta remediación |
 |---|---|---|
 | `service_role` en working tree | 🔴 hardcodeada en 12 archivos | ✅ por env var, falla si falta |
-| `service_role` en historial git | 🔴 en 14 commits | ⏳ pendiente purga (dueño) — **rotar primero** |
+| `service_role` en historial git | 🔴 en 142 commits | ⏳ pendiente purga (dueño) — **rotar primero** |
 | Key válida en Supabase | 🔴 sí, exp. 2036 | ⏳ **rotar (dueño) — sin esto la RLS sigue anulada** |
 | `.gitignore` de secretos | 🔴 inexistente | ✅ agregado |
 | XSS en sinks de datos de usuario | 🟡 sin escaping | ✅ `escapeHtml` en páginas CRUD principales |

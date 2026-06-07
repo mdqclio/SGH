@@ -31,7 +31,7 @@ function requireEnv(name) {
 
 const USE_PROD      = process.argv.includes('--prod');
 const SUPABASE_URL  = 'https://unlhcuanfrtpatoipwve.supabase.co';
-const SERVICE_KEY   = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
+const SERVICE_KEY   = (process.env.SUPABASE_SECRET_KEY || requireEnv('SUPABASE_SERVICE_ROLE_KEY'));
 const STORAGE_KEY   = 'sb-unlhcuanfrtpatoipwve-auth-token';
 const REUNION_ID    = 'c90b6186-268d-4089-8cc6-71626b627cf8';
 const CARRERA_T1    = 'f49bb3ff-5596-4126-abe9-26271d9b179a';

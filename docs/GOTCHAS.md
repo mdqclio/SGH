@@ -4,9 +4,11 @@
 Profesionales.html ≠ profesionales.html. Siempre usar minúsculas.
 Cómo detectarlo: la consola muestra el nombre con mayúscula en la URL.
 
-## 2. Usar SIEMPRE la legacy anon key (eyJ...)
-La nueva key sb_publishable_... da error 400 en consultas REST.
-Dónde obtenerla: Settings → API → pestaña "Legacy anon, service_role API keys"
+## 2. Usar la publishable key (sb_publishable_...) — legacy DESACTIVADA (actualizado 2026-06-07)
+**OBSOLETO el consejo anterior** ("usar la legacy eyJ..."). Las legacy keys (anon + service_role) fueron DESACTIVADAS en el dashboard el 2026-06-07T19:09:33Z: cualquier request con `eyJ...` devuelve 401 `"Legacy API keys are disabled"`.
+- Frontend: `sb_publishable_...` (pública, va en el HTML). Verificada OK contra REST (200, RLS aplica).
+- Server-side / tests: `sb_secret_...` (bypasea RLS) — por env `SUPABASE_SECRET_KEY`, NUNCA hardcodear/commitear.
+Dónde obtenerlas: Settings → API → "API keys" (publishable + secret). La pestaña "Legacy" quedó deshabilitada.
 
 ## 3. nombre_completo, no nombre
 La tabla usuarios tiene nombre_completo NO nombre.

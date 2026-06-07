@@ -84,11 +84,11 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 
 ```javascript
 SUPABASE_URL  = 'https://unlhcuanfrtpatoipwve.supabase.co'
-SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'  // legacy anon key
+SUPABASE_KEY  = 'sb_publishable_...'  // publishable key (pública, frontend)
 CLUB_ID_DOLORES = '0649e9c5-9e87-4aad-842f-101458e6b33c'
 ```
 
-**CRÍTICO:** Usar siempre la key `eyJ...` (Settings → API → "Legacy anon, service_role API keys"). La key `sb_publishable_...` da error 400 en consultas REST.
+**CRÍTICO (actualizado 2026-06-07):** Usar la **publishable key** `sb_publishable_...` (Settings → API → "API keys"). Las **legacy `eyJ...` (anon + service_role) están DESACTIVADAS** desde 2026-06-07 — devuelven 401 `"Legacy API keys are disabled"`. La secret server-side es `sb_secret_...` (NUNCA en el repo; va por env `SUPABASE_SECRET_KEY`). El antiguo consejo "usar la legacy `eyJ`" quedó obsoleto.
 
 Usuarios de producción:
 - `admin@sgh.com` / `super_admin`
@@ -278,7 +278,7 @@ Fijarla: `localStorage.setItem('sgh_active_reunion_id', 'UUID_REUNION_5')` o des
 ## Gotchas críticos
 
 1. **GitHub Pages case-sensitive**: `Resultados.html ≠ resultados.html`. Siempre minúsculas.
-2. **Supabase anon key**: usar `eyJ...` (legacy). La `sb_publishable_...` da error 400.
+2. **Supabase key**: usar la **publishable** `sb_publishable_...`. Las legacy `eyJ...` (anon/service_role) están DESACTIVADAS desde 2026-06-07 (401 "Legacy API keys are disabled"). Secret server-side = `sb_secret_...` por env, nunca en el repo.
 3. **`usuarios.nombre_completo`** — NO `nombre`. Afecta todos los archivos con auth.
 4. **`inscripciones.estado` es ENUM rígido** — para nuevos valores: `ALTER TYPE estado_inscripcion ADD VALUE`. No migrar a VARCHAR (hay una vista que depende del ENUM).
 5. **`carreras.estado` es VARCHAR libre** — sin ENUM. Valores en uso: `NULL/'programada'`, `'confirmada'`, `'anulada'`.
