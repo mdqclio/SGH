@@ -297,65 +297,17 @@ git push origin --force --all && git push origin --force --tags
 4. **FASE 4**: ¿DROP backups 0-filas ahora? ¿mover los 2 con datos? ¿historia? (recomiendo diferir historia).
 5. **Manual (dueño)**: activar leaked-password protection en Supabase Auth; corregir GOTCHA #2 obsoleto en docs.
 6. **Correr los 5 probes browser** en una máquina con chromium, sirviendo la rama en localhost:8080.
+Cambio de plan: NO finalices la Opción A. Necesito liquidaciones en prod para Fede → vamos con Opción B = merge completo de fix/security-hardening → main. El merge completo no tiene los conflictos del cherry-pick (eran por aislar los commits de seguridad de su cadena) y limpia el eyJ service_role/anon muerto de tests/ en main.
 
-### Archivos generados/modificados
-```
-Nuevos:    SECURITY_AUDIT.md, REMEDIACION_RESULTADO.md,
-           migrations/security_hardening_fase{1,2,2b,2c}_*.sql,
-           tests/probe_rls_no_permissive.mjs
-Modificados: 30 archivos frontend (swap key) + supabase.js (key+URL),
-           docs/auditoria/SGH-REMEDIACION.md (scrub),
-           CLAUDE.md + docs/GOTCHAS.md (fix GOTCHA #2 obsoleto),
-           tests/{smoke_t9_t16,probe_modelo_chapa,probe_dividendos_inline,probe_no_largo,probe_vacante_vac}.mjs (keys)
-Migraciones MCP aplicadas: 20260607195357, …195414, …195552, …195807 (registradas en Supabase)
-```
+BLOQUEANTE antes de pushear:
+1) ¿Está en estos 11 commits el bloque HARD de ratificación caballeriza-obligatoria (el que exige caballeriza para poder inscribir)? Revisá 20fdbc7 "captura caballeriza" y los commits de Fase.
+2) Si está: ¿el backfill de caballeriza de los ~40 SPCs ya está hecho? Si NO → mergear rompe inscripciones en prod para esos SPCs. FRENÁ y avisame; decidimos si revertimos ese commit en el merge o hacemos el backfill primero.
+3) Si el bloque hard NO está en el set, o el backfill ya está hecho → seguí.
 
----
-
-# Commit aplicado (2026-06-07)
-
-```
-53516e6  security: swap a publishable key + hardening RLS/grants/views (FASE 0-2) + doc scrub  (45 archivos)
-27b3d17  docs: commit aplicado + comandos de merge en REMEDIACION_RESULTADO
-```
-**Chequeo seguridad pre-commit (PASS):** `.env` ignored+untracked, no entró; cero `sb_secret_` valor / cero JWT service_role completo; secretos solo masked. `GOTCHA #2` corregido (CLAUDE.md + docs/GOTCHAS.md): publishable = key buena, legacy `eyJ` desactivada 2026-06-07.
-
----
-
-# ⚠️ MERGE A MAIN — hallazgo de base de rama (FRENADO)
-
-`fix/security-hardening` se creó **sobre `feat/liquidaciones-cd`**, no sobre `main`. Tras `git pull`, `main` quedó en `82585e1`. El delta `main..fix/security-hardening` son **11 commits**, no 2:
-
-| Commit | Tipo |
-|---|---|
-| `27b3d17` docs: commit + merge commands | 🔒 seguridad |
-| `53516e6` security: swap publishable + hardening FASE 0-2 | 🔒 seguridad |
-| `b890f57` fix(security): quitar service_role + escapeHtml + CSP | feat/liquidaciones-cd |
-| `20fdbc7` fix(liquidaciones-cd): captura caballeriza | feat/liquidaciones-cd |
-| `dd9c956` feat(liquidaciones-cd): derivación propietario | feat/liquidaciones-cd |
-| `dd8c43b` docs(liquidaciones-cd) | feat/liquidaciones-cd |
-| `b982651` docs(liquidaciones-cd): empate | feat/liquidaciones-cd |
-| `fe2cb68` fix(liquidaciones-cd): empate-aware | feat/liquidaciones-cd |
-| `dbe669e` docs(liquidaciones-cd): Fase 0/1/2 | feat/liquidaciones-cd |
-| `758793f` test(liquidaciones-cd): probe Fase 2 | feat/liquidaciones-cd |
-| `d5d641a` feat(liquidaciones-cd): Fase 2 fondo/bono/incentivos | feat/liquidaciones-cd |
-
-Mergear la rama completa publicaría a prod **toda la feature de liquidaciones Fase 1/2** (que según ISSUES no estaba en prod) mezclada con el hotfix de seguridad. Contradice la instrucción original ("rama dedicada, no feat/liquidaciones-cd").
-
-## Opciones (decisión del dueño)
-
-**A — Solo seguridad (RECOMENDADA).** Cherry-pick los 2 commits de seguridad sobre `main` limpio. Prod recibe solo swap de key + hardening; liquidaciones queda en su rama.
-```bash
-git checkout main
-git cherry-pick 53516e6 27b3d17
-git push origin main        # deploy prod (solo hotfix seguridad)
-```
-
-**B — Mergear todo.** Security + feature liquidaciones-cd Fase 1/2 van juntas a prod.
-```bash
-git checkout main
-git merge --no-ff fix/security-hardening -m "Merge fix/security-hardening + liquidaciones-cd"
-git push origin main
-```
-
-**Estado:** en `fix/security-hardening`. `main` local en `82585e1` (limpio). **NADA pusheado.** Esperando elección A/B.
+Si OK: git checkout main && git merge --no-ff fix/security-hardening → push origin main. Confirmá: push sin error de auth de GitHub; origin/main con sb_publishable_; sin typo Supabase.co; sin eyJ service_role en tests/.
+Opción 2. Cerrá de punta a punta, avisame solo "prod arriba" o dónde te trabás.
+1) En fix/security-hardening, neutralizá SOLO el bloque HARD de E1 en ratificacion.html (botón habilitado, sin guard que aborte). Hacelo como su PROPIO commit/revert, así reactivarlo tras el backfill es un revert limpio. Mantené Fix D (spcs.html id-dup) y todo lo demás.
+2) Merge --no-ff fix/security-hardening → main.
+3) Push origin main. Si falla por auth de GitHub, mostrame el error y pará.
+4) Autoverificá: main con sb_publishable_, sin typo Supabase.co, sin eyJ service_role en tests/, ratificación sin el guard hard. Esperá ~60s y confirmá que prod sirve sb_publishable_.
+5) Avisame: prod arriba + login OK.
