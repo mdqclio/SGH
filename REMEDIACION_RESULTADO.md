@@ -311,4 +311,51 @@ Migraciones MCP aplicadas: 20260607195357, …195414, …195552, …195807 (regi
 ```
 
 ---
-mergea
+
+# Commit aplicado (2026-06-07)
+
+```
+53516e6  security: swap a publishable key + hardening RLS/grants/views (FASE 0-2) + doc scrub  (45 archivos)
+27b3d17  docs: commit aplicado + comandos de merge en REMEDIACION_RESULTADO
+```
+**Chequeo seguridad pre-commit (PASS):** `.env` ignored+untracked, no entró; cero `sb_secret_` valor / cero JWT service_role completo; secretos solo masked. `GOTCHA #2` corregido (CLAUDE.md + docs/GOTCHAS.md): publishable = key buena, legacy `eyJ` desactivada 2026-06-07.
+
+---
+
+# ⚠️ MERGE A MAIN — hallazgo de base de rama (FRENADO)
+
+`fix/security-hardening` se creó **sobre `feat/liquidaciones-cd`**, no sobre `main`. Tras `git pull`, `main` quedó en `82585e1`. El delta `main..fix/security-hardening` son **11 commits**, no 2:
+
+| Commit | Tipo |
+|---|---|
+| `27b3d17` docs: commit + merge commands | 🔒 seguridad |
+| `53516e6` security: swap publishable + hardening FASE 0-2 | 🔒 seguridad |
+| `b890f57` fix(security): quitar service_role + escapeHtml + CSP | feat/liquidaciones-cd |
+| `20fdbc7` fix(liquidaciones-cd): captura caballeriza | feat/liquidaciones-cd |
+| `dd9c956` feat(liquidaciones-cd): derivación propietario | feat/liquidaciones-cd |
+| `dd8c43b` docs(liquidaciones-cd) | feat/liquidaciones-cd |
+| `b982651` docs(liquidaciones-cd): empate | feat/liquidaciones-cd |
+| `fe2cb68` fix(liquidaciones-cd): empate-aware | feat/liquidaciones-cd |
+| `dbe669e` docs(liquidaciones-cd): Fase 0/1/2 | feat/liquidaciones-cd |
+| `758793f` test(liquidaciones-cd): probe Fase 2 | feat/liquidaciones-cd |
+| `d5d641a` feat(liquidaciones-cd): Fase 2 fondo/bono/incentivos | feat/liquidaciones-cd |
+
+Mergear la rama completa publicaría a prod **toda la feature de liquidaciones Fase 1/2** (que según ISSUES no estaba en prod) mezclada con el hotfix de seguridad. Contradice la instrucción original ("rama dedicada, no feat/liquidaciones-cd").
+
+## Opciones (decisión del dueño)
+
+**A — Solo seguridad (RECOMENDADA).** Cherry-pick los 2 commits de seguridad sobre `main` limpio. Prod recibe solo swap de key + hardening; liquidaciones queda en su rama.
+```bash
+git checkout main
+git cherry-pick 53516e6 27b3d17
+git push origin main        # deploy prod (solo hotfix seguridad)
+```
+
+**B — Mergear todo.** Security + feature liquidaciones-cd Fase 1/2 van juntas a prod.
+```bash
+git checkout main
+git merge --no-ff fix/security-hardening -m "Merge fix/security-hardening + liquidaciones-cd"
+git push origin main
+```
+
+**Estado:** en `fix/security-hardening`. `main` local en `82585e1` (limpio). **NADA pusheado.** Esperando elección A/B.
