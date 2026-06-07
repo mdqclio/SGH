@@ -1,7 +1,13 @@
 # Modelo de Liquidaciones — SGH / Hipódromo de Dolores
 
-> Estado: **modelo cerrado** — todas las definiciones de negocio confirmadas con Leonardo.
-> Listo para implementar (plan de CC aprobado, Fase 0).
+> Estado del modelo: **cerrado** — definiciones de negocio confirmadas con Leonardo.
+>
+> **Estado de implementación (branch `feat/liquidaciones-cd`, NO en prod salvo schema):**
+> - ✅ Fase 0 — schema C+D (VIGENTE en DB de prod). Ver `SCHEMA.md` / `migrations/liquidaciones_cd_fase0.sql`.
+> - ✅ Fase 1 — % de reparto e incentivos por club desde `liquidacion_config` (branch).
+> - ✅ Fase 2 — fondo solidario 2% al club + bono 6-8 (100% propietario) + incentivos Bloque C (branch).
+> - ⏳ Fase 2bis — botón "Oficializar reunión". ⏳ Fase 3 — estados de línea + retención anti-doping. ⏳ Fase 4 — recibos por persona on-demand. ⏳ Fase 5 — resumen de reunión. ⏳ Fase 6 — validar A+B con datos reales de R5.
+> Detalle de fases y decisiones: `docs/ISSUES.md` (ISSUE-001). ADRs: ADR-042..047.
 
 -----
 
@@ -105,6 +111,8 @@ Reporte al cierre de la reunión: total pagado (premios + bonos + actuaciones + 
 -----
 
 ## Gaps técnicos de A+B a resolver (de la auditoría)
+
+> **Actualización 02/06/2026:** los gaps de fondo solidario, bono 6-8, incentivos y config-por-club están RESUELTOS en `feat/liquidaciones-cd` (Fase 1+2). Siguen pendientes: oficializar reunión, consolidación por persona vía `recibos`, numeración de recibo (schema listo, falta UI), forma de pago/cobrador, y retención anti-doping. **Nuevo bloqueante detectado:** `inscripciones.propietario_id` está NULL (0/87) y `spc_propietarios` vacía → sin dueño no se liquida el propietario ni el bono 6-8 (ver GOTCHA #47 / ISSUE-001). Los ítems resueltos quedan abajo como referencia histórica.
 
 - A+B filtra `estado='oficial'`; R5 está en provisional → no liquida. Flujo: botón
   “Oficializar reunión” (valida + setea estado oficial en bloque).

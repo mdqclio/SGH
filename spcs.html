@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://raw.githubusercontent.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/png" sizes="32x32" href="logo32x32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="logo180x180.png">
@@ -186,7 +187,7 @@
         </div>
         <div class="form-group">
           <label>Sexo *</label>
-          <select id="f-sexo" required>
+          <select id="f-sexo-form" required>
             <option value="macho">Macho</option>
             <option value="hembra">Hembra</option>
             <option value="castrado">Castrado</option>
@@ -203,7 +204,7 @@
         <div class="section-label">Asignaciones</div>
         <div class="form-group">
           <label>Caballeriza</label>
-          <select id="f-caballeriza"></select>
+          <select id="f-caballeriza-form"></select>
         </div>
         <div class="form-group">
           <label>Entrenador</label>
@@ -274,11 +275,17 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 let sb, CLUB_ID, currentUser;
-async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
+async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
 let allData = [], caballerizas = [], entrenadores = [], jockeys = [], propietarios = [], propOwners = {};
 let editingId = null;
+
+// Escapa datos tipeados por el usuario antes de interpolarlos en innerHTML (anti-XSS).
+function escapeHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
 
 function toast(msg, type='success') {
   const t = document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
@@ -325,13 +332,12 @@ async function load() {
   }
 
   // Populate filters & selects
-  const cabSel = document.getElementById('f-caballeriza');
-  cabSel.innerHTML = '<option value="">— Sin asignar —</option>' + caballerizas.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
-  document.getElementById('f-entrenador').innerHTML = '<option value="">— Sin asignar —</option>' + entrenadores.map(p=>`<option value="${p.id}">${p.apellido}, ${p.nombre}</option>`).join('');
-  document.getElementById('f-jockey').innerHTML = '<option value="">— Sin asignar —</option>' + jockeys.map(p=>`<option value="${p.id}">${p.apellido}, ${p.nombre}</option>`).join('');
+  const cabSel = document.getElementById('f-caballeriza-form');
+  cabSel.innerHTML = '<option value="">— Sin asignar —</option>' + caballerizas.map(c=>`<option value="${c.id}">${escapeHtml(c.nombre)}</option>`).join('');
+  document.getElementById('f-entrenador').innerHTML = '<option value="">— Sin asignar —</option>' + entrenadores.map(p=>`<option value="${p.id}">${escapeHtml(p.apellido)}, ${escapeHtml(p.nombre)}</option>`).join('');
+  document.getElementById('f-jockey').innerHTML = '<option value="">— Sin asignar —</option>' + jockeys.map(p=>`<option value="${p.id}">${escapeHtml(p.apellido)}, ${escapeHtml(p.nombre)}</option>`).join('');
 
-  const filterCab = document.getElementById('f-caballeriza');
-  const filterCabOpt = `<option value="">Todas las caballerizas</option>` + caballerizas.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
+  const filterCabOpt = `<option value="">Todas las caballerizas</option>` + caballerizas.map(c=>`<option value="${c.id}">${escapeHtml(c.nombre)}</option>`).join('');
   // fill filter select differently from form select
   const filterCabEl = document.querySelector('.toolbar #f-caballeriza');
   if (filterCabEl) filterCabEl.innerHTML = filterCabOpt;
@@ -381,16 +387,16 @@ function renderList(data) {
       return p ? `${p.nombre} (${o.porcentaje}%)` : '';
     }).filter(Boolean).join(' / ') || '—';
     return `<tr>
-      <td><div class="spc-name">${r.nombre}</div>${r.registro_stud_book?`<div class="spc-reg">${r.registro_stud_book}</div>`:''}</td>
+      <td><div class="spc-name">${escapeHtml(r.nombre)}</div>${r.registro_stud_book?`<div class="spc-reg">${escapeHtml(r.registro_stud_book)}</div>`:''}</td>
       <td><span class="badge ${sexoBadge[r.sexo]||''}">${r.sexo||'—'}</span></td>
       <td>${calcEdad(r.fecha_nacimiento)}</td>
       <td><span class="badge ${estadoBadge[r.estado]||''}">${r.estado||'—'}</span></td>
-      <td>${cab}</td>
-      <td>${entrNombre}</td>
-      <td style="max-width:180px;font-size:12px;">${ownerNames}</td>
+      <td>${escapeHtml(cab)}</td>
+      <td>${escapeHtml(entrNombre)}</td>
+      <td style="max-width:180px;font-size:12px;">${escapeHtml(ownerNames)}</td>
       <td class="actions-cell">
         <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(r)})'>✏️</button>
-        <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}','${r.nombre}')">🗑️</button>
+        <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}','${(r.nombre||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">🗑️</button>
       </td>
     </tr>`;
   }).join('');
@@ -412,7 +418,7 @@ function addPropRow(propId='', pct='') {
   div.innerHTML = `
     <select onchange="updatePctTotal()" data-prop>
       <option value="">— Seleccionar propietario —</option>
-      ${propietarios.map(p=>`<option value="${p.id}" ${p.id===propId?'selected':''}>${p.nombre}</option>`).join('')}
+      ${propietarios.map(p=>`<option value="${p.id}" ${p.id===propId?'selected':''}>${escapeHtml(p.nombre)}</option>`).join('')}
     </select>
     <input type="number" class="prop-pct" min="0" max="100" step="0.01" placeholder="%" value="${pct}" oninput="updatePctTotal()" data-pct>
     <button class="btn-rem-prop" onclick="removePropRow(this)">✕</button>`;
@@ -440,10 +446,10 @@ function openModal(rec=null) {
   document.getElementById('f-nombre').value = rec?.nombre || '';
   document.getElementById('f-registro').value = rec?.registro_stud_book || '';
   document.getElementById('f-nacimiento').value = rec?.fecha_nacimiento || '';
-  document.getElementById('f-sexo').value = rec?.sexo || 'macho';
+  document.getElementById('f-sexo-form').value = rec?.sexo || 'macho';
   document.getElementById('f-color').value = rec?.color || '';
   document.getElementById('f-marcas').value = rec?.marcas || '';
-  document.getElementById('f-caballeriza').value = rec?.caballeriza_id || '';
+  document.getElementById('f-caballeriza-form').value = rec?.caballeriza_id || '';
   document.getElementById('f-entrenador').value = rec?.entrenador_id || '';
   document.getElementById('f-jockey').value = rec?.jockey_habitual_id || '';
   document.getElementById('f-estado-spc').value = rec?.estado || 'activo';
@@ -478,10 +484,10 @@ async function saveRecord() {
     nombre,
     registro_stud_book: document.getElementById('f-registro').value.trim() || null,
     fecha_nacimiento: document.getElementById('f-nacimiento').value || null,
-    sexo: document.getElementById('f-sexo').value,
+    sexo: document.getElementById('f-sexo-form').value,
     color: document.getElementById('f-color').value.trim() || null,
     marcas: document.getElementById('f-marcas').value.trim() || null,
-    caballeriza_id: document.getElementById('f-caballeriza').value || null,
+    caballeriza_id: document.getElementById('f-caballeriza-form').value || null,
     entrenador_id: document.getElementById('f-entrenador').value || null,
     jockey_habitual_id: document.getElementById('f-jockey').value || null,
     estado: document.getElementById('f-estado-spc').value,

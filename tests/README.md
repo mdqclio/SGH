@@ -10,7 +10,7 @@ npm install          # instala playwright y @supabase/supabase-js
 npx playwright install-deps chromium
 ```
 
-Los scripts leen credenciales hardcodeadas (ver sección Seguridad).
+Los scripts leen credenciales desde variables de entorno (ver sección "Variables de entorno / credenciales").
 
 ## Scripts
 
@@ -46,14 +46,15 @@ Duración: ~1 minuto.
 
 ### Probes de regresión vigentes
 
-Scripts focalizados en comportamientos críticos. Cinco probes activos:
+Scripts focalizados en comportamientos críticos. Seis probes activos:
 
 ```bash
-node tests/probe_modelo_chapa.mjs      # Modelo mandil 1..N (→ prod)
-node tests/probe_dividendos_inline.mjs # Inputs de dividendos inline + E2E save (→ localhost)
-node tests/probe_no_largo.mjs          # Botón "no corrió" + deducción automática (→ localhost)
-node tests/probe_vacante_vac.mjs       # Vacante escribiendo "VAC" en el input + F8 no pisa VAC (→ localhost)
-node tests/smoke_t9_t16.mjs            # Bug 3b + optimistic lock concurrencia (→ prod)
+node tests/probe_modelo_chapa.mjs        # Modelo mandil 1..N (→ prod)
+node tests/probe_dividendos_inline.mjs   # Inputs de dividendos inline + E2E save (→ localhost)
+node tests/probe_no_largo.mjs            # Botón "no corrió" + deducción automática (→ localhost)
+node tests/probe_vacante_vac.mjs         # Vacante escribiendo "VAC" en el input + F8 no pisa VAC (→ localhost)
+node tests/probe_fase2_liquidaciones.mjs # Liquidaciones C+D Fase 2: forma de líneas fondo/bono/incentivo (→ DB directa, sin browser)
+node tests/smoke_t9_t16.mjs              # Bug 3b + optimistic lock concurrencia (→ prod)
 ```
 
 Duración: ~20-90 segundos por probe.
@@ -64,6 +65,7 @@ Duración: ~20-90 segundos por probe.
 | `probe_dividendos_inline` | 22 | localhost | T1 con resultado real (pos1=mandil2, etc.) |
 | `probe_no_largo` | 16 | localhost | T1 sin resultado previo (DELETE resultado completo) |
 | `probe_vacante_vac` | 6 | localhost | snapshot+restore automático vía `setupT1`/`teardownT1` |
+| `probe_fase2_liquidaciones` | 14 | DB directa (R5) | snapshot+restore de resultados/liquidaciones/roles; setup controlado de propietario/entrenador/jockey en ubicados |
 | `smoke_t9_t16` | 3 | prod | ninguno (usa T6, independiente) |
 
 **Orden recomendado para correr todos juntos**: `dividendos_inline → no_largo → vacante_vac → smoke_t9_t16 → modelo_chapa`. Corridos fuera de orden pueden fallar por state pollution, no por bugs reales (ver GOTCHAS #42).
@@ -93,17 +95,40 @@ Verifica el flujo de vacante por "VAC" inline (feat/vacante-vac-inline). Vacante
 | T05 | F8 con fila preexistente: `VAC` tipeado sin guardar → input sigue `VAC` |
 | T06 | F8 con tipo sin fila en DB (SEG, create-path) → input sigue `VAC` |
 
+#### `probe_fase2_liquidaciones.mjs` — 14 checks
+
+NO usa browser (Playwright no instala chromium en ubuntu26.04): extrae el cuerpo real de `generarLiquidaciones()` del working tree y lo ejecuta vía `AsyncFunction` con cliente `service_role` + stubs de DOM. Snapshot+restore obligatorio de `resultados.estado`, liquidaciones/detalle preexistentes y los 6 campos de rol de las inscripciones ubicadas de R5. Solo valida la FORMA de las líneas; no aprueba ni paga.
+
+| Bloque | Qué verifica |
+|--------|-------------|
+| A1-A3 | una sola liquidación `club`; líneas `fondo_solidario` con `beneficiario_tipo='club'` + `beneficiario_id=CLUB_ID` + descuento 0 |
+| B1-B3 | cada ubicado 1-5 tiene línea `premio`(propietario) + `fondo_solidario`; fondo = 2% de premioEfectivo; propietario=70% y suma total=100% (98% roles + 2% fondo) |
+| C1 | bono 6-8 → línea `bono` = monto, 100% propietario, neto |
+| D1 | incentivos NO generados (monto 0 en `liquidacion_config`) |
+| E1-E3 | `concepto_tipo`/`beneficiario_tipo` en ENUM; `reunion_id` seteado |
+| R1-R3 | restore verificado: liquidaciones, estados de resultados y roles de inscripciones |
+
 **Patrón de los probes**: auth con magic link → navegación headless → assertions sobre DOM observable. Variables internas de `resultados.html` (`currentCarreraId`, `inscripciones`, etc.) son `let` de script y no están expuestas en `window.*` — todas las verificaciones son DOM-based.
 
 ## Variables de entorno / credenciales
 
-Los scripts usan credenciales hardcodeadas para el entorno de desarrollo del cliente piloto (Hipódromo de Dolores). No subir a repositorios públicos sin reemplazarlas por env vars.
+Los scripts leen las keys de Supabase desde **variables de entorno** (ya no están hardcodeadas).
+Si falta alguna, el test aborta con un error claro (`requireEnv`). Exportalas antes de correr:
 
-| Variable implícita | Descripción |
-|--------------------|-------------|
-| `DOLORES_EMAIL` | Email del usuario de prueba (`dolores@sgh.com`) |
-| `SERVICE_KEY` | Supabase service role key (permite `auth.admin.generateLink`) |
-| `ANON_KEY` | Supabase anon key |
+```bash
+export SUPABASE_SERVICE_ROLE_KEY='...'   # service role (bypasea RLS — NUNCA commitear)
+export SUPABASE_ANON_KEY='...'            # anon key (pública, usada por smoke_full / smoke_t9_t16)
+node tests/smoke_full.mjs
+```
+
+| Variable de entorno | Descripción |
+|---------------------|-------------|
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (permite `auth.admin.generateLink`; **bypasea toda la RLS**) |
+| `SUPABASE_ANON_KEY` | Supabase anon key (pública por diseño) |
+| `DOLORES_EMAIL` | Email del usuario de prueba (`dolores@sgh.com`, sigue inline) |
+
+> ⚠️ **No commitear nunca la service_role key.** Si se filtró en el historial, hay que rotarla en
+> el dashboard de Supabase y purgar el historial — ver `docs/auditoria/SGH-REMEDIACION.md`.
 
 ## Advertencia
 

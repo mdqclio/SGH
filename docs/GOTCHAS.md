@@ -4,9 +4,11 @@
 Profesionales.html ≠ profesionales.html. Siempre usar minúsculas.
 Cómo detectarlo: la consola muestra el nombre con mayúscula en la URL.
 
-## 2. Usar SIEMPRE la legacy anon key (eyJ...)
-La nueva key sb_publishable_... da error 400 en consultas REST.
-Dónde obtenerla: Settings → API → pestaña "Legacy anon, service_role API keys"
+## 2. Usar la publishable key (sb_publishable_...) — legacy DESACTIVADA (actualizado 2026-06-07)
+**OBSOLETO el consejo anterior** ("usar la legacy eyJ..."). Las legacy keys (anon + service_role) fueron DESACTIVADAS en el dashboard el 2026-06-07T19:09:33Z: cualquier request con `eyJ...` devuelve 401 `"Legacy API keys are disabled"`.
+- Frontend: `sb_publishable_...` (pública, va en el HTML). Verificada OK contra REST (200, RLS aplica).
+- Server-side / tests: `sb_secret_...` (bypasea RLS) — por env `SUPABASE_SECRET_KEY`, NUNCA hardcodear/commitear.
+Dónde obtenerlas: Settings → API → "API keys" (publishable + secret). La pestaña "Legacy" quedó deshabilitada.
 
 ## 3. nombre_completo, no nombre
 La tabla usuarios tiene nombre_completo NO nombre.
@@ -183,3 +185,45 @@ El orden recomendado cuando se corren todos juntos: **dividendos_inline → no_l
 
 ## 26. Funciones helper de RLS deben ser SECURITY DEFINER (12/05/2026)
 Si `fn_get_user_club_id()` o `fn_is_super_admin()` fueran SECURITY INVOKER (default), al ser invocadas desde una policy sobre la tabla `usuarios` (que ya tiene RLS), la función intentaría leer `usuarios` con los permisos del usuario llamante — que a su vez pasan por la misma RLS, causando recursión infinita o devolviendo NULL. SECURITY DEFINER hace que la función se ejecute con permisos del owner de la función, bypasseando la RLS de la tabla destino. Combinado siempre con `SET search_path = public` para evitar path injection via search_path hijacking.
+
+## 43. DOBLE mecanismo de fondo solidario — no deben coexistir (02/06/2026)
+Hay dos formas de "fondo solidario" en el código y NO deben aplicarse juntas o se cobra el fondo dos veces:
+(a) **Correcto (Fase 2):** la tajada del 2% del reparto que va al club como línea `concepto_tipo='fondo_solidario'` (98% roles + 2% fondo = 100%). Vive en `liquidacion_config.pct_fondo_solidario`.
+(b) **Legacy:** `comision_config.descuento_fondo_solidario_pct` — un descuento porcentual por-actor sobre el neto. `generarLiquidaciones` aún lo aplica como `descPct` (solo a líneas `premio`).
+Hoy Dolores **no tiene filas en `comision_config`** → `descPct=0` → solo actúa el mecanismo (a). Si se cargara `comision_config` con `descuento_fondo_solidario_pct != 0`, se estaría descontando el fondo a cada actor ADEMÁS de la tajada al club. Decidir explícitamente cuál usar antes de poblar `comision_config`.
+
+## 44. generarLiquidaciones solo procesa resultados estado='oficial' (02/06/2026)
+El motor filtra `resultados.estado='oficial'`. Carreras en `provisional` (como casi toda R5) NO liquidan. Para liquidar hay que oficializar primero (botón "Oficializar reunión" — Fase 2bis, pendiente). En testing, poner el resultado en oficial y restaurarlo (ver `probe_fase2_liquidaciones.mjs`).
+
+## 45. Detección de empate por `posicion` duplicada era código muerto — afectaba PREMIOS (02/06/2026)
+**Hallazgo real:** `generarLiquidaciones` detectaba empates agrupando por `posicion` duplicada (`byPos[p.posicion]`). Pero el schema **nunca** representa un dead-heat con dos filas en el mismo puesto: la constraint `UNIQUE (resultado_id, posicion)` lo prohíbe. Un empate se modela como filas en posiciones **distintas y consecutivas**, cada una con `empate=true` (ej. empate de dos en 6° → filas `posicion=6` y `posicion=7`, ambas `empate=true`). Resultado: `byPos` nunca agrupaba nada → la rama de reparto empate-aware (promedio de premios) era **código muerto**. Impacto en **PREMIOS (la plata grande)**: dos caballos empatados cobraban cada uno el premio de su posición física (6° y 7°) en vez del promedio `(premio6+premio7)/2`. **Fix (02/06/2026):** agrupar corridas de filas consecutivas con `empate=true`; `posNum` = puesto líder del grupo; premio efectivo = `Σ calcPremio(lead..lead+N-1)/N`. Probe: `tests/probe_fase2_liquidaciones.mjs` → **C3 (empate de premio)** + C2 (empate de bono). El probe fuerza el empate flipeando `empate=true` en dos finishers ya consecutivos (sin tocar `posicion`, respetando la constraint) y restaura el flag (R4).
+
+**Relacionado (mismo Fase 2):** el bono 6-8 también era código muerto dentro de `calcPremio` (`if(!pct) return 0` corta antes para puestos 6-8, que no tienen `pct`); se extrajo a `calcBono68`.
+
+**CONFIRMADO por Fede (02/06/2026) — comportamiento estable, NO pendiente.** Todo se deriva de dos reglas: el **principio de Fede** ("empate → 50% a cada uno") y la **convención de dead-heat** (el grupo toma la posición del **líder**):
+- El bono 6-8 **se paga**: 100% al propietario, neto, `concepto_tipo='bono'`; monto y rango configurables por carrera (`bono_posicion_monto`, `bono_posicion_desde/hasta`).
+- **Empate dentro del rango** (ej. 6°-7° con rango 6-8): el grupo comparte **UN** bono del puesto líder, dividido `monto/N` (2 → 50% c/u), 100% propietario c/u. ("50% a cada uno" ≠ bono entero × 2.) Probe C2.
+- **Empate de premio** (ubicados 1-5): premio promediado `Σ calcPremio(lead..lead+N-1)/N`, repartido por roles sobre ese split. Probe C3.
+- **Cruce de borde (empate 5°-6° con rango 6-8):** el grupo toma la posición del líder → `calcBono68(5)=0` → **sin bono**. No es ambigüedad: es la convención de dead-heat aplicada (el grupo es "5°", y 5° no está en rango).
+- **Bono al ganador en empate de 1°:** `bono_ganador` está fundido en `calcPremio(1)`, así que en un empate de 1° (1°-2°) se reparte vía el **promedio** `(calcPremio(1)+calcPremio(2))/2` → mitad a cada empatado. Es el mismo principio "50% a cada uno".
+
+**Limitación técnica conocida (del modelo `empate=true`, NO es decisión de producto):** empates **adyacentes** sin un caballo "limpio" en medio (ej. empate 2°-3°-4° pegado a empate 5°-6°) no se pueden separar con un solo booleano → se **fusionan** en un único grupo. Es rarísimo en datos reales. Si alguna vez hace falta distinguirlos, requeriría un `grupo_empate_id` en `resultado_posiciones`.
+
+**Igual NO paga nada hoy:** todo el camino del propietario (premio 70% y bono) sigue gateado por `inscripciones.propietario_id` NULL (GOTCHA #47) — sin propietario no se genera la línea.
+
+## 46. liquidaciones.html usa formatMonto/parseMonto propios, no formatARS/parseARS (02/06/2026)
+A diferencia del resto del proyecto (que usa `formatARS()`/`parseARS()`), `liquidaciones.html` define su propio par `formatMonto`/`parseMonto` (+ alias `fmt`). No es bug, pero revisar que el locale argentino (punto de miles) sea consistente con el resto antes de unificar.
+
+## 47. inscripciones.propietario_id puede estar NULL — bloquea liquidar al propietario (02/06/2026)
+`generarLiquidaciones` lee `insc.propietario_id`; si es null, NO se liquida al propietario (70%) NI el bono 6-8 (que es 100% propietario). Estado real de la base: 0/87 inscripciones tienen `propietario_id`, y la fuente de verdad `spc_propietarios` está VACÍA (0 filas). `spcs` no tiene `propietario_id`; el dueño se modela en `spc_propietarios` (spc_id + propietario_id + %). El flujo `inscripciones.html`/`ratificacion.html` nunca escribe `propietario_id`. NO es bug del motor (lee el campo correcto): es gap de carga de datos. Fix upstream: poblar `spc_propietarios` + setear `inscripciones.propietario_id` al inscribir (derivado del dueño activo). Fallback opcional en el generador (resolver vía spc_id) solo sirve una vez que `spc_propietarios` tenga datos. Ver ISSUE-001 (pendiente).
+
+**Verificación a fondo (02/06/2026) — confirmado, no es artefacto de seeds.** Barrido de TODO el repo de `from('inscripciones').insert/.update/.upsert`: ningún payload escribe `propietario_id` (campos explícitos, sin spreads ni alias `propietario/dueño/owner`). `inscripciones.html` (insert L638, payload L621-635) y los UPDATE de `ratificacion.html` NO lo tocan. El **único** lugar que lo setea es `portal.html:574` (`payload.propietario_id` solo si `rol==='propietario'`), portal aún sin construir → 0 filas (`canal='web'`: 0/87). El form de `inscripciones.html` **no tiene campo de dueño** (grep vacío). NO hay trigger/RPC server-side que lo pueble: ninguna migración lo hace y, empíricamente, si existiera las 87 filas reales lo tendrían. Las 87 son carga **manual real por UI** (`canal='manual'` 87/87; `created_at` repartido 27/04→23/05/2026 con huecos humanos), no seeds → el 0/87 es exactamente lo que produce el flujo actual. **Para llenarlo hay que AGREGAR la captura/derivación al inscribir/ratificar** (el fix se planea aparte).
+
+## 48. spcs.html: `id` HTML duplicado (`f-caballeriza`, `f-sexo`) — alta no captura caballeriza (02/06/2026)
+`spcs.html` tiene DOS elementos con el mismo `id` para dos campos: `f-caballeriza` (filtro toolbar L150 **y** select del modal L206) y `f-sexo` (filtro toolbar L144 **y** select del modal L189). `document.getElementById('f-caballeriza')` devuelve SIEMPRE el primero del DOM = el del **toolbar**, no el del modal. Consecuencias reales:
+- **Las opciones del select del modal nunca se cargan** (el populate de L329 cae sobre el toolbar; L337 lo repuebla con `querySelector('.toolbar #...')`). El `<select>` del modal queda vacío.
+- **En alta, `spcs.caballeriza_id` se guarda SIEMPRE null:** `openModal(null)` hace `getElementById('f-caballeriza').value=''` (L446) sobre el toolbar, y `saveRecord` (L484) lee ese mismo toolbar → `'' || null`.
+- **En edición no se puede cambiar la caballeriza** desde el modal (solo round-trip del valor existente; efecto colateral: re-filtra la lista visible).
+- `f-sexo` tiene el mismo defecto pero zafa de casualidad: `openModal` setea el toolbar a un valor válido (`rec?.sexo || 'macho'`, L443) antes de leerlo (L481).
+
+Regla general: **`getElementById` con `id` duplicado siempre agarra el primero del DOM.** Nunca reutilizar un `id` entre filtro de toolbar y campo de form. Fix conceptual (sin implementar — ver ISSUE-026): renombrar el `id` del modal (`f-caballeriza-form`) y apuntar populate (L329), `openModal` (L446) y `saveRecord` (L484) al select del modal; ídem `f-sexo`. Impacto: el link caballo→caballeriza no se llena por esta pantalla hasta arreglarlo.

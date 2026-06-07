@@ -84,11 +84,11 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 
 ```javascript
 SUPABASE_URL  = 'https://unlhcuanfrtpatoipwve.supabase.co'
-SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'  // legacy anon key
+SUPABASE_KEY  = 'sb_publishable_...'  // publishable key (pública, frontend)
 CLUB_ID_DOLORES = '0649e9c5-9e87-4aad-842f-101458e6b33c'
 ```
 
-**CRÍTICO:** Usar siempre la key `eyJ...` (Settings → API → "Legacy anon, service_role API keys"). La key `sb_publishable_...` da error 400 en consultas REST.
+**CRÍTICO (actualizado 2026-06-07):** Usar la **publishable key** `sb_publishable_...` (Settings → API → "API keys"). Las **legacy `eyJ...` (anon + service_role) están DESACTIVADAS** desde 2026-06-07 — devuelven 401 `"Legacy API keys are disabled"`. La secret server-side es `sb_secret_...` (NUNCA en el repo; va por env `SUPABASE_SECRET_KEY`). El antiguo consejo "usar la legacy `eyJ`" quedó obsoleto.
 
 Usuarios de producción:
 - `admin@sgh.com` / `super_admin`
@@ -220,7 +220,7 @@ Función atómica que guarda posiciones + apuestas en una transacción, con opti
 ```
 
 ### Supabase MCP
-El MCP de Supabase en esta sesión es **read-only**. INSERT/UPDATE/DELETE/DDL hay que ejecutarlos en el SQL Editor del dashboard, no desde el agente. Documentar el SQL ejecutado en el doc de sesión correspondiente.
+El MCP de Supabase en esta sesión tiene **escritura** (DDL/DML): `apply_migration` (DDL), `execute_sql` (DML/consultas). NO es read-only. Verificado el 02/06/2026 (se aplicaron `ENABLE RLS` + la migración `liquidaciones_cd_propietario_derivacion.sql` directo por MCP). Aun así: usar `apply_migration` para DDL (queda como migración trackeada), preferir el archivo `.sql` versionado en `migrations/` como fuente de verdad, y documentar el SQL ejecutado en el doc/CHANGELOG correspondiente. El `get_advisors` puede pedir surfacear hallazgos de seguridad (p.ej. RLS) — hacerlo siempre.
 
 ### Dinero
 Usar siempre `formatARS()` / `parseARS()` / `bindARSInput()` — NUNCA `.toLocaleString()` ni `.toFixed()` directo. El locale por defecto del browser suele ser en-US y da formato incorrecto (coma de miles vs punto de miles argentino).
@@ -278,7 +278,7 @@ Fijarla: `localStorage.setItem('sgh_active_reunion_id', 'UUID_REUNION_5')` o des
 ## Gotchas críticos
 
 1. **GitHub Pages case-sensitive**: `Resultados.html ≠ resultados.html`. Siempre minúsculas.
-2. **Supabase anon key**: usar `eyJ...` (legacy). La `sb_publishable_...` da error 400.
+2. **Supabase key**: usar la **publishable** `sb_publishable_...`. Las legacy `eyJ...` (anon/service_role) están DESACTIVADAS desde 2026-06-07 (401 "Legacy API keys are disabled"). Secret server-side = `sb_secret_...` por env, nunca en el repo.
 3. **`usuarios.nombre_completo`** — NO `nombre`. Afecta todos los archivos con auth.
 4. **`inscripciones.estado` es ENUM rígido** — para nuevos valores: `ALTER TYPE estado_inscripcion ADD VALUE`. No migrar a VARCHAR (hay una vista que depende del ENUM).
 5. **`carreras.estado` es VARCHAR libre** — sin ENUM. Valores en uso: `NULL/'programada'`, `'confirmada'`, `'anulada'`.
@@ -310,7 +310,7 @@ Ver `docs/GOTCHAS.md` para la lista completa (40 entradas).
 - ✅ **Bug 3 (28/05/2026 — RESUELTO)**: `renderDivHTML` usaba `chapaAt(slot)` donde `slot` es el índice de fila de pago — GAN/SEG/TER mostraban todos el chip del 1°. Fix: `chapaAt(POS_SLOTS[tipo])`. Además: Fix A — `onMarcInput` marca con `.marc-invalid` mandiles que no corresponden a un ratificado (feedback visual, no bloquea). Fix B — `renderDivView` recibe `undefined` (no `[]`) cuando el override está vacío; `onMarcInput` aplica `tempPos.length ? tempPos : undefined`. Probe: `tests/probe_bug3_chapa_at.mjs`.
 
 ### Otros módulos
-- **liquidaciones.html**: Bloques A+B completos. Bloque C (montas perdidas) y D (recibos) pendientes — prerequisito: validación Fede en resultados.
+- **liquidaciones.html**: ver `docs/ISSUES.md` (ISSUE-001) para el estado real. Resumen: Fase 0 (schema C+D) vigente en prod; Fase 1 (config por club) y Fase 2 (fondo solidario, bono 6-8, incentivos) en branch `feat/liquidaciones-cd`, NO en prod. Bloqueante conocido: `inscripciones.propietario_id` null (no se liquida propietario ni bono 6-8 — GOTCHA #47). Pendientes: oficializar reunión, recibos, anti-doping, validación Fede.
 - **portal.html / registro-profesional.html**: no construidos.
 - **ISSUE-018**: XSS — `innerHTML` con datos de DB sin escapar en varios módulos.
 - **ISSUE-007**: Calendario puede mostrar N-1 reuniones (bug de timezone).

@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://raw.githubusercontent.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/png" sizes="32x32" href="logo32x32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="logo180x180.png">
@@ -319,7 +320,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 let sb, CLUB_ID, currentUser;
-async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
+async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
 let profesionales={}, propietariosMap={}, liquidaciones=[], detalles={}, club=null;
@@ -463,7 +464,10 @@ function renderLiquidaciones() {
   document.getElementById('liq-container').innerHTML = `<div class="liq-grid">${liquidaciones.map(l => {
     const prof = l.profesional_id ? profesionales[l.profesional_id] : null;
     const prop = l.propietario_id ? propietariosMap[l.propietario_id] : null;
-    const nombre = prof ? `${prof.apellido}, ${prof.nombre}` : (prop ? prop.nombre : '—');
+    // Liquidación club (fondo solidario): sin propietario ni profesional.
+    const nombre = prof ? `${prof.apellido}, ${prof.nombre}`
+                 : prop ? prop.nombre
+                 : (!l.profesional_id && !l.propietario_id) ? 'Fondo solidario (club)' : '—';
     return `<div class="liq-card ${l.estado}">
       <div class="liq-header">
         <div>
@@ -614,19 +618,35 @@ async function generarLiquidaciones() {
     capataz:     parseFloat(liqConfig.pct_capataz)     / 100,
     sereno:      parseFloat(liqConfig.pct_sereno)      / 100,
   };
+  // Tajada del reparto que va al club (98% roles + este 2% = 100%) e incentivos por reunión.
+  const fondoPct  = parseFloat(liqConfig.pct_fondo_solidario)        || 0;
+  const incJockey = parseFloat(liqConfig.incentivo_jockey_monto)     || 0;
+  const incEntr   = parseFloat(liqConfig.incentivo_entrenador_monto) || 0;
 
+  // Premio base por puesto: bolsa*pct + bono al ganador (1°) + piso ganancia_minima.
+  // El bono al ganador (bono_ganador) queda FUNDIDO en el premio del 1° y se reparte
+  // por roles (Fase 2 P3: tratamiento distinto al bono 6-8, a propósito).
   const calcPremio = (car, posicion) => {
     const dist = car.distribucion_premios || DIST_FALLBACK;
     const pct = dist[String(posicion)];
     if (!pct) return 0;
     let p = parseFloat(car.bolsa_total) * pct / 100;
     if (posicion === 1 && dist.bono_ganador) p += parseFloat(dist.bono_ganador);
-    if (dist.bono_posicion_desde && dist.bono_posicion_hasta && dist.bono_posicion_monto &&
-        posicion >= dist.bono_posicion_desde && posicion <= dist.bono_posicion_hasta) {
-      p += parseFloat(dist.bono_posicion_monto);
-    }
     const minimo = parseFloat(dist.ganancia_minima) || 0;
     return minimo > 0 && p < minimo ? minimo : p;
+  };
+
+  // Bono 6°-8° (carreras.distribucion_premios.bono_posicion_monto): NO es premio
+  // repartible. Va 100% al propietario, neto, concepto_tipo='bono' (Fase 2 P2).
+  // Antes vivía dentro de calcPremio pero era código muerto: para posiciones 6-8
+  // no hay pct en distribucion_premios, así que calcPremio retornaba 0 antes de llegar.
+  const calcBono68 = (car, posicion) => {
+    const dist = car.distribucion_premios || DIST_FALLBACK;
+    if (dist.bono_posicion_desde && dist.bono_posicion_hasta && dist.bono_posicion_monto &&
+        posicion >= dist.bono_posicion_desde && posicion <= dist.bono_posicion_hasta) {
+      return parseFloat(dist.bono_posicion_monto);
+    }
+    return 0;
   };
 
   // actorMap: id → { tipo, items[] }
@@ -648,50 +668,135 @@ async function generarLiquidaciones() {
     const car = cars.find(c => c.id === res.carrera_id);
     if (!car) continue;
     const carPoss = possByRes[res.id] || [];
-    const byPos = {};
-    for (const p of carPoss) {
-      if (!byPos[p.posicion]) byPos[p.posicion] = [];
-      byPos[p.posicion].push(p);
+    // Empate (dead-heat): el schema lo modela como filas en posiciones DISTINTAS y
+    // consecutivas, cada una con `empate=true` — la constraint UNIQUE (resultado_id, posicion)
+    // prohíbe dos filas en el mismo puesto. Un grupo de empate = corrida de filas consecutivas
+    // con empate=true. NO agrupamos por `posicion` duplicado (eso nunca ocurre en datos reales
+    // y dejaba el reparto empate-aware como código muerto — ver GOTCHA #45).
+    // LIMITACIÓN TÉCNICA conocida (GOTCHA #45, del modelo `empate=true`, NO decisión de
+    // producto): con un solo booleano no se pueden separar dos dead-heats adyacentes sin un
+    // caballo "limpio" en medio (ej. empate 2°-3°-4° pegado a empate 5°-6°): se fusionarían en
+    // un único grupo. Es rarísimo; si alguna vez hace falta, requeriría un `grupo_empate_id`.
+    const ordered = [...carPoss].filter(p => p.posicion != null).sort((a, b) => a.posicion - b.posicion);
+    const groups = [];
+    for (let i = 0; i < ordered.length; i++) {
+      const grp = [ordered[i]];
+      while (i + 1 < ordered.length && ordered[i].empate && ordered[i + 1].empate &&
+             ordered[i + 1].posicion === ordered[i].posicion + 1) {
+        grp.push(ordered[++i]);
+      }
+      groups.push(grp);
     }
-    for (const [posStr, poses] of Object.entries(byPos)) {
-      const posNum = parseInt(posStr);
+    for (const poses of groups) {
+      const posNum = poses[0].posicion;   // puesto líder del grupo (p.ej. 6 en un empate 6°-7°)
       let premioEfectivo;
       if (poses.length > 1) {
-        // Empate: promedio de los premios de las posiciones N a N+k-1
+        // Empate: promedio de los premios de las posiciones N a N+k-1 (convención dead-heat).
+        // calcPremio(1) incluye bono_ganador fundido, así que en un empate de 1° el bono al
+        // ganador también se reparte vía este promedio (mitad a cada empatado) — mismo principio
+        // Fede "50% c/u". CONFIRMADO.
         let sum = 0;
         for (let i = 0; i < poses.length; i++) sum += calcPremio(car, posNum + i);
         premioEfectivo = sum / poses.length;
       } else {
         premioEfectivo = calcPremio(car, posNum);
       }
-      if (!premioEfectivo) continue;
+      // Bono del PUESTO LÍDER del grupo (posNum). El grupo comparte UN solo bono, no uno por
+      // posición ocupada: 2 empatados en 6° (filas 6 y 7) NO cobran bono(6)+bono(7), cobran
+      // bono(6) dividido. El slot 7° "desaparece" como bono propio (CONFIRMADO Fede: empate
+      // dentro del rango → monto/N; 50% c/u, no bono entero a cada uno).
+      // CRUCE DE BORDE (CONFIRMADO, convención dead-heat): si el grupo arranca FUERA del rango
+      // de bono (ej. empate 5°-6° con rango 6-8), el líder es 5° → calcBono68(5)=0 → 0 para
+      // todo el grupo. El grupo toma la posición del líder (es "5°", y 5° no está en rango), no
+      // es ambigüedad. Para empates enteramente dentro de 6-8 el monto es plano.
+      const bono68 = calcBono68(car, posNum);
+      if (!premioEfectivo && !bono68) continue;
+      // Empate: el bono del puesto se DIVIDE en partes iguales entre los empatados
+      // (regla Fede: 2 → 50% c/u; en general monto/N). Mismo criterio que el premio.
+      const bono68Efectivo = poses.length > 1 ? bono68 / poses.length : bono68;
       const turno = car.numero_turno || '';
       const conceptoBase = `Turno ${turno} — ${posNum}° puesto`;
       const bolsaFmt = fmt(premioEfectivo);
       for (const pos of poses) {
         const insc = (inscs||[]).find(i => i.id === pos.inscripcion_id);
         if (!insc) continue;
-        const subs = [
-          {nombre: insc.peon,    rol: 'Peón',   pct: PCTS.peon},
-          {nombre: insc.capataz, rol: 'Capataz', pct: PCTS.capataz},
-          {nombre: insc.sereno,  rol: 'Sereno',  pct: PCTS.sereno},
-        ].filter(s => s.nombre && s.nombre.trim());
-        addActor(insc.propietario_id, 'propietario', {
-          premio: premioEfectivo, pct: PCTS.propietario, subs: [],
-          concepto: conceptoBase, descripcion: `${conceptoBase} — Propietario (bolsa: ${bolsaFmt})`,
-          posicion: posNum, inscripcion_id: insc.id,
-        });
-        addActor(insc.entrenador_id, 'entrenador', {
-          premio: premioEfectivo, pct: PCTS.entrenador, subs,
-          concepto: conceptoBase, descripcion: `${conceptoBase} — Entrenador (bolsa: ${bolsaFmt})`,
-          posicion: posNum, inscripcion_id: insc.id,
-        });
-        addActor(insc.jockey_titular_id, 'jockey', {
-          premio: premioEfectivo, pct: PCTS.jockey, subs: [],
-          concepto: conceptoBase, descripcion: `${conceptoBase} — Jockey (bolsa: ${bolsaFmt})`,
-          posicion: posNum, inscripcion_id: insc.id,
-        });
+        // Premio repartible: solo para ubicados con premio > 0 (puestos 1-5).
+        if (premioEfectivo > 0) {
+          const subs = [
+            {nombre: insc.peon,    rol: 'Peón',   pct: PCTS.peon},
+            {nombre: insc.capataz, rol: 'Capataz', pct: PCTS.capataz},
+            {nombre: insc.sereno,  rol: 'Sereno',  pct: PCTS.sereno},
+          ].filter(s => s.nombre && s.nombre.trim());
+          addActor(insc.propietario_id, 'propietario', {
+            premio: premioEfectivo, pct: PCTS.propietario, subs: [], conceptoTipo: 'premio',
+            concepto: conceptoBase, descripcion: `${conceptoBase} — Propietario (bolsa: ${bolsaFmt})`,
+            posicion: posNum, inscripcion_id: insc.id,
+          });
+          addActor(insc.entrenador_id, 'entrenador', {
+            premio: premioEfectivo, pct: PCTS.entrenador, subs, conceptoTipo: 'premio',
+            concepto: conceptoBase, descripcion: `${conceptoBase} — Entrenador (bolsa: ${bolsaFmt})`,
+            posicion: posNum, inscripcion_id: insc.id,
+          });
+          addActor(insc.jockey_titular_id, 'jockey', {
+            premio: premioEfectivo, pct: PCTS.jockey, subs: [], conceptoTipo: 'premio',
+            concepto: conceptoBase, descripcion: `${conceptoBase} — Jockey (bolsa: ${bolsaFmt})`,
+            posicion: posNum, inscripcion_id: insc.id,
+          });
+          // Fondo solidario: 2% del premio efectivo (incluye bono ganador y piso),
+          // ruteado al CLUB como tajada del reparto. NO incluye el bono 6-8.
+          if (fondoPct > 0) {
+            addActor(CLUB_ID, 'club', {
+              premio: premioEfectivo, pct: fondoPct / 100, subs: [], conceptoTipo: 'fondo_solidario',
+              concepto: `${conceptoBase} — Fondo solidario`,
+              descripcion: `Fondo solidario ${fondoPct}% (premio: ${bolsaFmt})`,
+              posicion: posNum, inscripcion_id: insc.id,
+            });
+          }
+        }
+        // Bono 6°-8°: 100% al propietario de cada caballo, neto, sin reparto entre roles.
+        // En empate el bono del puesto se divide en partes iguales (bono68Efectivo).
+        if (bono68Efectivo > 0) {
+          const empateNota = poses.length > 1 ? `, empate ${poses.length} (${fmt(bono68)}/${poses.length})` : '';
+          addActor(insc.propietario_id, 'propietario', {
+            premio: bono68Efectivo, pct: 1, subs: [], conceptoTipo: 'bono',
+            concepto: `Turno ${turno} — Bono ${posNum}° puesto`,
+            descripcion: `Bono ${posNum}° puesto (100% propietario${empateNota}): ${fmt(bono68Efectivo)}`,
+            posicion: posNum, inscripcion_id: insc.id,
+          });
+        }
       }
+    }
+  }
+
+  // INCENTIVOS (Bloque C): monto fijo por reunión desde liquidacion_config.
+  // Una línea por jockey/entrenador que LARGÓ al menos una vez (no_largo=false) estando
+  // ratificado. Independiente del premio: el profesional entra al actorMap por haber
+  // largado, no por cobrar. Neto (sin descuentos). Si el monto es 0/null → no se genera.
+  if (incJockey > 0 || incEntr > 0) {
+    const { data: largaron } = await sb.from('resultado_posiciones')
+      .select('inscripcion_id').in('resultado_id', resIds).eq('no_largo', false);
+    const jockeysSet = new Set(), entrenadoresSet = new Set();
+    for (const lp of (largaron||[])) {
+      const insc = (inscs||[]).find(i => i.id === lp.inscripcion_id);
+      if (!insc || insc.estado !== 'ratificado') continue;   // blindaje: solo ratificados
+      if (insc.jockey_titular_id) jockeysSet.add(insc.jockey_titular_id);
+      if (insc.entrenador_id)     entrenadoresSet.add(insc.entrenador_id);
+    }
+    if (incJockey > 0) for (const jid of jockeysSet) {
+      addActor(jid, 'jockey', {
+        premio: incJockey, pct: 1, subs: [], conceptoTipo: 'incentivo_jockey',
+        concepto: 'Incentivo jockey',
+        descripcion: `Incentivo jockey por actuación en la reunión: ${fmt(incJockey)}`,
+        posicion: null, inscripcion_id: null,
+      });
+    }
+    if (incEntr > 0) for (const eid of entrenadoresSet) {
+      addActor(eid, 'entrenador', {
+        premio: incEntr, pct: 1, subs: [], conceptoTipo: 'incentivo_entrenador',
+        concepto: 'Incentivo entrenador',
+        descripcion: `Incentivo entrenador por actuación en la reunión: ${fmt(incEntr)}`,
+        posicion: null, inscripcion_id: null,
+      });
     }
   }
 
@@ -702,15 +807,19 @@ async function generarLiquidaciones() {
     const descPct = ((cfg?.descuento_fondo_solidario_pct||0) + (cfg?.descuento_incentivo_pct||0));
     const detalleRows = [];
     let totalBruto = 0, totalDesc = 0;
+    const bTipo = actorData.tipo === 'propietario' ? 'propietario'
+                : actorData.tipo === 'club'        ? 'club'
+                : 'profesional';
     for (const item of actorData.items) {
       const bruto = item.premio * item.pct;
-      const desc = bruto * descPct / 100;
+      // descPct (comision_config) solo sobre premios; bono/incentivo/fondo van netos.
+      const aplicaDesc = item.conceptoTipo === 'premio';
+      const desc = aplicaDesc ? bruto * descPct / 100 : 0;
       totalBruto += bruto; totalDesc += desc;
-      const bTipo = actorData.tipo === 'propietario' ? 'propietario' : 'profesional';
       // monto_neto es columna generada en DB — no incluir en el insert
       detalleRows.push({ concepto: item.concepto, descripcion: item.descripcion,
-        monto_bruto: bruto, porcentaje_desc: descPct||null, monto_descuento: desc,
-        concepto_tipo: 'premio', posicion: item.posicion, inscripcion_id: item.inscripcion_id,
+        monto_bruto: bruto, porcentaje_desc: aplicaDesc ? (descPct||null) : null, monto_descuento: desc,
+        concepto_tipo: item.conceptoTipo, posicion: item.posicion, inscripcion_id: item.inscripcion_id,
         beneficiario_tipo: bTipo, beneficiario_id: actorId, reunion_id: rid });
       // Peón/capataz/sereno como sub-líneas en la liquidación del entrenador (ADR-025)
       for (const sub of (item.subs||[])) {
@@ -732,7 +841,8 @@ async function generarLiquidaciones() {
       // total_neto es columna generada — Postgres la calcula automáticamente
     };
     if (actorData.tipo === 'propietario') liqPayload.propietario_id = actorId;
-    else liqPayload.profesional_id = actorId;
+    else if (actorData.tipo !== 'club')   liqPayload.profesional_id = actorId;
+    // club (fondo solidario): liquidación sin persona (propietario_id/profesional_id null)
     const { data: liqData, error } = await sb.from('liquidaciones').insert(liqPayload).select().single();
     if (error) { console.error('Error al crear liquidación:', error); continue; }
     const dRows = detalleRows.map((d, i) => ({...d, liquidacion_id: liqData.id, orden_display: i+1}));

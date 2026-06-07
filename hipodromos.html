@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://raw.githubusercontent.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/png" sizes="32x32" href="logo32x32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="logo180x180.png">
@@ -145,9 +146,11 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 let sb, CLUB_ID, currentUser;
-async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
+async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 let allData = [];
+// Escapa datos tipeados por el usuario antes de interpolarlos en innerHTML (anti-XSS).
+function escapeHtml(s){if(s===null||s===undefined)return '';return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function toast(msg,type='success'){const t=document.createElement('div');t.className=`toast toast-${type}`;t.textContent=msg;document.getElementById('toast-container').appendChild(t);setTimeout(()=>t.remove(),3500);}
 async function load() {
   document.getElementById('list-container').innerHTML='<div class="loading-state"><div class="spinner"></div> Cargando…</div>';
@@ -160,16 +163,16 @@ function renderList() {
   if (!allData.length) { document.getElementById('list-container').innerHTML='<div class="empty-state"><div class="icon">🏟️</div><h3>Sin hipódromos</h3></div>'; return; }
   document.getElementById('list-container').innerHTML=`<div class="grid">${allData.map(r=>`<div class="card">
     <div class="card-header">
-      <div><div class="card-name">${r.nombre}</div>${r.sigla?`<div class="card-sigla">${r.sigla}</div>`:''}</div>
+      <div><div class="card-name">${escapeHtml(r.nombre)}</div>${r.sigla?`<div class="card-sigla">${escapeHtml(r.sigla)}</div>`:''}</div>
       <span class="badge badge-${r.activo?'activo':'inactivo'}">${r.activo?'Activo':'Inactivo'}</span>
     </div>
-    <div class="pista-chips">${r.tipo_pista?`<span class="pista-chip">🌿 ${r.tipo_pista}</span>`:''}</div>
+    <div class="pista-chips">${r.tipo_pista?`<span class="pista-chip">🌿 ${escapeHtml(r.tipo_pista)}</span>`:''}</div>
     <div class="card-detail">
-      ${r.localidad?`<div>📍 <span>${r.localidad}${r.provincia?', '+r.provincia:''}</span></div>`:''}
+      ${r.localidad?`<div>📍 <span>${escapeHtml(r.localidad)}${r.provincia?', '+escapeHtml(r.provincia):''}</span></div>`:''}
     </div>
     <div class="card-actions">
       <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(r)})'>✏️ Editar</button>
-      <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}','${r.nombre.replace(/'/g,"\\'")}')">🗑️</button>
+      <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}','${escapeHtml(r.nombre||'').replace(/'/g,"&#39;")}')">🗑️</button>
     </div>
   </div>`).join('')}</div>`;
 }

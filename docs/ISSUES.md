@@ -2,15 +2,38 @@
 
 ## CRÍTICOS
 
-### ISSUE-001: Liquidaciones — motor de cálculo
-Descripción: liquidaciones.html — motor de cálculo de premios y recibos
-Módulo: liquidaciones.html
-Estado: 🔄 En progreso — 2/4 bloques completos (14/05/2026)
+### ISSUE-001: Liquidaciones C+D — motor de cálculo, fondo, bonos, incentivos y recibos
+Descripción: liquidaciones.html — motor de premios + capa de cobro (recibos)
+Módulo: liquidaciones.html · Branch: `feat/liquidaciones-cd`
+Estado: 🔄 En progreso — Fase 0/1/2 hechas (Fase 0 en prod; 1 y 2 solo en branch) (02/06/2026)
+
+HECHO (en branch, salvo donde se aclara):
 - ✅ Bloque A: schema fixes + resultados (14/05/2026)
-- ✅ Bloque B: motor de cálculo completo — 11 liquidaciones generadas vs. data sintética (14/05/2026)
-- ⏳ Bloque C: montas perdidas — modelo confirmado con Fede (28/05/2026). ✅ (1) migración `no_largo` ejecutada en prod. ✅ (2) UI "no corrió" en resultados.html implementada (feat/no-corrio-v3). ⏳ (3) testing end-to-end con Fede. Query: `resultado_posiciones WHERE no_largo=true` JOIN inscripciones → jockey_titular_id.
-- ⏳ Bloque D: recibos imprimibles + resumen de reunión
-Prerequisito Bloque C: ✅ migración no_largo en prod — ✅ UI "no corrió" implementada — ⏳ testing manual Fede
+- ✅ Bloque B: motor de cálculo (reparto directo 70/10/10/4/3/1) (14/05/2026)
+- ✅ Fase 0: schema C+D — 5 ENUMs, `liquidacion_config`/`club_secuencias`/`recibos`, 10 columnas en `liquidacion_detalle`, `fn_siguiente_recibo`, RLS+auditoría, seed Dolores. **VIGENTE en prod** (`migrations/liquidaciones_cd_fase0.sql`).
+- ✅ Fase 1: % de reparto e incentivos por club desde `liquidacion_config`.
+- ✅ Fase 2: fondo solidario 2% al club + bono 6-8 (100% propietario, neto) + incentivos jockey/entrenador. Probe `tests/probe_fase2_liquidaciones.mjs`.
+- ✅ Fix detección de empate (02/06/2026): la detección agrupaba por `posicion` duplicada (`byPos`), que **nunca** ocurre (constraint `UNIQUE (resultado_id, posicion)`); el dead-heat se modela como posiciones distintas consecutivas con `empate=true`. La rama empate-aware era código muerto → **los empates de PREMIO no se promediaban** (cada uno cobraba el premio de su posición física en vez de `Σ/N`). Ahora se agrupan corridas consecutivas con `empate=true` y se promedia premio y bono. Probe: checks C2 (empate bono) + C3 (empate premio). Ver GOTCHA #45.
+- ✅ **Derivación de propietario — APLICADA EN PROD (02/06/2026):** `migrations/liquidaciones_cd_propietario_derivacion.sql`. Puente `caballeriza_responsables(titular)→propietarios` + derivación de `inscripciones.propietario_id`. **213 propietarios** importados (7→220; prop_dolores 0→213; 5 titulares sin DNI excluidos). Triggers **C** (`trg_insc_set_propietario`) y **C3** (`trg_cab_resp_set_propietario`, con guard `RAISE` si caballeriza sin club) activos. **Cobertura histórica 3/87** (resto sin `caballeriza_id`, ver ISSUE-026). Probe `tests/probe_propietario_derivacion.mjs` (11/11). Captura hacia adelante cubierta por triggers + fixes D/E.
+
+PENDIENTE:
+- ⏳ Fase 2bis: botón "Oficializar reunión" (setea `resultados.estado='oficial'` en bloque; sin schema).
+- ⏳ Fase 3: estados de línea (impago/pagado/retenido) + retención anti-doping 1°/2° (~30 días, ADR-047) + idempotencia de regeneración.
+- ⏳ Fase 4: recibos por persona on-demand (capa `recibos`, numeración con `fn_siguiente_recibo`, forma de pago/cobrador).
+- ⏳ Fase 5: resumen de reunión (total pagado + pendientes de cobro).
+- ⏳ Fase 6: validar A+B contra datos reales de R5.
+- 🔄 **propietario_id en inscripciones (parcialmente resuelto):** la derivación vía caballeriza ya está aplicada (ver HECHO arriba) → 3/87 con propietario y triggers para lo nuevo. **Bloqueante residual:** 84/87 históricas siguen sin `propietario_id` porque no tienen `caballeriza_id` (causa raíz ISSUE-026: el alta de SPC lo pierde) — se resuelve con fix D (spcs.html) + E (caballeriza obligatoria al ratificar) y re-asociando caballerizas a las inscripciones viejas. `spc_propietarios` sigue vacía (vía alternativa no usada). Decisión pendiente: ¿fallback en el generador resolviendo dueño vía `spc_id → spc_propietarios`? — solo útil si se puebla esa tabla. Ver GOTCHA #47 / ISSUE-026.
+  - **Verificación a fondo (02/06/2026):** confirmado que NINGÚN flujo escribe `propietario_id`. Barrido de todo el repo de `from('inscripciones').insert/.update/.upsert`: payloads con campos explícitos (sin spreads ni alias `propietario/dueño/owner`); `inscripciones.html` (insert L638) y los UPDATE de `ratificacion.html` no lo tocan; el form de inscripción NO tiene campo de dueño. Único setter: `portal.html:574` (rol propietario), portal sin construir → 0 filas (`canal='web'`: 0/87). No hay trigger/RPC server-side (ninguna migración; y si existiera, las 87 reales lo tendrían). Las 87 son carga manual real por UI (`canal='manual'` 87/87, `created_at` repartido 27/04→23/05), NO seeds → el 0/87 es lo que produce el flujo, no casualidad. **Hay que AGREGAR la captura/derivación al inscribir/ratificar; el fix se planea aparte.**
+
+DECISIONES (Fede):
+- ✅ **Bono 6-8 + empate — CONFIRMADO (02/06/2026):** se paga, 100% propietario, neto; monto/rango configurables (`bono_posicion_monto`, `bono_posicion_desde/hasta`). Empate (principio Fede "50% c/u" + convención dead-heat "el grupo toma la posición del líder"): grupo comparte **un** bono dividido `monto/N` (2 → 50% c/u); empate de premio promediado `Σ/N`; cruce de borde (5°-6°) → grupo es "5°" → sin bono; bono al ganador en empate de 1° → repartido vía el promedio (mitad c/u). Probe C2/C3. **Sigue gateado por `propietario_id` NULL (GOTCHA #47): no paga nada hasta poblar el dueño.**
+- ⚠️ **Limitación técnica conocida (no es decisión de producto):** empates adyacentes sin caballo limpio en medio se fusionan en un grupo (modelo `empate=true` con un solo booleano; requeriría `grupo_empate_id`). Rarísimo. Ver GOTCHA #45.
+- Montos de incentivo jockey/entrenador (hoy 0 en `liquidacion_config` → no se generan líneas).
+- Beneficiario de las sub-líneas peón/capataz/sereno (hoy = entrenador, ADR-025; confirmar en Fase 4).
+
+TÉCNICO PENDIENTE:
+- Rotar y sacar del repo la `service_role` key hardcodeada en `tests/` (varios probes).
+- Evaluar `concepto_tipo` NOT NULL una vez que Fase 2 lo setea en todas las líneas nuevas (cuidado con filas viejas).
 
 ### ISSUE-002: RLS sin configurar por club
 Descripción: Cualquier usuario autenticado puede leer/escribir datos de cualquier hipódromo
@@ -50,6 +73,24 @@ Estado: ✅ Resuelto — logo PNG con transparencia (140px, sesión may-2026)
 
 ### ISSUE-009: Emails no implementados
 Estado: Pendiente Resend/SendGrid
+
+### ISSUE-026: spcs.html — `id` HTML duplicado rompe la captura de caballeriza (y sexo)
+Descripción: `spcs.html` reutiliza el mismo `id` en filtro de toolbar y campo de modal: `f-caballeriza` (L150 toolbar / L206 modal) y `f-sexo` (L144 / L189). `getElementById` agarra siempre el primero del DOM (el toolbar), así que el select de caballeriza del modal queda sin opciones y, en alta, `spcs.caballeriza_id` se guarda **siempre null**; en edición no se puede cambiar. `f-sexo` zafa de casualidad (openModal setea el toolbar a un valor válido antes de leerlo). Esto explica por qué el link caballo→caballeriza no se llena al cargar caballos por esta pantalla.
+Módulo: spcs.html · Ver GOTCHA #48
+Estado: ✅ RESUELTO (02/06/2026, branch `feat/liquidaciones-cd` — fix D). Selects del modal renombrados a `f-caballeriza-form` / `f-sexo-form`; populate/openModal/saveRecord apuntan al modal; variable muerta `filterCab` eliminada. Toolbar (`.toolbar #f-...`, filterRender) sin cambios. Probe `tests/probe_spcs_caballeriza.mjs` (11/11): jsdom con el HTML real (semántica getElementById→primer match) + saveRecord real con decoy en el toolbar + roundtrip real a DB (insert→read-back→delete). **NO en main todavía** (va con el merge de la branch).
+
+### ISSUE-027: Caballeriza obligatoria al ratificar (fix E — captura hacia adelante de propietario)
+Descripción: cierra la captura de `caballeriza_id` hacia adelante para que la derivación de propietario (migración `liquidaciones_cd_propietario_derivacion.sql`, triggers C/C3) tenga de dónde derivar. Complementa el fix D (ISSUE-026).
+Módulo: ratificacion.html (E1) + inscripciones.html (E2) · Branch: `feat/liquidaciones-cd`
+Estado: ✅ Implementado en branch (02/06/2026). 
+- **E1 — `ratificacion.html` (HARD block):** no se puede ratificar sin caballeriza. Botón Ratificar deshabilitado si `!caballeriza_id` (en render inicial y en `volverInscripto`) + guard duro en `ratificar()` (lee `row.dataset.caballeriza`, aborta con toast). Se agregó `data-caballeriza` al `<tr>`.
+- **E2 — `inscripciones.html` (SOFT warning):** `saveRecord` muestra un `confirm()` si se inscribe sin caballeriza (deja continuar). 
+
+> ⛔ **BLOQUEANTE DE MERGE A MAIN (E1) — NO mergear hasta cumplir AMBAS:**
+> 1. **Fede al tanto del cambio de workflow:** a partir de E1 *no se puede ratificar un ejemplar sin caballeriza asignada*. Es un cambio de proceso operativo, no solo técnico — requiere su OK explícito.
+> 2. **Backfill de `caballeriza_id` en los SPC activos:** HOY casi ningún SPC tiene caballeriza (consecuencia del bug ISSUE-026, recién arreglado por D). Si E1 entra a prod *sin* ese backfill, **Fede no podría ratificar NADA** el día que se aplique. El backfill (asignar caballeriza a los SPC/inscripciones activos) es prerequisito duro de E1 en prod.
+>
+> E2 (warning blando) y D (fix del bug) pueden ir a main antes; **E1 (hard block) va separado y al final**, después del backfill. Considerar feature-flag o merge en dos pasos.
 
 ## BAJOS
 
