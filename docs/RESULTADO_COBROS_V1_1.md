@@ -75,10 +75,25 @@ Real-code: RPCs `emitir_recibo` v1.1 + `liberar_linea` + función JS real `benef
 - (d) `benefSearch` matchea por nombre / apellido / DNI.
 - (e) filtro por carrera acota (carreraA incluye su línea, excluye la de carreraB).
 
-**Output:** _pendiente — se corre cuando autorices aplicar las 2 RPCs._
+**Output (RPCs aplicadas 2026-06-08 — 11/11 ✅):**
+```
+✅ a1 retenida (fecha pasada) NO está en pagable (impago)
+✅ a2 emitir SOLO la retenida → RPC rechaza (no es pagable pese a fecha pasada)
+✅ b1 liberar_linea retenido→impago
+✅ b2 tras liberar, la línea ya es emitible (recibo creado, total 5000)
+✅ c1 liberar_linea sobre no-retenida → error controlado
+✅ d1 benefSearch incluye el nombre   ✅ d2 apellido   ✅ d3 documento (DNI=36384455)
+✅ e1 filtro carreraA incluye LI (carreraA)   ✅ e2 EXCLUYE LB (carreraB)
+✅ R1 cleanup: fixtures borradas
+✅ TODO OK — 11 checks
+```
+Ambas RPCs vivas en la DB (`emitir_recibo` v1.1 + `liberar_linea`). Fixtures del probe limpiadas.
 
-## Qué falta para cerrar
+> **Nota — dato real en prod:** al verificar el estado quedó **1 recibo real** (N°1, cobrador
+> "Federico heredia", $100.000, su línea pagada apuntándolo) + `club_secuencias` en 1. **NO es del
+> probe** (el del probe era cobrador "T"/$5000, ya borrado) — alguien usó el tab Pagos en producción.
+> Se deja intacto (es un cobro real). El probe limpió solo lo suyo.
 
-1. Tu **OK al DDL** (las 2 RPCs de arriba) → aplico `emitir_recibo_v1_1.sql` + `liberar_linea.sql` por MCP.
-2. Corro `tests/probe_cobros_v11.mjs`, pego output acá.
-3. Con tu OK + el mío → merge a main + deploy.
+## Estado
+
+Las 2 RPCs aplicadas y verificadas. Frontend en la rama. Falta: tu OK final → merge a main + deploy.
