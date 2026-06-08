@@ -66,13 +66,13 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 │   ├── GOTCHAS.md               Trampas conocidas y aprendizajes
 │   ├── ISSUES.md                Bugs conocidos y deudas técnicas
 │   ├── SNIPPETS.md              SQL y JS reutilizables
-│   └── SCHEMA.md                Schema extendido (copia con más detalle)
-├── tests/                       Probes Playwright contra prod (headless Chromium)
-│   ├── README.md                Instrucciones de ejecución
+│   ├── SCHEMA.md                Schema extendido (copia con más detalle)
+│   ├── SERVER.md                Specs del VPS Hetzner + límites de plataforma (sin chromium)
+│   └── LIQUIDACIONES_GAP_ANALYSIS.md  Modelo cerrado vs implementación (fuente del gap vivo)
+├── tests/                       Probes contra prod (sin browser — harness de código real; ver tests/README.md)
+│   ├── README.md                Instrucciones + patrón harness (AsyncFunction + Supabase real)
 │   ├── smoke_full.mjs           Suite completa T1–T17 (ciclo completo resultados.html)
 │   ├── smoke_t9_t16.mjs         Regresión bug 3b + optimistic lock
-│   ├── probe_bug2_mf_mandiles.mjs  Regresión Bug 2 (mandiles reales en M.(F)/Sport)
-│   ├── probe_bug3_chapa_at.mjs  Regresión Bug 3 + Fix A (marc-invalid) + Fix B (posicionesMap)
 │   ├── probe_nav_dirty.mjs      Navegación con cambios sin guardar
 │   ├── probe_tiempo_ganador.mjs Carga de tiempo ganador
 │   └── probe_estado_pista.mjs   Estado de pista
@@ -248,8 +248,8 @@ Nunca usar `.catch(()=>{})` silencioso. Siempre:
 ### Probes de regresión
 Después de fixear un bug en `resultados.html`, agregar o extender un probe en `tests/` que verifique el fix contra prod:
 ```bash
-node tests/probe_bug2_mf_mandiles.mjs   # Bug 2 — mandiles reales en M.(F)/Sport
-node tests/probe_bug3_chapa_at.mjs      # Bug 3 — chapaAt + Fix A/B
+node tests/probe_no_largo.mjs            # "No corrió" persiste {posicion:null,no_largo:true}
+node tests/probe_fase_c.mjs              # Fase C — estado_linea + retención anti-doping (real-code)
 ```
 El patrón está en `tests/probe_bug2_*.mjs`: auth con magic link → nav → DOM assertions vía Playwright.
 
@@ -306,11 +306,11 @@ Ver `docs/GOTCHAS.md` para la lista completa (40 entradas).
 - **ISSUE-023**: UI para `div_inc` y `val_apu` no implementada.
 - **ISSUE-024**: Sin UI para composición manual override en apuestas directas.
 - **ISSUE-025**: Pozo, pozo asegurado y vales sin UI de carga.
-- ✅ **Bug 2 (28/05/2026 — RESUELTO)**: `sportCells` / `mfCells` iteraban `m = 1..rowCount` (secuencial) en lugar de los mandiles reales de los inscriptos — starters con `mandil > rowCount` no tenían celda. Fix: iterar `activeInsc` ordenado por `numero_partidor`. Probe: `tests/probe_bug2_mf_mandiles.mjs`.
-- ✅ **Bug 3 (28/05/2026 — RESUELTO)**: `renderDivHTML` usaba `chapaAt(slot)` donde `slot` es el índice de fila de pago — GAN/SEG/TER mostraban todos el chip del 1°. Fix: `chapaAt(POS_SLOTS[tipo])`. Además: Fix A — `onMarcInput` marca con `.marc-invalid` mandiles que no corresponden a un ratificado (feedback visual, no bloquea). Fix B — `renderDivView` recibe `undefined` (no `[]`) cuando el override está vacío; `onMarcInput` aplica `tempPos.length ? tempPos : undefined`. Probe: `tests/probe_bug3_chapa_at.mjs`.
+- ✅ **Bug 2 (28/05/2026 — RESUELTO)**: `sportCells` / `mfCells` iteraban `m = 1..rowCount` (secuencial) en lugar de los mandiles reales de los inscriptos — starters con `mandil > rowCount` no tenían celda. Fix: iterar `activeInsc` ordenado por `numero_partidor`.
+- ✅ **Bug 3 (28/05/2026 — RESUELTO)**: `renderDivHTML` usaba `chapaAt(slot)` donde `slot` es el índice de fila de pago — GAN/SEG/TER mostraban todos el chip del 1°. Fix: `chapaAt(POS_SLOTS[tipo])`. Además: Fix A — `onMarcInput` marca con `.marc-invalid` mandiles que no corresponden a un ratificado (feedback visual, no bloquea). Fix B — `renderDivView` recibe `undefined` (no `[]`) cuando el override está vacío; `onMarcInput` aplica `tempPos.length ? tempPos : undefined`.
 
 ### Otros módulos
-- **liquidaciones.html**: ver `docs/ISSUES.md` (ISSUE-001) para el estado real. Resumen: Fase 0 (schema C+D) vigente en prod; Fase 1 (config por club) y Fase 2 (fondo solidario, bono 6-8, incentivos) en branch `feat/liquidaciones-cd`, NO en prod. Bloqueante conocido: `inscripciones.propietario_id` null (no se liquida propietario ni bono 6-8 — GOTCHA #47). Pendientes: oficializar reunión, recibos, anti-doping, validación Fede.
+- **liquidaciones.html**: estado real en `docs/ISSUES.md` (ISSUE-001) + gap vivo en `docs/LIQUIDACIONES_GAP_ANALYSIS.md`. Resumen: **Fase 0 (schema C+D), Fase 1 (config por club) y Fase 2 (fondo solidario, bono 6-8, incentivos) VIVAS en main/prod** (merge `ccef143`); **Fase C (estado_linea + retención anti-doping 1°/2°) VIVA en main** (`7e638c7`). Bloqueante de datos: `inscripciones.propietario_id` 10/95 (sin dueño no se liquida propietario ni bono 6-8 — GOTCHA #47); `spc_propietarios` 0. Pendientes (gap analysis): A backfill propietarios, 2bis oficializar reunión, 4 recibos, 5 resumen, 6 validar R5.
 - **portal.html / registro-profesional.html**: no construidos.
 - **ISSUE-018**: XSS — `innerHTML` con datos de DB sin escapar en varios módulos.
 - **ISSUE-007**: Calendario puede mostrar N-1 reuniones (bug de timezone).

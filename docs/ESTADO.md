@@ -1,5 +1,51 @@
 # SGH — Estado del Deploy
 
+> Doc único: estado vivo + log de snapshots. El snapshot más nuevo va arriba.
+
+---
+
+## 📸 Snapshot 2026-06-08 (arranque de sesión)
+
+> Verificado contra repo/DB/git el 2026-06-08. Lo no confirmado va marcado **(sin confirmar)**.
+
+### Entorno / infra
+- Claude Code corre en **VPS Hetzner** (`ubuntu-8gb-fsn1-1`, fsn1), Ubuntu **26.04 LTS** "resolute",
+  4 vCPU, 7.6 GiB RAM, 150 G disco, node v22.22.1. Repo en **`/home/clio/dev/SGH`**.
+  Acceso: VS Code Remote-SSH + Terminal nativa desde una MacBook Air. **Ya NO es Codespaces.**
+- **Sin browser:** Playwright/chromium no corre en Ubuntu 26.04 → verificación de flujos con harness
+  de código real (AsyncFunction + Supabase real + stubs DOM; snapshot→run→assert→restore). Ver `docs/SERVER.md`.
+- **Relevo por `.md`:** el copy de terminal no es confiable → CC escribe a `.md` y pushea; el asesor lee de `raw.githubusercontent.com`.
+
+### Seguridad (remediación 2026-06-07)
+- Keys legacy (`eyJ...` anon + service_role) **DESHABILITADAS** (401 "Legacy API keys are disabled"). Rotado a:
+  **publishable** (`sb_publishable_...`, frontend, en los HTML) + **secret** (`sb_secret_...`, server-side, `.env` del VPS gitignore como `SUPABASE_SECRET_KEY`, nunca en git).
+- JWT **HS256 revocado → ECC P-256** **(sin confirmar in situ — documentado en la remediación)**.
+- PAT comprometido revocado; PAT **`claude-code-mcp`** activo (lo usa el Supabase MCP).
+- **FASE 3** (policies de catálogos permisivos) **diferida**. **leaked-password protection: PENDIENTE** (toggle manual en dashboard — acción del dueño).
+- Docs: `docs/SECURITY.md`, `SECURITY_AUDIT.md`, `REMEDIACION_RESULTADO.md`.
+
+### Liquidaciones
+- **Modelo CERRADO:** `docs/LIQUIDACIONES_MODELO.md`. **Gap analysis (en main):** `docs/LIQUIDACIONES_GAP_ANALYSIS.md`.
+- **VIVO en main/prod:** Fase 0 (schema), Fase 1 (config por club), Fase 2 (fondo solidario 2% + bono 6-8 100% propietario + incentivos) — merge `ccef143`; **Fase C** (estado_linea + retención anti-doping 1°/2°) — `7e638c7`. → §1-6 + §8 del modelo = **7/9**.
+  - Fase C: premio 1°/2° → `retenido` + `fecha_liberacion = reuniones.fecha + dias_antidoping` (30); NOTA-A: subs `actuacion` acompañan; NOTA-B: reunión sin fecha → retenido + warn; resto `impago`. Verificada real-code `tests/probe_fase_c.mjs` (11/11). Ver `docs/RESULTADO_FASE_C.md`, `docs/PLAN_FASE_C.md`.
+- **Faltan:** §7 recibo por persona (alto riesgo), §9 resumen de reunión.
+- **Bloqueante de datos (Fase A):** `inscripciones.propietario_id` **10/95** (85 NULL); `spc_propietarios` **0**. Sin dueño no se liquida propietario ni bono 6-8 (GOTCHA #47). Backfill bloqueado por dato/Fede.
+- **Pendiente de Fede:** mapping SPC→propietario; montos incentivo jockey/entrenador (hoy 0 → no se generan); regla de liberación anti-doping (¿auto 30d o gated por doping? **(sin confirmar)** — hoy auto).
+- **Fases siguientes:** A backfill (🟢 bloqueada) → 2bis oficializar reunión (🔴) → **C ✅** → 4 recibos (🔴) → 5 resumen (🟢) → 6 validar R5 (🟢).
+
+### Ratificación
+- **E1 caballeriza-obligatoria NEUTRALIZADA en main** (commit `7af005c`, hard-block removido en 3 sitios de `ratificacion.html`; motivo: que Fede pueda ratificar sin caballeriza obligatoria mientras falta el backfill). Gate de **jockey** sigue activo. Reactivar = backfill SPC→caballeriza + `git revert 7af005c` con Fede avisado.
+- **Fix D (captura de caballeriza en `spcs.html`, `f-caballeriza-form`/`f-sexo-form`) VIVO en main** (`ccef143`, ISSUE-026 resuelto).
+
+### Pendiente operativo (decide el dueño)
+- Liquidaciones ya generadas en prod siguen en `impago` hasta regenerarlas. **No regenerar por cuenta propia.**
+- R5 tiene 3 líneas en `retenido` dejadas por la verificación UPDATE previa a Fase C (no de una regeneración real); se pueden volver a `impago` con un UPDATE puntual si se decide.
+
+### Git
+- `main` con Fase C + gap analysis + doc-sync mergeados (`eb89d54` y posteriores) y desplegado en GitHub Pages.
+
+---
+
 ## Producción: https://mdqclio.github.io/SGH/
 
 ## Funcionando correctamente

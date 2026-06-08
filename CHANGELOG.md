@@ -1,18 +1,20 @@
 # Changelog
 
+## [2026-06-07 / 2026-06-08] — Liquidaciones C+D (Fase 0-2) + Fix D · Fase C — VIVO en main/prod
+
+### Liquidaciones C+D — VIVO en main/prod
+
+> **Estado de deploy (SHAs verificados contra git):** Fase 0 (schema), Fase 1 (config por club) y Fase 2 (fondo solidario 2% + bono 6-8 100% propietario + incentivos) **VIVAS en main/prod** vía merge **`ccef143`** (`fix/security-hardening`, 2026-06-07). **Fase C** (estado_linea + retención anti-doping 1°/2°, incl. NOTA-A subs actuacion) **VIVA en main** vía **`7e638c7`** (2026-06-08). **Fix D** (captura de caballeriza en `spcs.html`, `f-caballeriza-form`/`f-sexo-form`) **vivo en main** (`20fdbc7`, mergeado en `ccef143`). **E1** (caballeriza obligatoria al ratificar, hard block) **NEUTRALIZADA en main** (**`7af005c`**) — motivo: que Fede pueda ratificar sin caballeriza obligatoria mientras falta el backfill SPC→caballeriza; reactivación = backfill + `git revert 7af005c` con Fede avisado.
+
 ## [Unreleased]
-
-### `feat/liquidaciones-cd` — Liquidaciones C+D (⚠️ Fase 1 y 2 SOLO en branch, NO en prod)
-
-> **Estado de deploy:** la migración de schema (Fase 0) **YA está aplicada en la base de prod**. La lógica JS (Fase 1 y Fase 2) está **solo en `feat/liquidaciones-cd`** — NO está en `main`/prod (GitHub Pages sirve `main`). Pendiente validación de Fede antes de mergear.
 
 #### Schema — Fase 0 (vigente en DB)
 - Migración `migrations/liquidaciones_cd_fase0.sql` (idempotente). 5 ENUMs (`estado_linea_liq`, `concepto_liq`, `beneficiario_tipo`, `forma_pago_recibo`, `estado_recibo`); 3 tablas (`liquidacion_config` con CHECK suma=100, `club_secuencias`, `recibos` con `neto_a_cobrar` GENERATED + CHECK beneficiario + UNIQUE club+numero); 10 columnas nuevas en `liquidacion_detalle` (la LÍNEA como unidad de deuda); `fn_siguiente_recibo` SECURITY DEFINER; RLS + auditoría en las 3 tablas; seed de Dolores. Ver SCHEMA.md y ADR-042..047.
 
-#### Fase 1 — config por club (branch)
+#### Fase 1 — config por club (en main)
 - `generarLiquidaciones` lee % de reparto e incentivos desde `liquidacion_config` (antes hardcodeados). Pestaña "Reparto de premios" en liquidaciones.html.
 
-#### Fase 2 — fondo solidario + bono 6-8 + incentivos (branch)
+#### Fase 2 — fondo solidario + bono 6-8 + incentivos (en main)
 - **Fondo solidario 2%:** una línea por ubicado 1-5 (`concepto_tipo='fondo_solidario'`, `beneficiario_tipo='club'`, `beneficiario_id=CLUB_ID`), 2% de `premioEfectivo` (incluye bono al ganador y piso; NO el bono 6-8). Agrupadas en una liquidación `club` por reunión (sin persona). 98% roles + 2% fondo = 100%.
 - **Bono 6°-8°:** sacado de `calcPremio` (era código muerto, ver GOTCHA #45) → helper `calcBono68`. Paga 100% al propietario, neto, `concepto_tipo='bono'`.
 - **Bono al ganador:** sin cambios — sigue fundido en el premio del 1° y repartido por roles (`concepto_tipo='premio'`).
@@ -40,10 +42,10 @@
 - **Fix E — caballeriza obligatoria al ratificar:**
   - **E1 (`ratificacion.html`, HARD):** no se ratifica sin caballeriza (botón disabled + guard en `ratificar()` + `data-caballeriza` en el row).
   - **E2 (`inscripciones.html`, SOFT):** `confirm()` de advertencia al inscribir sin caballeriza (deja continuar).
-  - ⛔ **E1 NO mergea a main** hasta (a) Fede al tanto del cambio de workflow y (b) backfill de `caballeriza_id` en los SPC activos — sin eso, en prod Fede no podría ratificar nada. Ver ISSUE-027.
+  - **E1 NEUTRALIZADA en main** (`7af005c`): el hard block se removió para que Fede pueda ratificar sin caballeriza obligatoria mientras falta el backfill. Reactivación = backfill `caballeriza_id` en SPC activos + Fede al tanto del cambio de workflow + `git revert 7af005c`. Ver ISSUE-027.
 
 #### Pendiente / bloqueante conocido
-- ~~`inscripciones.propietario_id` está NULL (0/87)~~ **Mitigado:** derivación aplicada (ver arriba). Quedan 84/87 sin propietario por falta de `caballeriza_id` histórico; `spc_propietarios` sigue vacía. Captura hacia adelante cubierta por triggers + fixes D (spcs.html) / E (ratificación). Ver GOTCHA #47 / ISSUE-001 / ISSUE-026.
+- ~~`inscripciones.propietario_id` está NULL (0/87)~~ **Mitigado:** derivación aplicada (ver arriba) + Fix D vivo en main. Estado actual **10/95** con propietario; el resto sin `caballeriza_id` histórico (85 inscripciones); `spc_propietarios` sigue vacía. Captura hacia adelante cubierta por triggers + Fix D (`spcs.html`). Backfill de las históricas = Fase A (bloqueada por dato/Fede). Ver GOTCHA #47 / ISSUE-001 / ISSUE-026.
 
 ---
 
