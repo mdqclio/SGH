@@ -93,7 +93,7 @@
 
 ## En desarrollo
 - Resultados: rediseñado — pendiente testing manual end-to-end por Fede. Ver bugs conocidos en ISSUES.md (ISSUE-020 al 025).
-- Liquidaciones: Bloques A (schema fixes + resultados) y B (motor de cálculo) completos (14/05/2026). Motor ejecutado vs. data sintética: 11 liquidaciones generadas, montos verificados. Pendiente: testing Fede resultados → Bloque C (montas perdidas) → Bloque D (recibos).
+- Liquidaciones: **Fase 1+2+C vivas en main/prod** (ver snapshot 2026-06-08 arriba y ISSUE-001 / `docs/LIQUIDACIONES_GAP_ANALYSIS.md`). Pendientes del gap analysis: A (backfill propietarios, bloqueada por dato/Fede), 2bis (oficializar reunión), 4 (recibos), 5 (resumen de reunión), 6 (validar R5).
 
 ## Pendiente de construir
 - Portal propietarios/entrenadores (portal.html)
