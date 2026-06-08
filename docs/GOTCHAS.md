@@ -26,9 +26,13 @@ Usar .eq('estado', 'activo') no .eq('activo', true).
 Esperar 2-3 min después de push. Cmd+Shift+R para forzar recarga.
 Agregar ?v=N a la URL para saltear caché.
 
-## 7. Codespace se duerme y pierde trabajo
-Hacer git push frecuentemente. Antes de cerrar la Mac: push obligatorio.
-Comando: cd /workspaces/SGH && git add . && git commit -m "wip" && git push
+## 7. Push frecuente — relevo por .md (VPS Hetzner, ya NO Codespaces)
+Claude Code corre en un VPS Hetzner (Ubuntu 26.04, `/home/clio/dev/SGH`), accedido por
+VS Code Remote-SSH + Terminal nativa desde una MacBook Air. El copy de la terminal NO es
+confiable → flujo de relevo: CC escribe resultados a archivos `.md` y los pushea; el asesor
+los lee de `raw.githubusercontent.com`. Push frecuente igual (la sesión SSH se puede cortar).
+Ver `docs/SERVER.md`.
+Comando: cd /home/clio/dev/SGH && git add . && git commit -m "wip" && git push
 
 ## 8. iOS AirDrop convierte PNG a JPEG
 Al enviar PNG del iPhone a Mac por AirDrop, iOS puede agregar fondo blanco.

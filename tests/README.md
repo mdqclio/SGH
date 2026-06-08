@@ -1,16 +1,38 @@
-# Tests — SGH resultados.html
+# Tests — SGH
 
-Scripts de smoke/integración contra producción (GitHub Pages + Supabase). Usan Playwright headless + Supabase JS admin client.
+Scripts de smoke/integración/probe contra producción (GitHub Pages + Supabase).
 
 ## Prerequisitos
 
 ```bash
-cd /workspaces/SGH   # raíz del repo
-npm install          # instala playwright y @supabase/supabase-js
-npx playwright install-deps chromium
+cd /home/clio/dev/SGH   # raíz del repo (VPS Hetzner; ver docs/SERVER.md)
+npm install             # instala playwright y @supabase/supabase-js
 ```
 
-Los scripts leen credenciales desde variables de entorno (ver sección "Variables de entorno / credenciales").
+Los scripts leen credenciales desde variables de entorno (ver "Variables de entorno"). En el
+VPS, la clave server-side está en `.env` (gitignoreado) como `SUPABASE_SECRET_KEY`; sourcearlo:
+`set -a; . ./.env; set +a` antes de correr.
+
+## ⚠️ Browser NO disponible — patrón de harness de código real
+
+**Playwright/chromium NO corre en Ubuntu 26.04** (`npx playwright install chromium` →
+`"Playwright does not support chromium on ubuntu26.04-x64"`). Los flujos que dependerían del
+browser se verifican con un **harness de código real**, NO con una reimplementación ni con un
+`UPDATE` que simule el resultado:
+
+1. Leer el HTML del módulo y **extraer el cuerpo** de la función a probar (balance de llaves).
+2. Ejecutarlo vía `new AsyncFunction(...deps, body)` inyectando **dependencias reales**:
+   cliente Supabase real (`@supabase/supabase-js` con `SUPABASE_SECRET_KEY`) + **stubs de DOM**
+   (`document.getElementById`, `toast`, `confirm`, etc.).
+3. **snapshot → run → assert → restore**: snapshotear las filas afectadas, correr el código,
+   verificar lo que escribió en la DB, y restaurar el estado previo en el `finally`.
+
+Así corre **el código REAL** del módulo (mismo texto que sirve prod), sin browser.
+**Ejemplo de referencia: [`probe_fase_c.mjs`](probe_fase_c.mjs)** (estado_linea + retención
+anti-doping) y [`probe_fase2_liquidaciones.mjs`](probe_fase2_liquidaciones.mjs) (reparto/bono).
+
+**Limitación** (ver CLAUDE.md): las variables internas (`currentCarreraId`, etc.) son `let` de
+módulo, no expuestas en `window.*`. Los asserts se basan en lo que el código persiste en la DB.
 
 ## Scripts
 

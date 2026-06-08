@@ -243,7 +243,7 @@ Nunca usar `.catch(()=>{})` silencioso. Siempre:
 - No pedir confirmación intermedia para cambios chicos; mostrar diff antes de aplicar refactors grandes
 - Si una decisión es de producto (no técnica), elegir la opción más conservadora y dejarla anotada en el resumen final
 - Antes de dar por terminado: verificar con `grep` o `curl` que los cambios llegaron a prod
-- Push frecuente — el codespace se puede dormir
+- Push frecuente — la sesión SSH al VPS Hetzner se puede cortar. Relevo por `.md` (el asesor lee de raw.githubusercontent.com); ver `docs/SERVER.md`
 
 ### Probes de regresión
 Después de fixear un bug en `resultados.html`, agregar o extender un probe en `tests/` que verifique el fix contra prod:
