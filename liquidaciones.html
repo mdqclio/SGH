@@ -153,7 +153,7 @@
 
 <div class="tabs">
   <button class="tab active" onclick="switchTab('liquidaciones')">💰 Liquidaciones</button>
-  <button class="tab" onclick="switchTab('cobros')">🧾 Cobros</button>
+  <button class="tab" onclick="switchTab('cobros')">🧾 Pagos</button>
   <button class="tab" onclick="switchTab('comisiones')">⚙️ Config. Comisiones</button>
 </div>
 
@@ -180,18 +180,25 @@
   </div>
 </div>
 
-<!-- COBROS PANEL (Fase 4 — buscador + emisión de recibo) -->
+<!-- PAGOS PANEL (Fase 4 — buscador + emisión de recibo) -->
 <div class="tab-panel" id="panel-cobros">
   <div class="selector-bar">
     <label>Buscar:</label>
-    <input id="cob-q" type="text" placeholder="Nombre de persona o caballeriza…" style="flex:1;min-width:220px;"
+    <input id="cob-q" type="text" placeholder="Nombre, apellido, DNI o caballeriza…" style="flex:1;min-width:200px;"
            oninput="cobrosBuscarDebounced()">
+    <select id="cob-reunion" onchange="cobLoadCarreras()" style="min-width:160px;">
+      <option value="">— Toda reunión —</option>
+    </select>
+    <select id="cob-carrera" onchange="cobrosBuscar()" style="min-width:130px;">
+      <option value="">— Toda carrera —</option>
+    </select>
     <button class="btn-primary" onclick="cobrosBuscar()">🔍 Buscar</button>
   </div>
   <div class="content">
     <p style="color:var(--muted);font-size:12px;margin-bottom:10px;">
-      Muestra personas con deuda cobrable (impago o retenido ya liberado), cruzando reuniones.
-      No incluye fondo solidario (club). Peón/capataz/sereno cobran dentro del recibo del entrenador.</p>
+      Personas con deuda pagable (impago), cruzando reuniones. No incluye fondo solidario (club).
+      Peón/capataz/sereno se pagan dentro del recibo del entrenador. La retención por doping se
+      habilita a mano antes de pagar.</p>
     <div id="cob-beneficiarios"><div class="empty-state"><div class="icon">🧾</div><h3>Buscá una persona para ver su deuda</h3></div></div>
     <div id="cob-detalle"></div>
   </div>
@@ -373,6 +380,7 @@ function switchTab(name) {
   document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',['liquidaciones','cobros','comisiones'][i]===name));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id===`panel-${name}`));
   if (name==='comisiones') { loadReparto(); loadComisiones(); }
+  if (name==='cobros') { cobInit(); }
 }
 
 function loadReparto() {
@@ -443,9 +451,9 @@ async function saveReparto() {
 async function init() {
   const [{ data: reuns }, { data: profs }, { data: clubData }, { data: props }, { data: liqCfgData }] = await Promise.all([
     sb.from('reuniones').select('id,numero,fecha,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
-    sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID).order('apellido'),
+    sb.from('profesionales').select('id,nombre,apellido,tipo,documento_nro').eq('club_id', CLUB_ID).order('apellido'),
     sb.from('clubs').select('*').eq('id', CLUB_ID).single(),
-    sb.from('propietarios').select('id,nombre').eq('activo', true),
+    sb.from('propietarios').select('id,nombre,nombre_stud,documento_nro').eq('activo', true),
     sb.from('liquidacion_config').select('*').eq('club_id', CLUB_ID).eq('activo', true).maybeSingle(),
   ]);
   liqConfig = liqCfgData || null;
@@ -600,10 +608,11 @@ function imprimirRecibo() {
 }
 
 // ════════════ COBROS (Fase 4) — buscador + emisión de recibo ════════════
-// Pagable = impago OR (retenido AND fecha_liberacion <= hoy). Excluye beneficiario_tipo='club'.
+// PAGOS — Pagable = estado_linea='impago' (la retención se libera A MANO con liberar_linea).
 let cobLineas = [];        // líneas pagables del beneficiario seleccionado
 let cobBenef = null;       // {tipo, id, nombre}
 let cobCaballerizas = [];  // {nombre, propietario_id} para resolver búsqueda por caballeriza
+let cobReunInit = false;
 let _cobDebounce = null;
 function cobrosBuscarDebounced(){ clearTimeout(_cobDebounce); _cobDebounce=setTimeout(cobrosBuscar, 300); }
 
@@ -611,19 +620,51 @@ function nombreBenef(tipo, id){
   if (tipo==='propietario') return propietariosMap[id]?.nombre || '(propietario)';
   const p = profesionales[id]; return p ? `${p.apellido}, ${p.nombre}` : '(profesional)';
 }
+// string de búsqueda por beneficiario: nombre/apellido/DNI (+ nombre_stud en propietarios)
+function benefSearch(tipo, id){
+  if (tipo==='propietario'){ const p=propietariosMap[id]||{}; return [p.nombre,p.nombre_stud,p.documento_nro].filter(Boolean).join(' ').toLowerCase(); }
+  const p=profesionales[id]||{}; return [p.nombre,p.apellido,p.documento_nro].filter(Boolean).join(' ').toLowerCase();
+}
 function hoyISO(){ const d=new Date(); return new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())).toISOString().slice(0,10); }
+
+// Poblar el select de reunión del tab Pagos (una vez) reusando las opciones de sel-reunion.
+function cobInit(){
+  if (cobReunInit) return; cobReunInit = true;
+  const src = document.getElementById('sel-reunion');
+  const dst = document.getElementById('cob-reunion');
+  dst.innerHTML = '<option value="">— Toda reunión —</option>' +
+    [...src.options].filter(o=>o.value).map(o=>`<option value="${o.value}">${o.textContent}</option>`).join('');
+}
+async function cobLoadCarreras(){
+  const rid = document.getElementById('cob-reunion').value;
+  const sel = document.getElementById('cob-carrera');
+  sel.innerHTML = '<option value="">— Toda carrera —</option>';
+  if (rid){
+    const { data } = await sb.from('carreras').select('id,numero_turno,numero_carrera_programa').eq('reunion_id',rid).order('numero_turno');
+    // GOTCHA: numero_carrera_programa puede ser null → fallback numero_turno
+    sel.innerHTML += (data||[]).map(c=>`<option value="${c.id}">Carrera ${c.numero_carrera_programa ?? c.numero_turno}</option>`).join('');
+  }
+  cobrosBuscar();
+}
 
 async function cobrosBuscar(){
   const q = (document.getElementById('cob-q').value||'').trim().toLowerCase();
+  const rid = document.getElementById('cob-reunion')?.value || '';
+  const carreraId = document.getElementById('cob-carrera')?.value || '';
   document.getElementById('cob-detalle').innerHTML = '';
   document.getElementById('cob-beneficiarios').innerHTML = '<div class="loading-state"><div class="spinner"></div></div>';
-  const hoy = hoyISO();
-  // líneas pagables, persona (no club), del club vía reunion→club ya está en la línea (reunion_id);
-  // filtramos por estado/fecha y beneficiario_tipo.
-  const { data, error } = await sb.from('liquidacion_detalle')
-    .select('beneficiario_tipo,beneficiario_id,monto_neto,estado_linea,fecha_liberacion')
-    .neq('beneficiario_tipo','club').is('recibo_id', null)
-    .or(`estado_linea.eq.impago,and(estado_linea.eq.retenido,fecha_liberacion.lte.${hoy})`);
+  // si hay carrera, acotar a las inscripciones de esa carrera
+  let inscFiltro = null;
+  if (carreraId){
+    const { data: ins } = await sb.from('inscripciones').select('id').eq('carrera_id', carreraId);
+    inscFiltro = new Set((ins||[]).map(i=>i.id));
+  }
+  // líneas pagables (SOLO impago), persona (no club), sin recibo. Scope opcional por reunión.
+  let qy = sb.from('liquidacion_detalle')
+    .select('beneficiario_tipo,beneficiario_id,monto_neto,reunion_id,inscripcion_id')
+    .eq('estado_linea','impago').neq('beneficiario_tipo','club').is('recibo_id', null);
+  if (rid) qy = qy.eq('reunion_id', rid);
+  const { data, error } = await qy;
   if (error) { toast(error.message,'error'); document.getElementById('cob-beneficiarios').innerHTML=''; return; }
   // caballerizas → propietario titular (para búsqueda por caballeriza)
   if (!cobCaballerizas.length) {
@@ -632,62 +673,74 @@ async function cobrosBuscar(){
     cobCaballerizas = (cab||[]).map(c=>({nombre:(c.caballerizas?.nombre||'').toLowerCase(), propietario_id:c.propietario_id}));
   }
   const propIdsPorCaballeriza = q ? new Set(cobCaballerizas.filter(c=>c.nombre.includes(q)).map(c=>c.propietario_id)) : new Set();
-  // agrupar por beneficiario
+  // agrupar por beneficiario (aplicando filtro de carrera si corresponde)
   const grupos = {};
   for (const l of (data||[])) {
+    if (inscFiltro && !inscFiltro.has(l.inscripcion_id)) continue;
     const k = `${l.beneficiario_tipo}|${l.beneficiario_id}`;
     if (!grupos[k]) grupos[k] = {tipo:l.beneficiario_tipo, id:l.beneficiario_id, total:0, n:0};
     grupos[k].total += parseFloat(l.monto_neto)||0; grupos[k].n++;
   }
   let lista = Object.values(grupos).map(g=>({...g, nombre:nombreBenef(g.tipo,g.id)}));
-  if (q) lista = lista.filter(g => g.nombre.toLowerCase().includes(q) || propIdsPorCaballeriza.has(g.id));
+  if (q) lista = lista.filter(g => benefSearch(g.tipo,g.id).includes(q) || propIdsPorCaballeriza.has(g.id));
   lista.sort((a,b)=>b.total-a.total);
   const cont = document.getElementById('cob-beneficiarios');
-  if (!lista.length) { cont.innerHTML = '<div class="empty-state"><div class="icon">∅</div><h3>Sin deuda cobrable para esa búsqueda</h3></div>'; return; }
+  if (!lista.length) { cont.innerHTML = '<div class="empty-state"><div class="icon">∅</div><h3>Sin deuda pagable para esa búsqueda</h3></div>'; return; }
   cont.innerHTML = `<div class="liq-grid">${lista.map(g=>`<div class="liq-card">
     <div class="liq-header">
       <div><div class="liq-prof">${g.nombre}</div><div class="liq-recibo">${g.tipo} · ${g.n} línea(s) pagable(s)</div></div>
       <div style="display:flex;gap:16px;align-items:center;">
         <div class="monto-item"><div class="monto-lbl">Adeudado</div><div class="monto-val neto">${fmt(g.total)}</div></div>
-        <button class="btn-sm btn-pagar" onclick="cobrosDetalle('${g.tipo}','${g.id}')">🧾 Cobrar</button>
+        <button class="btn-sm btn-pagar" onclick="cobrosDetalle('${g.tipo}','${g.id}')">🧾 Pagar</button>
       </div>
     </div></div>`).join('')}</div>`;
 }
 
 async function cobrosDetalle(tipo, id){
   cobBenef = {tipo, id, nombre:nombreBenef(tipo,id)};
-  const hoy = hoyISO();
-  const { data, error } = await sb.from('liquidacion_detalle')
-    .select('id,concepto,descripcion,monto_neto,estado_linea,fecha_liberacion,posicion,reunion_id,inscripcion_id')
-    .eq('beneficiario_tipo',tipo).eq('beneficiario_id',id).is('recibo_id',null)
-    .or(`estado_linea.eq.impago,and(estado_linea.eq.retenido,fecha_liberacion.lte.${hoy})`);
-  if (error) { toast(error.message,'error'); return; }
-  cobLineas = data||[];
+  // pagables = SOLO impago; retenidas aparte
+  const [{ data: pag, error: ePag }, { data: ret }] = await Promise.all([
+    sb.from('liquidacion_detalle')
+      .select('id,concepto,monto_neto,posicion,reunion_id,inscripcion_id')
+      .eq('beneficiario_tipo',tipo).eq('beneficiario_id',id).is('recibo_id',null).eq('estado_linea','impago'),
+    sb.from('liquidacion_detalle')
+      .select('id,concepto,monto_neto,posicion,reunion_id,inscripcion_id,fecha_liberacion')
+      .eq('beneficiario_tipo',tipo).eq('beneficiario_id',id).is('recibo_id',null).eq('estado_linea','retenido'),
+  ]);
+  if (ePag) { toast(ePag.message,'error'); return; }
+  cobLineas = pag||[];
+  const retLineas = ret||[];
   // enriquecer: fecha de reunión + caballo/carrera (via inscripcion → carreras + spcs)
-  const reunIds=[...new Set(cobLineas.map(l=>l.reunion_id).filter(Boolean))];
-  const inscIds=[...new Set(cobLineas.map(l=>l.inscripcion_id).filter(Boolean))];
+  const all = [...cobLineas, ...retLineas];
+  const reunIds=[...new Set(all.map(l=>l.reunion_id).filter(Boolean))];
+  const inscIds=[...new Set(all.map(l=>l.inscripcion_id).filter(Boolean))];
   const [{data:reuns},{data:inscs}] = await Promise.all([
     reunIds.length? sb.from('reuniones').select('id,fecha,numero').in('id',reunIds):Promise.resolve({data:[]}),
-    inscIds.length? sb.from('inscripciones').select('id,carrera_id,spcs(nombre),carreras(numero_turno)').in('id',inscIds):Promise.resolve({data:[]}),
+    inscIds.length? sb.from('inscripciones').select('id,carrera_id,spcs(nombre),carreras(numero_turno,numero_carrera_programa)').in('id',inscIds):Promise.resolve({data:[]}),
   ]);
   const reunMap=Object.fromEntries((reuns||[]).map(r=>[r.id,r])); const inscMap=Object.fromEntries((inscs||[]).map(i=>[i.id,i]));
+  const cellFecha=l=>{const r=reunMap[l.reunion_id];return r?new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR'):'—';};
+  const cellCarrera=l=>{const ins=inscMap[l.inscripcion_id];const n=ins?.carreras?.numero_carrera_programa ?? ins?.carreras?.numero_turno;return n?`C${n}`:'—';};
+  const cellCaballo=l=>inscMap[l.inscripcion_id]?.spcs?.nombre||'—';
   const total = cobLineas.reduce((s,l)=>s+(parseFloat(l.monto_neto)||0),0);
-  const rows = cobLineas.map(l=>{
-    const r=reunMap[l.reunion_id]; const ins=inscMap[l.inscripcion_id];
-    const fecha=r?new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR'):'—';
-    const carrera=ins?.carreras?.numero_turno?`T${ins.carreras.numero_turno}`:'—';
-    const caballo=ins?.spcs?.nombre||'—'; const puesto=l.posicion?`${l.posicion}°`:'—';
-    return `<tr><td><input type="checkbox" class="cob-chk" value="${l.id}" data-monto="${l.monto_neto}" checked onchange="cobrosRecalc()"></td>
-      <td>${fecha}</td><td>${carrera}</td><td>${caballo}</td><td>${puesto}</td><td>${l.concepto||''}</td>
-      <td style="text-align:right">${fmt(l.monto_neto)}</td></tr>`;
-  }).join('');
+  const rows = cobLineas.map(l=>`<tr><td><input type="checkbox" class="cob-chk" value="${l.id}" data-monto="${l.monto_neto}" checked onchange="cobrosRecalc()"></td>
+      <td>${cellFecha(l)}</td><td>${cellCarrera(l)}</td><td>${cellCaballo(l)}</td><td>${l.posicion?l.posicion+'°':'—'}</td><td>${l.concepto||''}</td>
+      <td style="text-align:right">${fmt(l.monto_neto)}</td></tr>`).join('');
+  const retRows = retLineas.map(l=>`<tr>
+      <td>${cellFecha(l)}</td><td>${cellCarrera(l)}</td><td>${cellCaballo(l)}</td><td>${l.posicion?l.posicion+'°':'—'}</td><td>${l.concepto||''}</td>
+      <td style="text-align:right">${fmt(l.monto_neto)}</td>
+      <td style="font-size:11px;color:var(--muted)">ref. ${l.fecha_liberacion||'—'}</td>
+      <td><button class="btn-sm btn-aprobar" onclick="habilitarLinea('${l.id}','${tipo}','${id}')">✅ Habilitar</button></td></tr>`).join('');
   document.getElementById('cob-detalle').innerHTML = `
     <div class="config-card" style="margin-top:16px;">
-      <h2 style="font-size:18px;color:var(--accent);margin-bottom:6px;">Cobro — ${cobBenef.nombre}</h2>
+      <h2 style="font-size:18px;color:var(--accent);margin-bottom:6px;">Pago — ${cobBenef.nombre}</h2>
       <table class="detalle-table"><thead><tr><th></th><th>Fecha</th><th>Carrera</th><th>Caballo</th><th>Puesto</th><th>Concepto</th><th style="text-align:right">Neto</th></tr></thead>
         <tbody>${rows||'<tr><td colspan="7" style="text-align:center;padding:14px;color:var(--muted)">Sin líneas pagables</td></tr>'}</tbody>
         <tfoot><tr><td colspan="6">TOTAL SELECCIONADO</td><td style="text-align:right;color:var(--success)" id="cob-total">${fmt(total)}</td></tr></tfoot>
       </table>
+      ${retLineas.length?`<h3 style="font-size:14px;color:var(--danger);margin:16px 0 6px;">🔒 Retenido por doping — habilitar para poder pagar</h3>
+      <table class="detalle-table"><thead><tr><th>Fecha</th><th>Carrera</th><th>Caballo</th><th>Puesto</th><th>Concepto</th><th style="text-align:right">Neto</th><th>Liberación</th><th></th></tr></thead>
+        <tbody>${retRows}</tbody></table>`:''}
       <div class="config-grid" style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;">
         <div class="form-group"><label>Forma de pago</label>
           <select id="cob-forma" onchange="cobrosFormaPago()"><option value="efectivo">Efectivo (con firma)</option><option value="transferencia">Transferencia (sin firma)</option></select></div>
@@ -707,6 +760,15 @@ function cobrosRecalc(){
 }
 function cobrosFormaPago(){
   document.getElementById('cob-comp-wrap').style.display = document.getElementById('cob-forma').value==='transferencia'?'':'none';
+}
+
+// Habilitar (liberar) una línea retenida por doping → pasa a impago (pagable). Liberación MANUAL.
+async function habilitarLinea(lineaId, tipo, id){
+  if (!confirm('¿Habilitar esta línea retenida por doping? Pasa a pagable.')) return;
+  const { error } = await sb.rpc('liberar_linea', { p_linea_id: lineaId });
+  if (error) { toast(error.message,'error'); return; }
+  toast('Línea habilitada');
+  cobrosDetalle(tipo, id);   // refresca el detalle (pasa de retenida a pagable)
 }
 
 async function cobrosEmitir(){
