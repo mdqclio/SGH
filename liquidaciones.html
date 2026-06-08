@@ -153,6 +153,7 @@
 
 <div class="tabs">
   <button class="tab active" onclick="switchTab('liquidaciones')">💰 Liquidaciones</button>
+  <button class="tab" onclick="switchTab('cobros')">🧾 Cobros</button>
   <button class="tab" onclick="switchTab('comisiones')">⚙️ Config. Comisiones</button>
 </div>
 
@@ -176,6 +177,23 @@
     <div id="liq-container">
       <div class="empty-state"><div class="icon">💰</div><h3>Seleccionar una reunión o generar liquidaciones automáticamente</h3></div>
     </div>
+  </div>
+</div>
+
+<!-- COBROS PANEL (Fase 4 — buscador + emisión de recibo) -->
+<div class="tab-panel" id="panel-cobros">
+  <div class="selector-bar">
+    <label>Buscar:</label>
+    <input id="cob-q" type="text" placeholder="Nombre de persona o caballeriza…" style="flex:1;min-width:220px;"
+           oninput="cobrosBuscarDebounced()">
+    <button class="btn-primary" onclick="cobrosBuscar()">🔍 Buscar</button>
+  </div>
+  <div class="content">
+    <p style="color:var(--muted);font-size:12px;margin-bottom:10px;">
+      Muestra personas con deuda cobrable (impago o retenido ya liberado), cruzando reuniones.
+      No incluye fondo solidario (club). Peón/capataz/sereno cobran dentro del recibo del entrenador.</p>
+    <div id="cob-beneficiarios"><div class="empty-state"><div class="icon">🧾</div><h3>Buscá una persona para ver su deuda</h3></div></div>
+    <div id="cob-detalle"></div>
   </div>
 </div>
 
@@ -352,7 +370,7 @@ function fmtInput(el) {
 }
 
 function switchTab(name) {
-  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',['liquidaciones','comisiones'][i]===name));
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',['liquidaciones','cobros','comisiones'][i]===name));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id===`panel-${name}`));
   if (name==='comisiones') { loadReparto(); loadComisiones(); }
 }
@@ -577,6 +595,179 @@ function imprimirRecibo() {
       <p style="font-size:16px;">TOTAL NETO A PAGAR: ${fmt(liq.total_neto)}</p>
     </div>
     <p style="margin-top:40px;font-size:11px;text-align:center;">Firma y sello: _____________________</p>
+  </div>`;
+  window.print();
+}
+
+// ════════════ COBROS (Fase 4) — buscador + emisión de recibo ════════════
+// Pagable = impago OR (retenido AND fecha_liberacion <= hoy). Excluye beneficiario_tipo='club'.
+let cobLineas = [];        // líneas pagables del beneficiario seleccionado
+let cobBenef = null;       // {tipo, id, nombre}
+let cobCaballerizas = [];  // {nombre, propietario_id} para resolver búsqueda por caballeriza
+let _cobDebounce = null;
+function cobrosBuscarDebounced(){ clearTimeout(_cobDebounce); _cobDebounce=setTimeout(cobrosBuscar, 300); }
+
+function nombreBenef(tipo, id){
+  if (tipo==='propietario') return propietariosMap[id]?.nombre || '(propietario)';
+  const p = profesionales[id]; return p ? `${p.apellido}, ${p.nombre}` : '(profesional)';
+}
+function hoyISO(){ const d=new Date(); return new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())).toISOString().slice(0,10); }
+
+async function cobrosBuscar(){
+  const q = (document.getElementById('cob-q').value||'').trim().toLowerCase();
+  document.getElementById('cob-detalle').innerHTML = '';
+  document.getElementById('cob-beneficiarios').innerHTML = '<div class="loading-state"><div class="spinner"></div></div>';
+  const hoy = hoyISO();
+  // líneas pagables, persona (no club), del club vía reunion→club ya está en la línea (reunion_id);
+  // filtramos por estado/fecha y beneficiario_tipo.
+  const { data, error } = await sb.from('liquidacion_detalle')
+    .select('beneficiario_tipo,beneficiario_id,monto_neto,estado_linea,fecha_liberacion')
+    .neq('beneficiario_tipo','club').is('recibo_id', null)
+    .or(`estado_linea.eq.impago,and(estado_linea.eq.retenido,fecha_liberacion.lte.${hoy})`);
+  if (error) { toast(error.message,'error'); document.getElementById('cob-beneficiarios').innerHTML=''; return; }
+  // caballerizas → propietario titular (para búsqueda por caballeriza)
+  if (!cobCaballerizas.length) {
+    const { data: cab } = await sb.from('caballeriza_responsables')
+      .select('propietario_id, caballerizas(nombre)').eq('es_titular', true).not('propietario_id','is',null);
+    cobCaballerizas = (cab||[]).map(c=>({nombre:(c.caballerizas?.nombre||'').toLowerCase(), propietario_id:c.propietario_id}));
+  }
+  const propIdsPorCaballeriza = q ? new Set(cobCaballerizas.filter(c=>c.nombre.includes(q)).map(c=>c.propietario_id)) : new Set();
+  // agrupar por beneficiario
+  const grupos = {};
+  for (const l of (data||[])) {
+    const k = `${l.beneficiario_tipo}|${l.beneficiario_id}`;
+    if (!grupos[k]) grupos[k] = {tipo:l.beneficiario_tipo, id:l.beneficiario_id, total:0, n:0};
+    grupos[k].total += parseFloat(l.monto_neto)||0; grupos[k].n++;
+  }
+  let lista = Object.values(grupos).map(g=>({...g, nombre:nombreBenef(g.tipo,g.id)}));
+  if (q) lista = lista.filter(g => g.nombre.toLowerCase().includes(q) || propIdsPorCaballeriza.has(g.id));
+  lista.sort((a,b)=>b.total-a.total);
+  const cont = document.getElementById('cob-beneficiarios');
+  if (!lista.length) { cont.innerHTML = '<div class="empty-state"><div class="icon">∅</div><h3>Sin deuda cobrable para esa búsqueda</h3></div>'; return; }
+  cont.innerHTML = `<div class="liq-grid">${lista.map(g=>`<div class="liq-card">
+    <div class="liq-header">
+      <div><div class="liq-prof">${g.nombre}</div><div class="liq-recibo">${g.tipo} · ${g.n} línea(s) pagable(s)</div></div>
+      <div style="display:flex;gap:16px;align-items:center;">
+        <div class="monto-item"><div class="monto-lbl">Adeudado</div><div class="monto-val neto">${fmt(g.total)}</div></div>
+        <button class="btn-sm btn-pagar" onclick="cobrosDetalle('${g.tipo}','${g.id}')">🧾 Cobrar</button>
+      </div>
+    </div></div>`).join('')}</div>`;
+}
+
+async function cobrosDetalle(tipo, id){
+  cobBenef = {tipo, id, nombre:nombreBenef(tipo,id)};
+  const hoy = hoyISO();
+  const { data, error } = await sb.from('liquidacion_detalle')
+    .select('id,concepto,descripcion,monto_neto,estado_linea,fecha_liberacion,posicion,reunion_id,inscripcion_id')
+    .eq('beneficiario_tipo',tipo).eq('beneficiario_id',id).is('recibo_id',null)
+    .or(`estado_linea.eq.impago,and(estado_linea.eq.retenido,fecha_liberacion.lte.${hoy})`);
+  if (error) { toast(error.message,'error'); return; }
+  cobLineas = data||[];
+  // enriquecer: fecha de reunión + caballo/carrera (via inscripcion → carreras + spcs)
+  const reunIds=[...new Set(cobLineas.map(l=>l.reunion_id).filter(Boolean))];
+  const inscIds=[...new Set(cobLineas.map(l=>l.inscripcion_id).filter(Boolean))];
+  const [{data:reuns},{data:inscs}] = await Promise.all([
+    reunIds.length? sb.from('reuniones').select('id,fecha,numero').in('id',reunIds):Promise.resolve({data:[]}),
+    inscIds.length? sb.from('inscripciones').select('id,carrera_id,spcs(nombre),carreras(numero_turno)').in('id',inscIds):Promise.resolve({data:[]}),
+  ]);
+  const reunMap=Object.fromEntries((reuns||[]).map(r=>[r.id,r])); const inscMap=Object.fromEntries((inscs||[]).map(i=>[i.id,i]));
+  const total = cobLineas.reduce((s,l)=>s+(parseFloat(l.monto_neto)||0),0);
+  const rows = cobLineas.map(l=>{
+    const r=reunMap[l.reunion_id]; const ins=inscMap[l.inscripcion_id];
+    const fecha=r?new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR'):'—';
+    const carrera=ins?.carreras?.numero_turno?`T${ins.carreras.numero_turno}`:'—';
+    const caballo=ins?.spcs?.nombre||'—'; const puesto=l.posicion?`${l.posicion}°`:'—';
+    return `<tr><td><input type="checkbox" class="cob-chk" value="${l.id}" data-monto="${l.monto_neto}" checked onchange="cobrosRecalc()"></td>
+      <td>${fecha}</td><td>${carrera}</td><td>${caballo}</td><td>${puesto}</td><td>${l.concepto||''}</td>
+      <td style="text-align:right">${fmt(l.monto_neto)}</td></tr>`;
+  }).join('');
+  document.getElementById('cob-detalle').innerHTML = `
+    <div class="config-card" style="margin-top:16px;">
+      <h2 style="font-size:18px;color:var(--accent);margin-bottom:6px;">Cobro — ${cobBenef.nombre}</h2>
+      <table class="detalle-table"><thead><tr><th></th><th>Fecha</th><th>Carrera</th><th>Caballo</th><th>Puesto</th><th>Concepto</th><th style="text-align:right">Neto</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="7" style="text-align:center;padding:14px;color:var(--muted)">Sin líneas pagables</td></tr>'}</tbody>
+        <tfoot><tr><td colspan="6">TOTAL SELECCIONADO</td><td style="text-align:right;color:var(--success)" id="cob-total">${fmt(total)}</td></tr></tfoot>
+      </table>
+      <div class="config-grid" style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;">
+        <div class="form-group"><label>Forma de pago</label>
+          <select id="cob-forma" onchange="cobrosFormaPago()"><option value="efectivo">Efectivo (con firma)</option><option value="transferencia">Transferencia (sin firma)</option></select></div>
+        <div class="form-group"><label>Cobrador — nombre</label><input id="cob-cobrador" type="text" placeholder="Nombre del que cobra"></div>
+        <div class="form-group"><label>Cobrador — DNI</label><input id="cob-dni" type="text" placeholder="DNI"></div>
+        <div class="form-group" id="cob-comp-wrap" style="display:none;"><label>Comprobante (URL)</label><input id="cob-comprobante" type="text" placeholder="https://…"></div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <button class="btn-primary" onclick="cobrosEmitir()">🧾 Emitir recibo</button>
+      </div>
+    </div>`;
+}
+
+function cobrosRecalc(){
+  let t=0; document.querySelectorAll('.cob-chk:checked').forEach(c=>t+=parseFloat(c.dataset.monto)||0);
+  document.getElementById('cob-total').textContent = fmt(t);
+}
+function cobrosFormaPago(){
+  document.getElementById('cob-comp-wrap').style.display = document.getElementById('cob-forma').value==='transferencia'?'':'none';
+}
+
+async function cobrosEmitir(){
+  const ids = [...document.querySelectorAll('.cob-chk:checked')].map(c=>c.value);
+  if (!ids.length) { toast('Seleccioná al menos una línea','error'); return; }
+  const cobrador = document.getElementById('cob-cobrador').value.trim();
+  const dni = document.getElementById('cob-dni').value.trim();
+  if (!cobrador || !dni) { toast('Cargá nombre y DNI del cobrador','error'); return; }
+  const forma = document.getElementById('cob-forma').value;
+  const comprobante = forma==='transferencia' ? (document.getElementById('cob-comprobante').value.trim()||null) : null;
+  if (!confirm(`Emitir recibo para ${cobBenef.nombre} por ${ids.length} línea(s)? Marca las líneas como pagadas.`)) return;
+  const { data, error } = await sb.rpc('emitir_recibo', {
+    p_club_id: CLUB_ID, p_beneficiario_tipo: cobBenef.tipo, p_beneficiario_id: cobBenef.id,
+    p_linea_ids: ids, p_forma_pago: forma, p_cobrador_nombre: cobrador, p_cobrador_documento: dni, p_comprobante_url: comprobante,
+  });
+  if (error) { toast(error.message,'error'); return; }
+  const recibo = Array.isArray(data)?data[0]:data;
+  toast(`Recibo N° ${recibo.numero_recibo} emitido`);
+  imprimirReciboCobro(recibo, ids);
+  cobrosBuscar();   // refresca la lista (las líneas pagadas ya no aparecen)
+}
+
+async function imprimirReciboCobro(recibo, lineaIds){
+  // re-leer las líneas marcadas para el print
+  const { data: lns } = await sb.from('liquidacion_detalle')
+    .select('concepto,monto_neto,posicion,reunion_id,inscripcion_id').eq('recibo_id',recibo.id);
+  const reunIds=[...new Set((lns||[]).map(l=>l.reunion_id).filter(Boolean))];
+  const inscIds=[...new Set((lns||[]).map(l=>l.inscripcion_id).filter(Boolean))];
+  const [{data:reuns},{data:inscs}] = await Promise.all([
+    reunIds.length? sb.from('reuniones').select('id,fecha').in('id',reunIds):Promise.resolve({data:[]}),
+    inscIds.length? sb.from('inscripciones').select('id,spcs(nombre),carreras(numero_turno)').in('id',inscIds):Promise.resolve({data:[]}),
+  ]);
+  const reunMap=Object.fromEntries((reuns||[]).map(r=>[r.id,r])); const inscMap=Object.fromEntries((inscs||[]).map(i=>[i.id,i]));
+  const rows=(lns||[]).map(l=>{const r=reunMap[l.reunion_id];const ins=inscMap[l.inscripcion_id];
+    const fecha=r?new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR'):'—';
+    const carrera=ins?.carreras?.numero_turno?`T${ins.carreras.numero_turno}`:'—'; const caballo=ins?.spcs?.nombre||'—';
+    const puesto=l.posicion?`${l.posicion}°`:'—';
+    return `<tr><td>${fecha}</td><td>${carrera}</td><td>${caballo}</td><td>${puesto}</td><td>${l.concepto||''}</td><td style="text-align:right">${fmt(l.monto_neto)}</td></tr>`;}).join('');
+  const esEfectivo = recibo.forma_pago==='efectivo';
+  document.getElementById('recibo-print').innerHTML = `<div class="recibo-container">
+    <div class="recibo-header">
+      <h2>${club?.nombre||'SGH'}</h2>
+      <p>${club?.domicilio||''} — ${club?.localidad||''}, ${club?.provincia||''}</p>
+      <p>CUIT: ${club?.cuit||''} | Tel: ${club?.telefono||''}</p>
+      <h3 style="margin-top:10px;">RECIBO DE PAGO N° ${recibo.numero_recibo}</h3>
+      <p>Fecha: ${new Date().toLocaleDateString('es-AR')} · Forma de pago: ${recibo.forma_pago}</p>
+    </div>
+    <p><strong>Beneficiario:</strong> ${cobBenef?.nombre||'—'}</p>
+    <p><strong>Cobrador:</strong> ${recibo.cobrador_nombre||''} — DNI ${recibo.cobrador_documento||''}</p>
+    <table class="recibo-table">
+      <thead><tr><th>Fecha</th><th>Carrera</th><th>Caballo</th><th>Puesto</th><th>Concepto</th><th>Neto</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="recibo-total">
+      <p>Total premios: ${fmt(recibo.total_premios)}</p>
+      <p>Descuentos: -${fmt(recibo.total_descuentos)}</p>
+      <p style="font-size:16px;">NETO A COBRAR: ${fmt(recibo.neto_a_cobrar)}</p>
+    </div>
+    ${esEfectivo
+      ? '<p style="margin-top:40px;font-size:11px;text-align:center;">Firma del cobrador: _____________________</p>'
+      : '<p style="margin-top:40px;font-size:11px;text-align:center;">Transferencia — comprobante adjunto'+(recibo.comprobante_url?': '+recibo.comprobante_url:'')+'</p>'}
   </div>`;
   window.print();
 }
