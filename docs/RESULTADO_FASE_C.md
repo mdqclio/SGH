@@ -112,13 +112,65 @@
        }
 ```
 
-## Verificación (R5 `c90b6186-268d-4089-8cc6-71626b627cf8`, vía Supabase MCP)
+## ✅ Verificación REAL-CODE (NO UPDATE) — `tests/probe_fase_c.mjs`
 
-R5: fecha `2026-05-17` · `dias_antidoping` 30 → `fecha_liberacion` = **2026-06-16** (futura; hoy 2026-06-08).
+**Corrida del código REAL de `generarLiquidaciones()`**, no una réplica vía UPDATE. El probe
+extrae el cuerpo de la función de `liquidaciones.html` (working tree, esta rama) y lo ejecuta
+vía `AsyncFunction` con un cliente Supabase real + stubs de DOM (mismo método que
+`probe_fase2_liquidaciones.mjs`). Browser descartado: `npx playwright install chromium` →
+`"Playwright does not support chromium on ubuntu26.04-x64"`. La clave server-side se lee de
+`process.env.SUPABASE_SECRET_KEY` (vía `.env`, gitignoreado; nunca hardcodeada).
 
-> Nota: el `generarLiquidaciones` del browser no corre headless. Se replicó la regla EXACTA del
-> código nuevo vía `UPDATE` sobre las 16 filas de R5 (lógica monetaria intacta, solo
-> `estado_linea`/`fecha_liberacion`), respetando el guard `pagado`/`recibo_id`.
+- **Reunión:** `b02ca761-6f44-4720-86aa-a3c3099019ea` (Dolores), fecha **2026-06-20**, `dias_antidoping` **30** → `fecha_liberacion` esperada **2026-07-20**.
+- **Por qué dispara NOTA-A:** carrera turno 1 con resultado **oficial**; el 1° (Jose Perez) y el 2° (Claudio Borgui) tienen `propietario_id` + peón/capataz/sereno cargados → se generan premio(1°/2°) **y** sus sub-líneas `actuacion`.
+- **Snapshot → run real → assert → restore:** snapshot 12 liquidaciones / 29 detalle; restaurado idéntico al final (verificado por MCP: 12 / 29 / 0 no-impago / 1 oficial intacto). No se tocaron resultados ni roles.
+
+### Distribución generada por el código real (concepto_tipo / posición / estado_linea)
+
+| concepto_tipo | posición | estado_linea | filas | libera |
+|---|---|---|---|---|
+| premio | 1 | **retenido** | 3 | 2026-07-20 |
+| premio | 2 | **retenido** | 3 | 2026-07-20 |
+| premio | 3 | impago | 2 | — |
+| premio | 4 | impago | 3 | — |
+| premio | 5 | impago | 3 | — |
+| **actuacion** | **1** | **retenido** | 3 | 2026-07-20 |
+| **actuacion** | **2** | **retenido** | 3 | 2026-07-20 |
+| actuacion | 3 | impago | 3 | — |
+| actuacion | 4 | impago | 3 | — |
+| actuacion | 5 | impago | 3 | — |
+| bono | 6 | impago | 1 | — |
+| fondo_solidario | 1-5 | impago | 5 | — |
+
+**NOTA-A gatillada por datos:** las 6 sub-líneas `actuacion` de 1°/2° quedaron **retenido + 2026-07-20**, igual que el premio del que derivan.
+
+### Checks (11/11 ✅)
+
+```
+✅ 1  premio 1°/2° generados (n=6)
+✅ 1a premio 1°/2° → estado_linea=retenido (6/6)
+✅ 1b premio 1°/2° → fecha_liberacion = fecha_reunion + dias_antidoping (2026-07-20)
+✅ 2  sub-líneas actuacion 1°/2° generadas (n=6) — NOTA-A gatillada
+✅ 2a actuacion 1°/2° → retenido (6/6)
+✅ 2b actuacion 1°/2° → misma fecha_liberacion que el premio (2026-07-20)
+✅ 3  resto → impago + fecha null (0/23 malas)
+✅ (b) invariante retenido — inválidas = 0
+✅ (c) premio/actuacion 1°/2° impago = 0
+✅ (fecha) 2026-06-20 + 30d = 2026-07-20 (sin corrimiento N-1)
+✅ R1 restore liquidaciones (12 == 12)
+```
+
+**Invariantes (b) y (c) = 0 en corrida REAL.** `fecha_liberacion` exacta `2026-07-20` (sin N-1).
+
+---
+
+## Verificación previa (R5, réplica vía UPDATE — referencia)
+
+> Histórica. R5 (`c90b6186…`) no tenía peón/capataz/sereno en 1°/2°, así que NO gatillaba
+> NOTA-A; se replicó la regla vía `UPDATE` (no corría el código real). Superada por la
+> corrida real-code de arriba. Se deja como referencia.
+
+R5: fecha `2026-05-17` · `dias_antidoping` 30 → `fecha_liberacion` = **2026-06-16**.
 
 ### (a) distribución por concepto / posición / estado
 
@@ -156,4 +208,4 @@ para esos puestos; la herencia NOTA-A está en el código, sin datos que la gati
 
 ## Conclusión
 
-**Invariantes (b) y (c) en 0: SÍ.** Premio 1°/2° retenido con liberación 2026-06-16; resto impago. Fase C verificada en R5. Rama `feat/liquidaciones-fase-c`, sin mergear a main.
+**Invariantes (b) y (c) en 0: SÍ — en corrida REAL-CODE** (`tests/probe_fase_c.mjs`, reunión `b02ca761`). El código real de `generarLiquidaciones` escribió: premio 1°/2° **y** sus sub-líneas `actuacion` → `retenido` + `fecha_liberacion=2026-07-20` (= fecha_reunion + 30, sin N-1); resto `impago`. NOTA-A confirmada con datos reales. 11/11 checks ✅, restore íntegro. Rama `feat/liquidaciones-fase-c`, sin mergear a main.
