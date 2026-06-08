@@ -75,7 +75,14 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 │   ├── smoke_t9_t16.mjs         Regresión bug 3b + optimistic lock
 │   ├── probe_nav_dirty.mjs      Navegación con cambios sin guardar
 │   ├── probe_tiempo_ganador.mjs Carga de tiempo ganador
-│   └── probe_estado_pista.mjs   Estado de pista
+│   ├── probe_estado_pista.mjs   Estado de pista
+│   ├── probe_incentivos_montas.mjs  Incentivos Bloque C (jockey 50k/reunión, entrenador 10k/caballo)
+│   ├── probe_recibos_emision.mjs    Fase 4 v1 — RPC emitir_recibo + buscador pagable
+│   └── probe_cobros_v11.mjs     Fase 4 v1.1 — liberar_linea + búsqueda + filtro carrera
+├── migrations/                  SQL versionado (fuente de verdad de DDL; aplicar por MCP)
+│   ├── emitir_recibo_fase4.sql  RPC emitir_recibo v1 (cobro atómico)
+│   ├── emitir_recibo_v1_1.sql   RPC emitir_recibo v1.1 (pagable = solo impago)
+│   └── liberar_linea.sql        RPC liberar_linea (liberación manual del doping)
 ```
 
 ---
@@ -310,7 +317,7 @@ Ver `docs/GOTCHAS.md` para la lista completa (40 entradas).
 - ✅ **Bug 3 (28/05/2026 — RESUELTO)**: `renderDivHTML` usaba `chapaAt(slot)` donde `slot` es el índice de fila de pago — GAN/SEG/TER mostraban todos el chip del 1°. Fix: `chapaAt(POS_SLOTS[tipo])`. Además: Fix A — `onMarcInput` marca con `.marc-invalid` mandiles que no corresponden a un ratificado (feedback visual, no bloquea). Fix B — `renderDivView` recibe `undefined` (no `[]`) cuando el override está vacío; `onMarcInput` aplica `tempPos.length ? tempPos : undefined`.
 
 ### Otros módulos
-- **liquidaciones.html**: estado real en `docs/ISSUES.md` (ISSUE-001) + gap vivo en `docs/LIQUIDACIONES_GAP_ANALYSIS.md`. Resumen: **Fase 0 (schema C+D), Fase 1 (config por club) y Fase 2 (fondo solidario, bono 6-8, incentivos) VIVAS en main/prod** (merge `ccef143`); **Fase C (estado_linea + retención anti-doping 1°/2°) VIVA en main** (`7e638c7`). Bloqueante de datos: `inscripciones.propietario_id` 10/95 (sin dueño no se liquida propietario ni bono 6-8 — GOTCHA #47); `spc_propietarios` 0. Pendientes (gap analysis): A backfill propietarios, 2bis oficializar reunión, 4 recibos, 5 resumen, 6 validar R5.
+- **liquidaciones.html**: estado real en `docs/ISSUES.md` (ISSUE-001) + gap vivo en `docs/LIQUIDACIONES_GAP_ANALYSIS.md`. Resumen: **Fase 0-2 + Fase C VIVAS** (merge `ccef143`, Fase C `7e638c7`); **incentivos montas** (jockey 50k/reunión, entrenador 10k/caballo — `47362ef`); **Fase 4 Pagos/recibos VIVO** — v1 buscador + RPC `emitir_recibo` (`1a50359`), v1.1 liberación **manual** del doping (RPC `liberar_linea`, pagable solo impago) + filtro carrera + búsqueda nombre/apellido/DNI (`4851129`); recibo con logo + firma (`154c83e`). Bloqueante de datos: `inscripciones.propietario_id` 10/95 (GOTCHA #47); `spc_propietarios` 0. Pendientes: **v1.2 autorizados** (ISSUE-028), Fase 5 resumen de reunión, 2bis oficializar, backfill propietarios, turno→carrera en recibo (ISSUE-029).
 - **portal.html / registro-profesional.html**: no construidos.
 - **ISSUE-018**: XSS — `innerHTML` con datos de DB sin escapar en varios módulos.
 - **ISSUE-007**: Calendario puede mostrar N-1 reuniones (bug de timezone).

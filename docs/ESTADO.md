@@ -4,7 +4,27 @@
 
 ---
 
-## 📸 Snapshot 2026-06-08 (arranque de sesión)
+## 📸 Snapshot 2026-06-08 (cierre de sesión) — el más nuevo
+
+> Autoritativo. Supera al snapshot de arranque de abajo.
+
+### Liquidaciones / Pagos — Fase 4 VIVO en main/prod
+- **Generación (Fase 0-2 + C):** reparto por config, fondo solidario, bono ganador (al 1°, por roles), bono 6-8 (100% propietario), **incentivos** (jockey 50k/reunión dedup, entrenador 10k/caballo — merge `47362ef`), retención automática 1°/2° (Fase C).
+- **Fase 4 — Pagos/recibos VIVO:**
+  - **v1** (merge `1a50359`): tab "🧾 Pagos", buscador por persona/caballeriza, detalle pagable cruzando reuniones, RPC `emitir_recibo` (número correlativo + recibo + marcado atómico), print.
+  - **v1.1** (merge `4851129`): **liberación del doping = MANUAL** — `emitir_recibo` pagable solo `impago`; RPC `liberar_linea` (retenido→impago) con botón Habilitar; filtro por carrera; búsqueda por nombre/apellido/DNI.
+  - **Recibo:** logo del club (`clubs.logo_url`) en membrete a la izquierda + firma sin recuadro (`6d1ed11`, `154c83e`).
+- **RPCs vivas en DB:** `fn_siguiente_recibo`, `emitir_recibo` (v1.1), `liberar_linea`.
+- **Pendientes:** **v1.2 tabla de autorizados** (autorizante→autorizado para cobrar por otro); **Fase 5 resumen de reunión**; **2bis oficializar reunión**; **backfill propietarios** (`inscripciones.propietario_id` 10/95, `spc_propietarios` 0); **turno→carrera en el recibo** (mostrar nº de carrera de programa, parkeado).
+- **Reglas Fede confirmadas hoy:** ver `docs/LIQUIDACIONES_MODELO.md` (incentivos, bonos, retención + liberación manual, recibo, autorizaciones).
+
+### Otros (sin cambio esta sesión)
+- E1 caballeriza-obligatoria NEUTRALIZADA en main (`7af005c`); Fix D vivo (`ccef143`). Backfill = reactivar E1.
+- Fix UI: `.modal` top-align (`a1565cd`).
+
+---
+
+## 📸 Snapshot 2026-06-08 (arranque de sesión) — superado por el de cierre (arriba)
 
 > Verificado contra repo/DB/git el 2026-06-08. Lo no confirmado va marcado **(sin confirmar)**.
 
@@ -28,10 +48,10 @@
 - **Modelo CERRADO:** `docs/LIQUIDACIONES_MODELO.md`. **Gap analysis (en main):** `docs/LIQUIDACIONES_GAP_ANALYSIS.md`.
 - **VIVO en main/prod:** Fase 0 (schema), Fase 1 (config por club), Fase 2 (fondo solidario 2% + bono 6-8 100% propietario + incentivos) — merge `ccef143`; **Fase C** (estado_linea + retención anti-doping 1°/2°) — `7e638c7`. → §1-6 + §8 del modelo = **7/9**.
   - Fase C: premio 1°/2° → `retenido` + `fecha_liberacion = reuniones.fecha + dias_antidoping` (30); NOTA-A: subs `actuacion` acompañan; NOTA-B: reunión sin fecha → retenido + warn; resto `impago`. Verificada real-code `tests/probe_fase_c.mjs` (11/11). Ver `docs/RESULTADO_FASE_C.md`, `docs/PLAN_FASE_C.md`.
-- **Faltan:** §7 recibo por persona (alto riesgo), §9 resumen de reunión.
+- **Faltan (al arranque; §7 recibo YA hecho en el cierre):** §9 resumen de reunión. Ver snapshot de cierre arriba.
 - **Bloqueante de datos (Fase A):** `inscripciones.propietario_id` **10/95** (85 NULL); `spc_propietarios` **0**. Sin dueño no se liquida propietario ni bono 6-8 (GOTCHA #47). Backfill bloqueado por dato/Fede.
 - **Pendiente de Fede:** mapping SPC→propietario; montos incentivo jockey/entrenador (hoy 0 → no se generan); regla de liberación anti-doping (¿auto 30d o gated por doping? **(sin confirmar)** — hoy auto).
-- **Fases siguientes:** A backfill (🟢 bloqueada) → 2bis oficializar reunión (🔴) → **C ✅** → 4 recibos (🔴) → 5 resumen (🟢) → 6 validar R5 (🟢).
+- **Fases siguientes (estado al cierre):** **C ✅** · **4 recibos ✅ (v1+v1.1)** · pendientes: A backfill, 2bis oficializar, 5 resumen, 6 validar R5, v1.2 autorizados.
 
 ### Ratificación
 - **E1 caballeriza-obligatoria NEUTRALIZADA en main** (commit `7af005c`, hard-block removido en 3 sitios de `ratificacion.html`; motivo: que Fede pueda ratificar sin caballeriza obligatoria mientras falta el backfill). Gate de **jockey** sigue activo. Reactivar = backfill SPC→caballeriza + `git revert 7af005c` con Fede avisado.

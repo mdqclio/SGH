@@ -101,11 +101,24 @@ Cada monto adeudado es una línea con estado:
 
 - **Impago / pendiente**
 - **Pagado** — queda saldado al emitir el recibo. Idempotente: no se paga dos veces.
-- **Retenido por anti-doping** — los premios del **1° y 2°** quedan retenidos **~30 días**
-  (configurable) por el control anti-doping privado que exige el reglamento. Es **automático
-  para todo 1° y 2°** (no hay flag de doping). El **recibo se puede emitir apenas termina la
-  carrera** con lo demás; las líneas retenidas se excluyen hasta liberarse y se cobran en un
-  recibo posterior. La emisión del recibo y la fecha de cobro son momentos distintos.
+- **Retenido por anti-doping** — los premios del **1° y 2°** se marcan `retenido` **automáticamente**
+  al generar (no hay flag de doping; Fase C). La **liberación es MANUAL** (confirmado Fede 2026-06-08):
+  la línea queda retenida hasta que la secretaría la **habilita a mano** cuando llega el resultado del
+  control anti-doping (RPC `liberar_linea`, botón "Habilitar" en Pagos). `fecha_liberacion` (reunión +
+  `dias_antidoping`, ~30) es **solo referencia**, NO libera sola. El **recibo se puede emitir apenas
+  termina la carrera** con lo demás; las retenidas se excluyen del pago hasta habilitarlas y se cobran
+  en un recibo posterior.
+
+## 8bis. Recibo — qué incluye (CONFIRMADO 2026-06-08)
+El recibo incluye **todo lo pagable** del beneficiario cruzando reuniones (premios, bonos, incentivos,
+actuaciones), **salvo lo retenido** no habilitado. Peón/capataz/sereno se pagan dentro del recibo del
+**entrenador** (ADR-025), no tienen recibo propio.
+
+## 8ter. Autorizaciones — pendiente v1.2 (ISSUE-028)
+Quien cobra puede ser el beneficiario **o un autorizado**. Se modela como **tabla guardada**:
+autorizante (cualquiera que cobra: propietario/profesional) → autorizado (nombre + DNI), con vigencia.
+ABM + validación en el flujo de pago. Hoy v1.1 captura cobrador libre (nombre+DNI) sin validar; la
+tabla de autorizados es **v1.2**.
 
 ## 9. Resumen de reunión (Bloque D) — CONFIRMADO
 

@@ -15,6 +15,7 @@ HECHO (en main/prod salvo donde se aclara):
 - ✅ Fase 2: fondo solidario 2% al club + bono 6-8 (100% propietario, neto) + incentivos jockey/entrenador. Probe `tests/probe_fase2_liquidaciones.mjs`.
 - ✅ **Fase C — estado_linea + retención anti-doping (en main, `7e638c7`, 2026-06-08):** `generarLiquidaciones` setea por línea: premio 1°/2° → `retenido` + `fecha_liberacion = reuniones.fecha + dias_antidoping` (30); **NOTA-A** subs `actuacion` de 1°/2° acompañan la retención; **NOTA-B** reunión sin fecha → retenido + warn; resto `impago`. Guard de regeneración a nivel línea (no pisa `pagado`/`recibo_id`). Badge por línea en `verDetalle`. Verificada real-code `tests/probe_fase_c.mjs` (11/11 sobre reunión `b02ca761`). Ver `docs/PLAN_FASE_C.md` / `docs/RESULTADO_FASE_C.md`.
 - ✅ **Fix D — captura de caballeriza en `spcs.html` (en main, `ccef143`):** ISSUE-026 resuelto (`f-caballeriza-form`/`f-sexo-form`). Probe `tests/probe_spcs_caballeriza.mjs`.
+- ✅ **Fase 4 — Pagos/recibos VIVO en main (2026-06-08):** tab "🧾 Pagos" + buscador (persona/caballeriza, nombre/apellido/DNI, filtro por carrera) + RPC `emitir_recibo` (número correlativo + recibo + marcado atómico) + print con logo/firma. **v1** merge `1a50359` (probe `tests/probe_recibos_emision.mjs` 14/14). **v1.1** merge `4851129`: liberación del doping **MANUAL** — `emitir_recibo` pagable solo `impago` + RPC `liberar_linea` (retenido→impago) + botón Habilitar (probe `tests/probe_cobros_v11.mjs` 11/11). Migrations: `emitir_recibo_fase4.sql`, `emitir_recibo_v1_1.sql`, `liberar_linea.sql`.
 - ✅ Fix detección de empate (02/06/2026): la detección agrupaba por `posicion` duplicada (`byPos`), que **nunca** ocurre (constraint `UNIQUE (resultado_id, posicion)`); el dead-heat se modela como posiciones distintas consecutivas con `empate=true`. La rama empate-aware era código muerto → **los empates de PREMIO no se promediaban** (cada uno cobraba el premio de su posición física en vez de `Σ/N`). Ahora se agrupan corridas consecutivas con `empate=true` y se promedia premio y bono. Probe: checks C2 (empate bono) + C3 (empate premio). Ver GOTCHA #45.
 - ✅ **Derivación de propietario — APLICADA EN PROD (02/06/2026):** `migrations/liquidaciones_cd_propietario_derivacion.sql`. Puente `caballeriza_responsables(titular)→propietarios` + derivación de `inscripciones.propietario_id`. **213 propietarios** importados (7→220; prop_dolores 0→213; 5 titulares sin DNI excluidos). Triggers **C** (`trg_insc_set_propietario`) y **C3** (`trg_cab_resp_set_propietario`, con guard `RAISE` si caballeriza sin club) activos. **Cobertura actual 10/95** (resto sin `caballeriza_id` histórico, ver ISSUE-026). Probe `tests/probe_propietario_derivacion.mjs` (11/11). Captura hacia adelante cubierta por triggers + Fix D (vivo en main).
 
@@ -22,7 +23,7 @@ PENDIENTE (orden del gap analysis, `docs/LIQUIDACIONES_GAP_ANALYSIS.md`):
 - ⏳ **Fase A — backfill propietarios:** re-asociar `caballeriza_id` a las inscripciones históricas para que los triggers deriven `propietario_id`. **Bloqueada por dato/Fede** (mapping SPC→propietario). Ver propietario_id abajo.
 - ⏳ Fase 2bis (oficializar): botón "Oficializar reunión" (setea `resultados.estado='oficial'` en bloque; sin schema).
 - ✅ Fase 3 (estados de línea + retención anti-doping) → **HECHA como Fase C** (en main, `7e638c7`; ver HECHO arriba).
-- ⏳ Fase 4: recibos por persona on-demand (capa `recibos`, numeración con `fn_siguiente_recibo`, forma de pago/cobrador). **Alto riesgo.**
+- ✅ Fase 4 (recibos por persona on-demand) → **HECHA v1+v1.1 en main** (ver HECHO arriba). Pendiente menor: **v1.2 tabla de autorizados** (ISSUE-028) y **turno→carrera en el recibo** (ISSUE-029).
 - ⏳ Fase 5: resumen de reunión (total pagado + pendientes de cobro).
 - ⏳ Fase 6: validar A+B contra datos reales de R5.
 - 🔄 **propietario_id en inscripciones (parcialmente resuelto):** derivación aplicada + Fix D vivo en main → **10/95** con propietario y triggers para lo nuevo. **Bloqueante residual:** 85/95 históricas siguen sin `propietario_id` porque no tienen `caballeriza_id` (causa raíz ISSUE-026, ya arreglado por Fix D hacia adelante) — se resuelve re-asociando caballerizas a las inscripciones viejas (Fase A). `spc_propietarios` sigue vacía (vía alternativa no usada). Ver GOTCHA #47 / ISSUE-026.
@@ -92,6 +93,12 @@ Estado: ⚠️ **E1 NEUTRALIZADA en main** (`7af005c`). E2 (warning blando) vivo
 > **REACTIVACIÓN de E1** = cumplir AMBAS y luego `git revert 7af005c`:
 > 1. **Fede al tanto del cambio de workflow:** con E1 *no se puede ratificar un ejemplar sin caballeriza asignada*. Cambio de proceso operativo — requiere su OK explícito.
 > 2. **Backfill de `caballeriza_id` en los SPC/inscripciones activos** (Fase A): sin eso, **Fede no podría ratificar NADA**. Es prerequisito duro. Fix D (ISSUE-026) ya corrige la captura hacia adelante, pero las históricas siguen sin caballeriza.
+
+### ISSUE-028: Pagos v1.2 — tabla de autorizados (cobrar por otro)
+Descripción: hoy el recibo captura cobrador (nombre + DNI) sin validar autorización. Fede quiere registrar **autorizaciones guardadas**: una persona (autorizante = cualquiera que cobra: propietario/profesional) autoriza a un tercero (autorizado) a cobrar en su nombre. Modelo propuesto: tabla `autorizaciones` (autorizante_tipo/id → autorizado nombre+DNI, vigencia), ABM, e integración en el flujo de pago (al emitir, ofrecer/validar autorizado contra la tabla). Módulo: liquidaciones.html (tab Pagos) + nueva tabla. Estado: ⏳ pendiente (v1.2, parkeado). No bloquea v1.1 (que ya captura cobrador libre).
+
+### ISSUE-029: turno→carrera en el recibo
+Descripción: el recibo muestra la carrera por `numero_carrera_programa ?? numero_turno` (prefijo "C"). Confirmar con Fede que el número visible sea el de carrera de programa (no el turno) y unificar el rótulo en recibo/detalle. Módulo: liquidaciones.html (print + detalle). Estado: ⏳ parkeado (menor).
 
 ## BAJOS
 

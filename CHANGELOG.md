@@ -1,5 +1,28 @@
 # Changelog
 
+## [2026-06-08] — Incentivos montas + Fase 4 Pagos/recibos (v1, v1.1) + recibo logo/firma — VIVO en main/prod
+
+> SHAs verificados contra git.
+
+### Incentivos Bloque C — montos Fede + granularidad (merge `47362ef`)
+- Jockey **50.000 fijo por reunión** (1 línea por jockey que corrió, aunque tenga N montas — dedup).
+- Entrenador **10.000 por caballo corrido** (1 línea por inscripción corrida, sin dedup, `inscripcion_id` seteado).
+- Montos en `liquidacion_config` (DML prod 50000/10000). Probe `tests/probe_incentivos_montas.mjs` (11/11). No tocó bonos ni retención.
+
+### Fase 4 v1 — tab Pagos + buscador + emisión de recibo (merge `1a50359`)
+- RPC `emitir_recibo` SECURITY DEFINER: número correlativo (`fn_siguiente_recibo`) + insert `recibos` + marcado atómico de líneas pagables → pagado/recibo_id/pagado_at. Idempotente, blindaje por beneficiario, RAISE si 0 marcadas. `migrations/emitir_recibo_fase4.sql`.
+- Tab "🧾 Pagos": buscador por persona/caballeriza (excluye club), detalle pagable cruzando reuniones, emisión vía RPC, print con firma(efectivo)/comprobante(transferencia). Probe `tests/probe_recibos_emision.mjs` (14/14).
+- Hallazgo: peón/capataz/sereno NO buscables por su persona — cobran dentro del recibo del entrenador (ADR-025).
+
+### Fase 4 v1.1 — liberación MANUAL del doping + búsqueda + filtro carrera (merge `4851129`)
+- `emitir_recibo` v1.1: pagable = **SOLO impago** (sacado el `OR (retenido AND fecha_liberacion<=hoy)`). `migrations/emitir_recibo_v1_1.sql`.
+- RPC `liberar_linea(uuid)` SECURITY DEFINER: flip `retenido→impago` (liberación manual al llegar el doping); club scoping vía `fn_club_de_liquidacion`/`fn_get_user_club_id` (backend service_role pasa); sin tocar grants. `migrations/liberar_linea.sql`.
+- Frontend: sección "🔒 Retenido por doping" con botón Habilitar→`liberar_linea`; filtro por carrera (`numero_carrera_programa ?? numero_turno`); búsqueda por nombre/apellido/DNI (`benefSearch`). Probe `tests/probe_cobros_v11.mjs` (11/11). La retención automática 1°/2° (Fase C) NO se tocó.
+
+### Recibo — logo + firma (`6d1ed11`, `154c83e`) · Fix modal (`a1565cd`)
+- Recibo (ambos templates): logo del club (`clubs.logo_url`) en membrete a la izquierda (~100px) + firma sin recuadro (línea + leyenda "Firma y sello").
+- `.modal` `margin: auto` → `margin: 0 auto` (top-align respetando `align-items:flex-start` del overlay; afecta detalle/reparto/comisión).
+
 ## [2026-06-07 / 2026-06-08] — Liquidaciones C+D (Fase 0-2) + Fix D · Fase C — VIVO en main/prod
 
 ### Liquidaciones C+D — VIVO en main/prod

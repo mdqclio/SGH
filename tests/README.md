@@ -76,8 +76,13 @@ node tests/probe_dividendos_inline.mjs   # Inputs de dividendos inline + E2E sav
 node tests/probe_no_largo.mjs            # Botón "no corrió" + deducción automática (→ localhost)
 node tests/probe_vacante_vac.mjs         # Vacante escribiendo "VAC" en el input + F8 no pisa VAC (→ localhost)
 node tests/probe_fase2_liquidaciones.mjs # Liquidaciones C+D Fase 2: forma de líneas fondo/bono/incentivo (→ DB directa, sin browser)
+node tests/probe_fase_c.mjs              # Fase C: estado_linea + retención anti-doping (real-code, → DB directa)
+node tests/probe_incentivos_montas.mjs   # Incentivos Bloque C: jockey 50k/reunión dedup, entrenador 10k/caballo (real-code)
+node tests/probe_recibos_emision.mjs     # Fase 4 v1: RPC emitir_recibo + buscador pagable (real-code, fixtures propias)
+node tests/probe_cobros_v11.mjs          # Fase 4 v1.1: liberar_linea + búsqueda nombre/apellido/DNI + filtro carrera (real-code)
 node tests/smoke_t9_t16.mjs              # Bug 3b + optimistic lock concurrencia (→ prod)
 ```
+Los probes real-code de liquidaciones (`probe_fase_c`, `probe_incentivos_montas`, `probe_recibos_emision`, `probe_cobros_v11`) extraen el cuerpo real de la función / llaman las RPCs reales con `SUPABASE_SECRET_KEY` (de `.env`), snapshot→run→assert→restore. Sin browser (chromium no corre en ubuntu26.04).
 
 Duración: ~20-90 segundos por probe.
 

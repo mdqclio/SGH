@@ -234,4 +234,10 @@ A diferencia del resto del proyecto (que usa `formatARS()`/`parseARS()`), `liqui
 - **En edición no se puede cambiar la caballeriza** desde el modal (solo round-trip del valor existente; efecto colateral: re-filtra la lista visible).
 - `f-sexo` tiene el mismo defecto pero zafa de casualidad: `openModal` setea el toolbar a un valor válido (`rec?.sexo || 'macho'`, L443) antes de leerlo (L481).
 
+## 49. `.modal { margin: auto }` centra vertical en flex y pisa `align-items: flex-start` (2026-06-08)
+Un overlay flex con `align-items: flex-start` + `padding` (para que el modal arranque arriba) **no** alinea arriba si el `.modal` tiene `margin: auto`: en un contenedor flex, `margin:auto` absorbe el espacio libre en AMBOS ejes → recentra vertical y anula el `flex-start`. Síntoma: modales largos quedan centrados y el header se va arriba de la vista. **Fix:** `margin: 0 auto` (centra solo horizontal, deja la vertical al `align-items` del overlay). En `liquidaciones.html` afectaba los 3 modales (detalle/reparto/comisión), un solo cambio en `.modal` (`a1565cd`).
+
+## 50. `propietarios` NO tiene `apellido` — la búsqueda usa nombre + nombre_stud (2026-06-08)
+`profesionales` tiene `nombre`, `apellido`, `documento_nro`. **`propietarios` NO tiene `apellido`** — todo el nombre va en `nombre` (+ `nombre_stud` para el stud) + `documento_nro`. Al buscar personas (ej. tab Pagos, `benefSearch`): profesional → `nombre+apellido+documento_nro`; propietario → `nombre+nombre_stud+documento_nro`. No asumir `apellido` en propietarios (rompe el match).
+
 Regla general: **`getElementById` con `id` duplicado siempre agarra el primero del DOM.** Nunca reutilizar un `id` entre filtro de toolbar y campo de form. Fix conceptual (sin implementar — ver ISSUE-026): renombrar el `id` del modal (`f-caballeriza-form`) y apuntar populate (L329), `openModal` (L446) y `saveRecord` (L484) al select del modal; ídem `f-sexo`. Impacto: el link caballo→caballeriza no se llena por esta pantalla hasta arreglarlo.
