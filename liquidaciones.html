@@ -807,33 +807,36 @@ async function generarLiquidaciones() {
     }
   }
 
-  // INCENTIVOS (Bloque C): monto fijo por reunión desde liquidacion_config.
-  // Una línea por jockey/entrenador que LARGÓ al menos una vez (no_largo=false) estando
-  // ratificado. Independiente del premio: el profesional entra al actorMap por haber
-  // largado, no por cobrar. Neto (sin descuentos). Si el monto es 0/null → no se genera.
+  // INCENTIVOS (Bloque C): montos desde liquidacion_config (confirmado Fede 2026-06-08).
+  // GRANULARIDAD DISTINTA por rol:
+  //  - Jockey: UNA línea por jockey que corrió al menos una (no_largo=false, ratificado),
+  //    aunque corra varias. Incentivo POR REUNIÓN → dedup por jockey, inscripcion_id=null.
+  //  - Entrenador: UNA línea POR CABALLO corrido (no_largo=false, ratificado). Incentivo
+  //    POR MONTA del caballo → sin dedup, inscripcion_id=la inscripción.
+  // Neto (sin descuentos). Guard: monto 0/null → no se genera.
   if (incJockey > 0 || incEntr > 0) {
     const { data: largaron } = await sb.from('resultado_posiciones')
       .select('inscripcion_id').in('resultado_id', resIds).eq('no_largo', false);
-    const jockeysSet = new Set(), entrenadoresSet = new Set();
+    const jockeysSet = new Set();   // jockey: una sola línea por reunión
     for (const lp of (largaron||[])) {
       const insc = (inscs||[]).find(i => i.id === lp.inscripcion_id);
       if (!insc || insc.estado !== 'ratificado') continue;   // blindaje: solo ratificados
-      if (insc.jockey_titular_id) jockeysSet.add(insc.jockey_titular_id);
-      if (insc.entrenador_id)     entrenadoresSet.add(insc.entrenador_id);
+      if (incJockey > 0 && insc.jockey_titular_id) jockeysSet.add(insc.jockey_titular_id);
+      // Entrenador: una línea por CADA caballo corrido (no se deduplica).
+      if (incEntr > 0 && insc.entrenador_id) {
+        addActor(insc.entrenador_id, 'entrenador', {
+          premio: incEntr, pct: 1, subs: [], conceptoTipo: 'incentivo_entrenador',
+          concepto: 'Incentivo entrenador',
+          descripcion: `Incentivo entrenador por caballo corrido: ${fmt(incEntr)}`,
+          posicion: null, inscripcion_id: insc.id,
+        });
+      }
     }
     if (incJockey > 0) for (const jid of jockeysSet) {
       addActor(jid, 'jockey', {
         premio: incJockey, pct: 1, subs: [], conceptoTipo: 'incentivo_jockey',
         concepto: 'Incentivo jockey',
         descripcion: `Incentivo jockey por actuación en la reunión: ${fmt(incJockey)}`,
-        posicion: null, inscripcion_id: null,
-      });
-    }
-    if (incEntr > 0) for (const eid of entrenadoresSet) {
-      addActor(eid, 'entrenador', {
-        premio: incEntr, pct: 1, subs: [], conceptoTipo: 'incentivo_entrenador',
-        concepto: 'Incentivo entrenador',
-        descripcion: `Incentivo entrenador por actuación en la reunión: ${fmt(incEntr)}`,
         posicion: null, inscripcion_id: null,
       });
     }
