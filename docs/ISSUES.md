@@ -31,7 +31,7 @@ PENDIENTE (orden del gap analysis, `docs/LIQUIDACIONES_GAP_ANALYSIS.md`):
 DECISIONES (Fede):
 - ✅ **Bono 6-8 + empate — CONFIRMADO (02/06/2026):** se paga, 100% propietario, neto; monto/rango configurables (`bono_posicion_monto`, `bono_posicion_desde/hasta`). Empate (principio Fede "50% c/u" + convención dead-heat "el grupo toma la posición del líder"): grupo comparte **un** bono dividido `monto/N` (2 → 50% c/u); empate de premio promediado `Σ/N`; cruce de borde (5°-6°) → grupo es "5°" → sin bono; bono al ganador en empate de 1° → repartido vía el promedio (mitad c/u). Probe C2/C3. **Sigue gateado por `propietario_id` NULL (GOTCHA #47): no paga nada hasta poblar el dueño.**
 - ⚠️ **Limitación técnica conocida (no es decisión de producto):** empates adyacentes sin caballo limpio en medio se fusionan en un grupo (modelo `empate=true` con un solo booleano; requeriría `grupo_empate_id`). Rarísimo. Ver GOTCHA #45.
-- Montos de incentivo jockey/entrenador (hoy 0 en `liquidacion_config` → no se generan líneas).
+- ✅ **Incentivos Bloque C — montos CONFIRMADOS por Fede (2026-06-08):** jockey **50.000 fijo por reunión** (1 línea por jockey que corrió, aunque tenga N montas; `inscripcion_id=null`); entrenador **10.000 por caballo corrido** (1 línea por inscripción corrida, sin dedup; `inscripcion_id` seteado). Montos en `liquidacion_config` (DML aplicada: 50000/10000). Corrección de granularidad del entrenador (antes deduplicaba por reunión) en rama `feat/incentivos-montas`; probe `tests/probe_incentivos_montas.mjs` (11/11). Ver `docs/LIQUIDACIONES_MODELO.md` §4.
 - Beneficiario de las sub-líneas peón/capataz/sereno (hoy = entrenador, ADR-025; confirmar en Fase 4).
 
 TÉCNICO PENDIENTE:

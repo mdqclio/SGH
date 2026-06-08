@@ -54,15 +54,19 @@ El **2% no se le paga a nadie**: va a un fondo solidario para accidentes / choqu
 
 ## 4. Incentivos por reunión (Bloque C) — CONFIRMADO
 
-Pagos **por reunión**, independientes de ganar. Se liquidan y aparecen como líneas en el
-recibo de la persona. Los montos son **configurables**.
+Pagos independientes de ganar. Se liquidan y aparecen como líneas en el recibo de la persona.
+Los montos son **configurables** (`liquidacion_config.incentivo_jockey_monto` /
+`incentivo_entrenador_monto`). **Montos confirmados por Fede (2026-06-08): jockey 50.000,
+entrenador 10.000.** Granularidad distinta por rol:
 
-- **Jockeys:** un incentivo (tipo viático), **uno por reunión**, a cada jockey que
-  **efectivamente corrió** (largó al menos una) y estaba cargado en el programa. Si no corre,
+- **Jockeys: 50.000 fijo POR REUNIÓN.** Una sola línea por jockey que **efectivamente corrió**
+  (largó al menos una, `no_largo=false`, ratificado), aunque corra varias carreras. Si no corre,
   no cobra. No es por monta ni por cantidad de carreras. **No hay pago de “monta perdida”
-  aparte** — este incentivo es el único pago por-reunión al jockey.
-- **Entrenadores:** monto fijo a los entrenadores de la reunión.
-- El sistema necesita campos configurables para cargar ambos montos.
+  aparte.** Línea: `concepto_tipo='incentivo_jockey'`, `inscripcion_id=null` (es de reunión).
+- **Entrenadores: 10.000 POR CABALLO que corre.** Una línea **por cada inscripción corrida**
+  (`no_largo=false`, ratificado) — NO se deduplica por entrenador. Línea:
+  `concepto_tipo='incentivo_entrenador'`, `inscripcion_id` = la inscripción del caballo.
+- Ambos montos se cargan en `liquidacion_config` (pestaña "Reparto de premios").
 
 ## 5. Descuentos — CONFIRMADO
 
