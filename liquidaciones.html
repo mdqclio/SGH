@@ -585,6 +585,7 @@ function imprimirRecibo() {
   const rows = dets.map(d=>`<tr><td>${d.concepto}</td><td>${d.descripcion||''}</td><td style="text-align:right">${fmt(d.monto_bruto)}</td><td style="text-align:right">${fmt(d.monto_descuento)}</td><td style="text-align:right">${fmt(d.monto_neto)}</td></tr>`).join('');
   document.getElementById('recibo-print').innerHTML = `<div class="recibo-container">
     <div class="recibo-header">
+      ${club?.logo_url ? `<img src="${club.logo_url}" alt="${club.nombre||''}" style="width:65px;height:65px;object-fit:contain;margin-bottom:8px;">` : ''}
       <h2>${club?.nombre||'SGH'}</h2>
       <p>${club?.domicilio||''} — ${club?.localidad||''}, ${club?.provincia||''}</p>
       <p>CUIT: ${club?.cuit||''} | Tel: ${club?.telefono||''}</p>
@@ -602,7 +603,10 @@ function imprimirRecibo() {
       <p>Total descuentos: -${fmt(liq.total_descuentos)}</p>
       <p style="font-size:16px;">TOTAL NETO A PAGAR: ${fmt(liq.total_neto)}</p>
     </div>
-    <p style="margin-top:40px;font-size:11px;text-align:center;">Firma y sello: _____________________</p>
+    <div style="margin-top:90px;text-align:center;">
+      <div style="width:280px;height:70px;border:1px solid #000;border-radius:4px;margin:0 auto;"></div>
+      <p style="font-size:11px;margin-top:6px;">Firma y sello</p>
+    </div>
   </div>`;
   window.print();
 }
@@ -810,6 +814,7 @@ async function imprimirReciboCobro(recibo, lineaIds){
   const esEfectivo = recibo.forma_pago==='efectivo';
   document.getElementById('recibo-print').innerHTML = `<div class="recibo-container">
     <div class="recibo-header">
+      ${club?.logo_url ? `<img src="${club.logo_url}" alt="${club.nombre||''}" style="width:65px;height:65px;object-fit:contain;margin-bottom:8px;">` : ''}
       <h2>${club?.nombre||'SGH'}</h2>
       <p>${club?.domicilio||''} — ${club?.localidad||''}, ${club?.provincia||''}</p>
       <p>CUIT: ${club?.cuit||''} | Tel: ${club?.telefono||''}</p>
@@ -828,8 +833,8 @@ async function imprimirReciboCobro(recibo, lineaIds){
       <p style="font-size:16px;">NETO A COBRAR: ${fmt(recibo.neto_a_cobrar)}</p>
     </div>
     ${esEfectivo
-      ? '<p style="margin-top:40px;font-size:11px;text-align:center;">Firma del cobrador: _____________________</p>'
-      : '<p style="margin-top:40px;font-size:11px;text-align:center;">Transferencia — comprobante adjunto'+(recibo.comprobante_url?': '+recibo.comprobante_url:'')+'</p>'}
+      ? '<div style="margin-top:90px;text-align:center;"><div style="width:280px;height:70px;border:1px solid #000;border-radius:4px;margin:0 auto;"></div><p style="font-size:11px;margin-top:6px;">Firma del cobrador y sello</p></div>'
+      : '<p style="margin-top:60px;font-size:11px;text-align:center;">Transferencia — comprobante adjunto'+(recibo.comprobante_url?': '+recibo.comprobante_url:'')+'</p>'}
   </div>`;
   window.print();
 }
