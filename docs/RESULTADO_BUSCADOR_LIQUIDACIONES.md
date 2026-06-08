@@ -84,7 +84,21 @@ Real-code sobre la RPC + la query de pagable. Fixtures propias (liquidación de 
 - (c) re-emitir [L1,L2] → RPC rechaza (0 pagables); emitir [L1,L2,L4nuevo] → toma solo L4 (1500).
 - (d) total_premios = suma de líneas; neto_a_cobrar = 3000.
 
-**Output:** _pendiente — se corre cuando autorices aplicar la RPC._
+**Output (RPC aplicada 2026-06-08 — 14/14 ✅):**
+```
+✅ a1 pagable incluye L1 (impago) y L2 (retenido liberado)
+✅ a2 pagable EXCLUYE L3 (retenido futuro)
+✅ a3 total pagable L1+L2 = 3000
+✅ b1 recibo creado con numero_recibo asignado  (num=1)
+✅ b2 L1/L2 → pagado + recibo_id + pagado_at
+✅ d1 total_premios del recibo = 3000   ✅ d2 neto_a_cobrar = 3000
+✅ c1 re-emitir líneas ya pagadas → RPC rechaza (no re-paga)
+✅ c2 re-emitir con mezcla → toma SOLO la línea nueva (L4=1500)
+✅ c3 L4 pagada en el recibo nuevo   ✅ c4 L1 conserva su recibo_id original
+✅ R1/R2 cleanup OK — recibos 0, club_secuencias restaurado, 0 fixtures
+✅ TODO OK — 14 checks
+```
+RPC `emitir_recibo` **viva en la DB**. Estado post-probe verificado limpio.
 
 ## Fuera de v1 (no hecho, va a v2)
 
