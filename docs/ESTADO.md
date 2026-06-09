@@ -4,9 +4,22 @@
 
 ---
 
-## 📸 Snapshot 2026-06-08 (cierre de sesión) — el más nuevo
+## 📸 Snapshot 2026-06-09 (cierre de sesión) — el más nuevo
 
-> Autoritativo. Supera al snapshot de arranque de abajo.
+> Autoritativo. Supera a los snapshots de abajo. Main == origin/main, todo pusheado + deploy verificado en prod.
+
+### Liquidaciones / Pagos — pulido de recibo + 2bis oficializar carrera
+- **Recibo de Pagos (final):** imprime **2 copias idénticas** por hoja con rótulo **ORIGINAL / DUPLICADO**; **logo precargado** antes de `print()` (fix de timing); **firma anclada al pie** de cada página; sin CUIT/Tel; bloque firma/aclaración/DNI. Commits `40981c9`, `55c43b7`, `5eecf72`.
+- **Limpieza:** borrado el **recibo de liquidación vestigial** + botón **Marcar pagada**; sacados botón **Aprobar** + `cambiarEstado()` muerta; quitada la **captura de cobrador** en Pagos. Commits `f67402e`, `40087ae`.
+- **2bis — oficializar/des-oficializar CARRERA VIVO:** botón oficializar/des-oficializar a nivel carrera + **motor de liquidación paid-safe** (no re-liquida líneas ya pagadas). Merge `cc71c64` (`0cbb587`). → reemplaza el "2bis oficializar reunión" que figuraba pendiente.
+- **RPCs vivas en DB:** sin cambio (`fn_siguiente_recibo`, `emitir_recibo` v1.1, `liberar_linea`).
+- **Pendientes (sin cambio):** **v1.2 tabla de autorizados** (ISSUE-028); **Fase 5 resumen de reunión**; **backfill propietarios** (`inscripciones.propietario_id` 10/95, `spc_propietarios` 0); **turno→carrera en el recibo** (ISSUE-029, parkeado).
+
+---
+
+## 📸 Snapshot 2026-06-08 (cierre de sesión) — superado por el de arriba
+
+> Superado por el snapshot 2026-06-09. Supera al snapshot de arranque de abajo.
 
 ### Liquidaciones / Pagos — Fase 4 VIVO en main/prod
 - **Generación (Fase 0-2 + C):** reparto por config, fondo solidario, bono ganador (al 1°, por roles), bono 6-8 (100% propietario), **incentivos** (jockey 50k/reunión dedup, entrenador 10k/caballo — merge `47362ef`), retención automática 1°/2° (Fase C).
