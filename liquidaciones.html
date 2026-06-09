@@ -591,7 +591,6 @@ function imprimirRecibo() {
         <div>
           <h2>${club?.nombre||'SGH'}</h2>
           <p>${club?.domicilio||''} — ${club?.localidad||''}, ${club?.provincia||''}</p>
-          <p>CUIT: ${club?.cuit||''} | Tel: ${club?.telefono||''}</p>
         </div>
       </div>
       <h3 style="margin-top:10px;">RECIBO DE LIQUIDACIÓN</h3>
@@ -608,8 +607,10 @@ function imprimirRecibo() {
       <p>Total descuentos: -${fmt(liq.total_descuentos)}</p>
       <p style="font-size:16px;">TOTAL NETO A PAGAR: ${fmt(liq.total_neto)}</p>
     </div>
-    <div style="margin-top:110px;text-align:center;">
-      <p style="border-top:1px solid #000;width:280px;margin:0 auto;padding-top:6px;font-size:11px;">Firma y sello</p>
+    <div style="margin-top:180px;display:flex;justify-content:center;gap:36px;text-align:center;font-size:11px;">
+      <div style="border-top:1px solid #000;width:200px;padding-top:6px;">Firma</div>
+      <div style="border-top:1px solid #000;width:240px;padding-top:6px;">Aclaración</div>
+      <div style="border-top:1px solid #000;width:140px;padding-top:6px;">DNI</div>
     </div>
   </div>`;
   window.print();
@@ -815,15 +816,16 @@ async function imprimirReciboCobro(recibo, lineaIds){
     const carrera=ins?.carreras?.numero_turno?`T${ins.carreras.numero_turno}`:'—'; const caballo=ins?.spcs?.nombre||'—';
     const puesto=l.posicion?`${l.posicion}°`:'—';
     return `<tr><td>${fecha}</td><td>${carrera}</td><td>${caballo}</td><td>${puesto}</td><td>${l.concepto||''}</td><td style="text-align:right">${fmt(l.monto_neto)}</td></tr>`;}).join('');
+  // Fetch del club con logo_url (el global `club` puede no tenerlo en el flujo de Pagos).
+  const { data: cl } = await sb.from('clubs').select('nombre,domicilio,localidad,provincia,logo_url').eq('id', CLUB_ID).single();
   const esEfectivo = recibo.forma_pago==='efectivo';
   document.getElementById('recibo-print').innerHTML = `<div class="recibo-container">
     <div class="recibo-header">
       <div style="display:flex;align-items:center;justify-content:center;gap:18px;">
-        ${club?.logo_url ? `<img src="${club.logo_url}" alt="${club.nombre||''}" style="height:100px;object-fit:contain;flex-shrink:0;">` : ''}
+        ${cl?.logo_url ? `<img src="${cl.logo_url}" alt="${cl.nombre||''}" style="height:100px;object-fit:contain;flex-shrink:0;">` : ''}
         <div>
-          <h2>${club?.nombre||'SGH'}</h2>
-          <p>${club?.domicilio||''} — ${club?.localidad||''}, ${club?.provincia||''}</p>
-          <p>CUIT: ${club?.cuit||''} | Tel: ${club?.telefono||''}</p>
+          <h2>${cl?.nombre||'SGH'}</h2>
+          <p>${cl?.domicilio||''} — ${cl?.localidad||''}, ${cl?.provincia||''}</p>
         </div>
       </div>
       <h3 style="margin-top:10px;">RECIBO DE PAGO N° ${recibo.numero_recibo}</h3>
@@ -841,7 +843,7 @@ async function imprimirReciboCobro(recibo, lineaIds){
       <p style="font-size:16px;">NETO A COBRAR: ${fmt(recibo.neto_a_cobrar)}</p>
     </div>
     ${esEfectivo
-      ? '<div style="margin-top:110px;text-align:center;"><p style="border-top:1px solid #000;width:280px;margin:0 auto;padding-top:6px;font-size:11px;">Firma del cobrador y sello</p></div>'
+      ? '<div style="margin-top:180px;display:flex;justify-content:center;gap:36px;text-align:center;font-size:11px;"><div style="border-top:1px solid #000;width:200px;padding-top:6px;">Firma</div><div style="border-top:1px solid #000;width:240px;padding-top:6px;">Aclaración</div><div style="border-top:1px solid #000;width:140px;padding-top:6px;">DNI</div></div>'
       : '<p style="margin-top:60px;font-size:11px;text-align:center;">Transferencia — comprobante adjunto'+(recibo.comprobante_url?': '+recibo.comprobante_url:'')+'</p>'}
   </div>`;
   window.print();
