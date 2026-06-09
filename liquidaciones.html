@@ -514,18 +514,10 @@ function renderLiquidaciones() {
       </div>
       <div style="padding:0 18px 14px;display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn-sm btn-det" onclick="verDetalle('${l.id}')">📋 Ver detalle</button>
-        ${l.estado==='borrador'?`<button class="btn-sm btn-aprobar" onclick="cambiarEstado('${l.id}','aprobada')">✅ Aprobar</button>`:''}
         ${l.estado!=='pagada'?`<button class="btn-sm btn-delete" onclick="eliminarLiq('${l.id}')">🗑️</button>`:''}
       </div>
     </div>`;
   }).join('')}</div>`;
-}
-
-async function cambiarEstado(id, estado) {
-  const { error } = await sb.from('liquidaciones').update({ estado }).eq('id', id);
-  if (error) { toast(error.message,'error'); return; }
-  toast(`Estado actualizado: ${estado}`);
-  loadLiquidaciones();
 }
 
 async function eliminarLiq(id) {
@@ -723,8 +715,6 @@ async function cobrosDetalle(tipo, id){
       <div class="config-grid" style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;">
         <div class="form-group"><label>Forma de pago</label>
           <select id="cob-forma" onchange="cobrosFormaPago()"><option value="efectivo">Efectivo (con firma)</option><option value="transferencia">Transferencia (sin firma)</option></select></div>
-        <div class="form-group"><label>Cobrador — nombre</label><input id="cob-cobrador" type="text" placeholder="Nombre del que cobra"></div>
-        <div class="form-group"><label>Cobrador — DNI</label><input id="cob-dni" type="text" placeholder="DNI"></div>
         <div class="form-group" id="cob-comp-wrap" style="display:none;"><label>Comprobante (URL)</label><input id="cob-comprobante" type="text" placeholder="https://…"></div>
       </div>
       <div style="margin-top:12px;display:flex;gap:8px;">
@@ -753,15 +743,14 @@ async function habilitarLinea(lineaId, tipo, id){
 async function cobrosEmitir(){
   const ids = [...document.querySelectorAll('.cob-chk:checked')].map(c=>c.value);
   if (!ids.length) { toast('Seleccioná al menos una línea','error'); return; }
-  const cobrador = document.getElementById('cob-cobrador').value.trim();
-  const dni = document.getElementById('cob-dni').value.trim();
-  if (!cobrador || !dni) { toast('Cargá nombre y DNI del cobrador','error'); return; }
   const forma = document.getElementById('cob-forma').value;
   const comprobante = forma==='transferencia' ? (document.getElementById('cob-comprobante').value.trim()||null) : null;
   if (!confirm(`Emitir recibo para ${cobBenef.nombre} por ${ids.length} línea(s)? Marca las líneas como pagadas.`)) return;
+  // Ya no se captura cobrador (decisión Fede). El RPC mantiene su firma; nombre/documento van null
+  // (recibos.cobrador_nombre/documento son TEXT nullable).
   const { data, error } = await sb.rpc('emitir_recibo', {
     p_club_id: CLUB_ID, p_beneficiario_tipo: cobBenef.tipo, p_beneficiario_id: cobBenef.id,
-    p_linea_ids: ids, p_forma_pago: forma, p_cobrador_nombre: cobrador, p_cobrador_documento: dni, p_comprobante_url: comprobante,
+    p_linea_ids: ids, p_forma_pago: forma, p_cobrador_nombre: null, p_cobrador_documento: null, p_comprobante_url: comprobante,
   });
   if (error) { toast(error.message,'error'); return; }
   const recibo = Array.isArray(data)?data[0]:data;
@@ -810,7 +799,6 @@ async function imprimirReciboCobro(recibo, lineaIds){
       <p>Fecha: ${new Date().toLocaleDateString('es-AR')} · Forma de pago: ${recibo.forma_pago}</p>
     </div>
     <p><strong>Beneficiario:</strong> ${cobBenef?.nombre||'—'}</p>
-    <p><strong>Cobrador:</strong> ${recibo.cobrador_nombre||''} — DNI ${recibo.cobrador_documento||''}</p>
     <table class="recibo-table">
       <thead><tr><th>Fecha</th><th>Carrera</th><th>Caballo</th><th>Puesto</th><th>Concepto</th><th>Neto</th></tr></thead>
       <tbody>${rows}</tbody>
