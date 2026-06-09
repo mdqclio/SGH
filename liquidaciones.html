@@ -712,11 +712,6 @@ async function cobrosDetalle(tipo, id){
       ${retLineas.length?`<h3 style="font-size:14px;color:var(--danger);margin:16px 0 6px;">🔒 Retenido por doping — habilitar para poder pagar</h3>
       <table class="detalle-table"><thead><tr><th>Fecha</th><th>Carrera</th><th>Caballo</th><th>Puesto</th><th>Concepto</th><th style="text-align:right">Neto</th><th>Liberación</th><th></th></tr></thead>
         <tbody>${retRows}</tbody></table>`:''}
-      <div class="config-grid" style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;">
-        <div class="form-group"><label>Forma de pago</label>
-          <select id="cob-forma" onchange="cobrosFormaPago()"><option value="efectivo">Efectivo (con firma)</option><option value="transferencia">Transferencia (sin firma)</option></select></div>
-        <div class="form-group" id="cob-comp-wrap" style="display:none;"><label>Comprobante (URL)</label><input id="cob-comprobante" type="text" placeholder="https://…"></div>
-      </div>
       <div style="margin-top:12px;display:flex;gap:8px;">
         <button class="btn-primary" onclick="cobrosEmitir()">🧾 Emitir recibo</button>
       </div>
@@ -727,10 +722,6 @@ function cobrosRecalc(){
   let t=0; document.querySelectorAll('.cob-chk:checked').forEach(c=>t+=parseFloat(c.dataset.monto)||0);
   document.getElementById('cob-total').textContent = fmt(t);
 }
-function cobrosFormaPago(){
-  document.getElementById('cob-comp-wrap').style.display = document.getElementById('cob-forma').value==='transferencia'?'':'none';
-}
-
 // Habilitar (liberar) una línea retenida por doping → pasa a impago (pagable). Liberación MANUAL.
 async function habilitarLinea(lineaId, tipo, id){
   if (!confirm('¿Habilitar esta línea retenida por doping? Pasa a pagable.')) return;
@@ -743,8 +734,8 @@ async function habilitarLinea(lineaId, tipo, id){
 async function cobrosEmitir(){
   const ids = [...document.querySelectorAll('.cob-chk:checked')].map(c=>c.value);
   if (!ids.length) { toast('Seleccioná al menos una línea','error'); return; }
-  const forma = document.getElementById('cob-forma').value;
-  const comprobante = forma==='transferencia' ? (document.getElementById('cob-comprobante').value.trim()||null) : null;
+  const forma = 'efectivo';   // todo efectivo (decisión Fede)
+  const comprobante = null;
   if (!confirm(`Emitir recibo para ${cobBenef.nombre} por ${ids.length} línea(s)? Marca las líneas como pagadas.`)) return;
   // Ya no se captura cobrador (decisión Fede). El RPC mantiene su firma; nombre/documento van null
   // (recibos.cobrador_nombre/documento son TEXT nullable).
@@ -767,20 +758,18 @@ async function imprimirReciboCobro(recibo, lineaIds){
   const inscIds=[...new Set((lns||[]).map(l=>l.inscripcion_id).filter(Boolean))];
   const [{data:reuns},{data:inscs}] = await Promise.all([
     reunIds.length? sb.from('reuniones').select('id,fecha').in('id',reunIds):Promise.resolve({data:[]}),
-    inscIds.length? sb.from('inscripciones').select('id,spcs(nombre),carreras(numero_turno)').in('id',inscIds):Promise.resolve({data:[]}),
+    inscIds.length? sb.from('inscripciones').select('id,spcs(nombre),carreras(numero_turno,numero_carrera_programa)').in('id',inscIds):Promise.resolve({data:[]}),
   ]);
   const reunMap=Object.fromEntries((reuns||[]).map(r=>[r.id,r])); const inscMap=Object.fromEntries((inscs||[]).map(i=>[i.id,i]));
   const rows=(lns||[]).map(l=>{const r=reunMap[l.reunion_id];const ins=inscMap[l.inscripcion_id];
     const fecha=r?new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR'):'—';
-    const carrera=ins?.carreras?.numero_turno?`T${ins.carreras.numero_turno}`:'—'; const caballo=ins?.spcs?.nombre||'—';
+    const nroCarr=ins?.carreras?.numero_carrera_programa ?? ins?.carreras?.numero_turno; const carrera=nroCarr?`C${nroCarr}`:'—'; const caballo=ins?.spcs?.nombre||'—';
     const puesto=l.posicion?`${l.posicion}°`:'—';
     return `<tr><td>${fecha}</td><td>${carrera}</td><td>${caballo}</td><td>${puesto}</td><td>${l.concepto||''}</td><td style="text-align:right">${fmt(l.monto_neto)}</td></tr>`;}).join('');
   // Fetch del club con logo_url (el global `club` puede no tenerlo en el flujo de Pagos).
   const { data: cl } = await sb.from('clubs').select('nombre,domicilio,localidad,provincia,logo_url').eq('id', CLUB_ID).single();
-  const esEfectivo = recibo.forma_pago==='efectivo';
-  const firma = esEfectivo
-    ? '<div style="margin-top:auto;display:flex;justify-content:center;gap:36px;text-align:center;font-size:11px;"><div style="border-top:1px solid #000;width:200px;padding-top:6px;">Firma</div><div style="border-top:1px solid #000;width:240px;padding-top:6px;">Aclaración</div><div style="border-top:1px solid #000;width:140px;padding-top:6px;">DNI</div></div>'
-    : '<p style="margin-top:auto;font-size:11px;text-align:center;">Transferencia — comprobante adjunto'+(recibo.comprobante_url?': '+recibo.comprobante_url:'')+'</p>';
+  // Recibo siempre en efectivo (decisión Fede) → siempre bloque de firma.
+  const firma = '<div style="margin-top:auto;display:flex;justify-content:center;gap:36px;text-align:center;font-size:11px;"><div style="border-top:1px solid #000;width:200px;padding-top:6px;">Firma</div><div style="border-top:1px solid #000;width:240px;padding-top:6px;">Aclaración</div><div style="border-top:1px solid #000;width:140px;padding-top:6px;">DNI</div></div>';
   // Bloque reutilizable: UNA copia = contenedor de página entera (.recibo-copia: flex columna,
   // min-height:100vh) con la firma al pie (margin-top:auto). Se imprimen 2 copias rotuladas
   // ORIGINAL / DUPLICADO (pedido Fede) — mismo contenido, distinto rótulo —, separadas por
@@ -796,7 +785,7 @@ async function imprimirReciboCobro(recibo, lineaIds){
         </div>
       </div>
       <h3 style="margin-top:10px;">RECIBO DE PAGO N° ${recibo.numero_recibo}</h3>
-      <p>Fecha: ${new Date().toLocaleDateString('es-AR')} · Forma de pago: ${recibo.forma_pago}</p>
+      <p>Fecha: ${new Date().toLocaleDateString('es-AR')}</p>
     </div>
     <p><strong>Beneficiario:</strong> ${cobBenef?.nombre||'—'}</p>
     <table class="recibo-table">

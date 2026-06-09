@@ -76,7 +76,7 @@
 
     // ── Cargar datos de la reunión ───────────────────────────────────────
     const [{ data: cars }, comCfgRes, { data: reunionRow }] = await Promise.all([
-      sb.from('carreras').select('id,numero_turno,bolsa_total,distribucion_premios').eq('reunion_id', rid),
+      sb.from('carreras').select('id,numero_turno,numero_carrera_programa,bolsa_total,distribucion_premios').eq('reunion_id', rid),
       opts.comCfg ? Promise.resolve({ data: opts.comCfg })
                   : sb.from('comision_config').select('*').eq('club_id', clubId).eq('activo', true),
       sb.from('reuniones').select('fecha').eq('id', rid).single(),
@@ -174,8 +174,8 @@
         const bono68 = calcBono68(car, posNum);
         if (!premioEfectivo && !bono68) continue;
         const bono68Efectivo = poses.length > 1 ? bono68 / poses.length : bono68;
-        const turno = car.numero_turno || '';
-        const conceptoBase = `Turno ${turno} — ${posNum}° puesto`;
+        const nroCarrera = car.numero_carrera_programa ?? car.numero_turno ?? '';
+        const conceptoBase = `Carrera ${nroCarrera} — ${posNum}° puesto`;
         const bolsaFmt = fmt(premioEfectivo);
         for (const pos of poses) {
           const insc = (inscs || []).find(i => i.id === pos.inscripcion_id);
@@ -214,7 +214,7 @@
             const empateNota = poses.length > 1 ? `, empate ${poses.length} (${fmt(bono68)}/${poses.length})` : '';
             addActor(insc.propietario_id, 'propietario', {
               premio: bono68Efectivo, pct: 1, subs: [], conceptoTipo: 'bono',
-              concepto: `Turno ${turno} — Bono ${posNum}° puesto`,
+              concepto: `Carrera ${nroCarrera} — Bono ${posNum}° puesto`,
               descripcion: `Bono ${posNum}° puesto (100% propietario${empateNota}): ${fmt(bono68Efectivo)}`,
               posicion: posNum, inscripcion_id: insc.id, carrera_id: car.id,
             });
