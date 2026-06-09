@@ -1544,8 +1544,9 @@ async function desoficializar(resId, carreraId) {
   if (gErr) { toast('Error verificando pagos: '+gErr.message, 'error'); return; }
   if (count > 0) { toast('carrera con pagos emitidos, anulá los recibos primero', 'error'); return; }
 
-  const { error } = await sb.from('resultados').update({ estado:'provisional', oficializado_at:null, oficializado_por:null }).eq('id', resId);
-  if (error) { toast(error.message,'error'); return; }
+  // RPC atómica: guard de pagos (RAISE) + estado->provisional + limpieza oficializado_*. Keya por carrera_id.
+  const { error } = await sb.rpc('desoficializar_carrera', { p_carrera_id: carreraId });
+  if (error) { toast(error.message,'error'); return; }   // incluye el RAISE del guard ('carrera con pagos emitidos...') → no recalcula
   await sb.from('performances').delete().eq('carrera_id', carreraId);
   resultados[carreraId] = {...resultados[carreraId], estado:'provisional'};
   const rid = (carreras.find(c=>c.id===carreraId)?.reunion_id) || document.getElementById('sel-reunion').value;
