@@ -114,7 +114,7 @@
       .topbar, .tabs, .selector-bar, .liq-acciones, #toast-container { display: none !important; }
       .recibo-print { display: block; }
       .content { display: none; }
-      .recibo-container { max-width: 700px; margin: 0 auto; padding: 20px; }
+      .recibo-container { max-width: 700px; margin: 0 auto; padding: 20px; min-height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; }
       .recibo-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 16px; }
       .recibo-header h2 { font-size: 20px; }
       .recibo-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
@@ -576,7 +576,19 @@ function estadoLineaBadge(d) {
   return `<span class="badge badge-borrador">impago</span>`;
 }
 
-function imprimirRecibo() {
+// Espera a que las imágenes del recibo (logo) terminen de cargar antes de imprimir. Sin esto,
+// en el primer print de la sesión el logo (descarga de red) sale en blanco — es timing, no dato.
+// Fallback por timeout para no colgar el print si la imagen nunca resuelve.
+function esperarImagenesRecibo(timeoutMs = 1500) {
+  const cont = document.getElementById('recibo-print');
+  const imgs = cont ? [...cont.querySelectorAll('img')] : [];
+  const cargas = imgs.map(img => (img.complete && img.naturalWidth)
+    ? Promise.resolve()
+    : new Promise(res => { img.onload = res; img.onerror = res; }));
+  return Promise.race([Promise.all(cargas), new Promise(res => setTimeout(res, timeoutMs))]);
+}
+
+async function imprimirRecibo() {
   const id = currentLiqId;
   const liq = liquidaciones.find(l=>l.id===id);
   if (!liq) return;
@@ -607,12 +619,13 @@ function imprimirRecibo() {
       <p>Total descuentos: -${fmt(liq.total_descuentos)}</p>
       <p style="font-size:16px;">TOTAL NETO A PAGAR: ${fmt(liq.total_neto)}</p>
     </div>
-    <div style="margin-top:180px;display:flex;justify-content:center;gap:36px;text-align:center;font-size:11px;">
+    <div style="margin-top:auto;display:flex;justify-content:center;gap:36px;text-align:center;font-size:11px;">
       <div style="border-top:1px solid #000;width:200px;padding-top:6px;">Firma</div>
       <div style="border-top:1px solid #000;width:240px;padding-top:6px;">Aclaración</div>
       <div style="border-top:1px solid #000;width:140px;padding-top:6px;">DNI</div>
     </div>
   </div>`;
+  await esperarImagenesRecibo();
   window.print();
 }
 
@@ -843,9 +856,10 @@ async function imprimirReciboCobro(recibo, lineaIds){
       <p style="font-size:16px;">NETO A COBRAR: ${fmt(recibo.neto_a_cobrar)}</p>
     </div>
     ${esEfectivo
-      ? '<div style="margin-top:180px;display:flex;justify-content:center;gap:36px;text-align:center;font-size:11px;"><div style="border-top:1px solid #000;width:200px;padding-top:6px;">Firma</div><div style="border-top:1px solid #000;width:240px;padding-top:6px;">Aclaración</div><div style="border-top:1px solid #000;width:140px;padding-top:6px;">DNI</div></div>'
+      ? '<div style="margin-top:auto;display:flex;justify-content:center;gap:36px;text-align:center;font-size:11px;"><div style="border-top:1px solid #000;width:200px;padding-top:6px;">Firma</div><div style="border-top:1px solid #000;width:240px;padding-top:6px;">Aclaración</div><div style="border-top:1px solid #000;width:140px;padding-top:6px;">DNI</div></div>'
       : '<p style="margin-top:60px;font-size:11px;text-align:center;">Transferencia — comprobante adjunto'+(recibo.comprobante_url?': '+recibo.comprobante_url:'')+'</p>'}
   </div>`;
+  await esperarImagenesRecibo();
   window.print();
 }
 
