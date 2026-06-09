@@ -355,6 +355,7 @@
 <div id="chapa-shared-dd" class="chapa-shared-dd"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="liquidaciones-engine.js"></script>
 <script src="partidor-colors.js"></script>
 <script src="chapas.js"></script>
 <script src="renumerar-chapas.js"></script>
@@ -515,7 +516,13 @@ async function loadReunion() {
 ═══════════════════════════════════════════════ */
 function renderLista() {
   currentCarreraId = null;
-  document.getElementById('main-container').innerHTML =
+  // Reunión oficial = estado DERIVADO: lo es cuando TODAS sus carreras están oficiales.
+  const todasOficiales = carreras.length > 0 && carreras.every(c => resultados[c.id]?.estado === 'oficial');
+  const oficialesN = carreras.filter(c => resultados[c.id]?.estado === 'oficial').length;
+  const reunionBadge = todasOficiales
+    ? `<div class="actions-bar" style="margin-bottom:14px;"><span class="badge badge-oficial" style="font-size:14px;padding:6px 14px;">🏆 Reunión oficial — todas las carreras (${oficialesN}/${carreras.length}) oficializadas</span></div>`
+    : `<div class="actions-bar" style="margin-bottom:14px;"><span class="badge badge-provisional" style="font-size:13px;padding:5px 12px;">Reunión provisional — ${oficialesN}/${carreras.length} carreras oficiales</span></div>`;
+  document.getElementById('main-container').innerHTML = reunionBadge +
     `<div class="carreras-grid">${carreras.map(c => {
       const res   = resultados[c.id];
       const estado = res?.estado || 'sin_resultado';
@@ -854,7 +861,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
               <button class="btn-success" onclick="oficializar('${carrera.id}')">✅ Hacer oficial</button>
             </div>
             <div class="warning-box" style="font-size:11px;flex:1;">
-              ⚠️ Hacer oficial bloquea el resultado permanentemente.
+              Hacer oficial marca el resultado y genera su liquidación. Es reversible: se puede des-oficializar mientras la carrera no tenga pagos emitidos.
             </div>
           </div>
           <div class="status-bar">
@@ -1484,8 +1491,12 @@ async function cancelar(carreraId) {
 /* ═══════════════════════════════════════════════
    OFICIALIZAR
 ═══════════════════════════════════════════════ */
+// Oficializar carrera (2bis): marca oficial (reusá aplicar_resultado vía aplicar()) + genera
+// la liquidación de la reunión (paid-safe, motor único liquidaciones-engine.js). Orquestación
+// del cliente, NO transacción única: si la generación falla tras marcar oficial, la carrera
+// queda oficial sin liquidar → se arregla con "Recalcular reunión" en liquidaciones.html.
 async function oficializar(carreraId) {
-  if (!confirm('⚠️ Esta acción es irreversible. ¿Hacer oficial el resultado?')) return;
+  if (!confirm('¿Hacer oficial el resultado y generar su liquidación?\nEs reversible: se puede des-oficializar mientras no haya pagos emitidos.')) return;
   await aplicar(carreraId, 'oficial');
   const res = resultados[carreraId];
   if (res?.estado !== 'oficial') return;
@@ -1493,7 +1504,8 @@ async function oficializar(carreraId) {
   const posiciones = posicionesMap[res.id] || [];
   const inscs = inscripciones.filter(i=>i.carrera_id===carreraId);
   const carrera = carreras.find(c=>c.id===carreraId);
-  const { data: reun } = await sb.from('reuniones').select('fecha,hipodromos(nombre,sigla)').eq('id', document.getElementById('sel-reunion').value).single();
+  const rid = carrera?.reunion_id || document.getElementById('sel-reunion').value;
+  const { data: reun } = await sb.from('reuniones').select('fecha,hipodromos(nombre,sigla)').eq('id', rid).single();
   const perfInserts = posiciones.filter(pos => !pos.no_largo).map(pos => {
     const insc = inscs.find(i=>i.id===pos.inscripcion_id);
     if (!insc) return null;
@@ -1508,15 +1520,38 @@ async function oficializar(carreraId) {
     await sb.from('performances').delete().eq('carrera_id', carreraId);
     await sb.from('performances').insert(perfInserts);
   }
-  toast('✅ Resultado oficial');
+  // Generar/recalcular la liquidación de la reunión (incluye la carrera recién oficializada).
+  const r = await generarLiquidacionesReunion({ sb, clubId: CLUB_ID, reunionId: rid });
+  if (r.error) toast(`Resultado oficial, pero la liquidación no se generó (${r.error}). Usá "Recalcular reunión".`, 'error');
+  else toast('✅ Resultado oficial · liquidación generada');
   abrirResultado(carreraId);
 }
 
-async function modificarOficial(resId, carreraId) {
-  if (!confirm('⚠️ Modificar un resultado oficial queda registrado en auditoría. ¿Continuar?')) return;
-  const { error } = await sb.from('resultados').update({ estado:'provisional' }).eq('id', resId);
+// Des-oficializar carrera (2bis): reversible. GUARD DURO — si la carrera tiene alguna línea
+// comprometida (recibo_id IS NOT NULL o estado_linea='pagado') NO revierte. Sin pagos: vuelve
+// a provisional, borra sus performances y recalcula la reunión (paid-safe) → dropea sus líneas.
+// El guard se enforce en el cliente; el motor paid-safe nunca dropea una línea pagada (backstop).
+// Hardening DB opcional: RPC desoficializar_carrera() en migrations/ (aplicar por MCP).
+async function desoficializar(resId, carreraId) {
+  if (!confirm('¿Des-oficializar el resultado para corregirlo?\nSe quita lo oficial y se recalcula la liquidación de la reunión.')) return;
+  const { data: insX } = await sb.from('inscripciones').select('id').eq('carrera_id', carreraId);
+  const inscIds = (insX||[]).map(i=>i.id);
+  const scope = inscIds.length ? `carrera_id.eq.${carreraId},inscripcion_id.in.(${inscIds.join(',')})` : `carrera_id.eq.${carreraId}`;
+  const { count, error: gErr } = await sb.from('liquidacion_detalle')
+    .select('id', { count:'exact', head:true })
+    .or(scope)
+    .or('recibo_id.not.is.null,estado_linea.eq.pagado');
+  if (gErr) { toast('Error verificando pagos: '+gErr.message, 'error'); return; }
+  if (count > 0) { toast('carrera con pagos emitidos, anulá los recibos primero', 'error'); return; }
+
+  const { error } = await sb.from('resultados').update({ estado:'provisional', oficializado_at:null, oficializado_por:null }).eq('id', resId);
   if (error) { toast(error.message,'error'); return; }
+  await sb.from('performances').delete().eq('carrera_id', carreraId);
   resultados[carreraId] = {...resultados[carreraId], estado:'provisional'};
+  const rid = (carreras.find(c=>c.id===carreraId)?.reunion_id) || document.getElementById('sel-reunion').value;
+  const r = await generarLiquidacionesReunion({ sb, clubId: CLUB_ID, reunionId: rid });
+  if (r.error) toast(`Des-oficializado, pero el recálculo falló (${r.error}). Usá "Recalcular reunión".`, 'error');
+  else toast('↩️ Resultado des-oficializado');
   abrirResultado(carreraId);
 }
 
@@ -1568,7 +1603,7 @@ function renderOficial(carrera, res, pos, apus, insc) {
           <span style="font-size:13px;color:var(--muted);min-width:60px;text-align:center;">Carrera ${_cIdx+1} / ${carreras.length}</span>
           <button class="btn-outline no-print" onclick="navCarrera(1)"  ${_isLast?'disabled':''}>Siguiente →</button>
           <button class="btn-outline no-print" onclick="window.print()">🖨️ Imprimir</button>
-          <button class="btn-danger  no-print" onclick="modificarOficial('${res.id}','${carrera.id}')">⚠️ Modificar</button>
+          <button class="btn-danger  no-print" onclick="desoficializar('${res.id}','${carrera.id}')">↩️ Des-oficializar</button>
           <button class="btn-outline no-print" onclick="navigateToLista()">← Carreras</button>
         </div>
       </div>
