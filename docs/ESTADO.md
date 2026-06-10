@@ -4,9 +4,20 @@
 
 ---
 
-## 📸 Snapshot 2026-06-09 (cierre de sesión) — el más nuevo
+## 📸 Snapshot 2026-06-10 — el más nuevo
 
-> Autoritativo. Supera a los snapshots de abajo. Main == origin/main, todo pusheado + deploy verificado en prod.
+> Autoritativo. Supera a los snapshots de abajo. Main == origin/main tras merge no-ff `feat/fase5-resumen` (`4cc6c27`).
+
+### Liquidaciones — Fase 5 Resumen de reunión VIVO (v1, read-only)
+- **Pestaña "📊 Resumen"** en `liquidaciones.html` junto a Pagos (selector propio). Agrega `liquidacion_detalle` por estado para la reunión: **Total / Pagado (+N recibos) / Pendiente (impago) / Retenido (anti-doping) / Fondo solidario (club, 2%)**. Reconciliación `pagado+impago+retenido+fondo=total`. Lista de **pendientes por beneficiario** (impago/retenido, orden desc), agrupada igual que Pagos (sub-roles bajo el entrenador). **Read-only, no escribe.**
+- Probe throwaway reconcilió OK (diff 0.00), restaurado sin residuo → Dolores en 0 liquidaciones.
+- **Pendientes (sin cambio):** **v1.2 tabla de autorizados** (ISSUE-028 — branch `feat/apoderados-v1` en review, no mergeada); **backfill propietarios** (`inscripciones.propietario_id` 10/95, `spc_propietarios` 0); **turno→carrera en el recibo** (ISSUE-029, parkeado). → **Fase 5 ya NO es pendiente.**
+
+---
+
+## 📸 Snapshot 2026-06-09 (cierre de sesión) — superado por el de arriba
+
+> Superado por el snapshot 2026-06-10. Main == origin/main, todo pusheado + deploy verificado en prod.
 
 ### Liquidaciones / Pagos — pulido de recibo + 2bis oficializar carrera
 - **Recibo de Pagos (final):** imprime **2 copias idénticas** por hoja con rótulo **ORIGINAL / DUPLICADO**; **logo precargado** antes de `print()` (fix de timing); **firma anclada al pie** de cada página; sin CUIT/Tel; bloque firma/aclaración/DNI. Commits `40981c9`, `55c43b7`, `5eecf72`.

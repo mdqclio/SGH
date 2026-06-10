@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-06-10] — Fase 5 Resumen de reunión (v1, read-only) — VIVO en main/prod
+
+> Merge no-ff `feat/fase5-resumen` → main. Solo `liquidaciones.html` (+95/-1). No toca plata: solo lectura.
+
+### Fase 5 — pestaña "📊 Resumen" (read-only)
+- Nueva pestaña junto a Pagos, selector de reunión propio. Agrega `liquidacion_detalle` por `estado_linea` para la reunión elegida; **no escribe**.
+- Buckets: **Total liquidado** / **Pagado** (+ N recibos distintos) / **Pendiente** (impago) / **Retenido** (anti-doping, bucket propio) / **Fondo solidario club** (2%, bucket propio, excluido de personas).
+- **Reconciliación**: `pagado + impago + retenido + fondo = total` con badge cuadra/dif.
+- **Pendientes por beneficiario** (persona, non-club, adeudado>0): columnas Impago | Retenido | Total, orden desc. Agrupa por `beneficiario_tipo|beneficiario_id` igual que Pagos → sub-roles peón/capataz/sereno ruedan bajo el entrenador (ADR-025); nombres vía `nombreBenef` (GOTCHA #50).
+- Probe throwaway (reunión fake, restaurada sin residuo): buckets reconcilian (total 33600, diff 0.00), peón rolled-up bajo entrenador, pagado-only excluido de pendientes. Dolores quedó en 0 liquidaciones.
+
 ## [2026-06-08] — Incentivos montas + Fase 4 Pagos/recibos (v1, v1.1) + recibo logo/firma — VIVO en main/prod
 
 > SHAs verificados contra git.
