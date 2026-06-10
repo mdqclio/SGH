@@ -621,7 +621,7 @@ async function loadResumen(){
   if (!rid){ cont.innerHTML = '<div class="empty-state"><div class="icon">📊</div><h3>Elegí una reunión para ver el resumen de cierre</h3></div>'; return; }
   cont.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando…</div>';
   const { data, error } = await sb.from('liquidacion_detalle')
-    .select('beneficiario_tipo,beneficiario_id,estado_linea,monto_neto,recibo_id')
+    .select('beneficiario_tipo,beneficiario_id,estado_linea,monto_neto,recibo_id,concepto_tipo')
     .eq('reunion_id', rid);
   if (error){ toast(error.message,'error'); cont.innerHTML=''; return; }
   const lineas = data||[];
@@ -629,8 +629,11 @@ async function loadResumen(){
   let total=0, fondo=0, pagado=0, impago=0, retenido=0;
   const recibos = new Set();
   const pend = {};                     // beneficiario (persona) → {tipo,id,impago,retenido}
+  const porConcepto = {};              // concepto_tipo → suma monto_neto (desglose por concepto)
   for (const l of lineas){
     const m = num(l.monto_neto); total += m;
+    const ct = l.concepto_tipo || 'otros';
+    porConcepto[ct] = (porConcepto[ct]||0) + m;
     if (l.beneficiario_tipo==='club'){ fondo += m; continue; }   // fondo solidario: bucket propio
     if (l.estado_linea==='pagado'){ pagado += m; if (l.recibo_id) recibos.add(l.recibo_id); continue; }
     const k = `${l.beneficiario_tipo}|${l.beneficiario_id}`;
@@ -646,6 +649,40 @@ async function loadResumen(){
     .map(p=>({...p, nombre:nombreBenef(p.tipo,p.id), debe:p.impago+p.retenido}))
     .filter(p=>p.debe > 0.0001)
     .sort((a,b)=>b.debe-a.debe);
+  // ── Desglose por concepto (read-only): la suma de conceptos debe dar el Total liquidado.
+  const CONCEPTO_LABELS = {
+    premio:'Premios', actuacion:'Actuaciones (peón/capataz/sereno)',
+    incentivo_jockey:'Incentivo jockeys', incentivo_entrenador:'Incentivo cuidadores',
+    bono:'Bonos', fondo_solidario:'Fondo solidario', otros:'Otros',
+  };
+  const conceptoList = Object.entries(porConcepto).map(([k,v])=>({k, label:CONCEPTO_LABELS[k]||k, val:v})).sort((a,b)=>b.val-a.val);
+  const sumaConcepto = conceptoList.reduce((s,c)=>s+c.val, 0);
+  const diffConcepto = Math.round((total-sumaConcepto)*100)/100;
+  const okConcepto = Math.abs(diffConcepto) < 0.01;
+  // ── Montas perdidas (informativo, sin plata): resultado_posiciones.no_largo=true (ratificado que no largó).
+  // Path igual al motor: carreras(reunion) → resultados oficiales → posiciones no_largo → inscripciones (jockey).
+  const montas = {};   // jockey_id → conteo
+  let montasTotal = 0;
+  const { data: cars } = await sb.from('carreras').select('id').eq('reunion_id', rid);
+  const carIds = (cars||[]).map(c=>c.id);
+  if (carIds.length){
+    const { data: resOf } = await sb.from('resultados').select('id').in('carrera_id', carIds).eq('estado','oficial');
+    const resIds = (resOf||[]).map(r=>r.id);
+    if (resIds.length){
+      const { data: noLarg } = await sb.from('resultado_posiciones').select('inscripcion_id').in('resultado_id', resIds).eq('no_largo', true);
+      const inscIds = [...new Set((noLarg||[]).map(p=>p.inscripcion_id).filter(Boolean))];
+      if (inscIds.length){
+        const { data: ins } = await sb.from('inscripciones').select('id,jockey_titular_id').in('id', inscIds);
+        const jockeyByInsc = Object.fromEntries((ins||[]).map(i=>[i.id, i.jockey_titular_id]));
+        for (const p of (noLarg||[])){
+          const jid = jockeyByInsc[p.inscripcion_id];
+          if (!jid) continue;                       // sin jockey titular → se saltea
+          montas[jid] = (montas[jid]||0) + 1; montasTotal++;
+        }
+      }
+    }
+  }
+  const montasList = Object.entries(montas).map(([jid,n])=>({jid, nombre:nombreBenef('profesional', jid), n})).sort((a,b)=>b.n-a.n);
   const card = (lbl,val,extra='') => `<div class="liq-card"><div class="liq-header" style="align-items:center;">
     <div><div class="liq-prof" style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">${lbl}</div>${extra||''}</div>
     <div class="monto-val neto" style="font-size:19px;">${fmt(val)}</div></div></div>`;
@@ -654,6 +691,10 @@ async function loadResumen(){
     <td style="text-align:right">${fmt(p.impago)}</td>
     <td style="text-align:right;color:var(--danger)">${fmt(p.retenido)}</td>
     <td style="text-align:right;font-weight:600">${fmt(p.debe)}</td></tr>`).join('');
+  const conceptoRows = conceptoList.map(c=>`<tr>
+    <td>${c.label}</td><td style="text-align:right;font-weight:600">${fmt(c.val)}</td></tr>`).join('');
+  const montasRows = montasList.map(m=>`<tr>
+    <td>${m.nombre}</td><td style="text-align:right;font-weight:600">${m.n}</td></tr>`).join('');
   cont.innerHTML = `
     <div class="liq-grid" style="margin-bottom:18px;">
       ${card('Total liquidado', total)}
@@ -671,7 +712,25 @@ async function loadResumen(){
       <thead><tr><th>Beneficiario</th><th>Tipo</th><th style="text-align:right">Impago</th><th style="text-align:right">Retenido</th><th style="text-align:right">Total adeudado</th></tr></thead>
       <tbody>${pendRows||'<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--muted)">Nadie pendiente — todo cobrado 🎉</td></tr>'}</tbody>
       <tfoot><tr><td colspan="2">TOTAL PENDIENTE</td><td style="text-align:right">${fmt(impago)}</td><td style="text-align:right;color:var(--danger)">${fmt(retenido)}</td><td style="text-align:right;font-weight:700">${fmt(impago+retenido)}</td></tr></tfoot>
-    </table>`;
+    </table>
+
+    <h2 style="font-size:18px;color:var(--accent);margin:22px 0 8px;">Desglose por concepto</h2>
+    <div class="config-card" style="margin-bottom:10px;padding:10px 16px;font-size:13px;">
+      <strong>Reconciliación:</strong> Suma de conceptos = ${fmt(sumaConcepto)} · Total liquidado = ${fmt(total)}
+      ${okConcepto ? ' <span class="badge badge-pagada">✅ cuadra</span>' : ` <span class="badge badge-anulada">⚠️ dif ${fmt(diffConcepto)}</span>`}
+    </div>
+    <table class="detalle-table">
+      <thead><tr><th>Concepto</th><th style="text-align:right">Monto</th></tr></thead>
+      <tbody>${conceptoRows||'<tr><td colspan="2" style="text-align:center;padding:16px;color:var(--muted)">Sin líneas liquidadas</td></tr>'}</tbody>
+      <tfoot><tr><td>TOTAL</td><td style="text-align:right;font-weight:700">${fmt(sumaConcepto)}</td></tr></tfoot>
+    </table>
+
+    <h2 style="font-size:18px;color:var(--accent);margin:22px 0 8px;">Montas perdidas <span style="font-size:12px;color:var(--muted);font-weight:400;">(informativo — ratificados que no largaron, sin plata)</span></h2>
+    ${montasList.length ? `<table class="detalle-table">
+      <thead><tr><th>Jockey</th><th style="text-align:right">Montas perdidas</th></tr></thead>
+      <tbody>${montasRows}</tbody>
+      <tfoot><tr><td>TOTAL</td><td style="text-align:right;font-weight:700">${montasTotal}</td></tr></tfoot>
+    </table>` : '<div style="font-size:13px;color:var(--muted);padding:4px 0;">Sin montas perdidas en la reunión.</div>'}`;
 }
 
 // ════════════ COBROS (Fase 4) — buscador + emisión de recibo ════════════
