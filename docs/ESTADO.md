@@ -6,18 +6,21 @@
 
 ## 📸 Snapshot 2026-06-10 — el más nuevo
 
-> Autoritativo. Supera a los snapshots de abajo. Main == origin/main tras merges no-ff `feat/fase5-resumen` (`4cc6c27`) + `feat/apoderados-v1` (`1444fa3`).
+> Autoritativo. Supera a los snapshots de abajo. Main == origin/main tras merges no-ff `feat/fase5-resumen` (`4cc6c27`), `feat/apoderados-v1` (`1444fa3`), `feat/apoderados-v1.1-pagos` (`e7a5fb1`) + `feat/resumen-desglose` (`f5a56c4`).
 
-### Apoderados — ISSUE-028 v1 VIVO (autorizados a cobrar)
+### Apoderados — ISSUE-028 v1 + v1.1 VIVO (autorizados a cobrar)
 - **Tabla `apoderados`** (migración `migrations/apoderados.sql` aplicada en DB): autorizante polimórfico propietario/profesional SIN FK; unique parcial anti-dup `WHERE vigente`; RLS club-scoped `TO authenticated` (idéntico a caballerizas), tabla plana NO SECURITY DEFINER. No toca plata existente.
-- **UI** sección "Autorizados a cobrar" en el modal de edición de `propietarios.html` + `profesionales.html` (solo sobre autorizante existente): listar / agregar / revocar (`vigente=false`, conserva registro).
-- Probe DB restaurado sin residuo (insert→list→dup bloqueado→revoke→re-autorizar→cleanup).
-- **Pendiente v1.1: display en Pagos.** Decisión abierta: `autorizado_documento` NOT NULL (a opcional sin riesgo si Fede lo pide).
+- **UI v1** sección "Autorizados a cobrar" en el modal de edición de `propietarios.html` + `profesionales.html` (solo sobre autorizante existente): listar / agregar / revocar (`vigente=false`, conserva registro).
+- **v1.1 display en Pagos** (`cobrosDetalle`): bloque read-only de autorizados vigentes (nombre · DNI) o "cobra el titular". 0 escrituras; emisión/RPC sin tocar. → **v1.1 ya NO es pendiente.**
+- Decisión abierta: `autorizado_documento` NOT NULL (a opcional sin riesgo si Fede lo pide).
+
+### Liquidaciones — Resumen ampliado VIVO (read-only): desglose por concepto + montas perdidas
+- `loadResumen`: **desglose por concepto** (suma `monto_neto` por `concepto_tipo`) con badge de reconciliación (suma = Total liquidado); **montas perdidas** por jockey (conteo `no_largo=true`, informativo sin plata). Solo `.select()`. Probes sin residuo.
 
 ### Liquidaciones — Fase 5 Resumen de reunión VIVO (v1, read-only)
 - **Pestaña "📊 Resumen"** en `liquidaciones.html` junto a Pagos (selector propio). Agrega `liquidacion_detalle` por estado para la reunión: **Total / Pagado (+N recibos) / Pendiente (impago) / Retenido (anti-doping) / Fondo solidario (club, 2%)**. Reconciliación `pagado+impago+retenido+fondo=total`. Lista de **pendientes por beneficiario** (impago/retenido, orden desc), agrupada igual que Pagos (sub-roles bajo el entrenador). **Read-only, no escribe.**
 - Probe throwaway reconcilió OK (diff 0.00), restaurado sin residuo → Dolores en 0 liquidaciones.
-- **Pendientes:** **ISSUE-028 v1.1 display de autorizados en Pagos** (tabla `apoderados` ya VIVA, ver arriba); **backfill propietarios** (`inscripciones.propietario_id` 10/95, `spc_propietarios` 0); **turno→carrera en el recibo** (ISSUE-029, parkeado). → **Fase 5 y la tabla de apoderados ya NO son pendientes.**
+- **Pendientes:** **backfill propietarios** (`inscripciones.propietario_id` 10/95, `spc_propietarios` 0); **turno→carrera en el recibo** (ISSUE-029, parkeado). → Fase 5, resumen ampliado y apoderados (v1+v1.1) ya NO son pendientes.
 
 ---
 

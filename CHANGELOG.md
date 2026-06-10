@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-06-10] — Apoderados en Pagos (v1.1) + Resumen ampliado — VIVO en main/prod
+
+> Merges no-ff `feat/apoderados-v1.1-pagos` (`e7a5fb1`) + `feat/resumen-desglose` (`f5a56c4`). Solo `liquidaciones.html`, todo read-only.
+
+### ISSUE-028 v1.1 — display de apoderados en Pagos (read-only)
+- `cobrosDetalle`: query `apoderados` (vigente=true + club + autorizante) sumada al `Promise.all`. Bloque "🪪 Autorizados a cobrar" (nombre · DNI, nombre por `escapeHtml` nuevo) o línea "Sin autorizados registrados — cobra el titular.". 0 escrituras; emisión/RPC sin tocar.
+
+### Resumen ampliado — desglose por concepto + montas perdidas (read-only)
+- `loadResumen`: **desglose por concepto** (suma `monto_neto` por `concepto_tipo`: Premios / Actuaciones / Incentivo jockeys / Incentivo cuidadores / Bonos / Fondo solidario) con badge de reconciliación (suma = Total liquidado).
+- **Montas perdidas** (informativo, sin plata): conteo `resultado_posiciones.no_largo=true` por jockey (path motor: carreras→resultados oficiales→posiciones→inscripciones). Solo `.select()`.
+- Probes throwaway sin residuo (Dolores en 0): apoderados query devuelve solo vigente; conceptos suman al total; montas perdidas por jockey coinciden con filas no_largo (jockey null saltado).
+
 ## [2026-06-10] — ISSUE-028 Apoderados v1 (autorizados a cobrar) — VIVO en main/prod
 
 > Merge no-ff `feat/apoderados-v1` → main. Tabla nueva, no toca plata existente.
