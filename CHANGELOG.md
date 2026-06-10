@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-06-10] — ISSUE-028 Apoderados v1 (autorizados a cobrar) — VIVO en main/prod
+
+> Merge no-ff `feat/apoderados-v1` → main. Tabla nueva, no toca plata existente.
+
+### Apoderados — tabla + gestión
+- **Migración `migrations/apoderados.sql`** (aplicada por MCP): tabla plana `apoderados`. Autorizante polimórfico (`autorizante_tipo` propietario/profesional + `autorizante_id` SIN FK, patrón beneficiario). `autorizado_nombre`/`autorizado_documento` NOT NULL, `vigente` default true, `creado_at`/`creado_por`. Unique parcial `(club_id,tipo,id,documento) WHERE vigente` (anti-dup, permite re-autorizar tras revoke).
+- **RLS** club-scoped: 4 policies `TO authenticated`, `fn_is_super_admin() OR club_id=fn_get_user_club_id()` (idéntico a `caballerizas`). Tabla plana con RLS — NO SECURITY DEFINER. Grants estándar.
+- **UI** en `propietarios.html` + `profesionales.html`: sección "Autorizados a cobrar" en el modal de edición (solo sobre autorizante existente) — listar (nombre+DNI+vigente/revocado), agregar (insert con club_id+tipo+id), revocar (`vigente=false`, conserva registro).
+- Probe DB (restaurado sin residuo): insert→list→duplicado vigente bloqueado→revoke (conserva)→re-autorizar OK→cleanup. **Decisión abierta:** `autorizado_documento` quedó NOT NULL (cambiar a opcional = `ALTER COLUMN DROP NOT NULL`, sin riesgo). Pendiente **v1.1: display en Pagos**.
+
 ## [2026-06-10] — Fase 5 Resumen de reunión (v1, read-only) — VIVO en main/prod
 
 > Merge no-ff `feat/fase5-resumen` → main. Solo `liquidaciones.html` (+95/-1). No toca plata: solo lectura.
