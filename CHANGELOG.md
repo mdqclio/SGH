@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-06-10] — des-oficializar carrera vía RPC atómica — VIVO en main/prod
+
+> Merge no-ff `feat/desoficializar-rpc` (`61bd81d`). Solo `resultados.html` + `migrations/desoficializar_carrera.sql`.
+
+### desoficializar_carrera (RPC)
+- `resultados.html`: el UPDATE directo a `resultados` se reemplaza por `sb.rpc('desoficializar_carrera', { p_carrera_id })`. La RPC (SECURITY DEFINER) hace el guard duro de pagos (RAISE si hay recibos emitidos) + `estado→provisional` + limpieza `oficializado_*`. El recálculo del motor lo sigue orquestando el cliente; el RAISE del guard cae en toast y no recalcula.
+- Grants verificados: `authenticated` EXECUTE; `anon`/`public` SIN EXECUTE (igual que `emitir_recibo` y `liberar_linea`).
+
 ## [2026-06-10] — Apoderados en Pagos (v1.1) + Resumen ampliado — VIVO en main/prod
 
 > Merges no-ff `feat/apoderados-v1.1-pagos` (`e7a5fb1`) + `feat/resumen-desglose` (`f5a56c4`). Solo `liquidaciones.html`, todo read-only.

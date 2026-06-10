@@ -120,10 +120,31 @@ autorizante (cualquiera que cobra: propietario/profesional) → autorizado (nomb
 ABM + validación en el flujo de pago. Hoy v1.1 captura cobrador libre (nombre+DNI) sin validar; la
 tabla de autorizados es **v1.2**.
 
-## 9. Resumen de reunión (Bloque D) — CONFIRMADO
+## 9. Resumen de reunión (Bloque D) — IMPLEMENTADO (2026-06-10)
 
-Reporte al cierre de la reunión: total pagado (premios + bonos + actuaciones + incentivos) y
-**quién queda pendiente de cobrar**. Derivable del estado de las líneas (sección 8).
+Pestaña "📊 Resumen" en `liquidaciones.html` (read-only, `loadResumen`). Agrega
+`liquidacion_detalle` de la reunión elegida. **No escribe.** Tres vistas:
+
+**(a) Buckets por estado** (merge `4cc6c27`):
+- **Total liquidado** = suma de `monto_neto` de todas las líneas.
+- **Pagado** = líneas `estado_linea='pagado'` (excluye club) + cantidad de recibos distintos.
+- **Pendiente de cobrar** = líneas `impago` (excluye club).
+- **Retenido (anti-doping)** = líneas `retenido` (bucket propio, no cobrable aún).
+- **Fondo solidario (club)** = líneas `beneficiario_tipo='club'` (bucket propio, se acumula, sin recibo).
+- Badge de reconciliación: `pagado + impago + retenido + fondo = total`.
+- **Pendientes por beneficiario** (persona, non-club): impago/retenido por beneficiario, orden desc.
+  Agrupa por `beneficiario_tipo|beneficiario_id` igual que Pagos → sub-roles peón/capataz/sereno
+  ruedan bajo el entrenador (ADR-025).
+
+**(b) Desglose por concepto** (merge `f5a56c4`): suma `monto_neto` por `concepto_tipo`
+(Premios / Actuaciones / Incentivo jockeys / Incentivo cuidadores / Bonos / Fondo solidario),
+con badge de reconciliación (suma de conceptos = Total liquidado).
+
+**(c) Montas perdidas** (merge `f5a56c4`, **informativo — sin plata**): conteo de
+`resultado_posiciones.no_largo=true` por jockey (path: carreras→resultados oficiales→posiciones→inscripciones).
+NO hay línea de plata; es solo conteo. Filas con jockey null se saltan.
+
+> ⏳ **Pendiente de confirmar con Fede:** el formato exacto del desglose por concepto y de las montas perdidas.
 
 -----
 

@@ -267,6 +267,26 @@ CREATE TABLE IF NOT EXISTS caballeriza_responsables (
 );
 ALTER TABLE caballeriza_responsables ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "allow_all" ON caballeriza_responsables FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+-- ISSUE-028 — apoderados (autorizados a cobrar). migrations/apoderados.sql (2026-06-10).
+-- autorizante_id es POLIMÓRFICO (→ propietarios/profesionales según autorizante_tipo), SIN FK,
+-- igual que el patrón beneficiario_id de liquidacion_detalle. Tabla plana con RLS (NO SECURITY DEFINER).
+CREATE TABLE IF NOT EXISTS apoderados (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  club_id UUID NOT NULL REFERENCES clubs(id),
+  autorizante_tipo TEXT NOT NULL CHECK (autorizante_tipo IN ('propietario','profesional')),
+  autorizante_id UUID NOT NULL,                 -- polimórfico, SIN FK
+  autorizado_nombre TEXT NOT NULL,
+  autorizado_documento TEXT NOT NULL,           -- dato que el operador verifica
+  vigente BOOLEAN NOT NULL DEFAULT TRUE,
+  creado_at TIMESTAMPTZ DEFAULT NOW(), creado_por UUID
+);
+CREATE INDEX IF NOT EXISTS apoderados_autorizante_idx ON apoderados (club_id, autorizante_tipo, autorizante_id);
+-- anti-duplicado parcial: un documento no se repite VIGENTE para el mismo autorizante (permite re-autorizar tras revoke)
+CREATE UNIQUE INDEX IF NOT EXISTS apoderados_uniq_vigente
+  ON apoderados (club_id, autorizante_tipo, autorizante_id, autorizado_documento) WHERE vigente;
+ALTER TABLE apoderados ENABLE ROW LEVEL SECURITY;
+-- 4 policies club-scoped TO authenticated (idéntico a caballerizas): fn_is_super_admin() OR club_id = fn_get_user_club_id()
+-- (apoderados_select / _insert / _update / _delete). GRANT SELECT,INSERT,UPDATE,DELETE TO authenticated.
 -- Sesión may-2026 (segunda iteración — inscripciones + PDF):
 ALTER TABLE hipodromos ADD COLUMN IF NOT EXISTS cantidad_gateras INTEGER DEFAULT 12;
 -- Sesión 12/05/2026 (seguridad — RLS + auditoría):
@@ -424,7 +444,7 @@ Todas con `STABLE SECURITY DEFINER SET search_path = public`. Ver SECURITY.md pa
 
 26 tablas con RLS endurecida. ISSUE-017 cerrado. Ver SECURITY.md para detalle por tabla y patrón aplicado.
 
-Tablas endurecidas: `caballerizas`, `categorias_carrera`, `reuniones`, `liquidaciones`, `resoluciones`, `hipodromos`, `carreras`, `inscripciones`, `resultados`, `resultado_posiciones`, `resultado_log`, `liquidacion_detalle`, `spcs`, `propietarios`, `profesionales`, `sanciones`, `usuarios`, `clubs`, `comision_config`, `club_configuracion`, `spc_propietarios`, `novedades_reunion`, `performances`, `resolucion_entidades`, `caballeriza_responsables`, `auditoria`
+Tablas endurecidas: `caballerizas`, `categorias_carrera`, `reuniones`, `liquidaciones`, `resoluciones`, `hipodromos`, `carreras`, `inscripciones`, `resultados`, `resultado_posiciones`, `resultado_log`, `liquidacion_detalle`, `spcs`, `propietarios`, `profesionales`, `sanciones`, `usuarios`, `clubs`, `comision_config`, `club_configuracion`, `spc_propietarios`, `novedades_reunion`, `performances`, `resolucion_entidades`, `caballeriza_responsables`, `auditoria`, `apoderados` (club-scoped, 2026-06-10)
 
 Sin tablas con policy permisiva residual.
 

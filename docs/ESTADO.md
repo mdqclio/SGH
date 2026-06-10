@@ -6,7 +6,7 @@
 
 ## 📸 Snapshot 2026-06-10 — el más nuevo
 
-> Autoritativo. Supera a los snapshots de abajo. Main == origin/main tras merges no-ff `feat/fase5-resumen` (`4cc6c27`), `feat/apoderados-v1` (`1444fa3`), `feat/apoderados-v1.1-pagos` (`e7a5fb1`) + `feat/resumen-desglose` (`f5a56c4`).
+> Autoritativo. Supera a los snapshots de abajo. Main == origin/main tras merges no-ff de hoy: `feat/desoficializar-rpc` (`61bd81d`), `feat/fase5-resumen` (`4cc6c27`), `feat/apoderados-v1` (`1444fa3`), `feat/apoderados-v1.1-pagos` (`e7a5fb1`) + `feat/resumen-desglose` (`f5a56c4`). Tope de docs en `87e3251`+.
 
 ### Apoderados — ISSUE-028 v1 + v1.1 VIVO (autorizados a cobrar)
 - **Tabla `apoderados`** (migración `migrations/apoderados.sql` aplicada en DB): autorizante polimórfico propietario/profesional SIN FK; unique parcial anti-dup `WHERE vigente`; RLS club-scoped `TO authenticated` (idéntico a caballerizas), tabla plana NO SECURITY DEFINER. No toca plata existente.
@@ -15,12 +15,30 @@
 - Decisión abierta: `autorizado_documento` NOT NULL (a opcional sin riesgo si Fede lo pide).
 
 ### Liquidaciones — Resumen ampliado VIVO (read-only): desglose por concepto + montas perdidas
-- `loadResumen`: **desglose por concepto** (suma `monto_neto` por `concepto_tipo`) con badge de reconciliación (suma = Total liquidado); **montas perdidas** por jockey (conteo `no_largo=true`, informativo sin plata). Solo `.select()`. Probes sin residuo.
+- `loadResumen`: **desglose por concepto** (suma `monto_neto` por `concepto_tipo`) con badge de reconciliación (suma = Total liquidado); **montas perdidas** por jockey (conteo `no_largo=true`, informativo sin plata). Solo `.select()`. Probes sin residuo. **Pendiente confirmar con Fede** el formato del desglose y de montas perdidas.
+
+### Resultados — des-oficializar carrera vía RPC VIVO
+- `resultados.html` usa `sb.rpc('desoficializar_carrera', { p_carrera_id })` (SECURITY DEFINER): guard de pagos (RAISE si hay recibos) + `estado→provisional` + limpieza `oficializado_*`. Reemplaza el UPDATE directo. `migrations/desoficializar_carrera.sql`.
+- **Seguridad RPCs de plata (verificado hoy):** `emitir_recibo`, `liberar_linea`, `desoficializar_carrera` → `authenticated` EXECUTE; `anon`/`public` SIN EXECUTE.
+
+### Datos de prueba — reunión ficticia 9999 VIVA (⚠️ borrar antes del 20/6)
+- Sembrada hoy para que Leo pruebe la pestaña Resumen end-to-end: **`a0000000-0000-0000-0000-000000009999`** (numero **9999**, fecha 2099-01-01, `observaciones='PRUEBA RESUMEN — BORRAR'`, Dolores). En el selector: `Reunión 9999 — 01/01/2099 — Hipódromo de Dolores`.
+- 3 carreras + 17 inscripciones (gente real) + 3 resultados oficiales + 2 `no_largo` (montas perdidas) + `liquidacion_detalle` con los 6 `concepto_tipo` + 2 recibos ficticios (numero **9001/9002** insertados a mano, **NO** vía `emitir_recibo` → `club_secuencias.recibo` queda en **0**). Buckets, desglose y montas reconcilian.
+- **Nota:** el motor de liquidación ya corrió sobre esta reunión (Recalcular en el browser, paid-safe): preservó las líneas `pagado` (recibos 9001/9002) y regeneró `retenido`/`impago` desde los resultados reales → ahora hay líneas/headers generados por el engine, no solo el seed manual. El teardown borra por `reunion_id`, así que cubre todo.
+- **Teardown listo y recuperable:** `teardown_prueba_resumen_9999.sql` (raíz del repo). FK-order, borra recibos por id → NO toca `club_secuencias`. **Correr antes de la reunión real del 20/6.**
 
 ### Liquidaciones — Fase 5 Resumen de reunión VIVO (v1, read-only)
 - **Pestaña "📊 Resumen"** en `liquidaciones.html` junto a Pagos (selector propio). Agrega `liquidacion_detalle` por estado para la reunión: **Total / Pagado (+N recibos) / Pendiente (impago) / Retenido (anti-doping) / Fondo solidario (club, 2%)**. Reconciliación `pagado+impago+retenido+fondo=total`. Lista de **pendientes por beneficiario** (impago/retenido, orden desc), agrupada igual que Pagos (sub-roles bajo el entrenador). **Read-only, no escribe.**
 - Probe throwaway reconcilió OK (diff 0.00), restaurado sin residuo → Dolores en 0 liquidaciones.
-- **Pendientes:** **backfill propietarios** (`inscripciones.propietario_id` 10/95, `spc_propietarios` 0); **turno→carrera en el recibo** (ISSUE-029, parkeado). → Fase 5, resumen ampliado y apoderados (v1+v1.1) ya NO son pendientes.
+
+### Pendientes reales (post 10/6)
+- **26 caballos de la anotación del 20/6** — alta bloqueada: faltan **sexo + fecha_nacimiento + registro Stud Book** (esperando dato de Fede). Las 17 caballerizas y 10 entrenadores faltantes también se cargan ahí.
+- **Reactivación E1** (caballeriza obligatoria al ratificar) — `git revert 7af005c` cuando esté hecho el backfill SPC→caballeriza, con Fede avisado.
+- **Turno→Carrera app-wide** — unificar el número de carrera de programa en toda la app (más allá del recibo, que ya usa `numero_carrera_programa ?? numero_turno`). Ver ISSUE-029.
+- **Fase 6** — validar liquidaciones A+B contra datos reales de R5.
+- **Confirmación de Fede** sobre el formato del desglose por concepto y de montas perdidas (resumen ampliado).
+- **Backfill propietarios** (`inscripciones.propietario_id` 10/95, `spc_propietarios` 0) — bloqueado por dato/Fede.
+- → **Cerrados hoy:** Fase 5, resumen ampliado, apoderados v1+v1.1 (ISSUE-028), des-oficializar carrera vía RPC.
 
 ---
 

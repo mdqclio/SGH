@@ -21,10 +21,10 @@ HECHO (en main/prod salvo donde se aclara):
 
 PENDIENTE (orden del gap analysis, `docs/LIQUIDACIONES_GAP_ANALYSIS.md`):
 - ⏳ **Fase A — backfill propietarios:** re-asociar `caballeriza_id` a las inscripciones históricas para que los triggers deriven `propietario_id`. **Bloqueada por dato/Fede** (mapping SPC→propietario). Ver propietario_id abajo.
-- ⏳ Fase 2bis (oficializar): botón "Oficializar reunión" (setea `resultados.estado='oficial'` en bloque; sin schema).
+- ✅ Fase 2bis (oficializar/des-oficializar): a nivel **carrera** en main (`cc71c64`) + des-oficializar vía RPC `desoficializar_carrera` (`61bd81d`, 2026-06-10).
 - ✅ Fase 3 (estados de línea + retención anti-doping) → **HECHA como Fase C** (en main, `7e638c7`; ver HECHO arriba).
-- ✅ Fase 4 (recibos por persona on-demand) → **HECHA v1+v1.1 en main** (ver HECHO arriba). Pendiente menor: **v1.2 tabla de autorizados** (ISSUE-028) y **turno→carrera en el recibo** (ISSUE-029).
-- ⏳ Fase 5: resumen de reunión (total pagado + pendientes de cobro).
+- ✅ Fase 4 (recibos por persona on-demand) → **HECHA v1+v1.1 en main** (ver HECHO arriba). **ISSUE-028 (apoderados) CERRADO v1+v1.1** (2026-06-10). Pendiente menor: **turno→carrera app-wide** (ISSUE-029; el recibo ya está hecho).
+- ✅ Fase 5: resumen de reunión → **HECHA en main** (`4cc6c27`): buckets por estado + reconciliación + pendientes por beneficiario. **Ampliada** (`f5a56c4`): desglose por `concepto_tipo` + montas perdidas (informativo). Read-only. Pendiente: **confirmación de Fede** sobre formato de desglose/montas.
 - ⏳ Fase 6: validar A+B contra datos reales de R5.
 - 🔄 **propietario_id en inscripciones (parcialmente resuelto):** derivación aplicada + Fix D vivo en main → **10/95** con propietario y triggers para lo nuevo. **Bloqueante residual:** 85/95 históricas siguen sin `propietario_id` porque no tienen `caballeriza_id` (causa raíz ISSUE-026, ya arreglado por Fix D hacia adelante) — se resuelve re-asociando caballerizas a las inscripciones viejas (Fase A). `spc_propietarios` sigue vacía (vía alternativa no usada). Ver GOTCHA #47 / ISSUE-026.
   - **Verificación a fondo (02/06/2026):** confirmado que NINGÚN flujo escribe `propietario_id`. Barrido de todo el repo de `from('inscripciones').insert/.update/.upsert`: payloads con campos explícitos (sin spreads ni alias `propietario/dueño/owner`); `inscripciones.html` (insert L638) y los UPDATE de `ratificacion.html` no lo tocan; el form de inscripción NO tiene campo de dueño. Único setter: `portal.html:574` (rol propietario), portal sin construir → 0 filas (`canal='web'`: 0/87). No hay trigger/RPC server-side (ninguna migración; y si existiera, las 87 reales lo tendrían). Las 87 son carga manual real por UI (`canal='manual'` 87/87, `created_at` repartido 27/04→23/05), NO seeds → el 0/87 es lo que produce el flujo, no casualidad. **Hay que AGREGAR la captura/derivación al inscribir/ratificar; el fix se planea aparte.**
@@ -94,11 +94,15 @@ Estado: ⚠️ **E1 NEUTRALIZADA en main** (`7af005c`). E2 (warning blando) vivo
 > 1. **Fede al tanto del cambio de workflow:** con E1 *no se puede ratificar un ejemplar sin caballeriza asignada*. Cambio de proceso operativo — requiere su OK explícito.
 > 2. **Backfill de `caballeriza_id` en los SPC/inscripciones activos** (Fase A): sin eso, **Fede no podría ratificar NADA**. Es prerequisito duro. Fix D (ISSUE-026) ya corrige la captura hacia adelante, pero las históricas siguen sin caballeriza.
 
-### ISSUE-028: Pagos v1.2 — tabla de autorizados (cobrar por otro)
-Descripción: hoy el recibo captura cobrador (nombre + DNI) sin validar autorización. Fede quiere registrar **autorizaciones guardadas**: una persona (autorizante = cualquiera que cobra: propietario/profesional) autoriza a un tercero (autorizado) a cobrar en su nombre. Modelo propuesto: tabla `autorizaciones` (autorizante_tipo/id → autorizado nombre+DNI, vigencia), ABM, e integración en el flujo de pago (al emitir, ofrecer/validar autorizado contra la tabla). Módulo: liquidaciones.html (tab Pagos) + nueva tabla. Estado: ⏳ pendiente (v1.2, parkeado). No bloquea v1.1 (que ya captura cobrador libre).
+### ISSUE-028: Apoderados — tabla de autorizados (cobrar por otro) — ✅ CERRADO (v1 + v1.1, 2026-06-10)
+Descripción: registrar **autorizaciones guardadas** — una persona (autorizante = propietario/profesional) autoriza a un tercero a cobrar en su nombre.
+**HECHO:**
+- **v1** (`feat/apoderados-v1`, `1444fa3`): tabla `apoderados` (`migrations/apoderados.sql`, aplicada en DB) — autorizante polimórfico SIN FK, unique parcial anti-dup `WHERE vigente`, RLS club-scoped `TO authenticated` (plana, no SECURITY DEFINER). UI "Autorizados a cobrar" en `propietarios.html` + `profesionales.html` (listar/agregar/revocar; revoke = `vigente=false`, conserva registro).
+- **v1.1** (`feat/apoderados-v1.1-pagos`, `e7a5fb1`): display read-only de autorizados vigentes en Pagos (`cobrosDetalle`) — bloque "Autorizados a cobrar" o "cobra el titular". 0 escrituras.
+- Decisión abierta (no bloqueante): `autorizado_documento` quedó `NOT NULL` — a opcional sin riesgo si Fede lo pide. v2 futura (no pedida): validar el autorizado contra la tabla al emitir el recibo.
 
-### ISSUE-029: turno→carrera en el recibo
-Descripción: el recibo muestra la carrera por `numero_carrera_programa ?? numero_turno` (prefijo "C"). Confirmar con Fede que el número visible sea el de carrera de programa (no el turno) y unificar el rótulo en recibo/detalle. Módulo: liquidaciones.html (print + detalle). Estado: ⏳ parkeado (menor).
+### ISSUE-029: turno→carrera (recibo HECHO + app-wide ⏳)
+Descripción: el recibo ya muestra la carrera por `numero_carrera_programa ?? numero_turno` (prefijo "C", commit `a94eb11`). **Pendiente:** (a) confirmar con Fede que el número visible sea el de carrera de programa; (b) **unificar el criterio en TODA la app** (no solo el recibo) — varios módulos siguen mostrando `numero_turno`. Módulo: liquidaciones.html (hecho) + resto de la app (pendiente). Estado: recibo HECHO, app-wide ⏳ parkeado (menor).
 
 ## BAJOS
 
