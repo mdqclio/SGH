@@ -239,6 +239,22 @@
           </div>
         </div>
       </form>
+      <!-- ISSUE-028 — Apoderados (autorizados a cobrar). Solo al editar un propietario existente. -->
+      <div id="apo-section" style="display:none;border-top:1px solid var(--border);margin-top:8px;padding-top:16px;">
+        <label style="display:block;font-weight:600;color:var(--accent);margin-bottom:8px;">Autorizados a cobrar</label>
+        <div id="apo-list" style="margin-bottom:12px;"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+          <div class="form-group" style="flex:2;min-width:160px;margin:0;">
+            <label>Nombre y apellido</label>
+            <input type="text" id="apo-nombre" placeholder="Nombre del autorizado">
+          </div>
+          <div class="form-group" style="flex:1;min-width:120px;margin:0;">
+            <label>DNI</label>
+            <input type="text" id="apo-doc" placeholder="DNI" inputmode="numeric">
+          </div>
+          <button type="button" class="btn-primary" onclick="apoAdd()">+ Autorizar</button>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
@@ -372,6 +388,12 @@ function openModal(rec = null) {
   document.getElementById('f-stud').value = rec?.nombre_stud || '';
   document.getElementById('f-colores').value = rec?.colores_desc || '';
   document.getElementById('f-notas').value = rec?.notas || '';
+  // Apoderados: solo sobre un autorizante ya existente (necesita id).
+  const apoSec = document.getElementById('apo-section');
+  if (rec?.id) { apoSec.style.display = ''; apoLoad(rec.id); }
+  else { apoSec.style.display = 'none'; document.getElementById('apo-list').innerHTML = ''; }
+  document.getElementById('apo-nombre').value = '';
+  document.getElementById('apo-doc').value = '';
   document.getElementById('modal').classList.add('open');
 }
 
@@ -425,6 +447,54 @@ async function deleteRecord(id, nombre) {
   if (error) { toast(error.message, 'error'); return; }
   toast('Propietario eliminado');
   load();
+}
+
+// ════════════ ISSUE-028 — Apoderados (autorizados a cobrar) ════════════
+// Tabla plana `apoderados` (club-scoped RLS). Autorizante polimórfico: acá tipo='propietario'.
+const APO_TIPO = 'propietario';
+let apoAutorizanteId = null;
+async function apoLoad(autorizanteId) {
+  apoAutorizanteId = autorizanteId;
+  const cont = document.getElementById('apo-list');
+  cont.innerHTML = '<span style="color:var(--muted);font-size:13px;">Cargando…</span>';
+  const { data, error } = await sb.from('apoderados')
+    .select('id,autorizado_nombre,autorizado_documento,vigente')
+    .eq('club_id', CLUB_ID).eq('autorizante_tipo', APO_TIPO).eq('autorizante_id', autorizanteId)
+    .order('vigente', { ascending:false }).order('creado_at', { ascending:true })
+    .then(r=>r, err=>{ console.error('[apoLoad]', err); throw err; });
+  if (error) { cont.innerHTML = `<span style="color:var(--danger)">${escapeHtml(error.message)}</span>`; return; }
+  apoRender(data || []);
+}
+function apoRender(rows) {
+  const cont = document.getElementById('apo-list');
+  if (!rows.length) { cont.innerHTML = '<span style="color:var(--muted);font-size:13px;">Sin autorizados.</span>'; return; }
+  cont.innerHTML = rows.map(a => `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);">
+    <span style="flex:1;${a.vigente?'':'opacity:.5;text-decoration:line-through;'}">${escapeHtml(a.autorizado_nombre)} <span style="color:var(--muted)">· DNI ${escapeHtml(formatDNI(a.autorizado_documento))}</span></span>
+    ${a.vigente
+      ? `<span style="color:var(--success);font-size:12px;">vigente</span><button type="button" class="btn-sm btn-delete" onclick="apoRevocar('${a.id}')">Revocar</button>`
+      : `<span style="color:var(--muted);font-size:12px;">revocado</span>`}
+  </div>`).join('');
+}
+async function apoAdd() {
+  const nombre = document.getElementById('apo-nombre').value.trim();
+  const doc = parseDNI(document.getElementById('apo-doc').value);
+  if (!nombre || !doc) { toast('Nombre y DNI requeridos', 'error'); return; }
+  const { error } = await sb.from('apoderados').insert({
+    club_id: CLUB_ID, autorizante_tipo: APO_TIPO, autorizante_id: apoAutorizanteId,
+    autorizado_nombre: nombre, autorizado_documento: doc, creado_por: currentUser?.id || null,
+  });
+  if (error) { toast(/apoderados_uniq_vigente|duplicate/.test(error.message) ? 'Ese DNI ya está autorizado y vigente' : error.message, 'error'); return; }
+  document.getElementById('apo-nombre').value = '';
+  document.getElementById('apo-doc').value = '';
+  toast('Autorizado agregado');
+  apoLoad(apoAutorizanteId);
+}
+async function apoRevocar(id) {
+  if (!confirm('¿Revocar esta autorización? El registro se conserva (no se borra).')) return;
+  const { error } = await sb.from('apoderados').update({ vigente:false }).eq('id', id);
+  if (error) { toast(error.message, 'error'); return; }
+  toast('Autorización revocada');
+  apoLoad(apoAutorizanteId);
 }
 
 document.getElementById('modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
