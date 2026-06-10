@@ -390,6 +390,8 @@ function parseMonto(str) {
   return parseFloat(s) || 0;
 }
 const fmt = formatMonto;
+// escapeHtml mínimo (ISSUE-028 v1.1 — para autorizado_nombre en el bloque de apoderados).
+function escapeHtml(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function fmtInput(el) {
   if (el.value.match(/,\d{0,1}$/)) return;
   const v = parseMonto(el.value);
@@ -764,15 +766,21 @@ async function cobrosBuscar(){
 async function cobrosDetalle(tipo, id){
   cobBenef = {tipo, id, nombre:nombreBenef(tipo,id)};
   // pagables = SOLO impago; retenidas aparte
-  const [{ data: pag, error: ePag }, { data: ret }] = await Promise.all([
+  const [{ data: pag, error: ePag }, { data: ret }, { data: apos }] = await Promise.all([
     sb.from('liquidacion_detalle')
       .select('id,concepto,monto_neto,posicion,reunion_id,inscripcion_id')
       .eq('beneficiario_tipo',tipo).eq('beneficiario_id',id).is('recibo_id',null).eq('estado_linea','impago'),
     sb.from('liquidacion_detalle')
       .select('id,concepto,monto_neto,posicion,reunion_id,inscripcion_id,fecha_liberacion')
       .eq('beneficiario_tipo',tipo).eq('beneficiario_id',id).is('recibo_id',null).eq('estado_linea','retenido'),
+    // ISSUE-028 v1.1 — apoderados vigentes del beneficiario (read-only, solo display).
+    sb.from('apoderados')
+      .select('autorizado_nombre,autorizado_documento')
+      .eq('club_id', CLUB_ID).eq('autorizante_tipo', tipo).eq('autorizante_id', id)
+      .eq('vigente', true).order('creado_at', { ascending:true }),
   ]);
   if (ePag) { toast(ePag.message,'error'); return; }
+  const apoderados = apos||[];
   cobLineas = pag||[];
   const retLineas = ret||[];
   // enriquecer: fecha de reunión + caballo/carrera (via inscripcion → carreras + spcs)
@@ -796,9 +804,17 @@ async function cobrosDetalle(tipo, id){
       <td style="text-align:right">${fmt(l.monto_neto)}</td>
       <td style="font-size:11px;color:var(--muted)">ref. ${l.fecha_liberacion||'—'}</td>
       <td><button class="btn-sm btn-aprobar" onclick="habilitarLinea('${l.id}','${tipo}','${id}')">✅ Habilitar</button></td></tr>`).join('');
+  // ISSUE-028 v1.1 — bloque read-only de autorizados a cobrar (sin botones; el alta/baja vive en propietarios/profesionales).
+  const apoBlock = apoderados.length
+    ? `<div class="config-card" style="margin:6px 0 14px;border:1px solid var(--accent);background:rgba(201,168,76,0.07);">
+        <div class="config-card-title">🪪 Autorizados a cobrar</div>
+        ${apoderados.map(a=>`<div style="font-size:13px;padding:3px 0;">${escapeHtml(a.autorizado_nombre)} <span style="color:var(--muted)">· DNI ${escapeHtml(a.autorizado_documento)}</span></div>`).join('')}
+       </div>`
+    : `<div style="font-size:12px;color:var(--muted);margin:4px 0 14px;">Sin autorizados registrados — cobra el titular.</div>`;
   document.getElementById('cob-detalle').innerHTML = `
     <div class="config-card" style="margin-top:16px;">
       <h2 style="font-size:18px;color:var(--accent);margin-bottom:6px;">Pago — ${cobBenef.nombre}</h2>
+      ${apoBlock}
       <table class="detalle-table"><thead><tr><th></th><th>Fecha</th><th>Carrera</th><th>Caballo</th><th>Puesto</th><th>Concepto</th><th style="text-align:right">Neto</th></tr></thead>
         <tbody>${rows||'<tr><td colspan="7" style="text-align:center;padding:14px;color:var(--muted)">Sin líneas pagables</td></tr>'}</tbody>
         <tfoot><tr><td colspan="6">TOTAL SELECCIONADO</td><td style="text-align:right;color:var(--success)" id="cob-total">${fmt(total)}</td></tr></tfoot>
