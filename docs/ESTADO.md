@@ -4,7 +4,24 @@
 
 ---
 
-## 📸 Snapshot 2026-06-10 — el más nuevo
+## 📸 Snapshot 2026-06-11 — el más nuevo
+
+> Autoritativo. Supera a los snapshots de abajo. En main hoy: merge squash PR #2 `feat/studbook-id-column` → `db0b2fc` (columna `studbook_id` + backfill). El scrape (fase 1) y la carga de 25 SPCs (fase 2) NO están en main: viven en `feat/studbook-extract` (`821dad0`, pusheada a origin).
+
+### Stud Book — 11/06
+- **`studbook_id` VIVO en main/prod** (`db0b2fc`): `spcs.studbook_id text` + índice único parcial `spcs_studbook_id_uniq`. El "Idcaballo" del Stud Book para su API; distinto de `registro_stud_book` (NULL). Backfill de los 25 verificado contra prod (`count=25`). Migración `migrations/add_studbook_id.sql`.
+- **Scrape fase 1 + carga fase 2 en `feat/studbook-extract` (NO en main)**: `tools/sb_extract.py` (extractor read-only), `data/studbook_26.json` (25/26 ejemplares, 0 ambiguos), `data/studbook_26_insert_report.md`. 25 SPCs insertados en prod con `club_id=NULL` (globales). spcs 40 → 65. SALVADOR EVER resuelto = macho (carrera exclusión de yeguas).
+- **API Stud Book**: Diego ofreció acceso; mandó JSON de La Punta de referencia. Workstream abierto → **ISSUE-030** (7 preguntas pendientes a Diego).
+- **No mergear a main**: `feat/studbook-extract` (decisión separada) ni `docs/AUDIT_PORTAL_ONBOARDING.md` (repo público — detalla huecos de RLS).
+
+### Pendientes Stud Book
+- LADY BLICK (Dolores) NO_ENCONTRADO por match exacto → candidato **LADY BLIK** id `436014` (Hembra, 2022-08-25, padre Lencelot, madre Blik, abuelo materno Missionary (USA), criador Los Bayitos). Pendiente confirmación de Fede → linkear `studbook_id=436014`.
+- Caballerizas / entrenadores / propietarios de los 25 SPCs: bloqueado en data de dueños de Fede (FKs NULL).
+- `abuela_materna`: el "por X" del SB es damsire (abuelo materno), no abuela real → hoy en notas, columna NULL.
+
+---
+
+## 📸 Snapshot 2026-06-10
 
 > Autoritativo. Supera a los snapshots de abajo. Main == origin/main tras merges no-ff de hoy: `feat/desoficializar-rpc` (`61bd81d`), `feat/fase5-resumen` (`4cc6c27`), `feat/apoderados-v1` (`1444fa3`), `feat/apoderados-v1.1-pagos` (`e7a5fb1`) + `feat/resumen-desglose` (`f5a56c4`). Tope de docs en `87e3251`+.
 
