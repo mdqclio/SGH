@@ -104,6 +104,19 @@ Descripción: registrar **autorizaciones guardadas** — una persona (autorizant
 ### ISSUE-029: turno→carrera (recibo HECHO + app-wide ⏳)
 Descripción: el recibo ya muestra la carrera por `numero_carrera_programa ?? numero_turno` (prefijo "C", commit `a94eb11`). **Pendiente:** (a) confirmar con Fede que el número visible sea el de carrera de programa; (b) **unificar el criterio en TODA la app** (no solo el recibo) — varios módulos siguen mostrando `numero_turno`. Módulo: liquidaciones.html (hecho) + resto de la app (pendiente). Estado: recibo HECHO, app-wide ⏳ parkeado (menor).
 
+### ISSUE-030: Integración Stud Book API (Diego) — workstream abierto
+Descripción: Diego (Stud Book Argentino) ofreció acceso a su API y mandó el formato JSON de La Punta como referencia. Hoy la ingesta es por scrape read-only (`tools/sb_extract.py` en `feat/studbook-extract`); la API reemplazaría eso por una fuente oficial. Ya existe `spcs.studbook_id` (el "Idcaballo") como clave de integración (VIVO en main, `db0b2fc`). Se armó un borrador de mapeo (campos La Punta → `spcs`) para responderle.
+PENDIENTE — 7 preguntas a Diego antes de implementar:
+1. Endpoints disponibles (ejemplar por id, búsqueda, listados, pedigree).
+2. Auth (token / API key / IP whitelist).
+3. Modelo de sincronización: pull (consultamos) vs push (nos notifican cambios).
+4. Leyenda/semántica de estados (vivo / muerto / exportado / etc.).
+5. Mapeo caballeriza→propietario (el SB expone caballeriza; nosotros necesitamos propietario).
+6. (resto del set de 7 — vive en el borrador de respuesta a Diego, a sumar acá al confirmarse).
+7. (idem).
+Relacionado: `abuela_materna` (damsire vs abuela real) a aclarar contra el modelo del SB. Backfill de FKs (caballeriza/entrenador/propietario) de los 25 SPCs sigue bloqueado en data de Fede.
+Módulo: integración Stud Book (nuevo). Estado: ⏳ Esperando respuesta de Diego. Prioridad: Media.
+
 ## BAJOS
 
 ### ISSUE-010: Credenciales hardcodeadas

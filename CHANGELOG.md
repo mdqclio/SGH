@@ -1,5 +1,35 @@
 # Changelog
 
+## [2026-06-11] — Stud Book: scrape fase 1 + carga 25 SPCs + columna studbook_id + workstream API
+
+> Solo `studbook_id` está VIVO en main/prod (merge squash PR #2, `db0b2fc`). El scrape (fase 1) y la carga (fase 2) viven en la branch `feat/studbook-extract` — **no mergeada a main** (artefactos persistidos en esa branch).
+
+### 1. Stud Book scrape — fase 1 (branch `feat/studbook-extract`, NO en main)
+- `tools/sb_extract.py` — extractor read-only de www.studbook.org.ar (autocomplete `?tipo=1&muerto=1&term=` + perfil). No toca Supabase.
+- `data/studbook_26.json` — 25/26 ejemplares encontrados con sexo + `fecha_nacimiento` + pedigree (padre/madre/abuelo materno) + criador + microchip. **0 ambiguos**.
+- `LADY BLICK` quedó NO_ENCONTRADO por match exacto. Búsqueda parcial 11/06 ("LADY BL") → candidato único probable **LADY BLIK** (id `436014`, Hembra, 2022-08-25, Zaino Colorado, padre Lencelot, madre Blik, abuelo materno Missionary (USA), criador Los Bayitos). Pendiente confirmación de Fede antes de linkear.
+
+### 2. Carga de 25 SPCs — fase 2 (branch `feat/studbook-extract`, NO en main)
+- 25 ejemplares insertados en `spcs` con `club_id=NULL` (globales), `sexo` + `fecha_nacimiento` del Stud Book; enriquecimiento (SB id, url, microchip, criador, damsire) en `notas`. spcs 40 → 65.
+- Reporte completo (mapeo + UUIDs + rollback) en `data/studbook_26_insert_report.md`.
+- **SALVADOR EVER**: discrepancia de sexo en la planilla resuelta = **macho** (corre carrera de exclusión de yeguas → no puede ser hembra). Cargado macho.
+- BACHUNA: microchip null (anotado en notas).
+
+### 3. Columna `studbook_id` en `spcs` — VIVO en main/prod (`db0b2fc`)
+- `migrations/add_studbook_id.sql`: `ADD COLUMN studbook_id text` + índice único parcial `spcs_studbook_id_uniq` (`WHERE studbook_id IS NOT NULL`).
+- El "Idcaballo" del Stud Book (identificador externo para su API). **Distinto de `registro_stud_book`** (sigue NULL). Tipo text a propósito (id externo, sin aritmética, la API lo manda como string).
+- Backfill idempotente de los 25 desde `data/studbook_26.json` (no toca notas). Verificado contra prod: `count(studbook_id NOT NULL) = 25`, ALIADO SCAT=414038, SALVADOR EVER=432357, índice presente.
+- Doc: línea de `studbook_id` agregada a la def de `spcs` en `docs/SCHEMA.md`.
+
+### 4. Integración Stud Book API — workstream abierto (ISSUE-030)
+- Diego (Stud Book) ofreció acceso a su API y mandó el formato JSON de La Punta como referencia. Se armó un borrador de mapeo para responderle.
+- **PENDIENTE**: 7 preguntas a Diego (endpoints, auth, pull vs push, leyenda de estados, mapeo caballeriza→propietario, etc.). Tracking en ISSUE-030.
+
+### Pendientes anotados (ver ISSUES.md)
+- LADY BLICK / LADY BLIK → confirmación de Fede → linkear `studbook_id=436014`.
+- Caballerizas + entrenadores + propietarios de los 25 SPCs: bloqueado en data de dueños de Fede (FKs en NULL).
+- Semántica `abuela_materna`: el "por X" del SB es abuelo materno (damsire), no abuela real → hoy en notas, columna `abuela_materna` queda NULL hasta aclarar.
+
 ## [2026-06-10] — des-oficializar carrera vía RPC atómica — VIVO en main/prod
 
 > Merge no-ff `feat/desoficializar-rpc` (`61bd81d`). Solo `resultados.html` + `migrations/desoficializar_carrera.sql`.
