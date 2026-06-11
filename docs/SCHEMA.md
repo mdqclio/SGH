@@ -48,7 +48,7 @@ NOTA: categoria_jockey cambió de ENUM a VARCHAR(50) — sesión may-2026. Valor
 CORRECCIÓN: entrenadores NO son globales — tienen hipodromo_patente igual que jockeys (patente otorgada por un hipódromo específico).
 
 ### spcs (GLOBALES — club_id nullable)
-id UUID PK, club_id FK nullable, nombre, registro_stud_book, fecha_nacimiento DATE, sexo ENUM(macho/hembra/castrado), color, marcas, padrillo_nombre, madre_nombre, abuela_materna, pais_origen DEFAULT 'Argentina', caballeriza_id FK, entrenador_id FK, estado ENUM(activo/retirado/suspendido/fallecido/vendido) DEFAULT 'activo', notas, doc_url, foto_url, certificado_correr BOOLEAN DEFAULT FALSE, ult_performances TEXT
+id UUID PK, club_id FK nullable, nombre, registro_stud_book, studbook_id TEXT UNIQUE-parcial (Idcaballo del Stud Book Argentino para integrar con su API; distinto de registro_stud_book), fecha_nacimiento DATE, sexo ENUM(macho/hembra/castrado), color, marcas, padrillo_nombre, madre_nombre, abuela_materna, pais_origen DEFAULT 'Argentina', caballeriza_id FK, entrenador_id FK, estado ENUM(activo/retirado/suspendido/fallecido/vendido) DEFAULT 'activo', notas, doc_url, foto_url, certificado_correr BOOLEAN DEFAULT FALSE, ult_performances TEXT
 NOTA ult_performances: texto libre (ej: `5D5P3L`). Ingreso manual hasta disponer de API Stud Book. Editable en spcs.html tab Origen. Celda en blanco en el programa si no hay dato (no dice "DEBUTA" — ese texto se agrega manualmente si corresponde).
 CRÍTICO: usar .eq('estado','activo') NO .eq('activo',true) — columna activo no existe
 
