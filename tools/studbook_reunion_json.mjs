@@ -79,6 +79,15 @@ function mapSexo(s) {
   return s === 'ambos' ? 'T' : s;
 }
 
+// Procedencia de la caballeriza: hipodromo_patente si existe; si no, el sufijo
+// entre paréntesis del nombre (ej. "Stud X (SL)" → "SL"); si no hay, null.
+function procedenciaCaballeriza(cab) {
+  if (!cab) return null;
+  if (cab.hipodromo_patente) return cab.hipodromo_patente;
+  const m = /\(([^)]+)\)\s*$/.exec(cab.nombre || '');
+  return m ? m[1].trim() : null;
+}
+
 function nombreCompleto(p) {
   if (!p) return null;
   return [p.nombre, p.apellido].filter(Boolean).join(' ') || null;
@@ -159,7 +168,7 @@ async function main() {
   const profIds = allInsc.flatMap(i => [i.jockey_titular_id, i.entrenador_id]);
   const profMap = await fetchByIds('profesionales', profIds, 'id, nombre, apellido, documento_nro');
   const cabMap = await fetchByIds('caballerizas', allInsc.map(i => i.caballeriza_id),
-    'id, nombre, chaquetilla_descripcion');
+    'id, nombre, chaquetilla_descripcion, hipodromo_patente');
   const spcMap = await fetchByIds('spcs', allInsc.map(i => i.spc_id), 'id, nombre, studbook_id');
 
   // --- Armado del JSON ---
@@ -226,6 +235,7 @@ async function main() {
             nombre: cab?.nombre ?? null,
             id: cab?.id ?? null,
             descripcion_chaquetilla: cab?.chaquetilla_descripcion ?? null,
+            procedencia: procedenciaCaballeriza(cab),
           },
           jockey_kilos: i.peso_final,
           cuerpos: { id_interno: null, nombre: rp?.diferencia ?? null },
@@ -239,9 +249,9 @@ async function main() {
       horario: c.hora_estimada,
       premio: c.nombre,
       distancia: c.distancia_metros,
-      tipo_carrera: { id: null, nombre: catMap.get(c.categoria_id)?.nombre ?? null },
-      tipo_pista: { id: null, nombre: c.tipo_pista },
-      estado_pista: { id: null, nombre: res?.estado_pista ?? null },
+      tipo_carrera: { id: c.categoria_id ?? null, nombre: catMap.get(c.categoria_id)?.nombre ?? null },
+      tipo_pista: { id: c.tipo_pista ?? null, nombre: c.tipo_pista ?? null },
+      estado_pista: { id: res?.estado_pista ?? null, nombre: res?.estado_pista ?? null },
       tipo_codo: { id: null, nombre: null },
       condicion: {
         texto: c.condicion_handicap ?? c.condicion_adicional ?? null,
@@ -263,7 +273,7 @@ async function main() {
       id: reunion.id,
       titulo_reunion: null, // gap v1
       fecha: { date: reunion.fecha, timezone: TZ },
-      hipodromo: { nombre: hipodromo?.nombre ?? null, numero: null, id: null }, // numero pendiente Diego
+      hipodromo: { nombre: hipodromo?.nombre ?? null, id: null },
       carreras: carrerasJson,
     },
   };
