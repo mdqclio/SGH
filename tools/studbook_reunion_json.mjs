@@ -93,6 +93,15 @@ function nombreCompleto(p) {
   return [p.nombre, p.apellido].filter(Boolean).join(' ') || null;
 }
 
+// Calco de formato Stud Book: numéricos van como string. null pasa tal cual.
+function str(v) {
+  return v == null ? null : String(v);
+}
+// Idem pero con 2 decimales fijos (ej. kilos jockey "57.00").
+function str2(v) {
+  return v == null ? null : (parseFloat(v)).toFixed(2);
+}
+
 // Carga registros por lista de ids, en un solo .in().
 async function fetchByIds(tabla, ids, cols = '*') {
   const clean = [...new Set(ids.filter(Boolean))];
@@ -191,7 +200,8 @@ async function main() {
       if (pct == null) continue;
       let importe = importePuesto(c.bolsa_total, pct, dist.ganancia_minima);
       if (puesto === 1 && dist.bono_ganador) importe += parseFloat(dist.bono_ganador) || 0;
-      premios.push({ puesto, importe });
+      // Stud Book: puesto e importe como string.
+      premios.push({ puesto: str(puesto), importe: str(importe) });
     }
 
     const competidores = comps
@@ -210,16 +220,16 @@ async function main() {
         else puesto = rp?.posicion != null ? String(rp.posicion) : '0';
 
         return {
-          idCarreraInt: i.id,
+          idCarreraInt: i.id,             // UUID de la inscripción → queda string (no forzar a número)
           puesto,
           estado: null,                 // ignorable v1
           estado_equino_carrera: null,  // ignorable v1
-          orden: i.numero_partidor,
+          orden: str(i.numero_partidor),
           yunta: null,                  // gap v1
           distanciado: rp?.descalificado ? 'SI' : 'NO',
           motivo_distanciado: rp?.motivo_desc ?? null,
-          ejemplar: { nombre: spc?.nombre ?? null, id: spc?.studbook_id ?? null },
-          kilos_ejemplar: i.peso_balanza,
+          ejemplar: { nombre: spc?.nombre ?? null, id: str(spc?.studbook_id) },
+          kilos_ejemplar: str(i.peso_balanza),
           jockey_inscripto: {
             nombre: nombreCompleto(jock),
             dni: jock?.documento_nro ?? null,
@@ -233,22 +243,22 @@ async function main() {
           },
           caballeriza: {
             nombre: cab?.nombre ?? null,
-            id: cab?.id ?? null,
+            id: str(cab?.id),
             descripcion_chaquetilla: cab?.chaquetilla_descripcion ?? null,
             procedencia: procedenciaCaballeriza(cab),
           },
-          jockey_kilos: i.peso_final,
+          jockey_kilos: str2(i.peso_final),
           cuerpos: { id_interno: null, nombre: rp?.diferencia ?? null },
-          pagaria: rp?.dividendo ?? null,
+          pagaria: str(rp?.dividendo),
         };
       });
 
     return {
-      estado: res?.estado ?? null,
-      numero: c.numero_carrera_programa ?? c.numero_turno,
+      estado: res?.estado ?? null,           // se deja sin convertir
+      numero: str(c.numero_carrera_programa ?? c.numero_turno),
       horario: c.hora_estimada,
       premio: c.nombre,
-      distancia: c.distancia_metros,
+      distancia: str(c.distancia_metros),
       tipo_carrera: { id: c.categoria_id ?? null, nombre: catMap.get(c.categoria_id)?.nombre ?? null },
       tipo_pista: { id: c.tipo_pista ?? null, nombre: c.tipo_pista ?? null },
       estado_pista: { id: res?.estado_pista ?? null, nombre: res?.estado_pista ?? null },
@@ -262,13 +272,16 @@ async function main() {
         ganadahasta: null,
       },
       tiempo: parseTiempo(res?.tiempo_ganador),
-      premios,
-      competidores_cantidad: competidores.length,
-      competidores,
+      // Doble-anidado [[ {...} ]] para calcar el JSON de La Punta.
+      // TODO: confirmar con Diego si es a propósito o se aplana.
+      premios: [premios],
+      competidores_cantidad: competidores.length, // se deja sin convertir
+      competidores: [competidores],
     };
   });
 
   const out = {
+    status: 200,
     data: {
       id: reunion.id,
       titulo_reunion: null, // gap v1
