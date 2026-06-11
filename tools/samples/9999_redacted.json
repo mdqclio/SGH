@@ -1,0 +1,913 @@
+{
+  "data": {
+    "id": "a0000000-0000-0000-0000-000000009999",
+    "titulo_reunion": null,
+    "fecha": {
+      "date": "2099-01-01",
+      "timezone": "America/Argentina/Buenos_Aires"
+    },
+    "hipodromo": {
+      "nombre": "Hipódromo de Dolores",
+      "id": null
+    },
+    "carreras": [
+      {
+        "estado": "oficial",
+        "numero": 1,
+        "horario": null,
+        "premio": null,
+        "distancia": 1000,
+        "tipo_carrera": {
+          "id": "ce76d686-c07a-434c-a3b0-74be3bf0c906",
+          "nombre": "Concertada"
+        },
+        "tipo_pista": {
+          "id": "cesped",
+          "nombre": "cesped"
+        },
+        "estado_pista": {
+          "id": null,
+          "nombre": null
+        },
+        "tipo_codo": {
+          "id": null,
+          "nombre": null
+        },
+        "condicion": {
+          "texto": null,
+          "edaddesde": null,
+          "edadhasta": null,
+          "sexo": "T",
+          "ganadadesde": null,
+          "ganadahasta": null
+        },
+        "tiempo": {
+          "minutos": null,
+          "segundos": null,
+          "decimas": null
+        },
+        "premios": [
+          {
+            "puesto": 1,
+            "importe": 600000
+          },
+          {
+            "puesto": 2,
+            "importe": 190000
+          },
+          {
+            "puesto": 3,
+            "importe": 120000
+          },
+          {
+            "puesto": 4,
+            "importe": 100000
+          },
+          {
+            "puesto": 5,
+            "importe": 100000
+          }
+        ],
+        "competidores_cantidad": 6,
+        "competidores": [
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000001",
+            "puesto": "1",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": 1,
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Viento del Sur",
+              "id": null
+            },
+            "kilos_ejemplar": null,
+            "jockey_inscripto": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "jockey": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "cuidador": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "caballeriza": {
+              "nombre": null,
+              "id": null,
+              "descripcion_chaquetilla": null,
+              "procedencia": null
+            },
+            "jockey_kilos": null,
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": null
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000002",
+            "puesto": "2",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": 2,
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "La Porteña",
+              "id": null
+            },
+            "kilos_ejemplar": null,
+            "jockey_inscripto": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "jockey": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "cuidador": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "caballeriza": {
+              "nombre": null,
+              "id": null,
+              "descripcion_chaquetilla": null,
+              "procedencia": null
+            },
+            "jockey_kilos": null,
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": null
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000003",
+            "puesto": "3",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": 3,
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Don Facundo",
+              "id": null
+            },
+            "kilos_ejemplar": null,
+            "jockey_inscripto": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "jockey": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "cuidador": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "caballeriza": {
+              "nombre": null,
+              "id": null,
+              "descripcion_chaquetilla": null,
+              "procedencia": null
+            },
+            "jockey_kilos": null,
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": null
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000004",
+            "puesto": "4",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": 4,
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Estrella Federal",
+              "id": null
+            },
+            "kilos_ejemplar": null,
+            "jockey_inscripto": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "jockey": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "cuidador": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "caballeriza": {
+              "nombre": null,
+              "id": null,
+              "descripcion_chaquetilla": null,
+              "procedencia": null
+            },
+            "jockey_kilos": null,
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": null
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000005",
+            "puesto": "5",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": 5,
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "El Caudillo",
+              "id": null
+            },
+            "kilos_ejemplar": null,
+            "jockey_inscripto": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "jockey": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "cuidador": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "caballeriza": {
+              "nombre": null,
+              "id": null,
+              "descripcion_chaquetilla": null,
+              "procedencia": null
+            },
+            "jockey_kilos": null,
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": null
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000006",
+            "puesto": "99",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": 6,
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Pampero Real",
+              "id": null
+            },
+            "kilos_ejemplar": null,
+            "jockey_inscripto": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "jockey": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "cuidador": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "caballeriza": {
+              "nombre": null,
+              "id": null,
+              "descripcion_chaquetilla": null,
+              "procedencia": null
+            },
+            "jockey_kilos": null,
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": null
+          }
+        ]
+      },
+      {
+        "estado": "oficial",
+        "numero": 2,
+        "horario": null,
+        "premio": null,
+        "distancia": 1100,
+        "tipo_carrera": {
+          "id": "ce76d686-c07a-434c-a3b0-74be3bf0c906",
+          "nombre": "Concertada"
+        },
+        "tipo_pista": {
+          "id": "cesped",
+          "nombre": "cesped"
+        },
+        "estado_pista": {
+          "id": null,
+          "nombre": null
+        },
+        "tipo_codo": {
+          "id": null,
+          "nombre": null
+        },
+        "condicion": {
+          "texto": null,
+          "edaddesde": null,
+          "edadhasta": null,
+          "sexo": "T",
+          "ganadadesde": null,
+          "ganadahasta": null
+        },
+        "tiempo": {
+          "minutos": null,
+          "segundos": null,
+          "decimas": null
+        },
+        "premios": [
+          {
+            "puesto": 1,
+            "importe": 700000
+          },
+          {
+            "puesto": 2,
+            "importe": 190000
+          },
+          {
+            "puesto": 3,
+            "importe": 120000
+          },
+          {
+            "puesto": 4,
+            "importe": 100000
+          },
+          {
+            "puesto": 5,
+            "importe": 100000
+          }
+        ],
+        "competidores_cantidad": 6,
+        "competidores": [
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000007",
+            "puesto": "1",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": 1,
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Flor de Ceibo",
+              "id": null
+            },
+            "kilos_ejemplar": null,
+            "jockey_inscripto": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "jockey": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "cuidador": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "caballeriza": {
+              "nombre": null,
+              "id": null,
+              "descripcion_chaquetilla": null,
+              "procedencia": null
+            },
+            "jockey_kilos": null,
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": null
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000008",
+            "puesto": "2",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": 2,
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Gaucho Bravo",
+              "id": null
+            },
+            "kilos_ejemplar": null,
+            "jockey_inscripto": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "jockey": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "cuidador": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "caballeriza": {
+              "nombre": null,
+              "id": null,
+              "descripcion_chaquetilla": null,
+              "procedencia": null
+            },
+            "jockey_kilos": null,
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": null
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000009",
+            "puesto": "3",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": 3,
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Río Salado",
+              "id": null
+            },
+            "kilos_ejemplar": null,
+            "jockey_inscripto": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "jockey": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "cuidador": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "caballeriza": {
+              "nombre": null,
+              "id": null,
+              "descripcion_chaquetilla": null,
+              "procedencia": null
+            },
+            "jockey_kilos": null,
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": null
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000010",
+            "puesto": "4",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": 4,
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "La Criolla",
+              "id": null
+            },
+            "kilos_ejemplar": null,
+            "jockey_inscripto": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "jockey": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "cuidador": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "caballeriza": {
+              "nombre": null,
+              "id": null,
+              "descripcion_chaquetilla": null,
+              "procedencia": null
+            },
+            "jockey_kilos": null,
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": null
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000011",
+            "puesto": "5",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": 5,
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Pampa Libre",
+              "id": null
+            },
+            "kilos_ejemplar": null,
+            "jockey_inscripto": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "jockey": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "cuidador": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "caballeriza": {
+              "nombre": null,
+              "id": null,
+              "descripcion_chaquetilla": null,
+              "procedencia": null
+            },
+            "jockey_kilos": null,
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": null
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000012",
+            "puesto": "99",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": 6,
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Tormenta Sur",
+              "id": null
+            },
+            "kilos_ejemplar": null,
+            "jockey_inscripto": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "jockey": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "cuidador": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "caballeriza": {
+              "nombre": null,
+              "id": null,
+              "descripcion_chaquetilla": null,
+              "procedencia": null
+            },
+            "jockey_kilos": null,
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": null
+          }
+        ]
+      },
+      {
+        "estado": "oficial",
+        "numero": 3,
+        "horario": null,
+        "premio": null,
+        "distancia": 1200,
+        "tipo_carrera": {
+          "id": "ce76d686-c07a-434c-a3b0-74be3bf0c906",
+          "nombre": "Concertada"
+        },
+        "tipo_pista": {
+          "id": "cesped",
+          "nombre": "cesped"
+        },
+        "estado_pista": {
+          "id": null,
+          "nombre": null
+        },
+        "tipo_codo": {
+          "id": null,
+          "nombre": null
+        },
+        "condicion": {
+          "texto": null,
+          "edaddesde": null,
+          "edadhasta": null,
+          "sexo": "T",
+          "ganadadesde": null,
+          "ganadahasta": null
+        },
+        "tiempo": {
+          "minutos": null,
+          "segundos": null,
+          "decimas": null
+        },
+        "premios": [
+          {
+            "puesto": 1,
+            "importe": 480000
+          },
+          {
+            "puesto": 2,
+            "importe": 152000
+          },
+          {
+            "puesto": 3,
+            "importe": 100000
+          },
+          {
+            "puesto": 4,
+            "importe": 100000
+          },
+          {
+            "puesto": 5,
+            "importe": 100000
+          }
+        ],
+        "competidores_cantidad": 5,
+        "competidores": [
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000013",
+            "puesto": "1",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": 1,
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "El Pampeano",
+              "id": null
+            },
+            "kilos_ejemplar": null,
+            "jockey_inscripto": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "jockey": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "cuidador": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "caballeriza": {
+              "nombre": null,
+              "id": null,
+              "descripcion_chaquetilla": null,
+              "procedencia": null
+            },
+            "jockey_kilos": null,
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": null
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000014",
+            "puesto": "2",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": 2,
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Gaucha Linda",
+              "id": null
+            },
+            "kilos_ejemplar": null,
+            "jockey_inscripto": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "jockey": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "cuidador": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "caballeriza": {
+              "nombre": null,
+              "id": null,
+              "descripcion_chaquetilla": null,
+              "procedencia": null
+            },
+            "jockey_kilos": null,
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": null
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000015",
+            "puesto": "3",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": 3,
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Don Dolores",
+              "id": null
+            },
+            "kilos_ejemplar": null,
+            "jockey_inscripto": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "jockey": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "cuidador": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "caballeriza": {
+              "nombre": null,
+              "id": null,
+              "descripcion_chaquetilla": null,
+              "procedencia": null
+            },
+            "jockey_kilos": null,
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": null
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000016",
+            "puesto": "4",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": 4,
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "La Bonaerense",
+              "id": null
+            },
+            "kilos_ejemplar": null,
+            "jockey_inscripto": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "jockey": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "cuidador": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "caballeriza": {
+              "nombre": null,
+              "id": null,
+              "descripcion_chaquetilla": null,
+              "procedencia": null
+            },
+            "jockey_kilos": null,
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": null
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000017",
+            "puesto": "5",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": 5,
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "MR. PATO",
+              "id": null
+            },
+            "kilos_ejemplar": null,
+            "jockey_inscripto": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "jockey": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "cuidador": {
+              "nombre": "***",
+              "dni": "***",
+              "cuit": "***"
+            },
+            "caballeriza": {
+              "nombre": null,
+              "id": null,
+              "descripcion_chaquetilla": null,
+              "procedencia": null
+            },
+            "jockey_kilos": null,
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": null
+          }
+        ]
+      }
+    ]
+  }
+}
