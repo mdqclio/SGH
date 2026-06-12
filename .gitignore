@@ -1,6 +1,11 @@
 node_modules/
 docs/smoke_screenshots/
 
+# Salida generada del generador de JSON de reunión (datos reales, regenerable)
+tools/_out/
+# Estado local del Supabase CLI (link al proyecto)
+supabase/.temp/
+
 # Secretos / credenciales — NUNCA commitear
 .env
 .env.*

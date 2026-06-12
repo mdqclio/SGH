@@ -4,7 +4,33 @@
 
 ---
 
-## 📸 Snapshot 2026-06-11 — el más nuevo
+## 📸 Snapshot 2026-06-12 — el más nuevo
+
+> Autoritativo. Supera a los snapshots de abajo. Trabajo de hoy en branch **`feat/edge-reunion-json`** (NO en main): Edge Function `reunion-json` deployada + seed de resultados 9999 + housekeeping. El generador y su pasada de formato viven en `feat/json-generator` (`08f8bcb`). Nada de esto está mergeado a main todavía.
+
+### Stud Book — Edge Function `reunion-json` VIVA (Supabase, v7)
+- **Endpoint deployado**: `https://unlhcuanfrtpatoipwve.supabase.co/functions/v1/reunion-json?fecha=YYMMDD`. Devuelve el JSON de reunión por fecha, **scope Dolores**. `supabase/functions/reunion-json/index.ts`.
+- **Auth**: header `Authorization: Bearer <STUDBOOK_API_TOKEN>` (o `?token=`). **`verify_jwt` OFF** → Diego llama con **solo su token, sin anon/publishable key**. Sin token o token incorrecto → 401 (compara de verdad, no fail-open).
+- **DB server-side**: lee con `STUDBOOK_DB_KEY` (un `sb_secret_...` en el env de la función, NO la service_role legacy). Cliente Supabase con `persistSession:false`.
+- **Output compartido**: reusa `supabase/functions/_shared/studbook_format.mjs` → mismo JSON byte-a-byte que el CLI `tools/studbook_reunion_json.mjs`.
+- **Validada contra 9999** (token solo, sin anon key): `fecha=990101` → **200 + diff idéntico** a `tools/samples/9999_sample.json`; sin token → 401; token incorrecto → 401; `fecha=010101` (inexistente) → 404. El antiguo 500-on-valid-token quedó resuelto.
+
+### Stud Book — generador JSON: pasada de formato (calcado de La Punta)
+- `feat/json-generator` (`08f8bcb`): wrapper `{status:200, data:{…}}`; numéricos serializados a **string** (`numero`, `distancia`, `premios`, `orden`, `kilos`, `jockey_kilos`, `pagaria`); `premios` y `competidores` **doble-anidados** `[[ … ]]`. Sample completo en `tools/samples/9999_sample.json` (datos fake, sin PII).
+
+### Datos de prueba 9999 — seed de resultados completos
+- `tools/seed_9999_resultados.sql`: agrega caballerizas + profesionales **ficticios** (`PRUEBA 9999 — BORRAR`) y re-apunta jockey/entrenador/caballeriza de las inscripciones para tener resultados completos que alimenten el generador end-to-end.
+- `teardown_prueba_resumen_9999.sql` extendido: borra esos fakes en orden FK (profesionales antes que caballerizas). Sigue cubriendo todo por `reunion_id`. **Correr antes del 20/6.**
+
+### Pendientes (ver ISSUE-030)
+- ⚠️ **Rotar `STUDBOOK_API_TOKEN` antes del 20/6** (se expuso durante el setup; hoy solo protege la 9999 fake).
+- Correr el teardown de 9999 antes del 20/6.
+- Confirmar con Diego el **doble-anidado** (`premios`/`competidores` `[[…]]`: a propósito o se aplana del lado de él).
+- Diego prueba el endpoint con `fecha=990101`.
+
+---
+
+## 📸 Snapshot 2026-06-11
 
 > Autoritativo. Supera a los snapshots de abajo. En main hoy: merge squash PR #2 `feat/studbook-id-column` → `db0b2fc` (columna `studbook_id` + backfill). El scrape (fase 1) y la carga de 25 SPCs (fase 2) NO están en main: viven en `feat/studbook-extract` (`821dad0`, pusheada a origin).
 

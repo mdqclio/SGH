@@ -250,3 +250,15 @@ En el tab Pagos, `cobrosBuscar()` puebla la **lista de beneficiarios** (`#cob-be
 
 ## 53. Seeding serie-safe: poblar "Pagado" sin correr `emitir_recibo` (2026-06-10)
 Para sembrar datos de prueba con líneas en estado `pagado` (bucket Pagado del Resumen) **sin** mover la numeración real: insertar las filas de `recibos` a mano con `numero_recibo` **fijo y alto** (9001, 9002…) y setear `liquidacion_detalle.estado_linea='pagado'` + `recibo_id` directo. **NO** llamar `emitir_recibo` ni `fn_siguiente_recibo` → `club_secuencias.ultimo_numero` (tipo=recibo) queda intacto en 0. El teardown borra los recibos por id, así que tampoco lo toca al limpiar. Ver `teardown_prueba_resumen_9999.sql`.
+
+## 54. Edge Function secrets son por-proyecto y write-only (2026-06-12)
+Los secrets de Edge Functions (`supabase secrets set`) son **por-proyecto** y no se leen de vuelta. Setearlos en el proyecto equivocado (p.ej. el de "Cambios" en vez de SGH) **no da error**, pero la función nunca los ve → la función falla en runtime sin pista clara. Verificar siempre el `ref` del proyecto en la URL del dashboard (SGH = `unlhcuanfrtpatoipwve`) antes de setear. Como son write-only, si perdés el valor no hay forma de recuperarlo: solo sobrescribir.
+
+## 55. `supabase login` no anda en el shell non-TTY de Claude Code (2026-06-12)
+`npx supabase login` es interactivo y falla en el shell non-TTY de CC (`LegacyLoginMissingTokenError` / "Access token not provided"). Para operar el CLI desde acá (p.ej. `secrets set`): pasar un **PAT** vía `SUPABASE_ACCESS_TOKEN=sbp_…` inline, o hacer la operación por **dashboard** / Management API. El `linked-project.json` en `supabase/.temp/` solo guarda el link, no la auth.
+
+## 56. En Edge Functions, la service_role auto-inyectada es la `eyJ` legacy (muerta 7/6) (2026-06-12)
+Supabase inyecta `SUPABASE_SERVICE_ROLE_KEY` en el env de toda Edge Function, pero ese valor es la **legacy `eyJ…`**, desactivada el 2026-06-07 (401 "Legacy API keys are disabled"). Para acceso server-side a la DB desde una función, NO usarla: setear un secret custom (p.ej. `STUDBOOK_DB_KEY`) con un `sb_secret_…` y leerlo con `Deno.env.get(...)`.
+
+## 57. Copiar tokens largos del terminal los wrapea y mete un espacio (2026-06-12)
+Un token de 64 hex copiado desde la terminal puede venir **partido por un wrap visual** → al pegarlo aparece un espacio en el medio (`…c0 52af…`) que rompe el valor y da 401 aunque el token sea el correcto. Antes de descartar un token como inválido, probar quitándole espacios/saltos (`tr -d ' \n'`). No es artefacto inofensivo: el espacio va literal en el header `Authorization`.

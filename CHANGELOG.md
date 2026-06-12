@@ -1,5 +1,30 @@
 # Changelog
 
+## [2026-06-12] — Stud Book: Edge Function `reunion-json` deployada + pasada de formato + seed 9999
+
+> Todo en branches, NO en main. Edge Function + seed: `feat/edge-reunion-json`. Pasada de formato del generador: `feat/json-generator` (`08f8bcb`).
+
+### 1. Edge Function `reunion-json` (Supabase, v7) — VIVA
+- `supabase/functions/reunion-json/index.ts`: expone el JSON de reunión por `?fecha=YYMMDD`, **scope Dolores**. URL `…/functions/v1/reunion-json`.
+- **Auth** `Authorization: Bearer <STUDBOOK_API_TOKEN>` (o `?token=`), **`verify_jwt` OFF** → el cliente (Diego) llama con **solo el token, sin anon/publishable key**. Sin token / token incorrecto → 401 (no fail-open).
+- **DB server-side** con `STUDBOOK_DB_KEY` (`sb_secret_…` en el env de la función; NO la service_role legacy `eyJ`, muerta el 7/6).
+- Reusa `supabase/functions/_shared/studbook_format.mjs` → **mismo output byte-a-byte** que el CLI `tools/studbook_reunion_json.mjs`.
+- **Validada contra 9999**: `990101` → 200 + diff idéntico a `tools/samples/9999_sample.json`; 401 sin/mal token; `010101` → 404.
+
+### 2. Generador JSON — pasada de formato calcado de La Punta (`08f8bcb`, `feat/json-generator`)
+- Wrapper `{status:200, data}`; numéricos a **string** (`numero`/`distancia`/`premios`/`orden`/`kilos`/`jockey_kilos`/`pagaria`); `premios` y `competidores` **doble-anidados** `[[…]]`. Sample completo `tools/samples/9999_sample.json` (datos fake, sin PII).
+
+### 3. Seed de resultados 9999 + teardown extendido (`feat/edge-reunion-json`)
+- `tools/seed_9999_resultados.sql`: caballerizas + profesionales ficticios (`PRUEBA 9999 — BORRAR`) + re-apunta FKs de inscripciones para resultados completos.
+- `teardown_prueba_resumen_9999.sql`: borra los fakes en orden FK (profesionales → caballerizas).
+- `.gitignore`: `tools/_out/` (salida regenerable con datos reales) + `supabase/.temp/` (estado local del CLI).
+
+### Pendientes (ISSUE-030)
+- ⚠️ Rotar `STUDBOOK_API_TOKEN` antes del 20/6 (expuesto en setup; hoy solo cubre la 9999 fake).
+- Correr teardown de 9999 antes del 20/6.
+- Confirmar con Diego el doble-anidado `[[…]]` (a propósito o se aplana).
+- Diego prueba el endpoint con `fecha=990101`.
+
 ## [2026-06-11] — Stud Book: scrape fase 1 + carga 25 SPCs + columna studbook_id + workstream API
 
 > Solo `studbook_id` está VIVO en main/prod (merge squash PR #2, `db0b2fc`). El scrape (fase 1) y la carga (fase 2) viven en la branch `feat/studbook-extract` — **no mergeada a main** (artefactos persistidos en esa branch).
