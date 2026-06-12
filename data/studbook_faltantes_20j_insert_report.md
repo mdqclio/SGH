@@ -1,11 +1,11 @@
-# FASE 3 — Carga de 75 SPCs faltantes (Reunión 2026-06-20, Dolores)
+# FASE 3 — Carga de 76 SPCs faltantes (Reunión 2026-06-20, Dolores)
 
 - **Fecha**: 2026-06-12
 - **Fuente**: `data/studbook_faltantes_20j.json` (scrape read-only de www.studbook.org.ar) + re-fetch de 5 ambiguos
 - **Tabla afectada**: `spcs` (única) — SPCs globales (`club_id=NULL`)
-- **Conteo**: spcs 66 → 141 (+75)
-- **Insertados**: 75 · **Saltados (dedup case-insensitive ñ/acentos)**: 0
-- **Origen**: 67 match exacto + 5 ambiguos resueltos al candidato de fecha reciente + 3 nombres corregidos/despaciados (2026-06-12: QUEEN OF HEARTS, HEART OF GOLD, LA RODESIA)
+- **Conteo**: spcs 66 → 142 (+76)
+- **Insertados**: 76 · **Saltados (dedup case-insensitive ñ/acentos)**: 0
+- **Origen**: 67 match exacto + 5 ambiguos resueltos al candidato de fecha reciente + 4 nombres corregidos/despaciados (2026-06-12: QUEEN OF HEARTS, HEART OF GOLD, LA RODESIA, TALENTOSA CATCH)
 
 ## Mapeo aplicado (idéntico a `studbook_26_insert_report.md`)
 - `nombre` = nombre (mayúsculas) · `sexo` = lower(Macho→macho / Hembra→hembra)
@@ -109,18 +109,13 @@ Planilla traía el nombre mal escrito o despaciado; grafía real confirmada. San
 | QUEEN OF HEARTS | afb74456-39cc-46ed-aabf-ecc9c0ccf8f3 | hembra | 2022-07-05 | 435064 | QUEEN OF HEART | "3 y 4 años": 3 años + hembra ✓ (homónimos 1984/1969 descartados) |
 | HEART OF GOLD | 8e72a714-8599-4ec2-afa1-2186730ca18c | macho | 2021-11-24 | 432334 | HEART OR GOLD | "machos / 3 y 4 años": 4 años + macho ✓ (homónimo H 1997 descartado) |
 | LA RODESIA | 3fc4c63d-e203-4aac-8c74-3f8d6de81194 | hembra | 2020-11-19 | 424435 | L A RODESIA | ESPECIAL "4 años y más, ganadores de 2+": nac 2020 (5 años) ✓ — candidato exacto único (RODESIA/RHODESIA viejos descartados) |
+| TALENTOSA CATCH | de91e71a-4094-4b06-9d3b-4e111337394f | hembra | 2021-07-31 | 433707 | TALENTOSA CACH | "yeguas 3 y 4 años perdedoras": 4 años + hembra ✓ · "CACH" = apócope de "CATCH" — confirmado por Fede 2026-06-12 |
 
-## NO insertados — 1 pendiente (grafía sin confirmar)
+## NO insertados — 0 pendientes
 
-`TALENTOSA CASH` no existe en el SB (0 resultados). Mejor candidato por nombre/sexo/edad: **TALENTOSA CATCH** (SB 433707, Hembra, 2021-07-31 → 4 años, cuadra "yeguas 3 y 4 años perdedoras"). NO insertado: pendiente de confirmar grafía con Fede.
+✅ FASE 3 completa. TALENTOSA CATCH (último pendiente) insertado 2026-06-12 tras confirmación de Fede.
 
-| planilla | candidato SB probable | sexo | nac | nota |
-|---|---|---|---|---|
-| TALENTOSA CACH | TALENTOSA CATCH (433707) | hembra | 2021-07-31 | "CACH" ≈ "CATCH" apócope; sanity OK. Otros prefijo TALENTOSA: DUBAI/FIL/INE/INTERPRETE (edad/nombre menos probable) |
-
-Acción: confirmar `TALENTOSA CATCH` con Fede antes de insertar.
-
-> Resueltos 2026-06-12: QUEEN OF HEART → QUEEN OF HEARTS · HEART OR GOLD → HEART OF GOLD · L A RODESIA → LA RODESIA (ver sección anterior).
+> Resueltos 2026-06-12: QUEEN OF HEART → QUEEN OF HEARTS · HEART OR GOLD → HEART OF GOLD · L A RODESIA → LA RODESIA · TALENTOSA CACH → TALENTOSA CATCH (ver tabla anterior).
 
 ## Rollback
 
@@ -163,6 +158,6 @@ DELETE FROM spcs WHERE id IN (
   '25fafcd8-4d87-4a84-b9d1-cf7c82564205','7e1204e3-5610-4062-a761-92fbbc561dab',
   '54f25bff-70d0-4cdc-8076-307f20f762be','e08e7cd3-e462-4778-a42d-0fbe859ec0ef',
   'afb74456-39cc-46ed-aabf-ecc9c0ccf8f3','8e72a714-8599-4ec2-afa1-2186730ca18c',
-  '3fc4c63d-e203-4aac-8c74-3f8d6de81194'
+  '3fc4c63d-e203-4aac-8c74-3f8d6de81194','de91e71a-4094-4b06-9d3b-4e111337394f'
 );
 ```
