@@ -1,11 +1,11 @@
-# FASE 3 — Carga de 72 SPCs faltantes (Reunión 2026-06-20, Dolores)
+# FASE 3 — Carga de 74 SPCs faltantes (Reunión 2026-06-20, Dolores)
 
 - **Fecha**: 2026-06-12
 - **Fuente**: `data/studbook_faltantes_20j.json` (scrape read-only de www.studbook.org.ar) + re-fetch de 5 ambiguos
 - **Tabla afectada**: `spcs` (única) — SPCs globales (`club_id=NULL`)
-- **Conteo**: spcs 66 → 138 (+72)
-- **Insertados**: 72 · **Saltados (dedup case-insensitive ñ/acentos)**: 0
-- **Origen**: 67 match exacto + 5 ambiguos resueltos al candidato de fecha reciente
+- **Conteo**: spcs 66 → 140 (+74)
+- **Insertados**: 74 · **Saltados (dedup case-insensitive ñ/acentos)**: 0
+- **Origen**: 67 match exacto + 5 ambiguos resueltos al candidato de fecha reciente + 2 nombres corregidos por Fede (2026-06-12)
 
 ## Mapeo aplicado (idéntico a `studbook_26_insert_report.md`)
 - `nombre` = nombre (mayúsculas) · `sexo` = lower(Macho→macho / Hembra→hembra)
@@ -100,16 +100,25 @@ Cada nombre tenía varios SP homónimos en el SB; se eligió el de nacimiento re
 | MI ILUSION | 54f25bff-70d0-4cdc-8076-307f20f762be | hembra | 2020-10-26 | 1982-09-23, 1949-01-01 |
 | TIRSO | e08e7cd3-e462-4778-a42d-0fbe859ec0ef | macho | 2023-10-06 | 1981-01-01 |
 
-## NO insertados — 4 no encontrados en SB
+## Insertados — nombres corregidos por Fede 2026-06-12 (2)
+
+Planilla traía el nombre mal escrito; Fede confirmó la grafía real. Sanity check de sexo/edad vs categorías de la reunión: ✅ ambos cuadran. `notas` incluye "en planilla figura como <nombre mal escrito>".
+
+| nombre real | spc_id | sexo | fecha_nacimiento | SB id | en planilla | sanity check |
+|---|---|---|---|---|---|---|
+| QUEEN OF HEARTS | afb74456-39cc-46ed-aabf-ecc9c0ccf8f3 | hembra | 2022-07-05 | 435064 | QUEEN OF HEART | "3 y 4 años": 3 años + hembra ✓ (homónimos 1984/1969 descartados) |
+| HEART OF GOLD | 8e72a714-8599-4ec2-afa1-2186730ca18c | macho | 2021-11-24 | 432334 | HEART OR GOLD | "machos / 3 y 4 años": 4 años + macho ✓ (homónimo H 1997 descartado) |
+
+## NO insertados — 2 pendientes (sin grafía confirmada)
 
 | planilla | más parecido en SB | lectura |
 |---|---|---|
-| QUEEN OF HEART | QUEEN OF HEARTS (Hembra, 2022-07-05) | plural — typo probable en planilla, mismo caballo |
-| HEART OR GOLD | —sin candidatos— | typo probable (¿HEART OF GOLD?) |
 | L A RODESIA | —sin candidatos— | espaciado roto (¿LA RODESIA?) |
 | TALENTOSA CACH | —sin candidatos— | apócope (¿TALENTOSA CACHO/CACHA?) |
 
 Acción: confirmar grafía con Fede/planilla antes de re-scrapear e insertar.
+
+> Resueltos 2026-06-12: QUEEN OF HEART → QUEEN OF HEARTS y HEART OR GOLD → HEART OF GOLD (ver sección anterior).
 
 ## Rollback
 
@@ -150,6 +159,7 @@ DELETE FROM spcs WHERE id IN (
   '2916cc0f-b181-4138-8f55-ec028e48228c','67db5702-1886-4128-88fa-55e8a002cbf2',
   '082a1320-bf09-4a24-9f77-401fd1cbfe02','be1c180a-d524-4429-82af-a59ad94165c7',
   '25fafcd8-4d87-4a84-b9d1-cf7c82564205','7e1204e3-5610-4062-a761-92fbbc561dab',
-  '54f25bff-70d0-4cdc-8076-307f20f762be','e08e7cd3-e462-4778-a42d-0fbe859ec0ef'
+  '54f25bff-70d0-4cdc-8076-307f20f762be','e08e7cd3-e462-4778-a42d-0fbe859ec0ef',
+  'afb74456-39cc-46ed-aabf-ecc9c0ccf8f3','8e72a714-8599-4ec2-afa1-2186730ca18c'
 );
 ```
