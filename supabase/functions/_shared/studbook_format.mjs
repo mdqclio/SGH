@@ -91,7 +91,15 @@ export function buildReunionJson({
   catMap, profMap, cabMap, spcMap,
   tz = TZ_DEFAULT,
 }) {
-  const carrerasJson = carreras.map(c => {
+  // Solo carreras OFICIALES: el estado vive en resultados.estado
+  // (valores reales: oficial/provisional/anulado). carreras.estado NO tiene
+  // 'oficial' (abierta/programada/confirmada/anulada). Las no-oficiales no
+  // aparecen en el JSON.
+  const carrerasOficiales = carreras.filter(
+    c => resByCarrera.get(c.id)?.estado === 'oficial'
+  );
+
+  const carrerasJson = carrerasOficiales.map(c => {
     const res = resByCarrera.get(c.id) || null;
     const hasResult = !!res;
 
@@ -182,11 +190,11 @@ export function buildReunionJson({
         ganadahasta: null,
       },
       tiempo: parseTiempo(res?.tiempo_ganador),
-      // Doble-anidado [[ {...} ]] para calcar el JSON de La Punta.
-      // TODO: confirmar con Diego si es a propósito o se aplana.
-      premios: [premios],
+      // Array simple [ {...} ]. El doble-anidado [[...]] del formato de
+      // referencia (La Punta) era un error; Diego confirmó aplanar (2026-06-12).
+      premios,
       competidores_cantidad: competidores.length, // se deja sin convertir
-      competidores: [competidores],
+      competidores,
     };
   });
 

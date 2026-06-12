@@ -48,285 +48,281 @@
           "decimas": 20
         },
         "premios": [
-          [
-            {
-              "puesto": "1",
-              "importe": "600000"
-            },
-            {
-              "puesto": "2",
-              "importe": "190000"
-            },
-            {
-              "puesto": "3",
-              "importe": "120000"
-            },
-            {
-              "puesto": "4",
-              "importe": "100000"
-            },
-            {
-              "puesto": "5",
-              "importe": "100000"
-            }
-          ]
+          {
+            "puesto": "1",
+            "importe": "600000"
+          },
+          {
+            "puesto": "2",
+            "importe": "190000"
+          },
+          {
+            "puesto": "3",
+            "importe": "120000"
+          },
+          {
+            "puesto": "4",
+            "importe": "100000"
+          },
+          {
+            "puesto": "5",
+            "importe": "100000"
+          }
         ],
         "competidores_cantidad": 6,
         "competidores": [
-          [
-            {
-              "idCarreraInt": "a1000000-0000-0000-0000-000000000001",
-              "puesto": "1",
-              "estado": null,
-              "estado_equino_carrera": null,
-              "orden": "1",
-              "yunta": null,
-              "distanciado": "NO",
-              "motivo_distanciado": null,
-              "ejemplar": {
-                "nombre": "Viento del Sur",
-                "id": null
-              },
-              "kilos_ejemplar": "462",
-              "jockey_inscripto": {
-                "nombre": "PRUEBA 9999 — BORRAR Jockey Uno",
-                "dni": "90000001",
-                "cuit": null
-              },
-              "jockey": {
-                "nombre": null,
-                "dni": null,
-                "cuit": null
-              },
-              "cuidador": {
-                "nombre": "PRUEBA 9999 — BORRAR Cuidador Uno",
-                "dni": "90000011",
-                "cuit": null
-              },
-              "caballeriza": {
-                "nombre": "PRUEBA 9999 — BORRAR Stud Patente",
-                "id": "f9000000-0000-0000-0000-0000000000c1",
-                "descripcion_chaquetilla": "Casaca azul, gorra oro (PRUEBA 9999)",
-                "procedencia": "DOL"
-              },
-              "jockey_kilos": "55.00",
-              "cuerpos": {
-                "id_interno": null,
-                "nombre": null
-              },
-              "pagaria": "2.3"
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000001",
+            "puesto": "1",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": "1",
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Viento del Sur",
+              "id": null
             },
-            {
-              "idCarreraInt": "a1000000-0000-0000-0000-000000000002",
-              "puesto": "2",
-              "estado": null,
-              "estado_equino_carrera": null,
-              "orden": "2",
-              "yunta": null,
-              "distanciado": "NO",
-              "motivo_distanciado": null,
-              "ejemplar": {
-                "nombre": "La Porteña",
-                "id": null
-              },
-              "kilos_ejemplar": "448",
-              "jockey_inscripto": {
-                "nombre": "PRUEBA 9999 — BORRAR Jockey Dos",
-                "dni": "90000002",
-                "cuit": null
-              },
-              "jockey": {
-                "nombre": null,
-                "dni": null,
-                "cuit": null
-              },
-              "cuidador": {
-                "nombre": "PRUEBA 9999 — BORRAR Cuidador Dos",
-                "dni": "90000012",
-                "cuit": null
-              },
-              "caballeriza": {
-                "nombre": "PRUEBA 9999 — BORRAR Stud (SL)",
-                "id": "f9000000-0000-0000-0000-0000000000c2",
-                "descripcion_chaquetilla": "Casaca roja, mangas blancas (PRUEBA 9999)",
-                "procedencia": "SL"
-              },
-              "jockey_kilos": "53.00",
-              "cuerpos": {
-                "id_interno": null,
-                "nombre": "1 1/2 cuerpos"
-              },
-              "pagaria": "3.1"
+            "kilos_ejemplar": "462",
+            "jockey_inscripto": {
+              "nombre": "PRUEBA 9999 — BORRAR Jockey Uno",
+              "dni": "90000001",
+              "cuit": null
             },
-            {
-              "idCarreraInt": "a1000000-0000-0000-0000-000000000003",
-              "puesto": "3",
-              "estado": null,
-              "estado_equino_carrera": null,
-              "orden": "3",
-              "yunta": null,
-              "distanciado": "NO",
-              "motivo_distanciado": null,
-              "ejemplar": {
-                "nombre": "Don Facundo",
-                "id": null
-              },
-              "kilos_ejemplar": "510",
-              "jockey_inscripto": {
-                "nombre": "PRUEBA 9999 — BORRAR Jockey Tres",
-                "dni": "90000003",
-                "cuit": null
-              },
-              "jockey": {
-                "nombre": null,
-                "dni": null,
-                "cuit": null
-              },
-              "cuidador": {
-                "nombre": "PRUEBA 9999 — BORRAR Cuidador Uno",
-                "dni": "90000011",
-                "cuit": null
-              },
-              "caballeriza": {
-                "nombre": "PRUEBA 9999 — BORRAR Caballeriza Simple",
-                "id": "f9000000-0000-0000-0000-0000000000c3",
-                "descripcion_chaquetilla": "Casaca verde lisa (PRUEBA 9999)",
-                "procedencia": null
-              },
-              "jockey_kilos": "56.00",
-              "cuerpos": {
-                "id_interno": null,
-                "nombre": "2 cuerpos"
-              },
-              "pagaria": "5.5"
+            "jockey": {
+              "nombre": null,
+              "dni": null,
+              "cuit": null
             },
-            {
-              "idCarreraInt": "a1000000-0000-0000-0000-000000000004",
-              "puesto": "4",
-              "estado": null,
-              "estado_equino_carrera": null,
-              "orden": "4",
-              "yunta": null,
-              "distanciado": "NO",
-              "motivo_distanciado": null,
-              "ejemplar": {
-                "nombre": "Estrella Federal",
-                "id": null
-              },
-              "kilos_ejemplar": "489",
-              "jockey_inscripto": {
-                "nombre": "PRUEBA 9999 — BORRAR Jockey Uno",
-                "dni": "90000001",
-                "cuit": null
-              },
-              "jockey": {
-                "nombre": null,
-                "dni": null,
-                "cuit": null
-              },
-              "cuidador": {
-                "nombre": "PRUEBA 9999 — BORRAR Cuidador Dos",
-                "dni": "90000012",
-                "cuit": null
-              },
-              "caballeriza": {
-                "nombre": "PRUEBA 9999 — BORRAR Stud Patente",
-                "id": "f9000000-0000-0000-0000-0000000000c1",
-                "descripcion_chaquetilla": "Casaca azul, gorra oro (PRUEBA 9999)",
-                "procedencia": "DOL"
-              },
-              "jockey_kilos": "54.00",
-              "cuerpos": {
-                "id_interno": null,
-                "nombre": "pescuezo"
-              },
-              "pagaria": "8"
+            "cuidador": {
+              "nombre": "PRUEBA 9999 — BORRAR Cuidador Uno",
+              "dni": "90000011",
+              "cuit": null
             },
-            {
-              "idCarreraInt": "a1000000-0000-0000-0000-000000000005",
-              "puesto": "5",
-              "estado": null,
-              "estado_equino_carrera": null,
-              "orden": "5",
-              "yunta": null,
-              "distanciado": "NO",
-              "motivo_distanciado": null,
-              "ejemplar": {
-                "nombre": "El Caudillo",
-                "id": null
-              },
-              "kilos_ejemplar": "525",
-              "jockey_inscripto": {
-                "nombre": "PRUEBA 9999 — BORRAR Jockey Dos",
-                "dni": "90000002",
-                "cuit": null
-              },
-              "jockey": {
-                "nombre": null,
-                "dni": null,
-                "cuit": null
-              },
-              "cuidador": {
-                "nombre": "PRUEBA 9999 — BORRAR Cuidador Uno",
-                "dni": "90000011",
-                "cuit": null
-              },
-              "caballeriza": {
-                "nombre": "PRUEBA 9999 — BORRAR Stud (SL)",
-                "id": "f9000000-0000-0000-0000-0000000000c2",
-                "descripcion_chaquetilla": "Casaca roja, mangas blancas (PRUEBA 9999)",
-                "procedencia": "SL"
-              },
-              "jockey_kilos": "57.00",
-              "cuerpos": {
-                "id_interno": null,
-                "nombre": "3 cuerpos"
-              },
-              "pagaria": "12.5"
+            "caballeriza": {
+              "nombre": "PRUEBA 9999 — BORRAR Stud Patente",
+              "id": "f9000000-0000-0000-0000-0000000000c1",
+              "descripcion_chaquetilla": "Casaca azul, gorra oro (PRUEBA 9999)",
+              "procedencia": "DOL"
             },
-            {
-              "idCarreraInt": "a1000000-0000-0000-0000-000000000006",
-              "puesto": "99",
-              "estado": null,
-              "estado_equino_carrera": null,
-              "orden": "6",
-              "yunta": null,
-              "distanciado": "NO",
-              "motivo_distanciado": null,
-              "ejemplar": {
-                "nombre": "Pampero Real",
-                "id": null
-              },
-              "kilos_ejemplar": "471",
-              "jockey_inscripto": {
-                "nombre": "PRUEBA 9999 — BORRAR Jockey Tres",
-                "dni": "90000003",
-                "cuit": null
-              },
-              "jockey": {
-                "nombre": null,
-                "dni": null,
-                "cuit": null
-              },
-              "cuidador": {
-                "nombre": "PRUEBA 9999 — BORRAR Cuidador Dos",
-                "dni": "90000012",
-                "cuit": null
-              },
-              "caballeriza": {
-                "nombre": "PRUEBA 9999 — BORRAR Caballeriza Simple",
-                "id": "f9000000-0000-0000-0000-0000000000c3",
-                "descripcion_chaquetilla": "Casaca verde lisa (PRUEBA 9999)",
-                "procedencia": null
-              },
-              "jockey_kilos": "52.00",
-              "cuerpos": {
-                "id_interno": null,
-                "nombre": null
-              },
-              "pagaria": null
-            }
-          ]
+            "jockey_kilos": "55.00",
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": "2.3"
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000002",
+            "puesto": "2",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": "2",
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "La Porteña",
+              "id": null
+            },
+            "kilos_ejemplar": "448",
+            "jockey_inscripto": {
+              "nombre": "PRUEBA 9999 — BORRAR Jockey Dos",
+              "dni": "90000002",
+              "cuit": null
+            },
+            "jockey": {
+              "nombre": null,
+              "dni": null,
+              "cuit": null
+            },
+            "cuidador": {
+              "nombre": "PRUEBA 9999 — BORRAR Cuidador Dos",
+              "dni": "90000012",
+              "cuit": null
+            },
+            "caballeriza": {
+              "nombre": "PRUEBA 9999 — BORRAR Stud (SL)",
+              "id": "f9000000-0000-0000-0000-0000000000c2",
+              "descripcion_chaquetilla": "Casaca roja, mangas blancas (PRUEBA 9999)",
+              "procedencia": "SL"
+            },
+            "jockey_kilos": "53.00",
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": "1 1/2 cuerpos"
+            },
+            "pagaria": "3.1"
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000003",
+            "puesto": "3",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": "3",
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Don Facundo",
+              "id": null
+            },
+            "kilos_ejemplar": "510",
+            "jockey_inscripto": {
+              "nombre": "PRUEBA 9999 — BORRAR Jockey Tres",
+              "dni": "90000003",
+              "cuit": null
+            },
+            "jockey": {
+              "nombre": null,
+              "dni": null,
+              "cuit": null
+            },
+            "cuidador": {
+              "nombre": "PRUEBA 9999 — BORRAR Cuidador Uno",
+              "dni": "90000011",
+              "cuit": null
+            },
+            "caballeriza": {
+              "nombre": "PRUEBA 9999 — BORRAR Caballeriza Simple",
+              "id": "f9000000-0000-0000-0000-0000000000c3",
+              "descripcion_chaquetilla": "Casaca verde lisa (PRUEBA 9999)",
+              "procedencia": null
+            },
+            "jockey_kilos": "56.00",
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": "2 cuerpos"
+            },
+            "pagaria": "5.5"
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000004",
+            "puesto": "4",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": "4",
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Estrella Federal",
+              "id": null
+            },
+            "kilos_ejemplar": "489",
+            "jockey_inscripto": {
+              "nombre": "PRUEBA 9999 — BORRAR Jockey Uno",
+              "dni": "90000001",
+              "cuit": null
+            },
+            "jockey": {
+              "nombre": null,
+              "dni": null,
+              "cuit": null
+            },
+            "cuidador": {
+              "nombre": "PRUEBA 9999 — BORRAR Cuidador Dos",
+              "dni": "90000012",
+              "cuit": null
+            },
+            "caballeriza": {
+              "nombre": "PRUEBA 9999 — BORRAR Stud Patente",
+              "id": "f9000000-0000-0000-0000-0000000000c1",
+              "descripcion_chaquetilla": "Casaca azul, gorra oro (PRUEBA 9999)",
+              "procedencia": "DOL"
+            },
+            "jockey_kilos": "54.00",
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": "pescuezo"
+            },
+            "pagaria": "8"
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000005",
+            "puesto": "5",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": "5",
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "El Caudillo",
+              "id": null
+            },
+            "kilos_ejemplar": "525",
+            "jockey_inscripto": {
+              "nombre": "PRUEBA 9999 — BORRAR Jockey Dos",
+              "dni": "90000002",
+              "cuit": null
+            },
+            "jockey": {
+              "nombre": null,
+              "dni": null,
+              "cuit": null
+            },
+            "cuidador": {
+              "nombre": "PRUEBA 9999 — BORRAR Cuidador Uno",
+              "dni": "90000011",
+              "cuit": null
+            },
+            "caballeriza": {
+              "nombre": "PRUEBA 9999 — BORRAR Stud (SL)",
+              "id": "f9000000-0000-0000-0000-0000000000c2",
+              "descripcion_chaquetilla": "Casaca roja, mangas blancas (PRUEBA 9999)",
+              "procedencia": "SL"
+            },
+            "jockey_kilos": "57.00",
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": "3 cuerpos"
+            },
+            "pagaria": "12.5"
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000006",
+            "puesto": "99",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": "6",
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Pampero Real",
+              "id": null
+            },
+            "kilos_ejemplar": "471",
+            "jockey_inscripto": {
+              "nombre": "PRUEBA 9999 — BORRAR Jockey Tres",
+              "dni": "90000003",
+              "cuit": null
+            },
+            "jockey": {
+              "nombre": null,
+              "dni": null,
+              "cuit": null
+            },
+            "cuidador": {
+              "nombre": "PRUEBA 9999 — BORRAR Cuidador Dos",
+              "dni": "90000012",
+              "cuit": null
+            },
+            "caballeriza": {
+              "nombre": "PRUEBA 9999 — BORRAR Caballeriza Simple",
+              "id": "f9000000-0000-0000-0000-0000000000c3",
+              "descripcion_chaquetilla": "Casaca verde lisa (PRUEBA 9999)",
+              "procedencia": null
+            },
+            "jockey_kilos": "52.00",
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": null
+          }
         ]
       },
       {
@@ -365,285 +361,281 @@
           "decimas": 40
         },
         "premios": [
-          [
-            {
-              "puesto": "1",
-              "importe": "700000"
-            },
-            {
-              "puesto": "2",
-              "importe": "190000"
-            },
-            {
-              "puesto": "3",
-              "importe": "120000"
-            },
-            {
-              "puesto": "4",
-              "importe": "100000"
-            },
-            {
-              "puesto": "5",
-              "importe": "100000"
-            }
-          ]
+          {
+            "puesto": "1",
+            "importe": "700000"
+          },
+          {
+            "puesto": "2",
+            "importe": "190000"
+          },
+          {
+            "puesto": "3",
+            "importe": "120000"
+          },
+          {
+            "puesto": "4",
+            "importe": "100000"
+          },
+          {
+            "puesto": "5",
+            "importe": "100000"
+          }
         ],
         "competidores_cantidad": 6,
         "competidores": [
-          [
-            {
-              "idCarreraInt": "a1000000-0000-0000-0000-000000000007",
-              "puesto": "1",
-              "estado": null,
-              "estado_equino_carrera": null,
-              "orden": "1",
-              "yunta": null,
-              "distanciado": "NO",
-              "motivo_distanciado": null,
-              "ejemplar": {
-                "nombre": "Flor de Ceibo",
-                "id": null
-              },
-              "kilos_ejemplar": "455",
-              "jockey_inscripto": {
-                "nombre": "PRUEBA 9999 — BORRAR Jockey Uno",
-                "dni": "90000001",
-                "cuit": null
-              },
-              "jockey": {
-                "nombre": null,
-                "dni": null,
-                "cuit": null
-              },
-              "cuidador": {
-                "nombre": "PRUEBA 9999 — BORRAR Cuidador Uno",
-                "dni": "90000011",
-                "cuit": null
-              },
-              "caballeriza": {
-                "nombre": "PRUEBA 9999 — BORRAR Stud Patente",
-                "id": "f9000000-0000-0000-0000-0000000000c1",
-                "descripcion_chaquetilla": "Casaca azul, gorra oro (PRUEBA 9999)",
-                "procedencia": "DOL"
-              },
-              "jockey_kilos": "56.00",
-              "cuerpos": {
-                "id_interno": null,
-                "nombre": null
-              },
-              "pagaria": "1.9"
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000007",
+            "puesto": "1",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": "1",
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Flor de Ceibo",
+              "id": null
             },
-            {
-              "idCarreraInt": "a1000000-0000-0000-0000-000000000008",
-              "puesto": "2",
-              "estado": null,
-              "estado_equino_carrera": null,
-              "orden": "2",
-              "yunta": null,
-              "distanciado": "NO",
-              "motivo_distanciado": null,
-              "ejemplar": {
-                "nombre": "Gaucho Bravo",
-                "id": null
-              },
-              "kilos_ejemplar": "538",
-              "jockey_inscripto": {
-                "nombre": "PRUEBA 9999 — BORRAR Jockey Dos",
-                "dni": "90000002",
-                "cuit": null
-              },
-              "jockey": {
-                "nombre": null,
-                "dni": null,
-                "cuit": null
-              },
-              "cuidador": {
-                "nombre": "PRUEBA 9999 — BORRAR Cuidador Dos",
-                "dni": "90000012",
-                "cuit": null
-              },
-              "caballeriza": {
-                "nombre": "PRUEBA 9999 — BORRAR Stud (SL)",
-                "id": "f9000000-0000-0000-0000-0000000000c2",
-                "descripcion_chaquetilla": "Casaca roja, mangas blancas (PRUEBA 9999)",
-                "procedencia": "SL"
-              },
-              "jockey_kilos": "58.00",
-              "cuerpos": {
-                "id_interno": null,
-                "nombre": "cabeza"
-              },
-              "pagaria": "4.2"
+            "kilos_ejemplar": "455",
+            "jockey_inscripto": {
+              "nombre": "PRUEBA 9999 — BORRAR Jockey Uno",
+              "dni": "90000001",
+              "cuit": null
             },
-            {
-              "idCarreraInt": "a1000000-0000-0000-0000-000000000009",
-              "puesto": "3",
-              "estado": null,
-              "estado_equino_carrera": null,
-              "orden": "3",
-              "yunta": null,
-              "distanciado": "NO",
-              "motivo_distanciado": null,
-              "ejemplar": {
-                "nombre": "Río Salado",
-                "id": null
-              },
-              "kilos_ejemplar": "467",
-              "jockey_inscripto": {
-                "nombre": "PRUEBA 9999 — BORRAR Jockey Tres",
-                "dni": "90000003",
-                "cuit": null
-              },
-              "jockey": {
-                "nombre": null,
-                "dni": null,
-                "cuit": null
-              },
-              "cuidador": {
-                "nombre": "PRUEBA 9999 — BORRAR Cuidador Uno",
-                "dni": "90000011",
-                "cuit": null
-              },
-              "caballeriza": {
-                "nombre": "PRUEBA 9999 — BORRAR Caballeriza Simple",
-                "id": "f9000000-0000-0000-0000-0000000000c3",
-                "descripcion_chaquetilla": "Casaca verde lisa (PRUEBA 9999)",
-                "procedencia": null
-              },
-              "jockey_kilos": "54.00",
-              "cuerpos": {
-                "id_interno": null,
-                "nombre": "1 cuerpo"
-              },
-              "pagaria": "6.75"
+            "jockey": {
+              "nombre": null,
+              "dni": null,
+              "cuit": null
             },
-            {
-              "idCarreraInt": "a1000000-0000-0000-0000-000000000010",
-              "puesto": "4",
-              "estado": null,
-              "estado_equino_carrera": null,
-              "orden": "4",
-              "yunta": null,
-              "distanciado": "NO",
-              "motivo_distanciado": null,
-              "ejemplar": {
-                "nombre": "La Criolla",
-                "id": null
-              },
-              "kilos_ejemplar": "442",
-              "jockey_inscripto": {
-                "nombre": "PRUEBA 9999 — BORRAR Jockey Uno",
-                "dni": "90000001",
-                "cuit": null
-              },
-              "jockey": {
-                "nombre": null,
-                "dni": null,
-                "cuit": null
-              },
-              "cuidador": {
-                "nombre": "PRUEBA 9999 — BORRAR Cuidador Dos",
-                "dni": "90000012",
-                "cuit": null
-              },
-              "caballeriza": {
-                "nombre": "PRUEBA 9999 — BORRAR Stud Patente",
-                "id": "f9000000-0000-0000-0000-0000000000c1",
-                "descripcion_chaquetilla": "Casaca azul, gorra oro (PRUEBA 9999)",
-                "procedencia": "DOL"
-              },
-              "jockey_kilos": "53.00",
-              "cuerpos": {
-                "id_interno": null,
-                "nombre": "nariz"
-              },
-              "pagaria": "9.5"
+            "cuidador": {
+              "nombre": "PRUEBA 9999 — BORRAR Cuidador Uno",
+              "dni": "90000011",
+              "cuit": null
             },
-            {
-              "idCarreraInt": "a1000000-0000-0000-0000-000000000011",
-              "puesto": "5",
-              "estado": null,
-              "estado_equino_carrera": null,
-              "orden": "5",
-              "yunta": null,
-              "distanciado": "NO",
-              "motivo_distanciado": null,
-              "ejemplar": {
-                "nombre": "Pampa Libre",
-                "id": null
-              },
-              "kilos_ejemplar": "498",
-              "jockey_inscripto": {
-                "nombre": "PRUEBA 9999 — BORRAR Jockey Dos",
-                "dni": "90000002",
-                "cuit": null
-              },
-              "jockey": {
-                "nombre": null,
-                "dni": null,
-                "cuit": null
-              },
-              "cuidador": {
-                "nombre": "PRUEBA 9999 — BORRAR Cuidador Uno",
-                "dni": "90000011",
-                "cuit": null
-              },
-              "caballeriza": {
-                "nombre": "PRUEBA 9999 — BORRAR Stud (SL)",
-                "id": "f9000000-0000-0000-0000-0000000000c2",
-                "descripcion_chaquetilla": "Casaca roja, mangas blancas (PRUEBA 9999)",
-                "procedencia": "SL"
-              },
-              "jockey_kilos": "55.00",
-              "cuerpos": {
-                "id_interno": null,
-                "nombre": "5 cuerpos"
-              },
-              "pagaria": "15"
+            "caballeriza": {
+              "nombre": "PRUEBA 9999 — BORRAR Stud Patente",
+              "id": "f9000000-0000-0000-0000-0000000000c1",
+              "descripcion_chaquetilla": "Casaca azul, gorra oro (PRUEBA 9999)",
+              "procedencia": "DOL"
             },
-            {
-              "idCarreraInt": "a1000000-0000-0000-0000-000000000012",
-              "puesto": "99",
-              "estado": null,
-              "estado_equino_carrera": null,
-              "orden": "6",
-              "yunta": null,
-              "distanciado": "NO",
-              "motivo_distanciado": null,
-              "ejemplar": {
-                "nombre": "Tormenta Sur",
-                "id": null
-              },
-              "kilos_ejemplar": "480",
-              "jockey_inscripto": {
-                "nombre": "PRUEBA 9999 — BORRAR Jockey Tres",
-                "dni": "90000003",
-                "cuit": null
-              },
-              "jockey": {
-                "nombre": null,
-                "dni": null,
-                "cuit": null
-              },
-              "cuidador": {
-                "nombre": "PRUEBA 9999 — BORRAR Cuidador Dos",
-                "dni": "90000012",
-                "cuit": null
-              },
-              "caballeriza": {
-                "nombre": "PRUEBA 9999 — BORRAR Caballeriza Simple",
-                "id": "f9000000-0000-0000-0000-0000000000c3",
-                "descripcion_chaquetilla": "Casaca verde lisa (PRUEBA 9999)",
-                "procedencia": null
-              },
-              "jockey_kilos": "52.00",
-              "cuerpos": {
-                "id_interno": null,
-                "nombre": null
-              },
-              "pagaria": null
-            }
-          ]
+            "jockey_kilos": "56.00",
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": "1.9"
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000008",
+            "puesto": "2",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": "2",
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Gaucho Bravo",
+              "id": null
+            },
+            "kilos_ejemplar": "538",
+            "jockey_inscripto": {
+              "nombre": "PRUEBA 9999 — BORRAR Jockey Dos",
+              "dni": "90000002",
+              "cuit": null
+            },
+            "jockey": {
+              "nombre": null,
+              "dni": null,
+              "cuit": null
+            },
+            "cuidador": {
+              "nombre": "PRUEBA 9999 — BORRAR Cuidador Dos",
+              "dni": "90000012",
+              "cuit": null
+            },
+            "caballeriza": {
+              "nombre": "PRUEBA 9999 — BORRAR Stud (SL)",
+              "id": "f9000000-0000-0000-0000-0000000000c2",
+              "descripcion_chaquetilla": "Casaca roja, mangas blancas (PRUEBA 9999)",
+              "procedencia": "SL"
+            },
+            "jockey_kilos": "58.00",
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": "cabeza"
+            },
+            "pagaria": "4.2"
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000009",
+            "puesto": "3",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": "3",
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Río Salado",
+              "id": null
+            },
+            "kilos_ejemplar": "467",
+            "jockey_inscripto": {
+              "nombre": "PRUEBA 9999 — BORRAR Jockey Tres",
+              "dni": "90000003",
+              "cuit": null
+            },
+            "jockey": {
+              "nombre": null,
+              "dni": null,
+              "cuit": null
+            },
+            "cuidador": {
+              "nombre": "PRUEBA 9999 — BORRAR Cuidador Uno",
+              "dni": "90000011",
+              "cuit": null
+            },
+            "caballeriza": {
+              "nombre": "PRUEBA 9999 — BORRAR Caballeriza Simple",
+              "id": "f9000000-0000-0000-0000-0000000000c3",
+              "descripcion_chaquetilla": "Casaca verde lisa (PRUEBA 9999)",
+              "procedencia": null
+            },
+            "jockey_kilos": "54.00",
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": "1 cuerpo"
+            },
+            "pagaria": "6.75"
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000010",
+            "puesto": "4",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": "4",
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "La Criolla",
+              "id": null
+            },
+            "kilos_ejemplar": "442",
+            "jockey_inscripto": {
+              "nombre": "PRUEBA 9999 — BORRAR Jockey Uno",
+              "dni": "90000001",
+              "cuit": null
+            },
+            "jockey": {
+              "nombre": null,
+              "dni": null,
+              "cuit": null
+            },
+            "cuidador": {
+              "nombre": "PRUEBA 9999 — BORRAR Cuidador Dos",
+              "dni": "90000012",
+              "cuit": null
+            },
+            "caballeriza": {
+              "nombre": "PRUEBA 9999 — BORRAR Stud Patente",
+              "id": "f9000000-0000-0000-0000-0000000000c1",
+              "descripcion_chaquetilla": "Casaca azul, gorra oro (PRUEBA 9999)",
+              "procedencia": "DOL"
+            },
+            "jockey_kilos": "53.00",
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": "nariz"
+            },
+            "pagaria": "9.5"
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000011",
+            "puesto": "5",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": "5",
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Pampa Libre",
+              "id": null
+            },
+            "kilos_ejemplar": "498",
+            "jockey_inscripto": {
+              "nombre": "PRUEBA 9999 — BORRAR Jockey Dos",
+              "dni": "90000002",
+              "cuit": null
+            },
+            "jockey": {
+              "nombre": null,
+              "dni": null,
+              "cuit": null
+            },
+            "cuidador": {
+              "nombre": "PRUEBA 9999 — BORRAR Cuidador Uno",
+              "dni": "90000011",
+              "cuit": null
+            },
+            "caballeriza": {
+              "nombre": "PRUEBA 9999 — BORRAR Stud (SL)",
+              "id": "f9000000-0000-0000-0000-0000000000c2",
+              "descripcion_chaquetilla": "Casaca roja, mangas blancas (PRUEBA 9999)",
+              "procedencia": "SL"
+            },
+            "jockey_kilos": "55.00",
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": "5 cuerpos"
+            },
+            "pagaria": "15"
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000012",
+            "puesto": "99",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": "6",
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Tormenta Sur",
+              "id": null
+            },
+            "kilos_ejemplar": "480",
+            "jockey_inscripto": {
+              "nombre": "PRUEBA 9999 — BORRAR Jockey Tres",
+              "dni": "90000003",
+              "cuit": null
+            },
+            "jockey": {
+              "nombre": null,
+              "dni": null,
+              "cuit": null
+            },
+            "cuidador": {
+              "nombre": "PRUEBA 9999 — BORRAR Cuidador Dos",
+              "dni": "90000012",
+              "cuit": null
+            },
+            "caballeriza": {
+              "nombre": "PRUEBA 9999 — BORRAR Caballeriza Simple",
+              "id": "f9000000-0000-0000-0000-0000000000c3",
+              "descripcion_chaquetilla": "Casaca verde lisa (PRUEBA 9999)",
+              "procedencia": null
+            },
+            "jockey_kilos": "52.00",
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": null
+          }
         ]
       },
       {
@@ -682,243 +674,239 @@
           "decimas": 10
         },
         "premios": [
-          [
-            {
-              "puesto": "1",
-              "importe": "480000"
-            },
-            {
-              "puesto": "2",
-              "importe": "152000"
-            },
-            {
-              "puesto": "3",
-              "importe": "100000"
-            },
-            {
-              "puesto": "4",
-              "importe": "100000"
-            },
-            {
-              "puesto": "5",
-              "importe": "100000"
-            }
-          ]
+          {
+            "puesto": "1",
+            "importe": "480000"
+          },
+          {
+            "puesto": "2",
+            "importe": "152000"
+          },
+          {
+            "puesto": "3",
+            "importe": "100000"
+          },
+          {
+            "puesto": "4",
+            "importe": "100000"
+          },
+          {
+            "puesto": "5",
+            "importe": "100000"
+          }
         ],
         "competidores_cantidad": 5,
         "competidores": [
-          [
-            {
-              "idCarreraInt": "a1000000-0000-0000-0000-000000000013",
-              "puesto": "1",
-              "estado": null,
-              "estado_equino_carrera": null,
-              "orden": "1",
-              "yunta": null,
-              "distanciado": "NO",
-              "motivo_distanciado": null,
-              "ejemplar": {
-                "nombre": "El Pampeano",
-                "id": null
-              },
-              "kilos_ejemplar": "515",
-              "jockey_inscripto": {
-                "nombre": "PRUEBA 9999 — BORRAR Jockey Uno",
-                "dni": "90000001",
-                "cuit": null
-              },
-              "jockey": {
-                "nombre": null,
-                "dni": null,
-                "cuit": null
-              },
-              "cuidador": {
-                "nombre": "PRUEBA 9999 — BORRAR Cuidador Uno",
-                "dni": "90000011",
-                "cuit": null
-              },
-              "caballeriza": {
-                "nombre": "PRUEBA 9999 — BORRAR Stud Patente",
-                "id": "f9000000-0000-0000-0000-0000000000c1",
-                "descripcion_chaquetilla": "Casaca azul, gorra oro (PRUEBA 9999)",
-                "procedencia": "DOL"
-              },
-              "jockey_kilos": "57.00",
-              "cuerpos": {
-                "id_interno": null,
-                "nombre": null
-              },
-              "pagaria": "2.75"
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000013",
+            "puesto": "1",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": "1",
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "El Pampeano",
+              "id": null
             },
-            {
-              "idCarreraInt": "a1000000-0000-0000-0000-000000000014",
-              "puesto": "2",
-              "estado": null,
-              "estado_equino_carrera": null,
-              "orden": "2",
-              "yunta": null,
-              "distanciado": "NO",
-              "motivo_distanciado": null,
-              "ejemplar": {
-                "nombre": "Gaucha Linda",
-                "id": null
-              },
-              "kilos_ejemplar": "433",
-              "jockey_inscripto": {
-                "nombre": "PRUEBA 9999 — BORRAR Jockey Dos",
-                "dni": "90000002",
-                "cuit": null
-              },
-              "jockey": {
-                "nombre": null,
-                "dni": null,
-                "cuit": null
-              },
-              "cuidador": {
-                "nombre": "PRUEBA 9999 — BORRAR Cuidador Dos",
-                "dni": "90000012",
-                "cuit": null
-              },
-              "caballeriza": {
-                "nombre": "PRUEBA 9999 — BORRAR Stud (SL)",
-                "id": "f9000000-0000-0000-0000-0000000000c2",
-                "descripcion_chaquetilla": "Casaca roja, mangas blancas (PRUEBA 9999)",
-                "procedencia": "SL"
-              },
-              "jockey_kilos": "53.00",
-              "cuerpos": {
-                "id_interno": null,
-                "nombre": "media cabeza"
-              },
-              "pagaria": "3.4"
+            "kilos_ejemplar": "515",
+            "jockey_inscripto": {
+              "nombre": "PRUEBA 9999 — BORRAR Jockey Uno",
+              "dni": "90000001",
+              "cuit": null
             },
-            {
-              "idCarreraInt": "a1000000-0000-0000-0000-000000000015",
-              "puesto": "3",
-              "estado": null,
-              "estado_equino_carrera": null,
-              "orden": "3",
-              "yunta": null,
-              "distanciado": "NO",
-              "motivo_distanciado": null,
-              "ejemplar": {
-                "nombre": "Don Dolores",
-                "id": null
-              },
-              "kilos_ejemplar": "472",
-              "jockey_inscripto": {
-                "nombre": "PRUEBA 9999 — BORRAR Jockey Tres",
-                "dni": "90000003",
-                "cuit": null
-              },
-              "jockey": {
-                "nombre": null,
-                "dni": null,
-                "cuit": null
-              },
-              "cuidador": {
-                "nombre": "PRUEBA 9999 — BORRAR Cuidador Uno",
-                "dni": "90000011",
-                "cuit": null
-              },
-              "caballeriza": {
-                "nombre": "PRUEBA 9999 — BORRAR Caballeriza Simple",
-                "id": "f9000000-0000-0000-0000-0000000000c3",
-                "descripcion_chaquetilla": "Casaca verde lisa (PRUEBA 9999)",
-                "procedencia": null
-              },
-              "jockey_kilos": "55.00",
-              "cuerpos": {
-                "id_interno": null,
-                "nombre": "3/4 cuerpo"
-              },
-              "pagaria": "4.9"
+            "jockey": {
+              "nombre": null,
+              "dni": null,
+              "cuit": null
             },
-            {
-              "idCarreraInt": "a1000000-0000-0000-0000-000000000016",
-              "puesto": "4",
-              "estado": null,
-              "estado_equino_carrera": null,
-              "orden": "4",
-              "yunta": null,
-              "distanciado": "SI",
-              "motivo_distanciado": "Interferencia en los 200m finales — distanciado por los comisarios (PRUEBA 9999)",
-              "ejemplar": {
-                "nombre": "La Bonaerense",
-                "id": null
-              },
-              "kilos_ejemplar": "503",
-              "jockey_inscripto": {
-                "nombre": "PRUEBA 9999 — BORRAR Jockey Uno",
-                "dni": "90000001",
-                "cuit": null
-              },
-              "jockey": {
-                "nombre": null,
-                "dni": null,
-                "cuit": null
-              },
-              "cuidador": {
-                "nombre": "PRUEBA 9999 — BORRAR Cuidador Dos",
-                "dni": "90000012",
-                "cuit": null
-              },
-              "caballeriza": {
-                "nombre": "PRUEBA 9999 — BORRAR Stud Patente",
-                "id": "f9000000-0000-0000-0000-0000000000c1",
-                "descripcion_chaquetilla": "Casaca azul, gorra oro (PRUEBA 9999)",
-                "procedencia": "DOL"
-              },
-              "jockey_kilos": "56.00",
-              "cuerpos": {
-                "id_interno": null,
-                "nombre": "2 1/2 cuerpos"
-              },
-              "pagaria": "7.25"
+            "cuidador": {
+              "nombre": "PRUEBA 9999 — BORRAR Cuidador Uno",
+              "dni": "90000011",
+              "cuit": null
             },
-            {
-              "idCarreraInt": "a1000000-0000-0000-0000-000000000017",
-              "puesto": "5",
-              "estado": null,
-              "estado_equino_carrera": null,
-              "orden": "5",
-              "yunta": null,
-              "distanciado": "NO",
-              "motivo_distanciado": null,
-              "ejemplar": {
-                "nombre": "MR. PATO",
-                "id": null
-              },
-              "kilos_ejemplar": "458",
-              "jockey_inscripto": {
-                "nombre": "PRUEBA 9999 — BORRAR Jockey Dos",
-                "dni": "90000002",
-                "cuit": null
-              },
-              "jockey": {
-                "nombre": null,
-                "dni": null,
-                "cuit": null
-              },
-              "cuidador": {
-                "nombre": "PRUEBA 9999 — BORRAR Cuidador Uno",
-                "dni": "90000011",
-                "cuit": null
-              },
-              "caballeriza": {
-                "nombre": "PRUEBA 9999 — BORRAR Stud (SL)",
-                "id": "f9000000-0000-0000-0000-0000000000c2",
-                "descripcion_chaquetilla": "Casaca roja, mangas blancas (PRUEBA 9999)",
-                "procedencia": "SL"
-              },
-              "jockey_kilos": "54.00",
-              "cuerpos": {
-                "id_interno": null,
-                "nombre": "1 cuerpo"
-              },
-              "pagaria": "11"
-            }
-          ]
+            "caballeriza": {
+              "nombre": "PRUEBA 9999 — BORRAR Stud Patente",
+              "id": "f9000000-0000-0000-0000-0000000000c1",
+              "descripcion_chaquetilla": "Casaca azul, gorra oro (PRUEBA 9999)",
+              "procedencia": "DOL"
+            },
+            "jockey_kilos": "57.00",
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": null
+            },
+            "pagaria": "2.75"
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000014",
+            "puesto": "2",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": "2",
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Gaucha Linda",
+              "id": null
+            },
+            "kilos_ejemplar": "433",
+            "jockey_inscripto": {
+              "nombre": "PRUEBA 9999 — BORRAR Jockey Dos",
+              "dni": "90000002",
+              "cuit": null
+            },
+            "jockey": {
+              "nombre": null,
+              "dni": null,
+              "cuit": null
+            },
+            "cuidador": {
+              "nombre": "PRUEBA 9999 — BORRAR Cuidador Dos",
+              "dni": "90000012",
+              "cuit": null
+            },
+            "caballeriza": {
+              "nombre": "PRUEBA 9999 — BORRAR Stud (SL)",
+              "id": "f9000000-0000-0000-0000-0000000000c2",
+              "descripcion_chaquetilla": "Casaca roja, mangas blancas (PRUEBA 9999)",
+              "procedencia": "SL"
+            },
+            "jockey_kilos": "53.00",
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": "media cabeza"
+            },
+            "pagaria": "3.4"
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000015",
+            "puesto": "3",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": "3",
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "Don Dolores",
+              "id": null
+            },
+            "kilos_ejemplar": "472",
+            "jockey_inscripto": {
+              "nombre": "PRUEBA 9999 — BORRAR Jockey Tres",
+              "dni": "90000003",
+              "cuit": null
+            },
+            "jockey": {
+              "nombre": null,
+              "dni": null,
+              "cuit": null
+            },
+            "cuidador": {
+              "nombre": "PRUEBA 9999 — BORRAR Cuidador Uno",
+              "dni": "90000011",
+              "cuit": null
+            },
+            "caballeriza": {
+              "nombre": "PRUEBA 9999 — BORRAR Caballeriza Simple",
+              "id": "f9000000-0000-0000-0000-0000000000c3",
+              "descripcion_chaquetilla": "Casaca verde lisa (PRUEBA 9999)",
+              "procedencia": null
+            },
+            "jockey_kilos": "55.00",
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": "3/4 cuerpo"
+            },
+            "pagaria": "4.9"
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000016",
+            "puesto": "4",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": "4",
+            "yunta": null,
+            "distanciado": "SI",
+            "motivo_distanciado": "Interferencia en los 200m finales — distanciado por los comisarios (PRUEBA 9999)",
+            "ejemplar": {
+              "nombre": "La Bonaerense",
+              "id": null
+            },
+            "kilos_ejemplar": "503",
+            "jockey_inscripto": {
+              "nombre": "PRUEBA 9999 — BORRAR Jockey Uno",
+              "dni": "90000001",
+              "cuit": null
+            },
+            "jockey": {
+              "nombre": null,
+              "dni": null,
+              "cuit": null
+            },
+            "cuidador": {
+              "nombre": "PRUEBA 9999 — BORRAR Cuidador Dos",
+              "dni": "90000012",
+              "cuit": null
+            },
+            "caballeriza": {
+              "nombre": "PRUEBA 9999 — BORRAR Stud Patente",
+              "id": "f9000000-0000-0000-0000-0000000000c1",
+              "descripcion_chaquetilla": "Casaca azul, gorra oro (PRUEBA 9999)",
+              "procedencia": "DOL"
+            },
+            "jockey_kilos": "56.00",
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": "2 1/2 cuerpos"
+            },
+            "pagaria": "7.25"
+          },
+          {
+            "idCarreraInt": "a1000000-0000-0000-0000-000000000017",
+            "puesto": "5",
+            "estado": null,
+            "estado_equino_carrera": null,
+            "orden": "5",
+            "yunta": null,
+            "distanciado": "NO",
+            "motivo_distanciado": null,
+            "ejemplar": {
+              "nombre": "MR. PATO",
+              "id": null
+            },
+            "kilos_ejemplar": "458",
+            "jockey_inscripto": {
+              "nombre": "PRUEBA 9999 — BORRAR Jockey Dos",
+              "dni": "90000002",
+              "cuit": null
+            },
+            "jockey": {
+              "nombre": null,
+              "dni": null,
+              "cuit": null
+            },
+            "cuidador": {
+              "nombre": "PRUEBA 9999 — BORRAR Cuidador Uno",
+              "dni": "90000011",
+              "cuit": null
+            },
+            "caballeriza": {
+              "nombre": "PRUEBA 9999 — BORRAR Stud (SL)",
+              "id": "f9000000-0000-0000-0000-0000000000c2",
+              "descripcion_chaquetilla": "Casaca roja, mangas blancas (PRUEBA 9999)",
+              "procedencia": "SL"
+            },
+            "jockey_kilos": "54.00",
+            "cuerpos": {
+              "id_interno": null,
+              "nombre": "1 cuerpo"
+            },
+            "pagaria": "11"
+          }
         ]
       }
     ]
