@@ -115,7 +115,18 @@ PENDIENTE — 7 preguntas a Diego antes de implementar:
 6. (resto del set de 7 — vive en el borrador de respuesta a Diego, a sumar acá al confirmarse).
 7. (idem).
 Relacionado: `abuela_materna` (damsire vs abuela real) a aclarar contra el modelo del SB. Backfill de FKs (caballeriza/entrenador/propietario) de los 25 SPCs sigue bloqueado en data de Fede.
-Módulo: integración Stud Book (nuevo). Estado: ⏳ Esperando respuesta de Diego. Prioridad: Media.
+
+**Avance 2026-06-12 — exposición read-only del JSON de reunión (branch, NO en main):**
+- ✅ **Edge Function `reunion-json` deployada (v7)**: `…/functions/v1/reunion-json?fecha=YYMMDD`, scope Dolores, auth `Bearer <STUDBOOK_API_TOKEN>`, `verify_jwt` OFF (Diego llama con solo el token, sin anon key), DB server-side con `STUDBOOK_DB_KEY` (`sb_secret`). Output compartido con el CLI vía `_shared/studbook_format.mjs`. Validada contra 9999 (200 + diff idéntico, 401 sin/mal token, 404 fecha inexistente). Branch `feat/edge-reunion-json`.
+- ✅ **Pasada de formato del generador** (calcado de La Punta, `08f8bcb`, `feat/json-generator`): wrapper `{status:200,data}`, numéricos a string, `premios`/`competidores` doble-anidados `[[…]]`. Sample `tools/samples/9999_sample.json`.
+
+**Pendientes nuevos:**
+- ⚠️ **Rotar `STUDBOOK_API_TOKEN` antes del 20/6** — se expuso durante el setup; hoy solo protege la reunión 9999 fake. Re-setear vía dashboard (o CLI/Management API con PAT) y avisar a Diego.
+- Correr el teardown de 9999 antes del 20/6 (`teardown_prueba_resumen_9999.sql`).
+- Confirmar con Diego el **doble-anidado** `[[…]]` de `premios`/`competidores`: a propósito o se aplana de su lado.
+- Diego prueba el endpoint con `fecha=990101`.
+
+Módulo: integración Stud Book (nuevo). Estado: ⏳ Esperando respuesta de Diego; endpoint listo para que pruebe. Prioridad: Media.
 
 ## BAJOS
 
