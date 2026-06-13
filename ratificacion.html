@@ -303,7 +303,7 @@ async function printRatificados() {
         ? (usaEspacios ? `${emin} a` : `${emin}a`)
         : (usaEspacios ? `${emin} - ${emax} a` : `${emin}-${emax}a`));
     } else if (emin) {
-      parts.push(usaEspacios ? `${emin} a +` : `${emin}a+`);
+      parts.push(`${emin} y más a`);
     }
     let hc = (car.condicion_handicap || '').trim();
     if (usaEspacios && hc) {
@@ -643,7 +643,7 @@ function buildCondAbr(car) {
       ? (usaEspacios ? `${emin} a` : `${emin}a`)
       : (usaEspacios ? `${emin} - ${emax} a` : `${emin}-${emax}a`));
   } else if (emin) {
-    parts.push(usaEspacios ? `${emin} a +` : `${emin}a+`);
+    parts.push(`${emin} y más a`);
   }
   let hc = (car.condicion_handicap || '').trim();
   if (usaEspacios && hc) {
