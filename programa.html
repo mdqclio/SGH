@@ -259,7 +259,7 @@ async function loadPrograma() {
   const carIds = (carreras||[]).map(c=>c.id);
   let inscripciones = [];
   if (carIds.length) {
-    const { data } = await sb.from('inscripciones').select('*').in('carrera_id', carIds).eq('estado','ratificado').order('numero_partidor');
+    const { data } = await sb.from('inscripciones').select('*').in('carrera_id', carIds).eq('estado','ratificado').order('numero_partidor', { nullsFirst: false });
     inscripciones = data||[];
   }
   // Load performances for SPCs

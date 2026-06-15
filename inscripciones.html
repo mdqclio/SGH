@@ -459,6 +459,30 @@ function getSpc(id) { return spcs.find(s=>s.id===id); }
 function getCab(id) { return caballerizas.find(c=>c.id===id); }
 function getProf(id) { return profesionales.find(p=>p.id===id); }
 
+async function guardarGatera(id, el) {
+  const raw = (el.value || '').trim();
+  let val = null;
+  if (raw !== '') {
+    val = parseInt(raw, 10);
+    if (isNaN(val) || val < 1 || String(val) !== raw) {
+      toast('Gatera inválida: entero ≥ 1', 'error');
+      el.value = el.dataset.prev || '';
+      return;
+    }
+  }
+  const { error } = await sb.from('inscripciones').update({ numero_partidor: val }).eq('id', id);
+  if (error) {
+    if (error.code === '23505') toast(`Gatera ${val} ya usada en esta carrera`, 'error');
+    else toast(error.message, 'error');
+    el.value = el.dataset.prev || '';
+    return;
+  }
+  el.dataset.prev = raw;
+  const insc = inscripciones.find(x => x.id === id);
+  if (insc) insc.numero_partidor = val;
+  toast(val != null ? `Gatera ${val} guardada` : 'Gatera limpiada');
+}
+
 function renderInscripciones() {
   if (!inscripciones.length) {
     document.getElementById('list-container').innerHTML=`<div class="empty-state"><div class="icon">📋</div><h3>Sin inscriptos</h3><p>No hay SPC inscriptos en este turno.</p></div>`;
@@ -474,8 +498,12 @@ function renderInscripciones() {
     const certCell = i.certificado_correr
       ? `<span style="color:var(--success);font-weight:600;">Sí</span>`
       : `<span style="color:var(--danger);font-weight:600;">No</span>`;
+    const gateraCell = (i.estado==='forfait'||i.estado==='mal_inscrito')
+      ? `<span style="color:var(--muted)">—</span>`
+      : `<input type="number" min="1" step="1" class="gatera-input" value="${i.numero_partidor??''}" data-prev="${i.numero_partidor??''}" onchange="guardarGatera('${i.id}', this)" style="width:60px;text-align:center" title="N° de gatera (sorteo)">`;
     return `<tr>
       <td><div class="spc-name">${spc?.nombre||i.spc_id}</div></td>
+      <td>${gateraCell}</td>
       <td>${certCell}</td>
       <td>${cab?`${cab.nombre}${cab.hipodromo_patente?` (${cab.hipodromo_patente})`:''}`:'—'}</td>
       <td>${entr?`${entr.apellido}, ${entr.nombre}`:'-'}</td>
@@ -490,7 +518,7 @@ function renderInscripciones() {
     </tr>`;
   }).join('');
   document.getElementById('list-container').innerHTML = `<div class="table-wrap"><table>
-    <thead><tr><th>SPC</th><th>Cert.</th><th>Caballeriza</th><th>Entrenador</th><th>Jockey</th><th>Jockey suplente</th><th>Personal</th><th>Estado</th><th>Acciones</th></tr></thead>
+    <thead><tr><th>SPC</th><th>Gatera</th><th>Cert.</th><th>Caballeriza</th><th>Entrenador</th><th>Jockey</th><th>Jockey suplente</th><th>Personal</th><th>Estado</th><th>Acciones</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
   const n=inscripciones.length; const cEl=document.getElementById('inscriptos-count'); cEl.textContent=`${n} inscripto${n!==1?'s':''}`; cEl.style.display='';

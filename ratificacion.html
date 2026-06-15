@@ -278,7 +278,7 @@ async function printRatificados() {
   if (!allCars.length) { toast('No hay turnos en esta reunión', 'error'); return; }
 
   const { data: inscsData } = await sb.from('inscripciones')
-    .select('carrera_id, spc_id, estado, certificado_correr, spcs(nombre, sexo)')
+    .select('carrera_id, spc_id, numero_partidor, estado, certificado_correr, spcs(nombre, sexo)')
     .in('carrera_id', allCars.map(c => c.id))
     .in('estado', ['inscripto', 'ratificado', 'mal_inscrito', 'forfait']);
   const inscs = inscsData || [];
@@ -287,7 +287,13 @@ async function printRatificados() {
   allCars.forEach(car => {
     inscsByCarrera.set(car.id, inscs
       .filter(i => i.carrera_id === car.id)
-      .sort((a, b) => (a.spcs?.nombre || '').localeCompare(b.spcs?.nombre || '', 'es')));
+      .sort((a, b) => {
+        const pa = a.numero_partidor, pb = b.numero_partidor;
+        if (pa != null && pb != null) return pa - pb;
+        if (pa != null) return -1;
+        if (pb != null) return 1;
+        return (a.spcs?.nombre || '').localeCompare(b.spcs?.nombre || '', 'es');
+      }));
   });
 
   function buildCondAbr(car) {
@@ -540,7 +546,13 @@ function renderAll(carreras, inscripciones) {
   }
   const html = carreras.map((car, idx) => {
     const insc = inscripciones.filter(i=>i.carrera_id===car.id)
-      .sort((a,b) => (getSpc(a.spc_id)?.nombre||'').localeCompare(getSpc(b.spc_id)?.nombre||'', 'es'));
+      .sort((a,b) => {
+        const pa = a.numero_partidor, pb = b.numero_partidor;
+        if (pa != null && pb != null) return pa - pb;
+        if (pa != null) return -1;
+        if (pb != null) return 1;
+        return (getSpc(a.spc_id)?.nombre||'').localeCompare(getSpc(b.spc_id)?.nombre||'', 'es');
+      });
     const rat = insc.filter(i=>i.estado==='ratificado').length;
     const fort = insc.filter(i=>i.estado==='forfait').length;
     const pre = insc.filter(i=>i.estado==='inscripto').length;
