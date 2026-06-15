@@ -375,7 +375,7 @@ async function printRatificados() {
     const footHtml = isAnulada
       ? ''
       : `<div class="pi-car-foot">${items.length}</div>`;
-    const forfaitsHtml = (!isAnulada && forfaits.length)
+    const forfaitsHtml = (forfaits.length)
       ? `<div class="pi-forfaits"><div class="pi-forfaits-h">FORFAITS</div>${forfaits.map(i => {
           const nombre = (i.spcs?.nombre || '—').toUpperCase();
           return `<div class="pi-forfait-row">${nombre}</div>`;
@@ -396,10 +396,10 @@ async function printRatificados() {
   const bloquesHtml = allCars.map(car => {
     const inscsCar = inscsByCarrera.get(car.id) || [];
     const esAnulada = car.estado === 'anulada' || car.estado === 'reabierta';
-    if (esAnulada) return renderBloqueCarrera(car, inscsCar, true);
     const ratificados = inscsCar.filter(i => i.estado === 'ratificado');
     const forfaits    = inscsCar.filter(i => i.estado === 'forfait');
     if (!ratificados.length && !forfaits.length) return '';
+    if (esAnulada) return renderBloqueCarrera(car, ratificados, true, forfaits);
     totalRatificados += ratificados.length;
     return renderBloqueCarrera(car, ratificados, false, forfaits);
   }).join('');
