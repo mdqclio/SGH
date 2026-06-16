@@ -152,6 +152,7 @@
       .pi-h-sfx { font-size: 7pt; font-weight: 400; }
       .pi-nocert { font-size: 8pt; font-weight: 900; margin-left: 3px; flex-shrink: 0; }
       .pi-peso { font-size: 8pt; font-weight: 700; flex-shrink: 0; margin-left: 6pt; font-variant-numeric: tabular-nums; }
+      .pi-chapa { font-size: 8pt; font-weight: 900; flex-shrink: 0; min-width: 14pt; }
       .pi-car-foot { border-top: 1px solid #000; padding: 2px 4px; font-size: 10pt; font-weight: 900; text-align: center; }
       .pi-observaciones { font-size: 6pt; color: #222; margin-top: 4pt; padding: 3pt 0; border-top: 1px solid #999; line-height: 1.25; white-space: pre-wrap; column-count: 2; column-gap: 10pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .pi-footer { margin-top: 8px; border-top: 2px solid #000; padding-top: 4px; font-size: 7pt; display: flex; justify-content: space-between; align-items: flex-end; }
@@ -190,6 +191,7 @@
   </style>
   <script src="premios-utils.js"></script>
   <script src="active-reunion.js"></script>
+  <script src="renumerar-chapas.js"></script>
 </head>
 <body>
 <div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;"></div></div>
@@ -338,6 +340,7 @@ async function printRatificados() {
 
   function renderBloqueCarrera(car, items, isAnulada, forfaits = []) {
     if (!items.length && !forfaits.length) return '';
+    const chapaMap = renumerarChapas(items);
     const esMixta = car.condicion_sexo === 'ambos';
     const { bolsaEfectiva } = calcPremiosConPiso(car.bolsa_total, car.distribucion_premios);
     const bolsaStr = formatBolsa(bolsaEfectiva);
@@ -355,7 +358,9 @@ async function printRatificados() {
       const prefix = isAnulada ? '• ' : '';
       const pesoVal = i.peso_final || i.peso_declarado;
       const pesoHtml = pesoVal ? `<span class="pi-peso">${parseFloat(pesoVal)}</span>` : '';
-      return `<div class="pi-row"><span class="pi-spc-name">${prefix}${nombre}${esH ? '<span class="pi-h-sfx"> (H)</span>' : ''}</span>${noCert ? '<span class="pi-nocert">●</span>' : ''}${pesoHtml}</div>`;
+      const chapa = chapaMap[i.id];
+      const chapaHtml = chapa ? `<span class="pi-chapa">${chapa}</span>` : '';
+      return `<div class="pi-row">${chapaHtml}<span class="pi-spc-name">${prefix}${nombre}${esH ? '<span class="pi-h-sfx"> (H)</span>' : ''}</span>${noCert ? '<span class="pi-nocert">●</span>' : ''}${pesoHtml}</div>`;
     }).join('');
     const cat = car.categorias_carrera;
     const oficialLabel = cat
@@ -580,6 +585,7 @@ function renderAll(carreras, inscripciones) {
     const carCerrada = isCerrada || car.estado === 'confirmada' || car.estado === 'anulada';
     const jockeyCount = {};
     insc.forEach(i => { if (i.jockey_titular_id) jockeyCount[i.jockey_titular_id] = (jockeyCount[i.jockey_titular_id]||0)+1; });
+    const chapaMap = renumerarChapas(insc);
     const rows = insc.map((i, idx) => {
       const spc = getSpc(i.spc_id);
       const cab = getCab(i.caballeriza_id);
@@ -589,7 +595,7 @@ function renderAll(carreras, inscripciones) {
       const hasColision = !carCerrada && !!i.jockey_titular_id && jockeyCount[i.jockey_titular_id] >= 2;
       const dc = `disabled title="${car.estado === 'confirmada' ? 'Carrera cerrada' : car.estado === 'anulada' ? 'Carrera anulada' : 'Ratificación cerrada'}" style="opacity:0.4;cursor:not-allowed;"`;
       return `<tr id="row-${i.id}" data-carrera="${car.id}" data-jockey="${i.jockey_titular_id||''}" data-caballeriza="${i.caballeriza_id||''}" class="${isRat?'':'no-ratificado'}${hasColision?' jockey-duplicado':''}">
-        <td class="num-part print-hide">${idx + 1}</td>
+        <td class="num-part print-hide">${chapaMap[i.id] || ''}</td>
         <td><div class="spc-name">${spc?.nombre||i.spc_id}</div></td>
         <td style="font-size:12px;color:var(--muted)">${cab?.nombre||'—'}</td>
         <td class="jockey-cell">${buildJockeySelect(i, carCerrada)}${hasColision?'<span class="badge-jockey-dup">⚠ dup.</span>':''}</td>
