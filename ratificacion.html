@@ -281,7 +281,7 @@ async function printRatificados() {
   if (!allCars.length) { toast('No hay turnos en esta reunión', 'error'); return; }
 
   const { data: inscsData } = await sb.from('inscripciones')
-    .select('carrera_id, spc_id, numero_partidor, estado, certificado_correr, spcs(nombre, sexo)')
+    .select('id, carrera_id, spc_id, numero_partidor, estado, certificado_correr, peso_declarado, peso_final, spcs(nombre, sexo)')
     .in('carrera_id', allCars.map(c => c.id))
     .in('estado', ['inscripto', 'ratificado', 'mal_inscrito', 'forfait']);
   const inscs = inscsData || [];

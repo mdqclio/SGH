@@ -1,20 +1,19 @@
 /**
- * Probe mandil 1..N en pantalla + PDF — número adelante del nombre (renumerarChapas).
+ * Probe mandil 1..N + peso en PDF — validado contra el SET DE COLUMNAS REAL de la query.
  *
- * Valida el fix ANTES de aplicarlo: usa el helper REAL renumerarChapas (renumerar-chapas.js)
- * y el render REAL de renderBloqueCarrera (ratificacion.html) con el diff aplicado EN MEMORIA.
- * Sin browser. Datos sembrados en reunión DESCARTABLE 9998 (seed + teardown misma corrida).
+ * Clave: NO construye los items a mano. Extrae el string .select(...) REAL de la query de
+ * impresión de ratificacion.html, consulta Supabase con ESAS columnas exactas, y alimenta
+ * el render REAL (renderBloqueCarrera) con esas filas. Si la query omite una columna que el
+ * render necesita (id → mandil, peso_declarado/peso_final → peso), el probe FALLA.
  *
- * Escenario crítico — hueco por forfait en el medio:
- *   ratificados con gateras 1, 2, 4, 5 (falta la 3)  +  1 forfait con gatera 3
- *   → mandil esperado: 1, 2, 3, 4 CORRIDO (sin hueco). forfait SIN mandil.
- *   pesos 55/56/57/58 para verificar layout chapa(izq)·nombre(medio)·peso(der).
+ * Usa el helper REAL renumerarChapas. Sin browser. Reunión DESCARTABLE 9998 (seed+teardown).
  *
- * Asserts:
- *   (1) renumerarChapas(ratificados) → gatera1→1, 2→2, 4→3, 5→4 (hueco corrido)
- *   (2) forfait fuera del map (sin mandil)
- *   (3) PDF: pi-chapa antes de pi-spc-name; valores 1..4; orden chapa<nombre<peso
- *   (4) forfait en sección FORFAITS sin chapa
+ * Escenario: ratificados gateras 1,2,4,5 (hueco en 3) pesos 55-58 + forfait gatera 3.
+ *   mandil esperado: 1,2,3,4 corrido. forfait sin mandil. pesos 55..58 a la derecha.
+ *
+ * Tests:
+ *  POSITIVO (select real del archivo): mandil corrido + pesos visibles + layout.
+ *  NEGATIVO (select viejo sin id/peso): el probe DEBE detectar la rotura (sensibilidad).
  */
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
@@ -42,6 +41,8 @@ const SPCS = [
   '045409b7-bbd1-4b59-8335-c268d733b448', // gatera 5
   '058dff5d-28e6-427b-860e-2f8a09d22691', // forfait gatera 3
 ];
+// el select viejo (roto): sin id, sin peso → para el test de sensibilidad
+const SELECT_VIEJO = 'carrera_id, spc_id, numero_partidor, estado, certificado_correr, spcs(nombre, sexo)';
 
 const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 
@@ -60,13 +61,27 @@ function extractFnBody(html, signature) {
   return html.slice(braceOpen + 1, i);
 }
 
+// extrae el string .select(...) de la query de impresión (la que trae spcs(nombre...))
+function extractPrintSelect(html) {
+  const m = html.match(/from\('inscripciones'\)\s*\.select\('([^']*spcs\(nombre[^']*)'\)/);
+  if (!m) throw new Error('no encontré el .select(...) de la query de impresión');
+  return m[1];
+}
+
 const dir = dirname(fileURLToPath(import.meta.url));
 const nameOf = {}, idOf = {};
+const sortPart = (a, b) => {
+  const pa = a.numero_partidor, pb = b.numero_partidor;
+  if (pa != null && pb != null) return pa - pb;
+  if (pa != null) return -1;
+  if (pb != null) return 1;
+  return 0;
+};
 
 (async () => {
   let phase = 'init';
   try {
-    // ════ SEED 9998 (gateras con hueco + forfait) ═══════════════════════════
+    // ════ SEED 9998 ═════════════════════════════════════════════════════════
     phase = 'seed';
     await sb.from('inscripciones').delete().eq('carrera_id', CARRERA);
     await sb.from('carreras').delete().eq('reunion_id', REUNION);
@@ -88,100 +103,77 @@ const nameOf = {}, idOf = {};
       { carrera_id: CARRERA, spc_id: SPCS[4], estado: 'forfait',    numero_partidor: 3, peso_declarado: null, certificado_correr: true },
     ])).error;
     if (e) throw new Error('seed insc: ' + e.message);
-    console.log('[seed] 9998: ratif gateras 1,2,4,5 (hueco en 3) + forfait gatera 3');
+    // mapa spc→nombre/id (con select completo, solo para asserts)
+    const { data: meta } = await sb.from('inscripciones')
+      .select('id, spc_id, spcs(nombre)').eq('carrera_id', CARRERA);
+    meta.forEach(i => { nameOf[i.spc_id] = (i.spcs?.nombre || '').toUpperCase(); idOf[i.spc_id] = i.id; });
+    console.log('[seed] 9998: ratif gateras 1,2,4,5 (hueco en 3) pesos 55-58 + forfait gatera 3');
 
-    // ════ LEER como la página (ordenado por numero_partidor nulls last) ═════
-    phase = 'read';
-    const { data: raw, error: er } = await sb.from('inscripciones')
-      .select('id, estado, certificado_correr, peso_declarado, peso_final, numero_partidor, spc_id, spcs(nombre, sexo)')
-      .eq('carrera_id', CARRERA);
-    if (er) throw new Error('read: ' + er.message);
-    const inscs = raw.sort((a, b) => {
-      const pa = a.numero_partidor, pb = b.numero_partidor;
-      if (pa != null && pb != null) return pa - pb;
-      if (pa != null) return -1;
-      if (pb != null) return 1;
-      return 0;
-    });
-    inscs.forEach(i => { nameOf[i.spc_id] = (i.spcs?.nombre || '').toUpperCase(); idOf[i.spc_id] = i.id; });
-    const ratificados = inscs.filter(i => i.estado === 'ratificado');
-    const forfaits    = inscs.filter(i => i.estado === 'forfait');
-
-    // ════ HELPER REAL renumerarChapas ══════════════════════════════════════
-    phase = 'helper';
-    const rcSrc = readFileSync(join(dir, '..', 'renumerar-chapas.js'), 'utf8');
-    const renumerarChapas = new Function(rcSrc + '\n return renumerarChapas;')();
-
-    // (1)+(2) mandil corrido + forfait afuera
-    const chapaMap = renumerarChapas(inscs);
-    ok('1 mandil corrido: gatera1→1, gatera2→2, gatera4→3, gatera5→4 (hueco corrido)',
-       chapaMap[idOf[SPCS[0]]] === 1 && chapaMap[idOf[SPCS[1]]] === 2 &&
-       chapaMap[idOf[SPCS[2]]] === 3 && chapaMap[idOf[SPCS[3]]] === 4,
-       `vals=${[SPCS[0],SPCS[1],SPCS[2],SPCS[3]].map(s=>chapaMap[idOf[s]]).join(',')}`);
-    ok('2 forfait SIN mandil (fuera del map)', chapaMap[idOf[SPCS[4]]] === undefined);
-
-    // ════ RENDER REAL renderBloqueCarrera + diff EN MEMORIA ═════════════════
-    phase = 'patch';
+    // ════ HELPER REAL + RENDER REAL (con fix ya aplicado en el archivo) ═════
+    phase = 'load';
     const html = readFileSync(join(dir, '..', 'ratificacion.html'), 'utf8');
-    let body = extractFnBody(html, 'function renderBloqueCarrera(');
+    const renumerarChapas = new Function(
+      readFileSync(join(dir, '..', 'renumerar-chapas.js'), 'utf8') + '\n return renumerarChapas;')();
+    const SELECT_REAL = extractPrintSelect(html);
+    console.log('[select real del archivo]', SELECT_REAL);
 
-    // Idempotente: si el fix YA está aplicado en el archivo, corre tal cual.
-    // Si no (working tree sin el fix), aplica el diff EN MEMORIA.
-    const yaAplicado = body.includes('renumerarChapas(items)') && body.includes('pi-chapa');
-    if (!yaAplicado) {
-      // diff parte A: const chapaMap = renumerarChapas(items); al inicio del body
-      const guard = "if (!items.length && !forfaits.length) return '';";
-      if (!body.includes(guard)) throw new Error('no encontré el guard inicial — el fix cambió');
-      body = body.replace(guard, guard + "\n    const chapaMap = renumerarChapas(items);");
-      // diff parte B: chapa span antes del nombre, en el return del renglón
-      const rowOpen = '`<div class="pi-row"><span class="pi-spc-name">';
-      if (!body.includes(rowOpen)) throw new Error('no encontré el inicio del renglón — el fix cambió');
-      body = body.replace(rowOpen,
+    let body = extractFnBody(html, 'function renderBloqueCarrera(');
+    // idempotente: si el archivo NO tuviera el fix de mandil, lo aplica en memoria
+    const yaMandil = body.includes('renumerarChapas(items)') && body.includes('pi-chapa');
+    if (!yaMandil) {
+      body = body.replace("if (!items.length && !forfaits.length) return '';",
+        "if (!items.length && !forfaits.length) return '';\n    const chapaMap = renumerarChapas(items);");
+      body = body.replace('`<div class="pi-row"><span class="pi-spc-name">',
         '`<div class="pi-row">${chapaMap[i.id] ? `<span class="pi-chapa">${chapaMap[i.id]}</span>` : \'\'}<span class="pi-spc-name">');
     }
-    console.log(`[patch] fix ${yaAplicado ? 'YA aplicado en archivo (corre tal cual)' : 'aplicado en memoria'}`);
-
     const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-    const calcPremiosConPiso = () => ({ bolsaEfectiva: 0 });
-    const formatBolsa = () => '';
-    const buildCondAbr = () => '';
     const render = new AsyncFunction(
       'car', 'items', 'isAnulada', 'forfaits',
       'calcPremiosConPiso', 'formatBolsa', 'buildCondAbr', 'renumerarChapas', 'parseFloat', body);
-
     const car = { id: CARRERA, estado: 'programada', numero_turno: 1, numero_carrera_programa: null,
       condicion_sexo: null, bolsa_total: 0, distribucion_premios: null, tipo_pista: null,
       hora_estimada: null, categorias_carrera: null };
-    const out = await render(car, ratificados, false, forfaits,
-      calcPremiosConPiso, formatBolsa, buildCondAbr, renumerarChapas, parseFloat);
 
-    // ════ ASSERTS PDF ═══════════════════════════════════════════════════════
-    phase = 'assert';
-    // (3) chapa antes del nombre + valores 1..4
-    ok('3a pi-chapa "1".."4" presentes en el render',
-       ['1','2','3','4'].every(v => out.includes(`<span class="pi-chapa">${v}</span>`)));
-    ok('3b orden por renglón: pi-chapa antes de pi-spc-name',
-       out.indexOf('class="pi-chapa"') < out.indexOf('class="pi-spc-name"'));
-    ok('3c layout chapa(izq) < nombre(medio) < peso(der)',
-       out.indexOf('class="pi-chapa"') < out.indexOf('class="pi-spc-name"') &&
-       out.indexOf('class="pi-spc-name"') < out.indexOf('class="pi-peso"'));
-    // mandil pegado al nombre correcto: "1" justo antes de gatera1 (BAM...) etc.
-    const seg = out.slice(0, out.indexOf('pi-forfaits') >= 0 ? out.indexOf('pi-forfaits') : out.length);
-    const orderOK = ['1','2','3','4'].every((v, idx) => {
-      const sp = `<span class="pi-chapa">${v}</span>`;
-      const nm = nameOf[SPCS[idx]];
-      return seg.indexOf(sp) >= 0 && seg.indexOf(sp) < seg.indexOf(nm) &&
-             (idx === 0 || seg.indexOf(sp) > seg.indexOf(`<span class="pi-chapa">${v-1}</span>`));
-    });
-    ok('3d cada mandil va delante de SU caballo, en orden 1→4', orderOK);
-    // (4) forfait sin chapa
-    ok('4 forfait en FORFAITS sin chapa',
-       out.includes('FORFAITS') && out.includes(nameOf[SPCS[4]]) &&
-       (out.match(/class="pi-chapa"/g) || []).length === 4,
-       `chapas=${(out.match(/class="pi-chapa"/g) || []).length}`);
+    // renderiza usando filas traídas con UN select dado (clave del probe)
+    const renderConSelect = async (selectStr) => {
+      const { data, error } = await sb.from('inscripciones').select(selectStr).eq('carrera_id', CARRERA);
+      if (error) throw new Error('query (' + selectStr.slice(0, 30) + '...): ' + error.message);
+      const rows = (data || []).slice().sort(sortPart);
+      const items = rows.filter(i => i.estado === 'ratificado');
+      const forfaits = rows.filter(i => i.estado === 'forfait');
+      return render(car, items, false, forfaits,
+        () => ({ bolsaEfectiva: 0 }), () => '', () => '', renumerarChapas, parseFloat);
+    };
 
-    console.log('\n[fragmento render]');
-    console.log(out.replace(/></g, '>\n<').split('\n')
+    // ════ POSITIVO: select REAL del archivo ═════════════════════════════════
+    phase = 'positivo';
+    const outReal = await renderConSelect(SELECT_REAL);
+    const chapas = (outReal.match(/class="pi-chapa">(\d+)</g) || []).map(s => s.match(/>(\d+)</)[1]);
+    ok('P1 select real trae id+peso (columnas presentes)',
+       ['id', 'peso_declarado', 'peso_final'].every(c => SELECT_REAL.includes(c)),
+       SELECT_REAL.includes('id') ? '' : 'falta id');
+    ok('P2 mandil corrido 1,2,3,4 (no todos el total)',
+       JSON.stringify(chapas) === JSON.stringify(['1', '2', '3', '4']), `chapas=${chapas.join(',')}`);
+    ok('P3 pesos 55,56,57,58 visibles a la derecha',
+       ['55', '56', '57', '58'].every(p => outReal.includes(`<span class="pi-peso">${p}</span>`)));
+    ok('P4 layout chapa < nombre < peso',
+       outReal.indexOf('pi-chapa') < outReal.indexOf('pi-spc-name') &&
+       outReal.indexOf('pi-spc-name') < outReal.indexOf('pi-peso'));
+    ok('P5 forfait sin chapa (4 chapas, no 5)', chapas.length === 4);
+
+    // ════ NEGATIVO: select VIEJO (sin id/peso) → el probe DEBE ver la rotura ═
+    phase = 'negativo';
+    const outViejo = await renderConSelect(SELECT_VIEJO);
+    const chapasViejo = (outViejo.match(/class="pi-chapa">(\d+)</g) || []).map(s => s.match(/>(\d+)</)[1]);
+    const mandilRoto = JSON.stringify(chapasViejo) !== JSON.stringify(['1', '2', '3', '4']);
+    const pesoRoto = !['55', '56', '57', '58'].every(p => outViejo.includes(`<span class="pi-peso">${p}</span>`));
+    ok('N1 con select viejo (sin id) el mandil sale ROTO — probe lo detecta',
+       mandilRoto, `chapas=${chapasViejo.join(',')||'(ninguna)'}`);
+    ok('N2 con select viejo (sin peso) el peso NO aparece — probe lo detecta', pesoRoto);
+    console.log(`  [negativo] mandil viejo=${chapasViejo.join(',')||'(vacío)'} → confirma sensibilidad del probe`);
+
+    console.log('\n[fragmento render POSITIVO]');
+    console.log(outReal.replace(/></g, '>\n<').split('\n')
       .filter(l => l.includes('pi-chapa') || l.includes('pi-spc-name') || l.includes('pi-peso') || l.includes('forfait')).join('\n'));
 
   } catch (ex) {
