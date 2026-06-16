@@ -401,8 +401,12 @@ async function printRatificados() {
     const esAnulada = car.estado === 'anulada' || car.estado === 'reabierta';
     const ratificados = inscsCar.filter(i => i.estado === 'ratificado');
     const forfaits    = inscsCar.filter(i => i.estado === 'forfait');
+    if (esAnulada) {
+      const anotados = inscsCar.filter(i => i.estado === 'ratificado' || i.estado === 'inscripto');
+      if (!anotados.length && !forfaits.length) return '';
+      return renderBloqueCarrera(car, anotados, true, forfaits);
+    }
     if (!ratificados.length && !forfaits.length) return '';
-    if (esAnulada) return renderBloqueCarrera(car, ratificados, true, forfaits);
     totalRatificados += ratificados.length;
     return renderBloqueCarrera(car, ratificados, false, forfaits);
   }).join('');
