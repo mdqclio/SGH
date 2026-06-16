@@ -349,7 +349,7 @@ function formatApuestasText(c) {
 }
 
 function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
-  const num  = c.numero_carrera_programa || c.numero_turno;
+  const num  = c.numero_carrera_programa != null ? c.numero_carrera_programa : c.numero_turno;
   const hora = c.hora_estimada ? String(c.hora_estimada).slice(0, 5) : '';
   const cat  = catMap[c.categoria_id];
   const dist = c.distribucion_premios || {};

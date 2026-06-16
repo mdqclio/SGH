@@ -377,9 +377,9 @@ function renderPrograma(reunion, carreras, inscripciones) {
       html += `<div class="carrera-block">
         <div class="carrera-block-header">
           <div class="carrera-block-title">
-            <div class="car-num">${car.numero_carrera_programa || car.numero_turno}</div>
+            <div class="car-num">${car.numero_carrera_programa != null ? car.numero_carrera_programa : car.numero_turno}</div>
             <div>
-              <div class="car-name">${car.numero_carrera_programa || car.numero_turno}° Carrera${car.hora_estimada?` — ${String(car.hora_estimada).slice(0,5)} HS`:''}</div>
+              <div class="car-name">${car.numero_carrera_programa != null ? car.numero_carrera_programa : car.numero_turno}° Carrera${car.hora_estimada?` — ${String(car.hora_estimada).slice(0,5)} HS`:''}</div>
               ${car.nombre?`<div class="car-premio">PREMIO: ${car.nombre}</div>`:''}
               <div class="car-cat">${cat?`${cat.nombre}${cat.codigo?` (${cat.codigo})`:''}`:'—'}</div>
             </div>
@@ -466,7 +466,7 @@ async function openApuestasModal() {
     (apuRows || []).forEach(row => { (currentApuestasMap[row.carrera_id] ??= []).push(row); });
   }
   document.getElementById('modal-apuestas-body').innerHTML = ordenadas.map(c => {
-    const num       = c.numero_carrera_programa || c.numero_turno;
+    const num       = c.numero_carrera_programa != null ? c.numero_carrera_programa : c.numero_turno;
     const notas     = c.apuestas_notas || '';
     const apuRows   = currentApuestasMap[c.id] || [];
     const apuByTipo = Object.fromEntries(apuRows.map(r => [r.tipo, r]));
@@ -575,7 +575,7 @@ async function saveApuestas() {
       const precio = parseFloat(document.getElementById(`price-${tipo}-${cid}`)?.value);
       if (!precio || precio <= 0) {
         const car = currentCarreras.find(c => c.id === cid);
-        const num = car?.numero_carrera_programa || car?.numero_turno || '?';
+        const num = car?.numero_carrera_programa != null ? car.numero_carrera_programa : (car?.numero_turno ?? '?');
         missing.push({ tipo, num });
       }
     }
@@ -642,7 +642,7 @@ function openPremiosModal() {
     return aN - bN;
   });
   const filas = ordenadas.map(c => {
-    const num = c.numero_carrera_programa || c.numero_turno;
+    const num = c.numero_carrera_programa != null ? c.numero_carrera_programa : c.numero_turno;
     const valor = (c.nombre || '').replace(/"/g, '&quot;');
     return `
       <div class="premios-row" style="display:grid;grid-template-columns:60px 1fr;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">

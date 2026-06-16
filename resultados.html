@@ -527,7 +527,7 @@ function renderLista() {
       const res   = resultados[c.id];
       const estado = res?.estado || 'sin_resultado';
       return `<div class="carrera-card ${estado}" onclick="abrirResultado('${c.id}')">
-        <div class="cc-num">${c.numero_carrera_programa || c.numero_turno}</div>
+        <div class="cc-num">${c.numero_carrera_programa != null ? c.numero_carrera_programa : c.numero_turno}</div>
         <div class="cc-name">${c.nombre || `Turno ${c.numero_turno}`}</div>
         <div class="cc-meta">${c.distancia_metros}m · ${c.tipo_pista||'—'}</div>
         <div class="cc-status"><span class="badge badge-${estado}">${estado.replace('_',' ')}</span></div>

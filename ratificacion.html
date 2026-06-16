@@ -346,7 +346,7 @@ async function printRatificados() {
     const bolsaStr = formatBolsa(bolsaEfectiva);
     const condStr = buildCondAbr(car);
     const esCesped = (car.tipo_pista || '').toLowerCase() === 'cesped';
-    const numCarrera = car.numero_carrera_programa || car.numero_turno;
+    const numCarrera = car.numero_carrera_programa != null ? car.numero_carrera_programa : car.numero_turno;
     const horaHHMM = (car.hora_estimada || '').slice(0, 5);
     const condContent = (condStr || esCesped)
       ? `${condStr || ''}${esCesped ? `${condStr ? ' · ' : ''}<span class="pi-cesped-inline">CESPED</span>` : ''}`
