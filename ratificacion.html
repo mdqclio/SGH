@@ -450,6 +450,18 @@ async function updateHoraEstimada(carreraId, value) {
   toast(hora ? `Hora ${hora} guardada` : 'Hora limpiada', 'success');
 }
 
+async function updatePeso(inscId, value) {
+  const raw = (value || '').trim().replace(',', '.');
+  let peso = null;
+  if (raw !== '') {
+    peso = parseFloat(raw);
+    if (isNaN(peso) || peso <= 0) { toast('Peso inválido', 'error'); return; }
+  }
+  const { error } = await sb.from('inscripciones').update({ peso_declarado: peso }).eq('id', inscId);
+  if (error) { toast('Error guardando peso: ' + error.message, 'error'); return; }
+  toast(peso !== null ? `Peso ${peso} kg guardado` : 'Peso limpiado', 'success');
+}
+
 
 async function init() {
   const [{ data: reuns }, { data: profs }, { data: sprcs }, { data: cabs }, { data: cats }] = await Promise.all([
@@ -575,7 +587,7 @@ function renderAll(carreras, inscripciones) {
         <td style="font-size:12px;color:var(--muted)">${cab?.nombre||'—'}</td>
         <td class="jockey-cell">${buildJockeySelect(i, carCerrada)}${hasColision?'<span class="badge-jockey-dup">⚠ dup.</span>':''}</td>
         <td class="col-peso-display">${i.peso_final?`<strong>${i.peso_final} kg</strong>`:i.peso_declarado?`${i.peso_declarado} kg`:'—'}</td>
-        <td><input class="peso-input print-hide" type="number" id="peso-${i.id}" value="${i.peso_final||i.peso_declarado||''}" min="40" max="80" step="0.1" placeholder="kg"${carCerrada?' disabled':''}></td>
+        <td><input class="peso-input print-hide" type="number" id="peso-${i.id}" value="${i.peso_final||i.peso_declarado||''}" min="40" max="80" step="0.1" placeholder="kg" onblur="updatePeso('${i.id}', this.value)"${carCerrada?' disabled':''}></td>
         <td><span class="badge badge-${i.estado}" id="badge-${i.id}">${i.estado?.replace('_',' ')||'—'}</span></td>
         <td class="action-btns print-hide">
           ${!isRat&&!isForf&&!isMalInsc?(
