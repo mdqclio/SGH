@@ -643,7 +643,7 @@ function renderCarreras() {
     const cantPuestos = bonoPosH >= bonoPosD ? bonoPosH - bonoPosD + 1 : 0;
     const totalBonos  = bonoGan + (bonoPosMon * cantPuestos);
     const { puestos: puestosEfectivos, total: bolsaNominal } = repartoDisplay(bolsa, dist);
-    const montoTotal  = bolsaNominal; // BOLSA = nominal; los bonos van como líneas aparte, NO se suman
+    const montoTotal  = bolsaNominal; // BOLSA = efectiva (con piso); los bonos van aparte, NO se suman
 
     const EXCLUIR = ['bonos','bono_ganador','bono_posicion_desde','bono_posicion_hasta','bono_posicion_monto','ganancia_minima'];
     const condMain = c.condicion_handicap || c.nombre || '';
@@ -687,7 +687,7 @@ function renderCarreras() {
           <span class="premio-row-val">${formatMonto(totalBonos)}</span>
         </div>` : '';
 
-      // Línea informativa de piso: comunica la ganancia mínima sin inflar el número BOLSA
+      // Línea informativa de piso: recuerda la ganancia mínima por puesto (ya reflejada en la BOLSA efectiva)
       const gananciaMin = parseFloat(dist.ganancia_minima) || 0;
       const rowPiso = gananciaMin > 0 ? `<div class="premio-row premio-row-sub">
           <span class="premio-row-lbl">· Ganancia mínima por puesto</span>

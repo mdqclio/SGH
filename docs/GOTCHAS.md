@@ -278,5 +278,11 @@ Un probe de impresión/PDF debe **extraer el `.select()` real del archivo y ejec
 ## 62. Campos de monto en forms: usar `parseMonto`, no `parseFloat` directo (2026-07-19)
 `parseMonto` maneja el **formato argentino**: saca los puntos de miles y convierte la coma decimal a punto (`"3.333.333,33"` → `3333333.33`). `parseFloat` directo sobre ese string da `3.333` (corta en el segundo punto). Todo input de dinero pasa por `parseMonto`/`formatMonto`/`bindARSInput` — nunca `parseFloat`/`.toFixed`/`.toLocaleString` directo.
 
-## 63. `ganancia_minima` es piso de PAGO, no de display (2026-07-21)
-El piso `ganancia_minima` aplica **solo en liquidación** (`calcPremiosConPiso`, lo que se paga). El **display** (carta de llamado, programa) muestra el **nominal** (`repartoDisplay`): la BOLSA impresa = `bolsa_total` tal cual se carga, sin inflar por piso ni bonos. Los bonos y el piso van como **líneas informativas aparte**. No mezclar: si un cambio de display empieza a sumar el piso, rompe la decisión de Fede (BOLSA nominal).
+## 63. Display de premios = BOLSA EFECTIVA (con piso), bonos aparte (2026-07-21, corregido)
+⚠️ **Corrección** (regla real aclarada por Yesica): la primera versión mostraba la BOLSA **nominal** en el display — era un misread. El piso `ganancia_minima` **SÍ** entra en el display.
+
+- Los montos **por puesto** del display = los **EFECTIVOS con piso** (`calcPremiosConPiso`): un 4°/5° por debajo del piso se muestra **en el piso** (ej. 100.000).
+- La **BOLSA impresa** = `round(bolsaEfectiva)` = **Σ de los puestos efectivos** (ej. bolsa cargada 1.191.666 con piso 100.000 → impresa **1.284.416**). `repartoDisplay` la calcula: redondea cada puesto y el puesto de **mayor monto** absorbe el resto de redondeo → **Σ puestos ≡ total EXACTO** (sin drift de $1), sin desclavar los pisos.
+- Los **BONOS** siguen **aparte** como líneas condicionales — **NO** se suman al número BOLSA (`calcPremiosConPiso` los excluye). Esto sí es decisión de Fede y no cambia.
+- `calcPremiosConPiso` **intacto** (fuente de verdad del pago). `repartoDisplay` es un wrapper de redondeo sobre él.
+- Sigue vivo el warning `pisoSospechoso()` (piso > 20% de la bolsa → `confirm` al guardar) y la línea informativa "Ganancia mínima por puesto".

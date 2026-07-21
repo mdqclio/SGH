@@ -1,5 +1,10 @@
 /**
- * Probe reparto display — FIX 1 (BOLSA nominal + bonos aparte) + FIX 2 (suma exacta).
+ * Probe reparto display — BOLSA EFECTIVA (con piso) + suma exacta + bonos aparte.
+ *
+ * Corrección de la tanda anterior (regla real aclarada por Yesica): el display vuelve a la
+ * BOLSA EFECTIVA (con piso ganancia_minima aplicado por puesto), NO la nominal. La BOLSA
+ * impresa = round(Σ efectivos) y Σ puestos ≡ total EXACTO (el puesto mayor absorbe el resto).
+ * Los BONOS siguen aparte: NO se suman al número BOLSA.
  *
  * CORRE EL CÓDIGO REAL de repartoDisplay() de premios-utils.js (working tree). NO usa
  * browser (chromium no corre en ubuntu26.04): carga el archivo real vía shim de `window`
@@ -9,12 +14,12 @@
  * de vuelta de la DB y se corre repartoDisplay sobre lo persistido. Teardown TOTAL en el
  * finally (borra carreras + reunión 9998). No toca ninguna reunión real.
  *
- * Asserts:
- *  FIX1 - total === round(bolsa_total) (nominal, sin piso ganancia_minima)
- *  FIX1 - piso NO aplicado: 5° nominal (<100k) NO se infla a 100k en el display
- *  FIX1 - bonos NO sumados al total (turno con bonos → total = bolsa nominal, no +550k)
- *  FIX1 - turno sin bonos → dist sin claves de bono (layout viejo intacto)
- *  FIX2 - Σ puestos === total EXACTO en ambos turnos (sin drift de $1)
+ * Asserts (caso real turno 10, bolsa 1.191.666, piso 100.000, dist 60/19/12/6/3):
+ *  - BOLSA impresa === 1.284.416 (efectiva, con piso; NO la nominal 1.191.666)
+ *  - Σ puestos === total EXACTO en ambos turnos (sin drift de $1)
+ *  - piso APLICADO en display: 4° y 5° (nominal <100k) se muestran en 100.000
+ *  - bonos NO sumados al total (turno con 550k de bonos → total sigue 1.284.416)
+ *  - turno sin bonos → dist sin claves de bono
  */
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
@@ -94,22 +99,24 @@ async function main() {
   const t1 = cars.find(c => c.numero_turno === 1);
   const t2 = cars.find(c => c.numero_turno === 2);
 
-  // --- Turno 1 (con bonos, bolsa 1.191.666) ---
+  // --- Turno 1 (con bonos, bolsa 1.191.666, piso 100.000) ---
   const r1 = repartoDisplay(t1.bolsa_total, t1.distribucion_premios);
   const suma1 = Object.values(r1.puestos).reduce((s, v) => s + v, 0);
-  ok('FIX1 t1: total = bolsa nominal (1.191.666)', r1.total === 1191666, `total=${r1.total}`);
-  ok('FIX1 t1: piso NO aplicado — 5° nominal <100k', r1.puestos['5'] < 100000, `5°=${r1.puestos['5']}`);
+  ok('t1: BOLSA efectiva = 1.284.416 (piso aplicado, NO nominal 1.191.666)', r1.total === 1284416, `total=${r1.total}`);
+  ok('t1: Σ puestos === total EXACTO (sin drift)', suma1 === r1.total, `suma=${suma1} total=${r1.total}`);
+  ok('t1: piso APLICADO en display — 4° = 100.000', r1.puestos['4'] === 100000, `4°=${r1.puestos['4']}`);
+  ok('t1: piso APLICADO en display — 5° = 100.000', r1.puestos['5'] === 100000, `5°=${r1.puestos['5']}`);
   const bonos1 = t1.distribucion_premios.bono_ganador + t1.distribucion_premios.bono_posicion_monto * 3;
-  ok('FIX1 t1: bonos NO sumados al total', r1.total === 1191666 && bonos1 === 550000, `total=${r1.total}, bonos=${bonos1}`);
-  ok('FIX2 t1: Σ puestos === total EXACTO', suma1 === r1.total, `suma=${suma1} total=${r1.total}`);
+  ok('t1: bonos NO sumados al total (total sigue 1.284.416)', r1.total === 1284416 && bonos1 === 550000, `total=${r1.total}, bonos=${bonos1}`);
 
-  // --- Turno 2 (sin bonos, bolsa 1.000.000) ---
+  // --- Turno 2 (sin bonos, bolsa 1.000.000, piso 100.000) ---
   const r2 = repartoDisplay(t2.bolsa_total, t2.distribucion_premios);
   const suma2 = Object.values(r2.puestos).reduce((s, v) => s + v, 0);
   const tieneBono = ['bono_ganador', 'bono_posicion_monto'].some(k => k in t2.distribucion_premios);
-  ok('FIX1 t2: dist sin claves de bono (layout viejo)', !tieneBono);
-  ok('FIX1 t2: total = bolsa nominal (1.000.000)', r2.total === 1000000, `total=${r2.total}`);
-  ok('FIX2 t2: Σ puestos === total EXACTO', suma2 === r2.total, `suma=${suma2} total=${r2.total}`);
+  ok('t2: dist sin claves de bono', !tieneBono);
+  ok('t2: BOLSA efectiva = 1.110.000 (600k+190k+120k+piso 100k+piso 100k)', r2.total === 1110000, `total=${r2.total}`);
+  ok('t2: piso APLICADO en display — 4° y 5° = 100.000', r2.puestos['4'] === 100000 && r2.puestos['5'] === 100000, `4°=${r2.puestos['4']} 5°=${r2.puestos['5']}`);
+  ok('t2: Σ puestos === total EXACTO', suma2 === r2.total, `suma=${suma2} total=${r2.total}`);
 }
 
 main()

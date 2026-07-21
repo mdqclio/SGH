@@ -1,6 +1,19 @@
 # Changelog
 
+## [2026-07-21b] — Premios: corrección display → BOLSA EFECTIVA (con piso), bonos aparte
+
+> Branch `fix/bolsa-efectiva-display`. **Corrige la tanda anterior** (regla real aclarada por Yesica): la BOLSA del display NO es la nominal, es la **efectiva con piso**.
+
+- **Display por puesto = EFECTIVO con piso** (`repartoDisplay` ahora envuelve `calcPremiosConPiso`): 4°/5° por debajo del piso se muestran **en el piso** (ej. 100.000). Antes se mostraba el nominal — era un misread.
+- **BOLSA impresa = round(bolsaEfectiva) = Σ de los puestos efectivos.** Ej: bolsa cargada 1.191.666 + piso 100.000 → impresa **1.284.416**. `repartoDisplay` redondea cada puesto y el puesto de **mayor monto** absorbe el resto → **Σ puestos ≡ total EXACTO** (espíritu del FIX 2, ahora sobre la efectiva), sin desclavar los pisos.
+- **Bonos siguen APARTE** — NO se suman a la BOLSA (`calcPremiosConPiso` los excluye). Esto **no cambia** (decisión de Fede).
+- **Sin tocar** `calcPremiosConPiso` ni la liquidación. Cambio centralizado en `repartoDisplay` → los **6 sitios de display** heredan automático (carta-llamados card + PDF, programa, programa-oficial, programa-oficial-color, inscripciones, ratificacion).
+- Se mantienen: línea informativa "Ganancia mínima por puesto" y warning `pisoSospechoso()`.
+- Probes: `tests/probe_reparto_display.mjs` (9/9, asserta BOLSA=Σ efectivos exacta, 1.191.666+piso→1.284.416, bonos NO sumados) + `tests/probe_piso_warning.mjs` (5/5). Real-code, reunión descartable 9998, teardown en la misma corrida.
+
 ## [2026-07-21] — Premios: display nominal + suma exacta + warning piso; restore post-pausa
+
+> ⚠️ **SUPERSEDED por [2026-07-21b]**: la regla "BOLSA nominal" de abajo fue un misread; la real es BOLSA **efectiva con piso**.
 
 > En main/prod. Merge `d626049` (branch `feat/premios-display-v2`, commits `94c8bbd` / `4c01720` / `1ac48e8` / `0fac812`). Revisado por raw antes de mergear.
 
