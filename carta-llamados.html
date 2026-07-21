@@ -897,6 +897,14 @@ async function saveRecord() {
   [1,2,3,4,5,6].forEach(i=>{ const v=parseFloat(document.getElementById(`pr-${i}`).value); if(v) distribucion[String(i)]=v; });
   const gananciaMinima = parseMonto(document.getElementById('f-ganancia-minima').value)||0;
   if (gananciaMinima) distribucion.ganancia_minima = gananciaMinima;
+  const bolsaVal = document.getElementById('f-bolsa').value ? parseMonto(document.getElementById('f-bolsa').value) : null;
+  // Warning (no bloqueo) si el piso parece un error de tipeo (la bolsa entera en el campo del piso)
+  if (bolsaVal && pisoSospechoso(gananciaMinima, bolsaVal)) {
+    if (!confirm(`El piso (ganancia mínima) parece muy alto: ${formatMonto(gananciaMinima)} vs bolsa ${formatMonto(bolsaVal)}.\n¿Seguro que querés guardar así?`)) {
+      btn.disabled = false; btn.textContent = 'Guardar';
+      return;
+    }
+  }
   const bonoGanador = parseMonto(document.getElementById('bono-ganador').value)||0;
   if (bonoGanador) distribucion.bono_ganador = bonoGanador;
   const bonoPosHasta = parseInt(document.getElementById('f-bono-pos-hasta').value)||0;
@@ -919,7 +927,7 @@ async function saveRecord() {
     condicion_sexo: document.getElementById('f-cond-sexo').value,
     condicion_handicap: document.getElementById('f-handicap').value.trim() || null,
     condicion_adicional: document.getElementById('f-cond-adicional').value.trim() || null,
-    bolsa_total: document.getElementById('f-bolsa').value ? parseMonto(document.getElementById('f-bolsa').value) : null,
+    bolsa_total: bolsaVal,
     cupo_maximo: document.getElementById('f-cupo').value ? parseInt(document.getElementById('f-cupo').value) : null,
     distribucion_premios: distribucion,
     apertura_inscripcion: document.getElementById('f-ap-insc').value || null,

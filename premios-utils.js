@@ -49,6 +49,16 @@
     return { puestos, total };
   }
 
+  // ¿El piso (ganancia_minima) es desproporcionado respecto de la bolsa?
+  // Un piso > 20% de la bolsa casi siempre es un error de tipeo (se cargó la bolsa
+  // entera en el campo del piso). NO bloquea: sirve para disparar un warning confirmable.
+  function pisoSospechoso(gananciaMinima, bolsa) {
+    const g = parseFloat(gananciaMinima) || 0;
+    const b = parseFloat(bolsa) || 0;
+    return b > 0 && g > b * 0.2;
+  }
+
   global.calcPremiosConPiso = calcPremiosConPiso;
   global.repartoDisplay = repartoDisplay;
+  global.pisoSospechoso = pisoSospechoso;
 })(window);
