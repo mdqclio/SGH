@@ -642,8 +642,8 @@ function renderCarreras() {
     const bonoPosMon  = dist.bono_posicion_monto  || 0;
     const cantPuestos = bonoPosH >= bonoPosD ? bonoPosH - bonoPosD + 1 : 0;
     const totalBonos  = bonoGan + (bonoPosMon * cantPuestos);
-    const { puestos: puestosEfectivos, bolsaEfectiva } = calcPremiosConPiso(bolsa, dist);
-    const montoTotal  = bolsaEfectiva + totalBonos;
+    const { puestos: puestosEfectivos, total: bolsaNominal } = repartoDisplay(bolsa, dist);
+    const montoTotal  = bolsaNominal; // BOLSA = nominal; los bonos van como líneas aparte, NO se suman
 
     const EXCLUIR = ['bonos','bono_ganador','bono_posicion_desde','bono_posicion_hasta','bono_posicion_monto','ganancia_minima'];
     const condMain = c.condicion_handicap || c.nombre || '';
@@ -667,7 +667,7 @@ function renderCarreras() {
 
       // Bolsa en una sola línea compacta
       const bolsaInline = bolsa > 0
-        ? `Bolsa: ${formatMonto(Math.round(bolsaEfectiva))}${desglosePuestos.length ? ' — ' + desglosePuestos.join(' — ') : ''}`
+        ? `Bolsa: ${formatMonto(bolsaNominal)}${desglosePuestos.length ? ' — ' + desglosePuestos.join(' — ') : ''}`
         : '';
       const rowBolsa = bolsaInline
         ? `<div class="premio-bolsa-line">${bolsaInline}</div>` : '';
@@ -687,8 +687,15 @@ function renderCarreras() {
           <span class="premio-row-val">${formatMonto(totalBonos)}</span>
         </div>` : '';
 
+      // Línea informativa de piso: comunica la ganancia mínima sin inflar el número BOLSA
+      const gananciaMin = parseFloat(dist.ganancia_minima) || 0;
+      const rowPiso = gananciaMin > 0 ? `<div class="premio-row premio-row-sub">
+          <span class="premio-row-lbl">· Ganancia mínima por puesto</span>
+          <span class="premio-row-val">${formatMonto(gananciaMin)}</span>
+        </div>` : '';
+
       desgloseHtml = `<div class="premio-desglose">
-        ${rowBolsa}${rowBonos}
+        ${rowBolsa}${rowPiso}${rowBonos}
         <div class="premio-row premio-total">
           <span class="premio-row-lbl">BOLSA TOTAL DE LA CARRERA</span>
           <span class="premio-row-val">${formatMonto(montoTotal)}</span>
@@ -780,15 +787,16 @@ function renderPrint() {
     const condAdicional = c.condicion_adicional || '';
 
     // Línea de bolsa (bono ganador va inline en el título, no aquí)
-    const { puestos: puestosEfectivos, bolsaEfectiva } = calcPremiosConPiso(bolsa, dist);
+    const { puestos: puestosEfectivos, total: bolsaNominal } = repartoDisplay(bolsa, dist);
     let bolsaLine = '';
     if (bolsa > 0) {
       const puestos = Object.entries(dist)
         .filter(([k,v]) => !EXCLUIR.includes(k) && Number(v) > 0)
         .sort(([a],[b]) => parseInt(a) - parseInt(b))
         .map(([pos]) => `${ORDINAL[parseInt(pos)-1]||pos+'°'} ${formatMonto(Math.round(puestosEfectivos[pos]||0))}`);
-      bolsaLine = `BOLSA: ${formatMonto(Math.round(bolsaEfectiva))}`;
+      bolsaLine = `BOLSA: ${formatMonto(bolsaNominal)}`;
       if (puestos.length)         bolsaLine += ' &mdash; ' + puestos.join(' &mdash; ');
+      if (dist.ganancia_minima)   bolsaLine += ` &mdash; GAN. MÍN. ${formatMonto(dist.ganancia_minima)}/puesto`;
       if (bonoPosH && bonoPosMon) bolsaLine += ` &mdash; BONO ${bonoPosD}°-${bonoPosH}° ${formatMonto(bonoPosMon)}/puesto`;
     }
 
@@ -897,6 +905,14 @@ async function saveRecord() {
   [1,2,3,4,5,6].forEach(i=>{ const v=parseFloat(document.getElementById(`pr-${i}`).value); if(v) distribucion[String(i)]=v; });
   const gananciaMinima = parseMonto(document.getElementById('f-ganancia-minima').value)||0;
   if (gananciaMinima) distribucion.ganancia_minima = gananciaMinima;
+  const bolsaVal = document.getElementById('f-bolsa').value ? parseMonto(document.getElementById('f-bolsa').value) : null;
+  // Warning (no bloqueo) si el piso parece un error de tipeo (la bolsa entera en el campo del piso)
+  if (bolsaVal && pisoSospechoso(gananciaMinima, bolsaVal)) {
+    if (!confirm(`El piso (ganancia mínima) parece muy alto: ${formatMonto(gananciaMinima)} vs bolsa ${formatMonto(bolsaVal)}.\n¿Seguro que querés guardar así?`)) {
+      btn.disabled = false; btn.textContent = 'Guardar';
+      return;
+    }
+  }
   const bonoGanador = parseMonto(document.getElementById('bono-ganador').value)||0;
   if (bonoGanador) distribucion.bono_ganador = bonoGanador;
   const bonoPosHasta = parseInt(document.getElementById('f-bono-pos-hasta').value)||0;
@@ -919,7 +935,7 @@ async function saveRecord() {
     condicion_sexo: document.getElementById('f-cond-sexo').value,
     condicion_handicap: document.getElementById('f-handicap').value.trim() || null,
     condicion_adicional: document.getElementById('f-cond-adicional').value.trim() || null,
-    bolsa_total: document.getElementById('f-bolsa').value ? parseMonto(document.getElementById('f-bolsa').value) : null,
+    bolsa_total: bolsaVal,
     cupo_maximo: document.getElementById('f-cupo').value ? parseInt(document.getElementById('f-cupo').value) : null,
     distribucion_premios: distribucion,
     apertura_inscripcion: document.getElementById('f-ap-insc').value || null,

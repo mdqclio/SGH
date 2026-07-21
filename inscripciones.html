@@ -771,8 +771,8 @@ async function printInscriptos() {
     totalCaballos += inscsCar.length;
 
     const esMixta = car.condicion_sexo === 'ambos';
-    const { bolsaEfectiva } = calcPremiosConPiso(car.bolsa_total, car.distribucion_premios);
-    const bolsaStr = formatBolsa(bolsaEfectiva);
+    const { total: bolsaNominal } = repartoDisplay(car.bolsa_total, car.distribucion_premios);
+    const bolsaStr = formatBolsa(bolsaNominal);
     const condStr = buildCondAbr(car);
     const esCesped = (car.tipo_pista || '').toLowerCase() === 'cesped';
     const turnoBand = car.nombre

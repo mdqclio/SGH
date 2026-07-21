@@ -563,7 +563,7 @@ function renderCarreraColor(c, ins, maps, idx) {
   const cat     = catMap[c.categoria_id];
   const dist    = c.distribucion_premios || {};
   const bolsa   = parseFloat(c.bolsa_total) || 0;
-  const { puestos: puestosEf, bolsaEfectiva } = calcPremiosConPiso(bolsa, dist);
+  const { puestos: puestosEf, total: bolsaNominal } = repartoDisplay(bolsa, dist);
   const bonoGanador  = dist.bono_ganador || 0;
   const apuestasText = formatApuestasText(c);
 
@@ -619,7 +619,7 @@ function renderCarreraColor(c, ins, maps, idx) {
     <div class="carrera-color-info">
       ${bonoGanador ? `<div class="bono-lateral">BONO ${formatMonto(bonoGanador)}<br>AL GANADOR</div>` : ''}
       ${condiciones ? `<div>${condiciones}</div>` : ''}
-      ${bolsa ? `<div class="bolsa-linea">BOLSA: ${formatMonto(Math.round(bolsaEfectiva))}${desglose ? ` — ${desglose}` : ''}</div>` : ''}
+      ${bolsa ? `<div class="bolsa-linea">BOLSA: ${formatMonto(bolsaNominal)}${desglose ? ` — ${desglose}` : ''}${dist.ganancia_minima ? ` — GAN. MÍN. ${formatMonto(dist.ganancia_minima)}/puesto` : ''}</div>` : ''}
     </div>
     <table class="inscriptos-color">
       <thead><tr>
