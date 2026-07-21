@@ -262,3 +262,21 @@ Supabase inyecta `SUPABASE_SERVICE_ROLE_KEY` en el env de toda Edge Function, pe
 
 ## 57. Copiar tokens largos del terminal los wrapea y mete un espacio (2026-06-12)
 Un token de 64 hex copiado desde la terminal puede venir **partido por un wrap visual** → al pegarlo aparece un espacio en el medio (`…c0 52af…`) que rompe el valor y da 401 aunque el token sea el correcto. Antes de descartar un token como inválido, probar quitándole espacios/saltos (`tr -d ' \n'`). No es artefacto inofensivo: el espacio va literal en el header `Authorization`.
+
+## 58. Proyectos Supabase free se pausan a los 7 días de inactividad (2026-07-14)
+Un proyecto en plan **free** se **pausa automáticamente tras ~7 días sin actividad** (sin API calls ni logins). Reversible: se puede **restaurar hasta 90 días** desde el dashboard (botón Restore), sin pérdida de datos. Pero free = **cero retención de backups**, así que no hay red de contención si se supera la ventana. Síntoma engañoso: el host del proyecto pausado **NO resuelve DNS** → parece borrado, pero no lo está. No entrar en pánico: revisar el estado en el dashboard antes de asumir pérdida. Mitigación posible: plan Pro, o un cron liviano que pegue una query periódica (decisión de producto pendiente).
+
+## 59. El MCP de Supabase en Claude Code queda atado a UNA cuenta (2026-07-14)
+Las tools del MCP de Supabase operan sobre los proyectos de **la cuenta con la que se autenticó el MCP**. Si el proyecto vive en **otra cuenta**, las tools **no lo ven** aunque el `.env` local tenga el `ref`/keys correctos → parece un `ref` inexistente o inaccesible. Antes de asumir que el ref está mal, **verificar qué cuenta tiene conectada el `/mcp`**. Es un problema de scope de cuenta, no de credenciales.
+
+## 60. Probe de impresión: extraer el `.select()` REAL, no mockear datos (2026-07-14)
+Un probe de impresión/PDF debe **extraer el `.select()` real del archivo y ejecutar la query** contra la DB, no armar datos a mano. Bug real (mandil/peso): la query de impresión **omitía columnas** (`id`, `peso_declarado`, `peso_final`) → un probe con datos mockeados **no lo detectó** porque los traía por su cuenta. Regla: el probe corre la query que corre el módulo. Si el `.select()` está incompleto, el probe tiene que fallar por eso.
+
+## 61. `numero_carrera_programa` puede ser `null` O `0` → comparar con `!= null` (2026-07-15)
+`numero_carrera_programa` es nullable **y** puede valer `0`. Nunca usar `x || fallback` para decidir si está seteado (`0` es falsy → rompe). Comparar siempre con `!= null` (o `!== null && !== undefined`). Mismo patrón para cualquier número que admita 0 legítimo.
+
+## 62. Campos de monto en forms: usar `parseMonto`, no `parseFloat` directo (2026-07-19)
+`parseMonto` maneja el **formato argentino**: saca los puntos de miles y convierte la coma decimal a punto (`"3.333.333,33"` → `3333333.33`). `parseFloat` directo sobre ese string da `3.333` (corta en el segundo punto). Todo input de dinero pasa por `parseMonto`/`formatMonto`/`bindARSInput` — nunca `parseFloat`/`.toFixed`/`.toLocaleString` directo.
+
+## 63. `ganancia_minima` es piso de PAGO, no de display (2026-07-21)
+El piso `ganancia_minima` aplica **solo en liquidación** (`calcPremiosConPiso`, lo que se paga). El **display** (carta de llamado, programa) muestra el **nominal** (`repartoDisplay`): la BOLSA impresa = `bolsa_total` tal cual se carga, sin inflar por piso ni bonos. Los bonos y el piso van como **líneas informativas aparte**. No mezclar: si un cambio de display empieza a sumar el piso, rompe la decisión de Fede (BOLSA nominal).

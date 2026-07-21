@@ -223,3 +223,32 @@ Descripción: Los campos `resultado_apuestas.pozo`, `vales` (y el campo asegurad
 Módulo: resultados.html — modal "Div. habilitadas"
 Estado: Pendiente decisión con Fede.
 Prioridad: Baja
+
+### ISSUE-031: BOLSA cargada ≠ BOLSA impresa (piso/bonos inflaban) + drift $1 — ✅ RESUELTO (2026-07-21)
+Descripción: la BOLSA impresa no coincidía con lo que Fede cargaba. Dos causas: (1) el piso `ganancia_minima` inflaba el display al elevar los puestos bajos, y los bonos se sumaban al número BOLSA; (2) cada puesto redondeaba independiente y la suma desfasaba $1 (ej. bolsa 1.191.666 sumaba 1.191.667).
+Módulo: `premios-utils.js` + los 6 sitios de display.
+Estado: ✅ RESUELTO (merge `d626049`). **Decisión de Fede**: BOLSA impresa = **nominal** (`repartoDisplay`), bonos y piso como **líneas informativas aparte**, el piso aplica solo en liquidación (`calcPremiosConPiso` intacto). Redondeo con **suma exacta** (último puesto absorbe el resto). Probes `tests/probe_reparto_display.mjs` (7/7) + `tests/probe_piso_warning.mjs` (5/5). Ver GOTCHA #63.
+
+### ISSUE-032: Anti-pausa del proyecto Supabase free — decisión Pro vs cron
+Descripción: el proyecto free se pausa a los ~7 días de inactividad (pasó el 2026-07-07, restaurado el 2026-07-14 sin pérdida). Para evitar recurrencia hay que decidir entre **plan Pro** o un **cron liviano anti-pausa** (query periódica). Ver GOTCHA #58.
+Módulo: infra. Estado: ⏳ Abierto — decisión de producto, hablar con Fede. Prioridad: Media.
+
+### ISSUE-033: Edge Function `reunion-json` — redeploy + `tipo_carrera`/IDs con Diego
+Descripción: pendiente **redeploy** de la Edge Function `reunion-json` y acordar con Diego el campo `tipo_carrera` y los IDs que espera el consumidor. Complementa ISSUE-030.
+Módulo: `supabase/functions/reunion-json`. Estado: ⏳ Abierto — coordinación con Diego. Prioridad: Media.
+
+### ISSUE-034: Backfill `registro_stud_book` tomo/folio
+Descripción: falta backfillear tomo/folio del registro de Stud Book en los ejemplares cargados.
+Módulo: `spcs` / integración Stud Book. Estado: ⏳ Abierto. Prioridad: Baja.
+
+### ISSUE-035: Teardown de la reunión de prueba 9999
+Descripción: la reunión 9999 (datos de prueba) sigue viva; su teardown está **gateado a que Fede termine las pruebas de pagos**. Correr `teardown_prueba_resumen_9999.sql` cuando libere.
+Módulo: datos de prueba. Estado: ⏳ Abierto (gated). Prioridad: Media.
+
+### ISSUE-036: Propagación de certificado SPC → inscripción
+Descripción: bug de propagación del certificado desde el SPC hacia la inscripción (el estado del certificado no se refleja correctamente en la inscripción).
+Módulo: inscripciones / spcs. Estado: ⏳ Abierto — a investigar. Prioridad: Media.
+
+### ISSUE-037: `fix/edad-siempre-abierta` — espera confirmación de Fede
+Descripción: fix de la condición de edad "siempre abierta" en branch, esperando confirmación de Fede antes de mergear.
+Módulo: por confirmar. Estado: ⏳ Abierto — branch a la espera de Fede. Prioridad: Baja.

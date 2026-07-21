@@ -4,7 +4,23 @@
 
 ---
 
-## 📸 Snapshot 2026-06-12 — el más nuevo
+## 📸 Snapshot 2026-07-21 — el más nuevo
+
+> Autoritativo. Supera a los snapshots de abajo. En main/prod: tanda de premios (`feat/premios-display-v2`, merge `d626049`). Doc de premios + restore.
+
+### Premios — modelo de display: NOMINAL + bonos aparte (decisión de Fede confirmada)
+- La **BOLSA impresa es el nominal** (`bolsa_total` tal cual se carga); ni el piso `ganancia_minima` ni los bonos inflan ese número. Helper `repartoDisplay()` en `premios-utils.js` (los 6 sitios de display lo usan). El reparto por puesto suma exacto a la bolsa (último puesto absorbe el resto del redondeo).
+- **Bonos**: líneas aparte condicionales. **Ganancia mínima**: línea informativa condicional (comunica el piso sin inflar). **`calcPremiosConPiso` intacto** → el piso aplica solo en **liquidación** (pago).
+- Warning al guardar si el piso parece un error de tipeo (`pisoSospechoso`, > 20% de la bolsa). Probes `tests/probe_reparto_display.mjs` (7/7) + `tests/probe_piso_warning.mjs` (5/5).
+
+### Infra — proyecto Supabase pausado y restaurado (sin pérdida de datos)
+- El proyecto (`unlhcuanfrtpatoipwve`) se **pausó por inactividad el 2026-07-07** (plan free: se pausa a los ~7 días sin API calls ni logins). **Restaurado el 2026-07-14 desde el dashboard, sin pérdida de datos.**
+- **Conteos post-restore verificados**: reunión 6 intacta (**124 inscripciones, 81 gateras, 82 pesos**); **profesionales 167, sin duplicados**.
+- **Pendiente (producto)**: decidir **Pro vs cron anti-pausa** para evitar que se vuelva a pausar (hablar con Fede). Ver ISSUES.
+
+---
+
+## 📸 Snapshot 2026-06-12
 
 > Autoritativo. Supera a los snapshots de abajo. Trabajo de hoy en branch **`feat/edge-reunion-json`** (NO en main): Edge Function `reunion-json` deployada + seed de resultados 9999 + housekeeping. El generador y su pasada de formato viven en `feat/json-generator` (`08f8bcb`). Nada de esto está mergeado a main todavía.
 

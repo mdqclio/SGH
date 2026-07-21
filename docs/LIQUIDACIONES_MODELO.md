@@ -9,6 +9,8 @@
 > - ⏳ Fase 2bis — botón "Oficializar reunión". ⏳ Fase 3 — estados de línea + retención anti-doping. ⏳ Fase 4 — recibos por persona on-demand. ⏳ Fase 5 — resumen de reunión. ⏳ Fase 6 — validar A+B con datos reales de R5.
 > Detalle de fases y decisiones: `docs/ISSUES.md` (ISSUE-001). ADRs: ADR-042..047.
 
+> **Nota display vs liquidación (2026-07-21):** este modelo (piso `ganancia_minima` + bonos) rige la **liquidación / pago** (`calcPremiosConPiso`). En el **display** (carta de llamado, programa) la BOLSA impresa es el **nominal** (`bolsa_total` tal cual se carga, helper `repartoDisplay`): el piso y los bonos **NO inflan** ese número, se muestran como **líneas informativas aparte**. El modelo de liquidación no cambia; solo se aclara que el piso/bono aplican en el pago, no en lo impreso. Ver GOTCHA #63 / ISSUE-031.
+
 -----
 
 ## 1. Reparto del premio por carrera (1°-5°) — CONFIRMADO

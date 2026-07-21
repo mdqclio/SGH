@@ -1,5 +1,21 @@
 # Changelog
 
+## [2026-07-21] — Premios: display nominal + suma exacta + warning piso; restore post-pausa
+
+> En main/prod. Merge `d626049` (branch `feat/premios-display-v2`, commits `94c8bbd` / `4c01720` / `1ac48e8` / `0fac812`). Revisado por raw antes de mergear.
+
+### Display de premios — decisión de Fede: BOLSA impresa = NOMINAL
+- **BOLSA impresa = `bolsa_total` nominal** (reparto 1°-5° tal cual se carga). Ni el piso `ganancia_minima` ni los bonos inflan ese número. Nuevo helper `repartoDisplay()` en `premios-utils.js` reemplaza a `calcPremiosConPiso` en los **6 sitios de display** (carta-llamados card + PDF, programa, programa-oficial, programa-oficial-color, inscripciones, ratificacion).
+- **Bonos como líneas aparte condicionales** (solo si monto > 0). En carta-llamados el número BOLSA dejó de sumarlos.
+- **Línea informativa "Ganancia mínima por puesto"** (condicional a `ganancia_minima > 0`, mismo estilo que las líneas de bono): comunica el piso sin inflar la bolsa.
+- **Reparto con suma exacta**: puestos 1°..(n-1) redondean, el último absorbe el resto → Σ puestos ≡ `round(bolsa_total)` siempre (antes desfasaba $1 por redondeo independiente).
+- **`calcPremiosConPiso` intacto**: el piso sigue vivo solo en **liquidación** (pago), no en el display.
+- **Warning de piso desproporcionado**: `pisoSospechoso()` (piso > 20% de la bolsa) dispara un `confirm` al guardar en carta-llamados. Warning, **no bloqueo**.
+- Probes (real-code, reunión descartable 9998, teardown en la misma corrida): `tests/probe_reparto_display.mjs` (7/7), `tests/probe_piso_warning.mjs` (5/5).
+
+### Fix de data
+- **Turno 12, reunión 2026-07-19**: `ganancia_minima` corregida **1191666 → 100000** (error de tipeo: se había cargado la bolsa entera en el campo del piso). El resto de la distribución intacto. `UPDATE` puntual con `jsonb_set` sobre una fila.
+
 ## [2026-06-12] — Stud Book: Edge Function `reunion-json` deployada + pasada de formato + seed 9999
 
 > Todo en branches, NO en main. Edge Function + seed: `feat/edge-reunion-json`. Pasada de formato del generador: `feat/json-generator` (`08f8bcb`).
