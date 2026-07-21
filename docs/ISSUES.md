@@ -224,10 +224,13 @@ Módulo: resultados.html — modal "Div. habilitadas"
 Estado: Pendiente decisión con Fede.
 Prioridad: Baja
 
-### ISSUE-031: BOLSA cargada ≠ BOLSA impresa (piso/bonos inflaban) + drift $1 — ✅ RESUELTO (2026-07-21)
-Descripción: la BOLSA impresa no coincidía con lo que Fede cargaba. Dos causas: (1) el piso `ganancia_minima` inflaba el display al elevar los puestos bajos, y los bonos se sumaban al número BOLSA; (2) cada puesto redondeaba independiente y la suma desfasaba $1 (ej. bolsa 1.191.666 sumaba 1.191.667).
+### ISSUE-031: BOLSA cargada ≠ BOLSA impresa (bonos inflaban) + drift $1 — ✅ RESUELTO (2026-07-21)
+Descripción: la BOLSA impresa no coincidía con lo esperado. Causas reales: (1) los **bonos** se sumaban al número BOLSA (no deben); (2) cada puesto redondeaba independiente y la suma desfasaba $1. El **piso `ganancia_minima` SÍ debe reflejarse** en el display (regla de Yesica) — no era un bug elevarlo, sí lo era sumar bonos y el drift.
 Módulo: `premios-utils.js` + los 6 sitios de display.
-Estado: ✅ RESUELTO (merge `d626049`). **Decisión de Fede**: BOLSA impresa = **nominal** (`repartoDisplay`), bonos y piso como **líneas informativas aparte**, el piso aplica solo en liquidación (`calcPremiosConPiso` intacto). Redondeo con **suma exacta** (último puesto absorbe el resto). Probes `tests/probe_reparto_display.mjs` (7/7) + `tests/probe_piso_warning.mjs` (5/5). Ver GOTCHA #63.
+Estado: ✅ RESUELTO — corregido (branch `fix/bolsa-efectiva-display`).
+- **v1 (merge `d626049`) — misread**: se mostró la BOLSA **nominal** (piso solo en pago). Regla equivocada.
+- **v2 (corrección, regla real de Yesica)**: BOLSA impresa = **EFECTIVA con piso** = **Σ de los puestos efectivos** (`repartoDisplay` envuelve `calcPremiosConPiso`, redondea y el puesto mayor absorbe el resto → Σ ≡ total exacto, sin drift). Los puestos por debajo del piso se muestran en el piso (ej. 4°/5° = 100.000). Ej: bolsa 1.191.666 + piso 100.000 → impresa **1.284.416**. Los **bonos** siguen **aparte**, NO sumados a la BOLSA (esto sí es decisión de Fede). `calcPremiosConPiso` intacto.
+Probes `tests/probe_reparto_display.mjs` (9/9) + `tests/probe_piso_warning.mjs` (5/5). Ver GOTCHA #63.
 
 ### ISSUE-032: Anti-pausa del proyecto Supabase free — decisión Pro vs cron
 Descripción: el proyecto free se pausa a los ~7 días de inactividad (pasó el 2026-07-07, restaurado el 2026-07-14 sin pérdida). Para evitar recurrencia hay que decidir entre **plan Pro** o un **cron liviano anti-pausa** (query periódica). Ver GOTCHA #58.

@@ -22,30 +22,27 @@
     return { puestos, bolsaEfectiva, deltaPiso: bolsaEfectiva - bolsa };
   }
 
-  // Reparto NOMINAL para DISPLAY (carta de llamado, programa, inscriptos).
-  // A diferencia de calcPremiosConPiso, NO aplica el piso ganancia_minima ni suma bonos:
-  // la BOLSA mostrada es exactamente bolsa_total (reparto tal cual se carga). El piso sigue
-  // vivo en calcPremiosConPiso, que es lo que se usa para LIQUIDAR/pagar.
-  // Devuelve: { puestos: { '1': monto, ... }, total } con total = round(bolsa_total).
+  // Reparto EFECTIVO (con piso) para DISPLAY (carta de llamado, programa, inscriptos).
+  // Los montos por puesto = los EFECTIVOS que se pagan: envuelve calcPremiosConPiso, así que
+  // un 4°/5° por debajo del piso ganancia_minima se MUESTRA en el piso (ej. 100.000).
+  // La BOLSA mostrada = round(bolsaEfectiva) y Σ puestos ≡ total EXACTO (sin drift de $1):
+  // el resto de redondeo lo absorbe el puesto de MAYOR monto (siempre por encima del piso),
+  // para no desclavar los pisos de los puestos bajos. Los BONOS NO entran acá (calcPremiosConPiso
+  // los excluye): van aparte como líneas condicionales (decisión de Fede).
+  // Devuelve: { puestos: { '1': monto, ... }, total } con total = Σ puestos = round(bolsaEfectiva).
   function repartoDisplay(bolsaNominal, dist) {
-    const bolsa = parseFloat(bolsaNominal) || 0;
-    const posKeys = Object.keys(dist || {})
-      .filter(k => /^\d+$/.test(k) && (parseFloat(dist[k]) || 0) > 0)
-      .map(Number)
-      .sort((a, b) => a - b);
-    const total = Math.round(bolsa);
+    const { puestos: efectivos, bolsaEfectiva } = calcPremiosConPiso(bolsaNominal, dist);
+    const total = Math.round(bolsaEfectiva);
     const puestos = {};
-    let acum = 0;
-    posKeys.forEach((k, idx) => {
-      if (idx < posKeys.length - 1) {
-        const monto = Math.round(bolsa * (parseFloat(dist[k]) || 0) / 100);
-        puestos[k] = monto;
-        acum += monto;
-      } else {
-        // Último puesto absorbe el resto: Σ puestos === total SIEMPRE (sin drift de $1).
-        puestos[k] = total - acum;
-      }
+    let acum = 0, topKey = null, topVal = -Infinity;
+    Object.keys(efectivos).forEach(k => {
+      const monto = Math.round(efectivos[k]);
+      puestos[k] = monto;
+      acum += monto;
+      if (efectivos[k] > topVal) { topVal = efectivos[k]; topKey = k; }
     });
+    // El puesto de mayor monto absorbe el resto de redondeo → Σ puestos ≡ total, pisos intactos.
+    if (topKey !== null) puestos[topKey] += total - acum;
     return { puestos, total };
   }
 
