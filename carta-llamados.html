@@ -642,8 +642,8 @@ function renderCarreras() {
     const bonoPosMon  = dist.bono_posicion_monto  || 0;
     const cantPuestos = bonoPosH >= bonoPosD ? bonoPosH - bonoPosD + 1 : 0;
     const totalBonos  = bonoGan + (bonoPosMon * cantPuestos);
-    const { puestos: puestosEfectivos, bolsaEfectiva } = calcPremiosConPiso(bolsa, dist);
-    const montoTotal  = bolsaEfectiva + totalBonos;
+    const { puestos: puestosEfectivos, total: bolsaNominal } = repartoDisplay(bolsa, dist);
+    const montoTotal  = bolsaNominal; // BOLSA = nominal; los bonos van como líneas aparte, NO se suman
 
     const EXCLUIR = ['bonos','bono_ganador','bono_posicion_desde','bono_posicion_hasta','bono_posicion_monto','ganancia_minima'];
     const condMain = c.condicion_handicap || c.nombre || '';
@@ -667,7 +667,7 @@ function renderCarreras() {
 
       // Bolsa en una sola línea compacta
       const bolsaInline = bolsa > 0
-        ? `Bolsa: ${formatMonto(Math.round(bolsaEfectiva))}${desglosePuestos.length ? ' — ' + desglosePuestos.join(' — ') : ''}`
+        ? `Bolsa: ${formatMonto(bolsaNominal)}${desglosePuestos.length ? ' — ' + desglosePuestos.join(' — ') : ''}`
         : '';
       const rowBolsa = bolsaInline
         ? `<div class="premio-bolsa-line">${bolsaInline}</div>` : '';
@@ -780,14 +780,14 @@ function renderPrint() {
     const condAdicional = c.condicion_adicional || '';
 
     // Línea de bolsa (bono ganador va inline en el título, no aquí)
-    const { puestos: puestosEfectivos, bolsaEfectiva } = calcPremiosConPiso(bolsa, dist);
+    const { puestos: puestosEfectivos, total: bolsaNominal } = repartoDisplay(bolsa, dist);
     let bolsaLine = '';
     if (bolsa > 0) {
       const puestos = Object.entries(dist)
         .filter(([k,v]) => !EXCLUIR.includes(k) && Number(v) > 0)
         .sort(([a],[b]) => parseInt(a) - parseInt(b))
         .map(([pos]) => `${ORDINAL[parseInt(pos)-1]||pos+'°'} ${formatMonto(Math.round(puestosEfectivos[pos]||0))}`);
-      bolsaLine = `BOLSA: ${formatMonto(Math.round(bolsaEfectiva))}`;
+      bolsaLine = `BOLSA: ${formatMonto(bolsaNominal)}`;
       if (puestos.length)         bolsaLine += ' &mdash; ' + puestos.join(' &mdash; ');
       if (bonoPosH && bonoPosMon) bolsaLine += ` &mdash; BONO ${bonoPosD}°-${bonoPosH}° ${formatMonto(bonoPosMon)}/puesto`;
     }

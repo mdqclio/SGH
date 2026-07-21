@@ -356,7 +356,7 @@ function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
   const bonoGanador  = dist.bono_ganador || 0;
   const apuestasText = formatApuestasText(c);
   const bolsa = parseFloat(c.bolsa_total) || 0;
-  const { puestos: puestosEfectivos, bolsaEfectiva } = calcPremiosConPiso(bolsa, dist);
+  const { puestos: puestosEfectivos, total: bolsaNominal } = repartoDisplay(bolsa, dist);
   const desglose = [1, 2, 3, 4, 5, 6].map(p => {
     const monto = puestosEfectivos[String(p)];
     return monto > 0 ? `${p}° ${formatMonto(monto)}` : null;
@@ -397,7 +397,7 @@ function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
         ${bonoGanador ? `<div class="bono-float"><div class="bono">BONO ${formatMonto(bonoGanador)}<br>AL GANADOR</div></div>` : ''}
         ${c.nombre ? `<div class="premio">PREMIO: ${c.nombre}</div>` : ''}
         ${(c.condicion_adicional || c.condicion_handicap) ? `<div>${[c.condicion_handicap, c.condicion_adicional].filter(Boolean).join(' — ')}</div>` : ''}
-        <div class="bolsa">BOLSA: ${formatMonto(Math.round(bolsaEfectiva))}${desglose ? ` — ${desglose}` : ''}</div>
+        <div class="bolsa">BOLSA: ${formatMonto(bolsaNominal)}${desglose ? ` — ${desglose}` : ''}</div>
         ${apuestasText ? `<div><strong>APUESTAS:</strong> ${apuestasText}</div>` : ''}
       </div>
       <div class="carrera-right">

@@ -22,5 +22,24 @@
     return { puestos, bolsaEfectiva, deltaPiso: bolsaEfectiva - bolsa };
   }
 
+  // Reparto NOMINAL para DISPLAY (carta de llamado, programa, inscriptos).
+  // A diferencia de calcPremiosConPiso, NO aplica el piso ganancia_minima ni suma bonos:
+  // la BOLSA mostrada es exactamente bolsa_total (reparto tal cual se carga). El piso sigue
+  // vivo en calcPremiosConPiso, que es lo que se usa para LIQUIDAR/pagar.
+  // Devuelve: { puestos: { '1': monto, ... }, total } con total = round(bolsa_total).
+  function repartoDisplay(bolsaNominal, dist) {
+    const bolsa = parseFloat(bolsaNominal) || 0;
+    const posKeys = Object.keys(dist || {})
+      .filter(k => /^\d+$/.test(k) && (parseFloat(dist[k]) || 0) > 0)
+      .map(Number)
+      .sort((a, b) => a - b);
+    const puestos = {};
+    posKeys.forEach(k => {
+      puestos[k] = Math.round(bolsa * (parseFloat(dist[k]) || 0) / 100);
+    });
+    return { puestos, total: Math.round(bolsa) };
+  }
+
   global.calcPremiosConPiso = calcPremiosConPiso;
+  global.repartoDisplay = repartoDisplay;
 })(window);

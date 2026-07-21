@@ -337,7 +337,7 @@ function renderPrograma(reunion, carreras, inscripciones) {
       const inscs = inscripciones.filter(i=>i.carrera_id===car.id);
       const dist = car.distribucion_premios || {};
       const bolsa = car.bolsa_total || 0;
-      const { puestos: puestosEfectivos, bolsaEfectiva } = calcPremiosConPiso(bolsa, dist);
+      const { puestos: puestosEfectivos, total: bolsaNominal } = repartoDisplay(bolsa, dist);
       // Premios por puesto: solo claves numéricas del JSONB
       const puestosStr = Object.entries(dist)
         .filter(([k]) => /^\d+$/.test(k))
@@ -391,7 +391,7 @@ function renderPrograma(reunion, carreras, inscripciones) {
             ${car.edad_minima_anos||car.edad_maxima_anos?`<div>Edad <span>${(car.edad_minima_anos&&car.edad_maxima_anos)?(car.edad_minima_anos===car.edad_maxima_anos?`${car.edad_minima_anos} años`:`${car.edad_minima_anos}–${car.edad_maxima_anos} años`):(car.edad_minima_anos?`${car.edad_minima_anos} y más años`:`hasta ${car.edad_maxima_anos} años`)}</span></div>`:''}
             ${car.condicion_handicap?`<div>Condición <span>${car.condicion_handicap}</span></div>`:''}
           </div>
-          ${bolsa?`<div class="car-prize">💰 Bolsa: ${formatMonto(Math.round(bolsaEfectiva))} — ${premioStr}</div>`:''}
+          ${bolsa?`<div class="car-prize">💰 Bolsa: ${formatMonto(bolsaNominal)} — ${premioStr}</div>`:''}
         </div>
         <table class="part-table">
           <thead><tr><th>#</th><th>SPC</th><th>Caballeriza</th><th>Propietario</th><th>Entrenador</th><th>Jockey</th><th>Peso</th><th>Últimas 5</th></tr></thead>
