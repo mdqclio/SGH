@@ -346,6 +346,7 @@ function renderPrograma(reunion, carreras, inscripciones) {
         .join(' | ');
       // Bonos: claves con monto fijo en pesos
       const extras = [];
+      if (dist.ganancia_minima) extras.push(`Ganancia mínima: ${formatMonto(dist.ganancia_minima)} c/u`);
       if (dist.bono_ganador) extras.push(`Bono ganador: ${formatMonto(dist.bono_ganador)}`);
       if (dist.bono_posicion_monto && dist.bono_posicion_desde && dist.bono_posicion_hasta) {
         extras.push(`Bono ${dist.bono_posicion_desde}°–${dist.bono_posicion_hasta}°: ${formatMonto(dist.bono_posicion_monto)} c/u`);

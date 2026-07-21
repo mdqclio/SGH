@@ -619,7 +619,7 @@ function renderCarreraColor(c, ins, maps, idx) {
     <div class="carrera-color-info">
       ${bonoGanador ? `<div class="bono-lateral">BONO ${formatMonto(bonoGanador)}<br>AL GANADOR</div>` : ''}
       ${condiciones ? `<div>${condiciones}</div>` : ''}
-      ${bolsa ? `<div class="bolsa-linea">BOLSA: ${formatMonto(bolsaNominal)}${desglose ? ` — ${desglose}` : ''}</div>` : ''}
+      ${bolsa ? `<div class="bolsa-linea">BOLSA: ${formatMonto(bolsaNominal)}${desglose ? ` — ${desglose}` : ''}${dist.ganancia_minima ? ` — GAN. MÍN. ${formatMonto(dist.ganancia_minima)}/puesto` : ''}</div>` : ''}
     </div>
     <table class="inscriptos-color">
       <thead><tr>

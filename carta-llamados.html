@@ -687,8 +687,15 @@ function renderCarreras() {
           <span class="premio-row-val">${formatMonto(totalBonos)}</span>
         </div>` : '';
 
+      // Línea informativa de piso: comunica la ganancia mínima sin inflar el número BOLSA
+      const gananciaMin = parseFloat(dist.ganancia_minima) || 0;
+      const rowPiso = gananciaMin > 0 ? `<div class="premio-row premio-row-sub">
+          <span class="premio-row-lbl">· Ganancia mínima por puesto</span>
+          <span class="premio-row-val">${formatMonto(gananciaMin)}</span>
+        </div>` : '';
+
       desgloseHtml = `<div class="premio-desglose">
-        ${rowBolsa}${rowBonos}
+        ${rowBolsa}${rowPiso}${rowBonos}
         <div class="premio-row premio-total">
           <span class="premio-row-lbl">BOLSA TOTAL DE LA CARRERA</span>
           <span class="premio-row-val">${formatMonto(montoTotal)}</span>
@@ -789,6 +796,7 @@ function renderPrint() {
         .map(([pos]) => `${ORDINAL[parseInt(pos)-1]||pos+'°'} ${formatMonto(Math.round(puestosEfectivos[pos]||0))}`);
       bolsaLine = `BOLSA: ${formatMonto(bolsaNominal)}`;
       if (puestos.length)         bolsaLine += ' &mdash; ' + puestos.join(' &mdash; ');
+      if (dist.ganancia_minima)   bolsaLine += ` &mdash; GAN. MÍN. ${formatMonto(dist.ganancia_minima)}/puesto`;
       if (bonoPosH && bonoPosMon) bolsaLine += ` &mdash; BONO ${bonoPosD}°-${bonoPosH}° ${formatMonto(bonoPosMon)}/puesto`;
     }
 
