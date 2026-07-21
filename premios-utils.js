@@ -33,11 +33,20 @@
       .filter(k => /^\d+$/.test(k) && (parseFloat(dist[k]) || 0) > 0)
       .map(Number)
       .sort((a, b) => a - b);
+    const total = Math.round(bolsa);
     const puestos = {};
-    posKeys.forEach(k => {
-      puestos[k] = Math.round(bolsa * (parseFloat(dist[k]) || 0) / 100);
+    let acum = 0;
+    posKeys.forEach((k, idx) => {
+      if (idx < posKeys.length - 1) {
+        const monto = Math.round(bolsa * (parseFloat(dist[k]) || 0) / 100);
+        puestos[k] = monto;
+        acum += monto;
+      } else {
+        // Último puesto absorbe el resto: Σ puestos === total SIEMPRE (sin drift de $1).
+        puestos[k] = total - acum;
+      }
     });
-    return { puestos, total: Math.round(bolsa) };
+    return { puestos, total };
   }
 
   global.calcPremiosConPiso = calcPremiosConPiso;
