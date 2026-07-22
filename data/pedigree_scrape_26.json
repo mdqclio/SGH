@@ -1,0 +1,633 @@
+{
+  "_meta": {
+    "fuente": "www.studbook.org.ar",
+    "fase": "paso4-scrape-readonly",
+    "escribe_en_db": false,
+    "total_lista": 26,
+    "encontrados": 23,
+    "no_encontrados": 3,
+    "con_pedigree_completo": 23,
+    "con_alertas": 17
+  },
+  "ENCONTRADOS": [
+    {
+      "spc_id": "019d9b9f-7b81-490e-b219-aff383fae166",
+      "nombre_db": "Amiguito Peligroso",
+      "nombre_sb": "AMIGUITO PELIGROSO",
+      "sb_id": 441819,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/441819/amiguito-peligroso",
+      "padre": "Amiguito Calificado",
+      "madre": "Amiguita Bohemia",
+      "fecha_nacimiento_db": "2023-07-07",
+      "fecha_nacimiento_sb": "2023-07-07",
+      "sexo_db": "macho",
+      "sexo_sb": "Macho",
+      "pelaje_sb": "Zaino Doradillo",
+      "inscripciones": 0,
+      "metodo_match": "match unico",
+      "candidatos_exactos": 1,
+      "alertas": []
+    },
+    {
+      "spc_id": "3ce64b58-0d87-47fd-98e6-d9705fa118d4",
+      "nombre_db": "Berry Nik",
+      "nombre_sb": "BERRY NIK",
+      "sb_id": 447004,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/447004/berry-nik",
+      "padre": "Nicodemus (USA)",
+      "madre": "Bafana",
+      "fecha_nacimiento_db": "2023-10-23",
+      "fecha_nacimiento_sb": "2023-10-23",
+      "sexo_db": "macho",
+      "sexo_sb": "Hembra",
+      "pelaje_sb": "Zaino",
+      "inscripciones": 1,
+      "metodo_match": "match unico",
+      "candidatos_exactos": 1,
+      "alertas": [
+        "sexo SB Hembra != DB macho"
+      ]
+    },
+    {
+      "spc_id": "9944b791-3bb7-46d7-8590-1e0b8bca6bb4",
+      "nombre_db": "Come on Baby",
+      "nombre_sb": "COME ON BABY",
+      "sb_id": 420587,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/420587/come-on-baby",
+      "padre": "Señor Candy (USA)",
+      "madre": "Coming Away",
+      "fecha_nacimiento_db": "2020-08-21",
+      "fecha_nacimiento_sb": "2020-08-21",
+      "sexo_db": "macho",
+      "sexo_sb": "Hembra",
+      "pelaje_sb": "Zaino",
+      "inscripciones": 0,
+      "metodo_match": "match unico",
+      "candidatos_exactos": 1,
+      "alertas": [
+        "sexo SB Hembra != DB macho"
+      ]
+    },
+    {
+      "spc_id": "1f645327-a6da-449b-8a62-fdb577a8658e",
+      "nombre_db": "Conesera",
+      "nombre_sb": "CONESERA",
+      "sb_id": 444373,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/444373/conesera",
+      "padre": "Emmanuel",
+      "madre": "Milonga Burrera",
+      "fecha_nacimiento_db": "2023-09-20",
+      "fecha_nacimiento_sb": "2023-09-20",
+      "sexo_db": "macho",
+      "sexo_sb": "Hembra",
+      "pelaje_sb": "Alazan",
+      "inscripciones": 1,
+      "metodo_match": "homonimos: desambiguado por fecha_nacimiento DB",
+      "candidatos_exactos": 2,
+      "alertas": [
+        "sexo SB Hembra != DB macho"
+      ]
+    },
+    {
+      "spc_id": "44abb392-8b73-4c68-9160-edfd8d58f27b",
+      "nombre_db": "Cursi Nik",
+      "nombre_sb": "CURSI NIK",
+      "sb_id": 447006,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/447006/cursi-nik",
+      "padre": "Nicodemus (USA)",
+      "madre": "Cursi Gulch",
+      "fecha_nacimiento_db": "2023-10-27",
+      "fecha_nacimiento_sb": "2023-10-27",
+      "sexo_db": "macho",
+      "sexo_sb": "Hembra",
+      "pelaje_sb": "Zaino",
+      "inscripciones": 0,
+      "metodo_match": "match unico",
+      "candidatos_exactos": 1,
+      "alertas": [
+        "sexo SB Hembra != DB macho"
+      ]
+    },
+    {
+      "spc_id": "70f275b6-0337-4617-99c2-fefb7447cb2e",
+      "nombre_db": "De Moda",
+      "nombre_sb": "DE MODA",
+      "sb_id": 444272,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/444272/de-moda",
+      "padre": "Valid Stripes",
+      "madre": "Vauquita",
+      "fecha_nacimiento_db": "2023-09-04",
+      "fecha_nacimiento_sb": "2023-09-04",
+      "sexo_db": "macho",
+      "sexo_sb": "Hembra",
+      "pelaje_sb": "Zaino Doradillo",
+      "inscripciones": 1,
+      "metodo_match": "homonimos: desambiguado por fecha_nacimiento DB",
+      "candidatos_exactos": 2,
+      "alertas": [
+        "sexo SB Hembra != DB macho"
+      ]
+    },
+    {
+      "spc_id": "18a21c29-8b3e-4500-9abe-adaebf717d2c",
+      "nombre_db": "Dourada",
+      "nombre_sb": "DOURADA",
+      "sb_id": 441798,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/441798/dourada",
+      "padre": "Il Mercato",
+      "madre": "Dixie Mask",
+      "fecha_nacimiento_db": "2023-07-01",
+      "fecha_nacimiento_sb": "2023-07-01",
+      "sexo_db": "hembra",
+      "sexo_sb": "Hembra",
+      "pelaje_sb": "Zaino",
+      "inscripciones": 0,
+      "metodo_match": "match unico",
+      "candidatos_exactos": 1,
+      "alertas": []
+    },
+    {
+      "spc_id": "9fc5b39c-0579-4cd9-acbb-f023ab35d168",
+      "nombre_db": "Es Mistres",
+      "nombre_sb": "ES MISTRES",
+      "sb_id": 447999,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/447999/es-mistres",
+      "padre": "Master Of Hounds (USA)",
+      "madre": "Ando Mateando",
+      "fecha_nacimiento_db": "2023-10-05",
+      "fecha_nacimiento_sb": "2023-10-05",
+      "sexo_db": "macho",
+      "sexo_sb": "Hembra",
+      "pelaje_sb": "Zaino Doradillo",
+      "inscripciones": 1,
+      "metodo_match": "match unico",
+      "candidatos_exactos": 1,
+      "alertas": [
+        "sexo SB Hembra != DB macho"
+      ]
+    },
+    {
+      "spc_id": "2a35ea5b-8756-42f4-8da2-457370826280",
+      "nombre_db": "Fiestera Nik",
+      "nombre_sb": "FIESTERA NIK",
+      "sb_id": 443351,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/443351/fiestera-nik",
+      "padre": "Nicodemus (USA)",
+      "madre": "Fiestera Seattle",
+      "fecha_nacimiento_db": "2023-08-29",
+      "fecha_nacimiento_sb": "2023-08-29",
+      "sexo_db": "macho",
+      "sexo_sb": "Hembra",
+      "pelaje_sb": "Zaino",
+      "inscripciones": 0,
+      "metodo_match": "match unico",
+      "candidatos_exactos": 1,
+      "alertas": [
+        "sexo SB Hembra != DB macho"
+      ]
+    },
+    {
+      "spc_id": "214e5a7a-f773-4c44-95e9-41f0b25ef55a",
+      "nombre_db": "First Queen",
+      "nombre_sb": "FIRST QUEEN",
+      "sb_id": 441762,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/441762/first-queen",
+      "padre": "Village King",
+      "madre": "Felurian",
+      "fecha_nacimiento_db": "2023-10-04",
+      "fecha_nacimiento_sb": "2023-07-16",
+      "sexo_db": "macho",
+      "sexo_sb": "Hembra",
+      "pelaje_sb": "Zaino",
+      "inscripciones": 0,
+      "metodo_match": "homonimos (2): elegido el de nacimiento mas reciente",
+      "candidatos_exactos": 2,
+      "alertas": [
+        "fecha_nacimiento SB 2023-07-16 != DB 2023-10-04",
+        "sexo SB Hembra != DB macho"
+      ]
+    },
+    {
+      "spc_id": "1c89581b-b0ec-4588-9e28-596312ce6a7b",
+      "nombre_db": "Folke Dancer",
+      "nombre_sb": "FOLKE DANCER",
+      "sb_id": 422244,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/422244/folke-dancer",
+      "padre": "Forge (GB)",
+      "madre": "Follow",
+      "fecha_nacimiento_db": "2020-07-06",
+      "fecha_nacimiento_sb": "2020-07-16",
+      "sexo_db": "macho",
+      "sexo_sb": "Macho",
+      "pelaje_sb": "Zaino",
+      "inscripciones": 0,
+      "metodo_match": "match unico",
+      "candidatos_exactos": 1,
+      "alertas": [
+        "fecha_nacimiento SB 2020-07-16 != DB 2020-07-06"
+      ]
+    },
+    {
+      "spc_id": "6df0d170-4d32-43d3-82cb-b0c540963bc8",
+      "nombre_db": "GREAT ORPEN",
+      "nombre_sb": "GREAT ORPEN",
+      "sb_id": 447875,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/447875/great-orpen",
+      "padre": "Orpen Farrero",
+      "madre": "Great Perfection",
+      "fecha_nacimiento_db": "2023-10-05",
+      "fecha_nacimiento_sb": "2023-12-12",
+      "sexo_db": "macho",
+      "sexo_sb": "Macho",
+      "pelaje_sb": "Zaino",
+      "inscripciones": 1,
+      "metodo_match": "match unico",
+      "candidatos_exactos": 1,
+      "alertas": [
+        "fecha_nacimiento SB 2023-12-12 != DB 2023-10-05"
+      ]
+    },
+    {
+      "spc_id": "8a6aea98-d121-4ad6-90d6-c08e8cfd8c75",
+      "nombre_db": "Icy Tom",
+      "nombre_sb": "ICY TOM",
+      "sb_id": 408138,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/408138/icy-tom",
+      "padre": "Icy Glory",
+      "madre": "Normandina",
+      "fecha_nacimiento_db": "2018-09-02",
+      "fecha_nacimiento_sb": "2018-09-02",
+      "sexo_db": "macho",
+      "sexo_sb": "Macho",
+      "pelaje_sb": "Zaino",
+      "inscripciones": 1,
+      "metodo_match": "match unico",
+      "candidatos_exactos": 1,
+      "alertas": []
+    },
+    {
+      "spc_id": "fcc0bbdb-e3f7-4830-b038-beabe11faf7c",
+      "nombre_db": "La City Porteña",
+      "nombre_sb": "LA CITY PORTEÑA",
+      "sb_id": 441496,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/441496/la-city-portena",
+      "padre": "Cityscape (GB)",
+      "madre": "La Remota",
+      "fecha_nacimiento_db": "2023-07-01",
+      "fecha_nacimiento_sb": "2023-07-01",
+      "sexo_db": "macho",
+      "sexo_sb": "Hembra",
+      "pelaje_sb": "Zaino",
+      "inscripciones": 0,
+      "metodo_match": "match unico",
+      "candidatos_exactos": 1,
+      "alertas": [
+        "sexo SB Hembra != DB macho"
+      ]
+    },
+    {
+      "spc_id": "3539cab0-e2d4-4748-945d-67e36787a96d",
+      "nombre_db": "La Motocicleta",
+      "nombre_sb": "LA MOTOCICLETA",
+      "sb_id": 442428,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/442428/la-motocicleta",
+      "padre": "Manipulator (USA)",
+      "madre": "Ampi Nistel",
+      "fecha_nacimiento_db": "2023-08-22",
+      "fecha_nacimiento_sb": "2023-08-22",
+      "sexo_db": "macho",
+      "sexo_sb": "Hembra",
+      "pelaje_sb": "Zaino Colorado",
+      "inscripciones": 0,
+      "metodo_match": "match unico",
+      "candidatos_exactos": 1,
+      "alertas": [
+        "sexo SB Hembra != DB macho"
+      ]
+    },
+    {
+      "spc_id": "9c9c742c-86a1-4c7b-a060-6ab47900b451",
+      "nombre_db": "Malenuchi Jack",
+      "nombre_sb": "MALENUCHI JACK",
+      "sb_id": 448214,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/448214/malenuchi-jack",
+      "padre": "Emir Jack",
+      "madre": "Quartermaster",
+      "fecha_nacimiento_db": "2023-10-15",
+      "fecha_nacimiento_sb": "2023-10-15",
+      "sexo_db": "macho",
+      "sexo_sb": "Hembra",
+      "pelaje_sb": "Zaino",
+      "inscripciones": 0,
+      "metodo_match": "match unico",
+      "candidatos_exactos": 1,
+      "alertas": [
+        "sexo SB Hembra != DB macho"
+      ]
+    },
+    {
+      "spc_id": "a91658ed-b79c-4abe-bd08-3a672bd923e4",
+      "nombre_db": "MONADESEDA",
+      "nombre_sb": "MONADESEDA",
+      "sb_id": 445820,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/445820/monadeseda",
+      "padre": "Forge (GB)",
+      "madre": "Shake (USA)",
+      "fecha_nacimiento_db": "2023-10-01",
+      "fecha_nacimiento_sb": "2023-10-02",
+      "sexo_db": "macho",
+      "sexo_sb": "Hembra",
+      "pelaje_sb": "Zaino Colorado",
+      "inscripciones": 1,
+      "metodo_match": "match unico",
+      "candidatos_exactos": 1,
+      "alertas": [
+        "fecha_nacimiento SB 2023-10-02 != DB 2023-10-01",
+        "sexo SB Hembra != DB macho"
+      ]
+    },
+    {
+      "spc_id": "c1af88b9-6fbd-4883-a025-03f44f1fdfab",
+      "nombre_db": "MOSQUITA GARDEN",
+      "nombre_sb": "MOSQUITA GARDEN",
+      "sb_id": 444643,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/444643/mosquita-garden",
+      "padre": "The Garden",
+      "madre": "Veneciana Storm",
+      "fecha_nacimiento_db": "2023-10-10",
+      "fecha_nacimiento_sb": "2023-09-10",
+      "sexo_db": "macho",
+      "sexo_sb": "Hembra",
+      "pelaje_sb": "Zaino",
+      "inscripciones": 1,
+      "metodo_match": "match unico",
+      "candidatos_exactos": 1,
+      "alertas": [
+        "fecha_nacimiento SB 2023-09-10 != DB 2023-10-10",
+        "sexo SB Hembra != DB macho"
+      ]
+    },
+    {
+      "spc_id": "f8a81c1b-867a-4341-8757-a89fc9347a16",
+      "nombre_db": "MR. PATO",
+      "nombre_sb": "MR PATO",
+      "sb_id": 442770,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/442770/mr-pato",
+      "padre": "Gouverneur Morris (USA)",
+      "madre": "Doña Nota",
+      "fecha_nacimiento_db": "2023-08-17",
+      "fecha_nacimiento_sb": "2023-08-28",
+      "sexo_db": "macho",
+      "sexo_sb": "Macho",
+      "pelaje_sb": "Tordillo",
+      "inscripciones": 1,
+      "metodo_match": "match unico",
+      "candidatos_exactos": 1,
+      "alertas": [
+        "fecha_nacimiento SB 2023-08-28 != DB 2023-08-17"
+      ]
+    },
+    {
+      "spc_id": "c4ddc3d2-2687-4dd9-9d24-469c62e64f7c",
+      "nombre_db": "PUNAB",
+      "nombre_sb": "PUNAB",
+      "sb_id": 446115,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/446115/punab",
+      "padre": "Peten Itza",
+      "madre": "Honey Moon",
+      "fecha_nacimiento_db": "2023-10-04",
+      "fecha_nacimiento_sb": "2023-10-13",
+      "sexo_db": "macho",
+      "sexo_sb": "Macho",
+      "pelaje_sb": "Alazan",
+      "inscripciones": 0,
+      "metodo_match": "match unico",
+      "candidatos_exactos": 1,
+      "alertas": [
+        "fecha_nacimiento SB 2023-10-13 != DB 2023-10-04"
+      ]
+    },
+    {
+      "spc_id": "53c1892a-68eb-4ce4-b198-a7985e4048b5",
+      "nombre_db": "Vito lo capo",
+      "nombre_sb": "VITO LO CAPO",
+      "sb_id": 430797,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/430797/vito-lo-capo",
+      "padre": "Cosmic Trigger",
+      "madre": "Campirina",
+      "fecha_nacimiento_db": "2021-10-22",
+      "fecha_nacimiento_sb": "2021-10-22",
+      "sexo_db": "macho",
+      "sexo_sb": "Macho",
+      "pelaje_sb": "Alazan",
+      "inscripciones": 1,
+      "metodo_match": "match unico",
+      "candidatos_exactos": 1,
+      "alertas": []
+    },
+    {
+      "spc_id": "f277af1c-a4ac-4a98-87d7-b41871718c8d",
+      "nombre_db": "Wave Rimout",
+      "nombre_sb": "WAVE RIMOUT",
+      "sb_id": 397805,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/397805/wave-rimout",
+      "padre": "Remote (GB)",
+      "madre": "Holiday Wave",
+      "fecha_nacimiento_db": "2017-08-08",
+      "fecha_nacimiento_sb": "2017-08-08",
+      "sexo_db": "macho",
+      "sexo_sb": "Macho",
+      "pelaje_sb": "Zaino",
+      "inscripciones": 1,
+      "metodo_match": "match unico",
+      "candidatos_exactos": 1,
+      "alertas": []
+    },
+    {
+      "spc_id": "5ebc5e48-2caf-4c44-be6a-ad75f2716850",
+      "nombre_db": "Wave Rimout",
+      "nombre_sb": "WAVE RIMOUT",
+      "sb_id": 397805,
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/397805/wave-rimout",
+      "padre": "Remote (GB)",
+      "madre": "Holiday Wave",
+      "fecha_nacimiento_db": "2017-08-08",
+      "fecha_nacimiento_sb": "2017-08-08",
+      "sexo_db": "macho",
+      "sexo_sb": "Macho",
+      "pelaje_sb": "Zaino",
+      "inscripciones": 0,
+      "metodo_match": "match unico",
+      "candidatos_exactos": 1,
+      "alertas": []
+    }
+  ],
+  "NO_ENCONTRADOS": [
+    {
+      "spc_id": "f78a132a-7fe7-4713-8ac2-9bd41a34f565",
+      "nombre": "Esplendido Craf",
+      "fecha_nacimiento_db": "2020-10-18",
+      "sexo_db": "macho",
+      "inscripciones": 0,
+      "motivo": "sin match exacto en autocomplete SB",
+      "candidatos_parciales": [
+        {
+          "id": 405666,
+          "text": "ESPLENDIDO",
+          "sexo": "Macho",
+          "nacimiento": "15/07/2018",
+          "padre": "Daniel Boone (BRZ)",
+          "madre": "Personal Dot"
+        },
+        {
+          "id": 190016,
+          "text": "ESPLENDIDO",
+          "sexo": "Macho",
+          "nacimiento": "29/10/1994",
+          "padre": "Equalize (USA)",
+          "madre": "Evidente"
+        },
+        {
+          "id": 36391,
+          "text": "ESPLENDIDO",
+          "sexo": "Hembra",
+          "nacimiento": "01/01/0001",
+          "padre": "Sin Asignar",
+          "madre": "Sin Asignar"
+        },
+        {
+          "id": 290176,
+          "text": "ESPLENDIDO BOY",
+          "sexo": "Macho",
+          "nacimiento": "10/09/2008",
+          "padre": "Ababan",
+          "madre": "Mat's Esplendida"
+        },
+        {
+          "id": 409920,
+          "text": "ESPLENDIDO CAP",
+          "sexo": "Macho",
+          "nacimiento": "02/10/2018",
+          "padre": "Captivating Cat (USA)",
+          "madre": "Katty Dim"
+        },
+        {
+          "id": 210190,
+          "text": "ESPLENDIDO DON",
+          "sexo": "Macho",
+          "nacimiento": "20/09/1997",
+          "padre": "Sovereign Don (USA)",
+          "madre": "Tuiti"
+        },
+        {
+          "id": 355788,
+          "text": "ESPLENDIDO EMPEROR",
+          "sexo": "Macho",
+          "nacimiento": "08/10/2015",
+          "padre": "Emperor Jones (USA)",
+          "madre": "Silver's Doll"
+        },
+        {
+          "id": 353249,
+          "text": "ESPLENDIDO GOLD",
+          "sexo": "Macho",
+          "nacimiento": "10/09/2015",
+          "padre": "Cartier Gold",
+          "madre": "Esthetic Ride"
+        }
+      ]
+    },
+    {
+      "spc_id": "0dc2f58f-0e2f-4915-be79-a7515fdd6ee4",
+      "nombre": "Fist Queen",
+      "fecha_nacimiento_db": "2023-10-04",
+      "sexo_db": "macho",
+      "inscripciones": 0,
+      "motivo": "sin match exacto en autocomplete SB",
+      "candidatos_parciales": [
+        {
+          "id": 115700,
+          "text": "FIST",
+          "sexo": "Hembra",
+          "nacimiento": "24/10/1986",
+          "padre": "Pepenador (USA)",
+          "madre": "Flia"
+        },
+        {
+          "id": 315753,
+          "text": "FIST OF FURY",
+          "sexo": "Macho",
+          "nacimiento": "11/08/2011",
+          "padre": "City Banker",
+          "madre": "First One Again"
+        },
+        {
+          "id": 182470,
+          "text": "FISTEQUE",
+          "sexo": "Macho",
+          "nacimiento": "20/10/1993",
+          "padre": "Osler",
+          "madre": "Blue Cap"
+        },
+        {
+          "id": 79298,
+          "text": "FISTER LYNN",
+          "sexo": "Macho",
+          "nacimiento": "01/01/1982",
+          "padre": "Lynn",
+          "madre": "Sin Asignar"
+        },
+        {
+          "id": 55845,
+          "text": "FISTFULL",
+          "sexo": "Hembra",
+          "nacimiento": "01/01/1961",
+          "padre": "Combat",
+          "madre": "Savvy"
+        },
+        {
+          "id": 364171,
+          "text": "FISTIKI",
+          "sexo": "Hembra",
+          "nacimiento": "15/10/2016",
+          "padre": "Luhuk (USA)",
+          "madre": "Nugatina"
+        },
+        {
+          "id": 58606,
+          "text": "FISTIYIN",
+          "sexo": "Hembra",
+          "nacimiento": "01/01/1979",
+          "padre": "Prince Dilemma",
+          "madre": "Fighting"
+        },
+        {
+          "id": 442078,
+          "text": "FISTO",
+          "sexo": "Macho",
+          "nacimiento": "20/07/2023",
+          "padre": "Strategic Prince (GB)",
+          "madre": "Fileteadora"
+        }
+      ]
+    },
+    {
+      "spc_id": "da839b11-00a3-4eb8-b09f-03790d425ed9",
+      "nombre": "Malenuchi",
+      "fecha_nacimiento_db": "2023-10-15",
+      "sexo_db": "macho",
+      "inscripciones": 0,
+      "motivo": "sin match exacto en autocomplete SB",
+      "candidatos_parciales": [
+        {
+          "id": 448214,
+          "text": "MALENUCHI JACK",
+          "sexo": "Hembra",
+          "nacimiento": "15/10/2023",
+          "padre": "Emir Jack",
+          "madre": "Quartermaster"
+        }
+      ]
+    }
+  ]
+}

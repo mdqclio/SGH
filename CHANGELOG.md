@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-07-22] — Pedigree en el programa: backfill SB + columna PADRE-MADRE sin placeholders
+
+> Branch `feat/pedigree-programa`. El programa sale por sistema con el padre y la madre de cada caballo, como el programa de papel.
+
+- **Hallazgo que corrigió el plan**: el pedigree **no estaba en `spcs.notas`**. Ya vivía en `spcs.padrillo_nombre` / `spcs.madre_nombre` (118/144). `notas` sólo guarda el rastro del scrape (SB id, URL, microchip, criador, abuelo materno). Por eso **no se agregaron columnas `padre`/`madre`** (habrían duplicado el dato y los 3 renderers ya leen las viejas) y **no hubo backfill notas→columnas** (sin insumo).
+- **Backfill desde el Stud Book** (`tools/sb_pedigree_26.py`, read-only): de los 26 SPCs sin pedigree, 23 encontrados. **21 UPDATE aplicados** (aprobados por review), sólo `padrillo_nombre`/`madre_nombre`, con guard `AND ... IS NULL` idempotente. **118 → 139 / 144**.
+- **Excluidos a propósito (5)**: `GREAT ORPEN` (68 días de discrepancia de fecha + inscripción viva → verificación aparte con Fede; sentencia comentada en la migración), `First Queen` (2 homónimos en SB, ninguno cierra en fecha), `Fist Queen` y `Malenuchi` (duplicados de DB, no existen en SB), `Esplendido Craf` (sólo existe `ESPLENDIDA CRAF`, no cierra ni sexo ni año). Ninguno tiene inscripciones vivas salvo GREAT ORPEN.
+- **Render sin placeholders**: `programa.html` ya no imprime `'?'` cuando falta padre o madre — el dato ausente queda **vacío**. El separador ` - ` no queda colgado si falta un lado, y si faltan los dos no se imprime el `Por`. Mismo fix en `programa-oficial.html` y `programa-oficial-color.html`, donde sin padrillo pero con madre salía `" — MADRE"` con el separador colgado. **Los separadores existentes no se cambiaron** (` - ` en programa, ` — ` en los oficiales) para no tocar la salida impresa que Fede ya valida.
+- **Reportado sin corregir**: 13 discrepancias de `sexo` SB vs DB (el alta manual deja `macho` por default) y `color` NULL en los 26 — afectan el sexo/pelaje impreso en el programa oficial. Tanda propia.
+- Probe: `tests/probe_pedigree_programa.mjs` (**20/20**) — real-code, extrae los snippets reales de los 3 HTML y los corre sobre filas `spcs` reales con las 4 combinaciones de pedigree. Reunión descartable 9998, teardown en la misma corrida.
+
 ## [2026-07-21b] — Premios: corrección display → BOLSA EFECTIVA (con piso), bonos aparte
 
 > Branch `fix/bolsa-efectiva-display`. **Corrige la tanda anterior** (regla real aclarada por Yesica): la BOLSA del display NO es la nominal, es la **efectiva con piso**.

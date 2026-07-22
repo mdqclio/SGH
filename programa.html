@@ -358,11 +358,19 @@ function renderPrograma(reunion, carreras, inscripciones) {
         const jock = profesionales[i.jockey_titular_id];
         const entr = profesionales[i.entrenador_id];
         const cab = caballerizas[i.caballeriza_id];
+        // PADRE - MADRE: si falta un lado el separador no queda colgado, y si faltan
+        // los dos no se imprime el "Por". Sin placeholder: dato ausente = vacio.
+        const pedigree = spc ? [spc.padrillo_nombre, spc.madre_nombre].filter(Boolean).join(' - ') : '';
+        const spcSub = spc ? [
+          `${spc.sexo||''}${calcEdad(spc.fecha_nacimiento)}`,
+          spc.color || '',
+          pedigree ? `Por ${pedigree}` : ''
+        ].filter(Boolean).join(' | ') : '';
         return `<tr>
           <td class="part-num">${idx + 1}</td>
           <td>
             <div class="part-spc">${spc?.nombre||i.spc_id}</div>
-            <div class="part-sub">${spc?`${spc.sexo||''}${calcEdad(spc.fecha_nacimiento)} | ${spc.color||''} | Por ${spc.padrillo_nombre||'?'} - ${spc.madre_nombre||'?'}`:''}</div>
+            <div class="part-sub">${spcSub}</div>
           </td>
           <td>${cab?.nombre||'—'}</td>
           <td>

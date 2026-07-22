@@ -586,7 +586,10 @@ function renderCarreraColor(c, ins, maps, idx) {
       const edad = calcEdad(spc.fecha_nacimiento);
       const kesp = `${i.peso_declarado || ''}${edad}${sexoCodigo(spc.sexo)}${pelajeCodigo(spc.color)}`.trim();
       const caballeriza = (cab?.nombre || prop?.nombre || '').toUpperCase();
-      const padreMadre  = `${(spc.padrillo_nombre || '').toUpperCase()}${spc.madre_nombre ? ` — ${spc.madre_nombre.toUpperCase()}` : ''}`;
+      // PADRE — MADRE: si falta un lado el separador no queda colgado (antes, sin
+      // padrillo pero con madre, salia " — MADRE"). Dato ausente = vacio, sin placeholder.
+      const padreMadre  = [spc.padrillo_nombre, spc.madre_nombre]
+        .filter(Boolean).map(s => s.toUpperCase()).join(' — ');
       const jockeyStr   = jock ? `${jock.apellido || ''} ${jock.nombre || ''}`.trim().toUpperCase() : 'XX';
       const entrStr     = entr ? `${entr.apellido || ''} ${entr.nombre || ''}`.trim().toUpperCase() : '';
       return `<tr>
