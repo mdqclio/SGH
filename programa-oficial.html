@@ -143,7 +143,10 @@ async function load() {
   const { data: club } = await sb.from('clubs').select('*').eq('id', clubId).single();
 
   // 2) Carreras
-  const { data: carreras } = await sb.from('carreras').select('*').eq('reunion_id', reunionId).neq('estado', 'anulada');
+  // carreras.estado es VARCHAR libre y admite NULL (gotcha #5). Un .neq() se traduce a
+  // estado <> 'anulada', que para NULL da NULL y descarta la fila en silencio: la carrera
+  // desaparecía del programa con sus ratificados. El .or() lo hace NULL-safe.
+  const { data: carreras } = await sb.from('carreras').select('*').eq('reunion_id', reunionId).or('estado.is.null,estado.neq.anulada');
   const carIds = (carreras || []).map(c => c.id);
 
   // 3) Inscripciones y entidades relacionadas
@@ -185,7 +188,10 @@ async function load() {
     .select('id,fecha,numero')
     .eq('club_id', clubId)
     .gt('fecha', reunion.fecha)
-    .neq('estado', 'anulada')
+    // reuniones.estado es el ENUM estado_reunion, que NO tiene la etiqueta 'anulada'
+    // (usa 'cancelada'). El filtro viejo reventaba con 22P02 y dejaba proximaReunion
+    // en null: el banner de próxima reunión nunca se renderizaba. Además, NULL-safe.
+    .or('estado.is.null,estado.neq.cancelada')
     .order('fecha', { ascending: true })
     .limit(1);
   const proximaReunion = proxRe?.[0] || null;
