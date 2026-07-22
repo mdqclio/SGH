@@ -88,7 +88,7 @@ RLS: policy allow_all
 NOTA: modelo relacional que reemplaza carreras.apuestas_habilitadas. Una fila por apuesta habilitada por carrera. nombre/asegurado/incremento son opcionales (detalles del programa).
 
 ### inscripciones
-id UUID PK, carrera_id FK carreras, spc_id FK spcs, propietario_id FK, entrenador_id FK, jockey_titular_id FK, jockey_suplente_id FK, caballeriza_id FK, peon VARCHAR, capataz VARCHAR, sereno VARCHAR, numero_partidor, peso_declarado, peso_final, peso_balanza NUMERIC(5,2) NULL, estado ENUM(pre_inscripto/inscripto/confirmado/ratificado/forfait/no_presentado/mal_inscrito) DEFAULT 'inscripto', canal DEFAULT 'manual', motivo_estado VARCHAR, info_adicional, certificado_correr BOOLEAN, inscripto_por FK usuarios, ratificado_por FK usuarios
+id UUID PK, carrera_id FK carreras, spc_id FK spcs, propietario_id FK, entrenador_id FK, jockey_titular_id FK, jockey_suplente_id FK, caballeriza_id FK, peon VARCHAR, capataz VARCHAR, sereno VARCHAR, numero_partidor, peso_declarado, peso_final, peso_balanza NUMERIC(5,2) NULL, estado ENUM(pre_inscripto/inscripto/confirmado/ratificado/forfait/no_presentado/mal_inscrito) DEFAULT 'pre_inscripto', canal DEFAULT 'manual', motivo_estado VARCHAR, info_adicional, certificado_correr BOOLEAN, inscripto_por FK usuarios, ratificado_por FK usuarios
 NOTA peso_balanza: peso real del CABALLO medido en balanza post-carrera (300–600 kg). Distinto del handicap (peso_declarado/peso_final). Se carga desde el modal "Pesos balanza" en resultados.html para todos los caballos que corrieron.
 UNIQUE (carrera_id, spc_id)
 ESTADOS VISIBLES EN UI: inscripto / mal_inscrito / ratificado / forfait. mal_inscrito agregado en sesión may-2026.
@@ -140,7 +140,7 @@ Campo redistribucion_legs en resultados (JSONB, pendiente validación semántica
 reserva futura para redistribución por pata — no usar aún.
 
 ### resultado_posiciones
-id UUID PK, resultado_id FK resultados, inscripcion_id FK inscripciones, posicion INTEGER NULL, tiempo, diferencia, descalificado BOOLEAN, motivo_desc, empate BOOLEAN DEFAULT false, no_largo BOOLEAN NOT NULL DEFAULT false
+id UUID PK, resultado_id FK resultados, inscripcion_id FK inscripciones, posicion INTEGER NULL, tiempo, diferencia, descalificado BOOLEAN NOT NULL DEFAULT false, motivo_desc, empate BOOLEAN DEFAULT false, no_largo BOOLEAN NOT NULL DEFAULT false
 UNIQUE (resultado_id, posicion) — NULL se trata como distinto en Postgres; múltiples no_largo=true con posicion=NULL son válidos
 CRÍTICO: borrar siempre antes de borrar inscripciones
 MODELO no_largo: cuando un ratificado no llega a largar, se inserta {posicion:null, no_largo:true}. Su mandil se conserva (hueco). Consultable para Bloque C liquidación.
@@ -200,7 +200,7 @@ id UUID PK, liquidacion_id FK, carrera_id FK, concepto, descripcion, monto_bruto
 | `fecha_liberacion` | DATE | liberación anti-doping (Fase 3, sin uso aún) |
 | `pagado_at` | TIMESTAMPTZ | sello de pago (Fase 4) |
 | `recibo_id` | UUID FK recibos | agrupa la línea en un recibo (Fase 4) |
-| `beneficiario_tipo` | `beneficiario_tipo` | profesional/propietario/club (denormalizado) |
+| `beneficiario_tipo` | `beneficiario_tipo` | profesional/propietario/club (denormalizado). Nullable en prod — pendiente NOT NULL (auditoría .neq 22/07/2026); la app nunca escribe NULL, riesgo solo por INSERT manual |
 | `beneficiario_id` | UUID | polimórfico, SIN FK |
 | `reunion_id` | UUID FK reuniones | desnormalizado para consolidación cross-reunión |
 Índices: `idx_liqdet_beneficiario (beneficiario_tipo, beneficiario_id, estado_linea)`, `idx_liqdet_recibo (recibo_id)`.
