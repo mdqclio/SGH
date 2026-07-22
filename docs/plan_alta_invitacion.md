@@ -11,6 +11,14 @@ queda descartado para v1**.
 Documentos relacionados (capa de evidencia): [`../data/rls_audit.md`](../data/rls_audit.md),
 [`../data/auth_flow_audit.md`](../data/auth_flow_audit.md).
 
+**Correcciones aprobadas por Leo (22/07/2026)**, incorporadas a este documento:
+- **C1** — `reset-password.html` **ya existe** y es la landing natural del mail de invitación.
+  Faltaba en el inventario. Hay que adaptarla (`type=invite` + activación de la fila en
+  `public.usuarios`). Ver **§4.1** y etapa **(b)**.
+- **C2** — La lista de roles invitables por rol de caller es un **mapa extensible**, no un `if`
+  hardcodeado: con el portal de propietarios, `secretario_carreras` va a necesitar invitar
+  `propietario`/`profesional`. v1 **no** lo implementa, pero el diseño no lo cierra. Ver **§2.1**.
+
 **Recordatorio operativo confirmado**: apagar *"Allow new users to sign up"* **hoy** rompería el
 alta, porque las pantallas de admin usan `signUp()` internamente. Por eso el orden es
 **Edge Function primero, apagar el toggle al final**.
@@ -113,6 +121,25 @@ La función hace, en este orden, y corta en el primer fallo:
    privilegios = el riesgo principal de este endpoint.
 6. Rechazar métodos ≠ `POST`; responder `OPTIONS` con CORS restringido al origen de GitHub Pages.
 
+#### Nota de extensión v2 — el mapa de roles invitables (corrección C2, Leo 22/07)
+
+La regla del paso 4 se implementa como un **mapa de datos** `rol_caller → { roles_invitables,
+alcance_club }`, **no** como una cadena de `if`. Motivo: cuando exista el portal de propietarios
+(`portal.html`), `secretario_carreras` va a necesitar invitar también a `propietario` y
+`profesional` — hoy roles del enum `rol_usuario` que **v1 no habilita**.
+
+```
+super_admin         → roles: TODOS los del enum          · club: cualquiera (del body)
+secretario_carreras → roles: {secretario_carreras, operador} · club: SOLO el propio
+                      // v2: sumar 'propietario' y 'profesional' a este set — un solo renglón
+(cualquier otro)    → 403
+```
+
+Regla de diseño: **agregar un rol invitable en v2 debe ser editar el set del mapa, nada más.**
+El alcance de club (`propio` vs `cualquiera`) queda como campo del mapa por el mismo motivo.
+`propietario`/`profesional` tienen además `club_id` nullable en el modelo del portal — v1 no los
+habilita, así que ese caso no se resuelve ahora, pero el mapa no debe cerrarle la puerta.
+
 ### 2.2 Input / Output
 
 **Request** `POST /functions/v1/invite-user`
@@ -141,7 +168,8 @@ existe en Auth** salvo al caller ya autenticado como admin.
 ### 2.3 Qué escribe, y en qué orden
 
 1. `supabaseAdmin.auth.admin.inviteUserByEmail(email, { data: { nombre_completo }, redirectTo:
-   "<URL de la pantalla de set-password en GitHub Pages>" })`.
+   "<URL de reset-password.html en GitHub Pages>" })` — esa pantalla **ya existe** y es la landing
+   de la invitación; hay que adaptarla (§4.1, corrección C1).
 2. `INSERT INTO public.usuarios` con service_role (salta RLS, por eso el paso 4 de §2.1 es la
    única defensa):
    - `email` normalizado (mismo string que se mandó a Auth),
@@ -268,9 +296,40 @@ Sin escribir código todavía — sólo el delta por call site.
 | 2 | `admin.html:521` (alta de hipódromo) | El `insert clubs` y el `insert categorias_carrera` quedan como están (los hace el super_admin con su propia sesión y RLS los permite). Sólo el bloque `signUp` + `insert usuarios` se reemplaza por `invite-user` con `club_id` = el club recién creado y `rol:'secretario_carreras'`. Quitar los inputs de contraseña. **Ojo con la compensación**: si la invitación falla, hoy queda un club sin usuario — decidir si se borra el club o se deja para reintentar (recomendado: dejarlo y ofrecer "reintentar invitación", que es justo el estado del club de San Francisco) |
 | 3 | `registro.html:232` | **No se migra.** Página huérfana de auto-registro; el auto-registro está descartado en v1. Ver etapa (d) |
 | 4 | `registro-profesional.html:243` | **No se migra en v1.** Es auto-registro público de propietarios/entrenadores, que es el portal (`portal.html`, no construido). Ver etapa (d): sacar el link desde `login.html` antes de apagar el toggle, o el formulario va a fallar con un error críptico de Auth en vez del `42501` actual |
+| 5 | `reset-password.html` | **Entregable que faltaba en el inventario original** (corrección C1, Leo 22/07). Ver §4.1 |
 
 Contrato común para 1 y 2: el frontend **no manda contraseñas nunca más**, y `club_id`/`rol` que
 manda son sugerencias — la función los revalida (§2.1 paso 4).
+
+### 4.1 `reset-password.html` — landing de la invitación (corrección C1)
+
+**La página ya existe en el repo y está en producción.** Es la landing natural del mail de
+invitación: es la única pantalla del sistema que recibe un token en el hash y fija una
+contraseña. El `redirectTo` de §2.3 paso 1 apunta acá. Pero hoy **no sirve tal cual** por dos
+motivos:
+
+1. **Está condicionada a `type=recovery`.** El listener sólo abre el formulario ante
+   `event === 'PASSWORD_RECOVERY'`, o ante `SIGNED_IN` con
+   `window.location.hash.includes('type=recovery')`. El link de invitación llega con
+   `type=invite` → cae en la rama de "enlace inválido".
+2. **No hace la activación.** Después de `sb.auth.updateUser({ password })` no toca
+   `public.usuarios`. La fila queda en `activo=false` / `estado='pendiente'` (§2.3 paso 2), así
+   que el invitado fija la contraseña, entra a Auth… y la app lo trata como inactivo.
+
+Cambios necesarios (etapa (b)):
+
+| Punto | Cambio |
+|---|---|
+| Detección del token | Aceptar **también** `type=invite` en el hash, además de `type=recovery`. El chequeo de `access_token` en el hash ya es genérico y no hay que tocarlo |
+| Copy | Diferenciar por `type`: invitación → "Elegí tu contraseña" / "Bienvenido a SGH"; recuperación → el copy actual. Un usuario invitado no está "recuperando" nada |
+| Activación | Tras un `updateUser` exitoso **y sólo en el flujo de invitación**: `UPDATE public.usuarios SET activo=true, estado='activo' WHERE lower(email)=lower(<email de la sesión>)`. Va con la sesión del propio invitado (ya autenticado por el token del mail) — la policy `usuarios_update` lo permite por la rama `email = auth.jwt()->>'email'` (§1.3). **No hace falta service_role ni tocar la Edge Function** |
+| Errores | Si el `UPDATE` falla, mostrarlo: la contraseña quedó fijada pero el usuario no puede operar. Silenciar ese error deja un estado inconsistente indistinguible de un problema de login. Nada de `.catch(()=>{})` |
+| Redirect final | Igual que hoy: `login.html` con countdown |
+
+**Precondición del `UPDATE`**: el `redirectTo` que manda la Edge Function tiene que ser
+exactamente la URL de `reset-password.html` en GitHub Pages, y esa URL tiene que estar en la
+allowlist de **Redirect URLs** del Dashboard de Auth. Si no está, Supabase redirige al Site URL y
+el token se pierde. Verificar en la etapa (a), junto con el SMTP.
 
 ---
 
@@ -303,13 +362,25 @@ Sin esto, la etapa (a) no se puede probar de verdad (§3).
 **Rollback**: borrar la función (`supabase functions delete invite-user`). Las pantallas siguen
 usando `signUp` porque todavía no se migraron. Impacto cero.
 
-### Etapa (b) — Migrar pantallas admin + probe end-to-end
+### Etapa (b) — Migrar pantallas admin + adaptar `reset-password.html` + probe end-to-end
 
-Migrar `usuarios.html` y `admin.html` (§4) en una rama `feat/alta-invitacion`.
+Entregables, en una rama `feat/alta-invitacion`:
 
-**Probe end-to-end**: invitar desde `usuarios.html` → recibir el mail → fijar contraseña →
-`signInWithPassword` → la app resuelve `club_id` y `rol` correctos → `activo` pasa a `true`.
+1. Migrar `usuarios.html` y `admin.html` (§4).
+2. **Adaptar `reset-password.html` (§4.1)** — corrección C1. Sin esto la invitación llega al mail
+   pero muere en la landing: el link trae `type=invite` y la página sólo entiende
+   `type=recovery`, y aunque lo entendiera no pondría `activo=true` / `estado='activo'`.
+   Es el eslabón que cierra el circuito, no un extra.
+3. Verificar que la URL de `reset-password.html` está en **Redirect URLs** del Dashboard de Auth
+   y coincide con el `redirectTo` de §2.3.
+
+**Probe end-to-end**: invitar desde `usuarios.html` → recibir el mail → abrir el link
+(`type=invite` → el formulario se muestra, **no** el cartel de "enlace inválido") → fijar
+contraseña → verificar en DB que la fila quedó `activo=true` / `estado='activo'` →
+`signInWithPassword` → la app resuelve `club_id` y `rol` correctos.
 Repetir el alta de hipódromo desde `admin.html`.
+**Regresión obligatoria**: un `resetPasswordForEmail` de una cuenta existente
+(`type=recovery`) tiene que seguir funcionando igual — el cambio no puede romper el reset.
 
 **Criterio de avance**: un usuario nuevo, creado íntegramente por invitación, entra y opera.
 **Rollback**: `git revert` del merge. El toggle de signup **sigue prendido** en esta etapa, así
@@ -364,6 +435,10 @@ en Auth **no** son revertibles, por eso van al final y de a uno.
 | (b) | Desalineación de email entre `auth.users` y `usuarios` (mayúsculas/espacios) → el usuario entra a Auth pero la app no lo reconoce y queda sin `club_id` | Normalizar a lowercase+trim en un solo lugar. Probe: login del invitado resuelve `club_id` y `rol`. Query de control: join por `lower(email)` sin match |
 | (b) | Falla la invitación después de crear el club en `admin.html` → otro club con 0 usuarios | Query de clubs con 0 usuarios (hoy da 1: San Francisco) |
 | (b) | El invitado no llega a fijar la contraseña antes de que expire el link | Reinvitación (§2.4). La fila queda en `estado='pendiente'` — listar pendientes con más de N días |
+| (b) | **`reset-password.html` sin adaptar (§4.1)**: el link de invitación llega con `type=invite` y la página muestra "enlace inválido o expirado". La invitación se manda, el mail llega, y el circuito muere en la landing | Probe end-to-end abriendo el link real de invitación, no sólo comprobando el `200` de la función |
+| (b) | La contraseña se fija pero el `UPDATE` de activación falla → el usuario entra a Auth y la app lo trata como inactivo. Estado indistinguible de un problema de login | Mostrar el error del `UPDATE` en la UI (§4.1), nunca silenciarlo. Query de control: `usuarios` con `estado='pendiente'` cuyo `auth.users.email_confirmed_at` no es nulo |
+| (b) | El `redirectTo` no está en la allowlist de **Redirect URLs** → Auth redirige al Site URL y el token se pierde | Verificar en el Dashboard en la etapa (a). Síntoma: el link del mail cae en la home sin hash |
+| (b) | Al agregar `type=invite` se rompe el flujo de `type=recovery` de las cuentas existentes | Regresión explícita en el probe de (b): `resetPasswordForEmail` de una cuenta existente sigue funcionando |
 | (c) | Se apaga el toggle **antes** de migrar → el alta de usuarios muere del todo | Es exactamente lo que evita el orden (a)→(b)→(c). Detección: `usuarios.html` responde `signups not allowed` |
 | (c) | `registro-profesional.html` sigue enlazada y ahora falla peor | Sacar el link en (d), antes de (c). Verificar con `grep -n 'registro-profesional' login.html` |
 | (c) | Suposición a verificar: el *reset de contraseña* **no** depende del toggle de signup. Si dependiera, los usuarios existentes perderían el reset | Probar un `resetPasswordForEmail` justo después de apagar el toggle |
