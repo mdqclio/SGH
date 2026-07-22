@@ -3,17 +3,23 @@
  * Spec validada por Fede 25/05/2026.
  *
  * Uso:
- *   CHAPAS_CATALOG               → array con las 19 entradas en orden.
- *   getChapa(id)                 → devuelve la entrada por id (1-19).
+ *   CHAPAS_CATALOG               → array con las 20 entradas en orden de distancia.
+ *   getChapa(id)                 → devuelve la entrada por id.
  *   getChapaByCodigo(codigo)     → devuelve por código de texto (ej. "1 cpo").
  *   renderVariosChapa(n)         → SVG dinámico para "varios + N" (n ≥ 5).
  *   getVariosCodigo(n)           → string "N cpos" (siempre plural, n ≥ 5).
  *
+ * Los ids NO son contiguos ni siguen el orden del array: están persistidos por
+ * código en resultado_posiciones.diferencia, así que nunca se renumeran. El
+ * orden del dropdown lo da la POSICIÓN en el array, no el id. Altas nuevas
+ * toman el siguiente id libre y se insertan donde corresponda por distancia
+ * (así entró id 20 = "4½ cpos", entre id 16 y id 17).
+ *
  * Tipos:
- *   "distancia" → entradas 1-16, distancias fijas con SVG estático.
- *   "varios"    → entrada 17. El operador ingresa N ≥ 5 entero; SVG y código
+ *   "distancia" → ids 1-16 y 20, distancias fijas con SVG estático.
+ *   "varios"    → id 17. El operador ingresa N ≥ 5 entero; SVG y código
  *                 se arman dinámicamente vía render/getVarios.
- *   "estado"    → entradas 18-19. No son distancias; reemplazan al campo.
+ *   "estado"    → ids 18-19. No son distancias; reemplazan al campo.
  *
  * En la columna "Cpos" de los resultados se muestra el código (texto).
  * Los SVG son para mostrar al lado del código en la UI cuando aplique.
@@ -206,6 +212,20 @@ const CHAPAS_CATALOG = [
   <circle cx="68" cy="32" r="14" fill="#000000"/>
   <circle cx="32" cy="68" r="14" fill="#000000"/>
   <circle cx="68" cy="68" r="14" fill="#000000"/>
+</svg>`
+  },
+  {
+    id: 20,
+    codigo: '4½ cpos',
+    nombre: '4½ cuerpos',
+    valor: 4.5,
+    tipo: 'distancia',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect width="100" height="100" fill="#FFD600" stroke="#000000" stroke-width="2"/>
+  <circle cx="32" cy="32" r="11" fill="none" stroke="#000000" stroke-width="6"/>
+  <circle cx="68" cy="32" r="11" fill="none" stroke="#000000" stroke-width="6"/>
+  <circle cx="32" cy="68" r="11" fill="none" stroke="#000000" stroke-width="6"/>
+  <circle cx="68" cy="68" r="11" fill="none" stroke="#000000" stroke-width="6"/>
 </svg>`
   },
   {
