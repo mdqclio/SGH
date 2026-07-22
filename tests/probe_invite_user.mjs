@@ -14,6 +14,15 @@
  *   5) 409 repetido         → mismo email, sin `reinvitar`.
  *   6) 422 rol inválido     → rol fuera del enum rol_usuario.
  *
+ * Sumado en la etapa (b):
+ *   7) reinvitación doble   → invitar 2 veces con `reinvitar:true` sobre un
+ *                             usuario que existe SIN confirmar, para ver qué
+ *                             hace GoTrue de verdad (la §2.4 lo asume, no lo
+ *                             verifica). Afirma los invariantes que valen sí o
+ *                             sí (1 sola fila, sigue pendiente/inactivo) y
+ *                             REPORTA la respuesta real para decidir con el
+ *                             dato a la vista.
+ *
  * ---------------------------------------------------------------------------
  * NO corre hasta que la función esté deployada (etapa (a)). Queda listo.
  * ---------------------------------------------------------------------------
@@ -142,14 +151,21 @@ async function invitar(token, body) {
 // ---------------------------------------------------------------------------
 const ilikeLiteral = (s) => s.replace(/([\\%_])/g, '\\$1');
 
-async function filaUsuario(email) {
+// Todas las filas cuyo email matchea EXACTO (post-normalización). Devuelve el
+// array entero a propósito: el caso 7 necesita poder afirmar "hay exactamente
+// una", que es distinto de "encontré una".
+async function filasUsuario(email) {
   const { data, error } = await admin
     .from('usuarios')
-    .select('email, rol, club_id, activo, estado')
+    .select('id, email, rol, club_id, activo, estado')
     .ilike('email', ilikeLiteral(email))
-    .limit(2);
+    .limit(10);
   if (error) throw new Error(`select usuarios(${email}): ${error.message}`);
-  return (data ?? []).find((r) => String(r.email).toLowerCase() === email) ?? null;
+  return (data ?? []).filter((r) => String(r.email).toLowerCase() === email);
+}
+
+async function filaUsuario(email) {
+  return (await filasUsuario(email))[0] ?? null;
 }
 
 async function authUser(email) {
@@ -338,6 +354,79 @@ try {
     });
     check(r.status === 409, 'status 409', `recibido ${r.status}`);
     check(r.payload?.code === 'ya_existe', 'code = ya_existe', JSON.stringify(r.payload));
+  }
+
+  // =========================================================================
+  // Caso 7 — reinvitación doble (etapa (b))
+  //
+  // Qué se está averiguando: qué hace GoTrue DE VERDAD cuando se llama
+  // inviteUserByEmail dos veces sobre un usuario que existe pero NO confirmó.
+  // La §2.4 del plan asume que reenvía y genera un link nuevo, pero eso no está
+  // verificado contra la implementación real: algunas versiones responden
+  // "User already registered" incluso sin confirmar, y ahí el camino de
+  // reinvitación del plan se cae y hay que usar generateLink / resend.
+  //
+  // Por eso este caso NO afirma un happy path: afirma el invariante que tiene
+  // que valer sí o sí (no se duplica la fila, no se activa sola) y REPORTA lo
+  // que respondió GoTrue para que Leo decida con el dato a la vista.
+  //
+  // ⚠️ CONSUME 1-2 EMAILS más de la cuota horaria.
+  // =========================================================================
+  console.log('\n[7] reinvitación doble — comportamiento real de GoTrue');
+  {
+    const antes = await filaUsuario(TEST_EMAIL);
+
+    const r1 = await invitar(tokSecre, {
+      email: TEST_EMAIL,
+      nombre_completo: 'Invitado De Prueba',
+      rol: 'operador',
+      reinvitar: true,
+    });
+    console.log(`  ℹ️  reinvitación #1 → HTTP ${r1.status} ${JSON.stringify(r1.payload)}`);
+
+    const r2 = await invitar(tokSecre, {
+      email: TEST_EMAIL,
+      nombre_completo: 'Invitado De Prueba',
+      rol: 'operador',
+      reinvitar: true,
+    });
+    console.log(`  ℹ️  reinvitación #2 → HTTP ${r2.status} ${JSON.stringify(r2.payload)}`);
+
+    // Invariante 1: la respuesta nunca es un 500 sin diagnóstico. Puede ser 200
+    // (reenvió) o 409 auth_ya_registrado (GoTrue se plantó) — las dos son
+    // información útil; un 500 mudo no.
+    for (const [n, r] of [['#1', r1], ['#2', r2]]) {
+      check(r.status !== 500 || !!r.payload?.code,
+        `reinvitación ${n}: si falla, falla con un code identificable`,
+        `HTTP ${r.status} ${JSON.stringify(r.payload)}`);
+    }
+
+    // Invariante 2 (el que importa): no se duplicó la fila en public.usuarios.
+    const filas = await filasUsuario(TEST_EMAIL);
+    check(filas.length === 1, 'sigue habiendo EXACTAMENTE 1 fila en usuarios',
+      `hay ${filas.length}`);
+
+    // Invariante 3: reinvitar NO activa al usuario. La activación es de
+    // reset-password.html cuando el invitado fija la contraseña (§4.1).
+    const fila = filas[0] ?? null;
+    if (fila) {
+      check(fila.activo === false, 'sigue activo=false', `es ${fila.activo}`);
+      check(fila.estado === 'pendiente', `sigue estado='pendiente'`, `es '${fila.estado}'`);
+      check(String(fila.id) === String(antes?.id ?? fila.id),
+        'es la MISMA fila (no se borró y recreó)');
+    }
+
+    // Invariante 4: la cuenta de Auth sigue sin confirmar y es la misma.
+    const au = await authUser(TEST_EMAIL);
+    check(au !== null, 'la cuenta de Auth sigue existiendo');
+    check(au ? !au.email_confirmed_at : false, 'sigue SIN confirmar');
+
+    if (r1.status === 200 && r2.status === 200) {
+      console.log('  ✅ GoTrue reenvía la invitación de un usuario sin confirmar (§2.4 confirmada).');
+    } else {
+      console.log('  ⚠️  GoTrue NO reenvía por esta vía. §2.4 del plan necesita revisión:');
+      console.log('      evaluar admin.generateLink({type:"invite"}) o auth.resend() para el reenvío.');
+    }
   }
 
 } catch (e) {
