@@ -373,7 +373,10 @@ function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
       const cab  = cabMap[i.caballeriza_id];
       const edad = calcEdad(spc.fecha_nacimiento);
       const kesp = `${i.peso_declarado || ''} ${edad}${sexoCodigo(spc.sexo)} ${pelajeCodigo(spc.color)}`.trim();
-      const padreMadre = `${(spc.padrillo_nombre || '').toUpperCase()}${spc.madre_nombre ? ` — ${spc.madre_nombre.toUpperCase()}` : ''}`;
+      // PADRE — MADRE: si falta un lado el separador no queda colgado (antes, sin
+      // padrillo pero con madre, salia " — MADRE"). Dato ausente = vacio, sin placeholder.
+      const padreMadre = [spc.padrillo_nombre, spc.madre_nombre]
+        .filter(Boolean).map(s => s.toUpperCase()).join(' — ');
       const caballeriza = (cab?.nombre || prop?.nombre || '').toUpperCase();
       return `<tr>
         <td>${caballeriza}</td>

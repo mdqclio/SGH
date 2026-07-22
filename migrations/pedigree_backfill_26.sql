@@ -1,4 +1,5 @@
 -- PASO 4 — backfill de pedigree (padre/madre) para SPCs sin dato
+-- 21 UPDATE aprobados por review (Leonardo, 2026-07-22). GREAT ORPEN excluido.
 -- Fuente: www.studbook.org.ar via tools/sb_pedigree_26.py
 -- Evidencia por caballo: data/pedigree_scrape_26.json + data/pedigree_paso4_scrape.md
 -- Alcance: SOLO padrillo_nombre y madre_nombre. No toca ningun otro campo.
@@ -57,15 +58,18 @@ UPDATE spcs SET padrillo_nombre = 'Remote (GB)', madre_nombre = 'Holiday Wave'
 UPDATE spcs SET padrillo_nombre = 'Remote (GB)', madre_nombre = 'Holiday Wave'
   WHERE id = '5ebc5e48-2caf-4c44-be6a-ad75f2716850' AND padrillo_nombre IS NULL AND madre_nombre IS NULL;
 
--- ==== BUCKET B (6) — nombre unico en SB, fecha_nacimiento de la DB discrepa ====
+-- ==== BUCKET B (5) — nombre unico en SB, fecha_nacimiento de la DB discrepa ====
 -- Se aplica el pedigree igual: el nombre es unico en el Stud Book, la fecha mal
 -- cargada es de la carga manual. NO se corrige fecha_nacimiento aca.
 -- Folke Dancer | SB 422244 | SB 2020-07-16 vs DB 2020-07-06
 UPDATE spcs SET padrillo_nombre = 'Forge (GB)', madre_nombre = 'Follow'
   WHERE id = '1c89581b-b0ec-4588-9e28-596312ce6a7b' AND padrillo_nombre IS NULL AND madre_nombre IS NULL;
--- GREAT ORPEN | SB 447875 | SB 2023-12-12 vs DB 2023-10-05
-UPDATE spcs SET padrillo_nombre = 'Orpen Farrero', madre_nombre = 'Great Perfection'
-  WHERE id = '6df0d170-4d32-43d3-82cb-b0c540963bc8' AND padrillo_nombre IS NULL AND madre_nombre IS NULL;
+-- EXCLUIDO POR REVIEW (Leonardo, 2026-07-22): GREAT ORPEN queda afuera.
+-- 68 dias de discrepancia (SB 2023-12-12 vs DB 2023-10-05) + inscripcion viva.
+-- Va a verificacion aparte con Fede. Sentencia dejada comentada, NO ejecutar
+-- sin esa confirmacion:
+-- UPDATE spcs SET padrillo_nombre = 'Orpen Farrero', madre_nombre = 'Great Perfection'
+--   WHERE id = '6df0d170-4d32-43d3-82cb-b0c540963bc8' AND padrillo_nombre IS NULL AND madre_nombre IS NULL;
 -- MONADESEDA | SB 445820 | SB 2023-10-02 vs DB 2023-10-01
 UPDATE spcs SET padrillo_nombre = 'Forge (GB)', madre_nombre = 'Shake (USA)'
   WHERE id = 'a91658ed-b79c-4abe-bd08-3a672bd923e4' AND padrillo_nombre IS NULL AND madre_nombre IS NULL;
@@ -82,10 +86,11 @@ UPDATE spcs SET padrillo_nombre = 'Peten Itza', madre_nombre = 'Honey Moon'
 COMMIT;
 
 -- ==== VERIFICACION ====
--- select count(*) filter (where padrillo_nombre is null) from spcs;  -- esperado: 4
+-- select count(*) filter (where padrillo_nombre is null) from spcs;  -- esperado: 5
+-- (4 sin match en SB + GREAT ORPEN, excluido por review)
 
 -- ==== ROLLBACK ====
--- Las 22 filas tenian padrillo_nombre y madre_nombre en NULL antes del backfill,
+-- Las 21 filas tenian padrillo_nombre y madre_nombre en NULL antes del backfill,
 -- asi que revertir es volverlas a NULL. No hay dato previo que restaurar.
 -- BEGIN;
 -- UPDATE spcs SET padrillo_nombre = NULL, madre_nombre = NULL WHERE id IN (
@@ -106,7 +111,6 @@ COMMIT;
 --   'f277af1c-a4ac-4a98-87d7-b41871718c8d',
 --   '5ebc5e48-2caf-4c44-be6a-ad75f2716850',
 --   '1c89581b-b0ec-4588-9e28-596312ce6a7b',
---   '6df0d170-4d32-43d3-82cb-b0c540963bc8',
 --   'a91658ed-b79c-4abe-bd08-3a672bd923e4',
 --   'c1af88b9-6fbd-4883-a025-03f44f1fdfab',
 --   'f8a81c1b-867a-4341-8757-a89fc9347a16',
