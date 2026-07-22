@@ -6,16 +6,19 @@
  * contra la reunión 6 (20/06/2026) REAL. El HTML que se verifica es el que produce el
  * mismo texto que sirve prod — no hay reimplementación.
  *
- * Sin browser: Playwright/chromium NO corre en Ubuntu 26.04
- * (`npx playwright install chromium` → "Playwright does not support chromium on
- * ubuntu26.04-x64"; ídem firefox). Ver tests/README.md y docs/SERVER.md.
- * Como sustituto del screenshot, el probe escribe un PREVIEW OFFLINE autocontenido en
+ * Sin browser: `npx playwright install` NO publica browsers para esta plataforma
+ * ("Playwright does not support chromium on ubuntu26.04-x64"; ídem firefox).
+ * Ver tests/README.md y docs/SERVER.md.
+ * El probe escribe un PREVIEW OFFLINE autocontenido en
  * `tmp/preview_programa_color_r6.html` con el <style> real de la página y las imágenes
  * embebidas como data: URI — se abre con doble click, sin servidor ni login.
+ * NOTA: ese gate está sólo en el INSTALADOR de Playwright, no en el launcher. Con un
+ * Chrome for Testing bajado a mano, `chromium.launch({executablePath})` corre bien y de
+ * ahí salen tmp/preview_tapa.png y tmp/preview_pie.png (ver el commit de screenshots).
  *
  * Verifica:
  *  A. Assets — las 5 imágenes viven en assets/programa-oficial-color/, ninguna en la raíz.
- *  B. Tapa   — `.tapa-foto` apunta a tapa-01.jpg (provisoria) y tapa-caballos.jpg sigue en disco.
+ *  B. Tapa   — `.tapa-foto` apunta a tapa-02.jpg (elegida por Leo) y tapa-caballos.jpg sigue en disco.
  *  C. Flyer  — `.flyer-pie` existe en CSS, respeta aspect ratio (width:100%/height:auto),
  *              es print-safe (print-color-adjust exact + break-inside avoid) y no fuerza
  *              página nueva (sin page-break-before:always).
@@ -79,15 +82,15 @@ const banner = jpegDims(join(ROOT, ASSETS, 'banner-revista-palermo.jpg'));
 ok('el banner es una tira apaisada (1600x222, AR≈7.2)',
    banner && banner.w === 1600 && banner.h === 222,
    `dims: ${banner ? `${banner.w}x${banner.h}` : 'ilegible'}`);
-const t01 = jpegDims(join(ROOT, ASSETS, 'tapa-01.jpg'));
-ok('tapa-01 mantiene el 3:2 de la foto anterior (mismo recorte con center/cover)',
-   t01 && Math.abs(t01.w / t01.h - 1.5) < 0.02, `dims: ${t01 ? `${t01.w}x${t01.h}` : 'ilegible'}`);
+const t02 = jpegDims(join(ROOT, ASSETS, 'tapa-02.jpg'));
+ok('tapa-02 (la que está en uso) mantiene el 3:2 de la foto anterior — mismo recorte con center/cover',
+   t02 && Math.abs(t02.w / t02.h - 1.5) < 0.02, `dims: ${t02 ? `${t02.w}x${t02.h}` : 'ilegible'}`);
 
 // ─────────────────────────────────────────────────────────────── B. TAPA
-console.log('\nB. Tapa apunta a la foto provisoria');
+console.log('\nB. Tapa apunta a la foto elegida por Leo');
 const tapaCss = html.match(/\.tapa-foto\s*\{[^}]*\}/);
 ok('regla .tapa-foto presente', !!tapaCss);
-ok('.tapa-foto usa tapa-01.jpg', /url\('assets\/programa-oficial-color\/tapa-01\.jpg'\)/.test(tapaCss?.[0] || ''),
+ok('.tapa-foto usa tapa-02.jpg', /url\('assets\/programa-oficial-color\/tapa-02\.jpg'\)/.test(tapaCss?.[0] || ''),
    `encontrado: ${(tapaCss?.[0] || '').replace(/\s+/g, ' ').slice(0, 160)}`);
 ok('ya no referencia tapa-caballos.jpg', !html.includes('tapa-caballos.jpg'));
 
@@ -186,7 +189,7 @@ const previewBody = captured
   .replace(new RegExp(`${ASSETS}/banner-revista-palermo\\.jpg`, 'g'),
            dataUri(`${ASSETS}/banner-revista-palermo.jpg`));
 const previewStyle = styleBlock
-  .replace(`url('${ASSETS}/tapa-01.jpg')`, `url('${dataUri(`${ASSETS}/tapa-01.jpg`)}')`);
+  .replace(`url('${ASSETS}/tapa-02.jpg')`, `url('${dataUri(`${ASSETS}/tapa-02.jpg`)}')`);
 
 const outDir = join(ROOT, 'tmp');
 if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });

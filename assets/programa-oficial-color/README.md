@@ -7,9 +7,11 @@ Para reemplazar: copiar la nueva foto con este mismo nombre de archivo.
 
 ## tapa-01.jpg … tapa-04.jpg
 Fotos propias de HDO subidas por Leo (22/07/2026), candidatas para la tapa.
-Yesi elige la definitiva. Mientras tanto `.tapa-foto` usa **tapa-01.jpg**.
+**`.tapa-foto` usa `tapa-02.jpg`** — elegida por Leo (22/07/2026) por resolución y color:
+la de la recta con cielo y el cartel de los 100 m.
 - `tapa-01.jpg` — 5 caballos de frente entrando en la recta, baranda roja (2048x1365)
-- `tapa-02.jpg` — pelotón de 6 en la recta, cielo azul y polvareda, cartel de los 100 m (2048x1365)
+- `tapa-02.jpg` — **EN USO** — pelotón de 6 en la recta, cielo azul y polvareda, cartel de
+  los 100 m (2048x1365)
 - `tapa-03.jpg` — 3 caballos de frente, polvareda dorada a contraluz (899x599)
 - `tapa-04.jpg` — largada de frente con el tablero "HIPÓDROMO" de fondo (799x599)
 
