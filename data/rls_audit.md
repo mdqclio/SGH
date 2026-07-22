@@ -3,6 +3,9 @@
 **Fecha**: 2026-07-22 · **Alcance**: schema `public` de producción · **Tipo**: diagnóstico read-only
 **Estado**: ningún cambio aplicado. El fix se planifica aparte.
 
+> 📄 **Resumen ejecutivo y plan de cierre consolidado**: [`SEGURIDAD_AUTH_RLS.md`](SEGURIDAD_AUTH_RLS.md).
+> Este documento es la capa de evidencia; ahí está el plan por fases.
+
 > ⚠️ Este documento vive en un repo público. Describe **estado**, no credenciales:
 > no contiene keys, secrets, tokens ni pasos reproducibles de explotación.
 > Las claves siguen donde corresponde (publishable en el frontend, secret sólo por env).

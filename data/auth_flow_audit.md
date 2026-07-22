@@ -5,6 +5,9 @@
 **Contexto**: complementa [`rls_audit.md`](rls_audit.md), que dejó abierta la pregunta de si
 el registro público está habilitado y qué depende de él.
 
+> 📄 **Resumen ejecutivo y plan de cierre consolidado**: [`SEGURIDAD_AUTH_RLS.md`](SEGURIDAD_AUTH_RLS.md).
+> Este documento es la capa de evidencia; ahí está el plan por fases.
+
 > ⚠️ Repo público. Describe **estado**, no credenciales: sin keys, secrets ni tokens.
 > Los emails personales y los nombres de personas físicas van redactados; las cuentas
 > institucionales se referencian por rol.
