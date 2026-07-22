@@ -61,7 +61,8 @@
 
   .tapa-foto {
     flex: 1; min-height: 260px;
-    background: url('assets/programa-oficial-color/tapa-caballos.jpg') center/cover no-repeat;
+    /* Provisoria: Yesi todavía no eligió la foto definitiva (tapa-01..tapa-04). */
+    background: url('assets/programa-oficial-color/tapa-01.jpg') center/cover no-repeat;
     position: relative;
   }
   .tapa-foto::after {
@@ -206,6 +207,20 @@
   .sd-foto { background-size: cover; background-position: center; }
   .sd-foto.sin-foto { background: var(--verde-claro); }
 
+  /* ===== FLYER PIE (franja ancho completo, al final del programa) ===== */
+  .flyer-pie {
+    margin-top: 16px;
+    border-top: 2px solid var(--verde-oscuro);
+    padding-top: 10px;
+    page-break-inside: avoid;
+  }
+  .flyer-pie img {
+    display: block;
+    width: 100%;
+    height: auto;      /* la tira es 1600x222 — se respeta el aspect ratio */
+    border-radius: 3px;
+  }
+
   /* ===== PÁGINA FINAL ===== */
   .pagina-final { page-break-inside: avoid; padding-top: 20px; }
   .redes-info { font-size: 10px; line-height: 1.6; margin-top: 10px; color: #444; }
@@ -217,6 +232,9 @@
   @media print {
     html, body, * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     .tapa-foto { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    /* El flyer no debe generar una página extra: sin page-break-before y sin margen que desborde. */
+    .flyer-pie { page-break-before: avoid; page-break-after: auto; break-inside: avoid; }
+    .flyer-pie img { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; max-height: 40mm; object-fit: contain; }
     .btn-imprimir { display: none !important; }
   }
 </style>
@@ -501,8 +519,15 @@ function render(reunion, club, carreras, insByCarrera, maps, proximaReunion) {
       </div>
     </div>`;
 
+  // ---- FLYER PIE (Revista Palermo) ----
+  const flyerHtml = `
+    <div class="flyer-pie">
+      <img src="assets/programa-oficial-color/banner-revista-palermo.jpg"
+           alt="Revista Palermo — Sabemos de turf">
+    </div>`;
+
   document.getElementById('programa-page').innerHTML =
-    tapaHtml + `<section>` + carrerasHtml + proximaHtml + sponsorsHtml + sdHtml + finalHtml + `</section>`;
+    tapaHtml + `<section>` + carrerasHtml + proximaHtml + sponsorsHtml + sdHtml + finalHtml + flyerHtml + `</section>`;
   document.title = `Programa-Oficial-Color-Reunion-${reunion.numero || ''}-${reunion.fecha || ''}`;
 }
 
