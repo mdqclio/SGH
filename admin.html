@@ -205,15 +205,7 @@
         <div class="form-group full">
           <label>Email *</label>
           <input type="email" id="c-admin-email" placeholder="admin@hipodromo.com.ar">
-          <span class="hint">Se usará para iniciar sesión.</span>
-        </div>
-        <div class="form-group">
-          <label>Contraseña inicial *</label>
-          <input type="password" id="c-admin-pass" placeholder="Mínimo 6 caracteres" minlength="6">
-        </div>
-        <div class="form-group">
-          <label>Confirmar contraseña *</label>
-          <input type="password" id="c-admin-pass2" placeholder="Repetir contraseña">
+          <span class="hint">Le llega una invitación por mail para que elija su propia contraseña.</span>
         </div>
       </div>
       <div id="c-error" style="color:var(--danger);font-size:13px;margin-top:8px;display:none;"></div>
@@ -479,7 +471,7 @@ function renderTable() {
 function openCreate() {
   ['c-nombre','c-sigla','c-localidad','c-provincia','c-direccion','c-logo-url',
    'c-telefono','c-email-inst','c-nombre-contacto','c-tel-contacto',
-   'c-admin-nombre','c-admin-email','c-admin-pass','c-admin-pass2'].forEach(id=>{
+   'c-admin-nombre','c-admin-email'].forEach(id=>{
     document.getElementById(id).value='';
   });
   showCError('');
@@ -492,13 +484,9 @@ async function saveCreate(){
   const nombre=document.getElementById('c-nombre').value.trim();
   const adminNombre=document.getElementById('c-admin-nombre').value.trim();
   const adminEmail=document.getElementById('c-admin-email').value.trim();
-  const pass=document.getElementById('c-admin-pass').value;
-  const pass2=document.getElementById('c-admin-pass2').value;
   if(!nombre){showCError('El nombre del hipódromo es requerido.');return;}
   if(!adminNombre){showCError('El nombre del administrador es requerido.');return;}
   if(!adminEmail){showCError('El email del administrador es requerido.');return;}
-  if(!pass||pass.length<6){showCError('La contraseña debe tener al menos 6 caracteres.');return;}
-  if(pass!==pass2){showCError('Las contraseñas no coinciden.');return;}
 
   const btn=document.getElementById('btn-create');
   btn.disabled=true; btn.textContent='Creando…';
@@ -518,19 +506,6 @@ async function saveCreate(){
     if(clubErr) throw new Error('Error al crear hipódromo: '+clubErr.message);
     const newClubId=clubData.id;
 
-    const {data:authData,error:authErr}=await sb.auth.signUp({
-      email:adminEmail, password:pass,
-      options:{ data:{ nombre_completo:adminNombre } }
-    });
-    if(authErr) throw new Error('Error al crear usuario auth: '+authErr.message);
-    if(!authData.user) throw new Error('No se pudo crear el usuario en Auth.');
-
-    const {error:usrErr}=await sb.from('usuarios').insert({
-      email:adminEmail, nombre_completo:adminNombre,
-      club_id:newClubId, rol:'secretario_carreras', activo:true
-    });
-    if(usrErr) throw new Error('Error al insertar usuario: '+usrErr.message);
-
     const cats=[
       {nombre:'Oficial Clásico',    codigo:'OC',  simbolo:'★', color_hex:'#c9a84c',es_computable:true, es_oficial:true, orden_display:1},
       {nombre:'Oficial No Clásico', codigo:'ONC', simbolo:'◆', color_hex:'#4caf82',es_computable:true, es_oficial:true, orden_display:2},
@@ -538,15 +513,72 @@ async function saveCreate(){
       {nombre:'Clásico Confirmado', codigo:'CC',  simbolo:'⭐',color_hex:'#e8b84b',es_computable:true, es_oficial:true, orden_display:4},
     ].map(c=>({...c,club_id:newClubId,activo:true}));
     const {error:catErr}=await sb.from('categorias_carrera').insert(cats);
-    if(catErr) throw new Error('Hipódromo y usuario creados, pero error en categorías: '+catErr.message);
+    if(catErr) throw new Error('Hipódromo creado, pero error en categorías: '+catErr.message);
 
-    toast(`Hipódromo "${nombre}" creado correctamente`);
+    // La invitación va ÚLTIMA y a propósito: es lo único que puede fallar sin
+    // dejar el hipódromo inutilizable. El frontend ya no manda contraseñas; el
+    // club_id lo mandamos explícito porque el caller acá es super_admin.
+    const {error:invErr}=await sb.functions.invoke('invite-user',{
+      body:{
+        email: adminEmail,
+        nombre_completo: adminNombre,
+        rol: 'secretario_carreras',
+        club_id: newClubId,
+      }
+    });
+
+    if(invErr){
+      // NO se borra el club: queda creado y se reintenta la invitación desde
+      // usuarios.html. Es exactamente el estado del club de San Francisco,
+      // contemplado en §4 del plan.
+      const e=await parseFnError(invErr);
+      console.error('[admin.saveCreate] invite-user falló',
+        {club:newClubId, email:adminEmail, code:e.code, status:e.status});
+      closeCreate();
+      load();
+      toast(`Hipódromo "${nombre}" quedó creado, pero la invitación falló: ${mensajeError(e)} `+
+            `Reintentá la invitación desde Usuarios.`,'error');
+      return;
+    }
+
+    toast(`Hipódromo "${nombre}" creado — invitación enviada a ${adminEmail}`);
     closeCreate();
     load();
   } catch(err){
     showCError(err.message);
   } finally {
     btn.disabled=false; btn.textContent='Crear Hipódromo';
+  }
+}
+
+/**
+ * Desarma el error de sb.functions.invoke(). supabase-js no parsea el body
+ * cuando la función responde != 2xx: deja el Response crudo en `context`.
+ * Sin esto sólo se ve "Edge Function returned a non-2xx status code".
+ */
+async function parseFnError(error){
+  const status=error?.context?.status??null;
+  let body=null;
+  try { body=await error?.context?.json?.(); } catch(_){ /* body no-JSON */ }
+  return {status, code:body?.code||null, mensaje:body?.error||error?.message||'Error desconocido.'};
+}
+
+/** Traduce el {status, code} de la Edge Function a un mensaje accionable. */
+function mensajeError(e){
+  switch(e.code){
+    case 'ya_activo':
+    case 'auth_ya_registrado':
+      return 'ese email ya tiene una cuenta activa (usá recuperación de contraseña).';
+    case 'ya_existe':
+      return 'ese email ya tenía una invitación previa; reenviala desde Usuarios.';
+    case 'rate_limit_email':
+      return 'se alcanzó el límite de emails por hora, reintentá en una hora.';
+    case 'club_id_inexistente':
+      return 'el club_id no existe (algo raro: el club se acaba de crear).';
+    default:
+      if(e.status===429) return 'se alcanzó el límite de emails por hora, reintentá en una hora.';
+      if(e.status===401) return 'tu sesión expiró, volvé a entrar.';
+      return `${e.mensaje}${e.code?` (${e.code})`:''}${e.status?` [HTTP ${e.status}]`:''}`;
   }
 }
 

@@ -118,7 +118,7 @@
 <div class="modal-overlay" id="modal-create">
   <div class="modal">
     <div class="modal-header">
-      <h2>Nuevo Usuario</h2>
+      <h2>Invitar Usuario</h2>
       <button class="btn-close" onclick="closeCreate()">✕</button>
     </div>
     <div class="modal-body">
@@ -136,16 +136,6 @@
           <input type="text" id="c-telefono" placeholder="Ej: 221 15-000-0000">
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Contraseña inicial *</label>
-          <input type="password" id="c-pass" placeholder="Mínimo 6 caracteres" minlength="6">
-        </div>
-        <div class="form-group">
-          <label>Confirmar contraseña *</label>
-          <input type="password" id="c-pass2" placeholder="Repetir">
-        </div>
-      </div>
       <div class="form-group">
         <label>Rol *</label>
         <select id="c-rol">
@@ -153,11 +143,15 @@
           <option value="operador">Operador</option>
         </select>
       </div>
+      <p style="font-size:12.5px;color:var(--muted);line-height:1.5;">
+        Le va a llegar un mail con un link para que elija su propia contraseña.
+        La cuenta queda pendiente hasta que lo acepte.
+      </p>
       <div class="modal-error" id="c-error"></div>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeCreate()">Cancelar</button>
-      <button class="btn-primary" id="btn-create" onclick="saveCreate()">Crear Usuario</button>
+      <button class="btn-primary" id="btn-create" onclick="saveCreate()">Invitar Usuario</button>
     </div>
   </div>
 </div>
@@ -284,7 +278,7 @@ function renderTable() {
 
 /* ---- CREAR ---- */
 function openCreate() {
-  ['c-nombre','c-email','c-telefono','c-pass','c-pass2'].forEach(id => document.getElementById(id).value = '');
+  ['c-nombre','c-email','c-telefono'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('c-rol').value = 'secretario_carreras';
   setCreateError('');
   document.getElementById('modal-create').classList.add('open');
@@ -296,45 +290,111 @@ function setCreateError(msg) {
   el.className = 'modal-error' + (msg ? ' show' : '');
 }
 
+/**
+ * Desarma el error de sb.functions.invoke().
+ *
+ * supabase-js NO parsea el body cuando la función responde != 2xx: devuelve un
+ * FunctionsHttpError con `context` = el Response crudo. Sin esto sólo se ve
+ * "Edge Function returned a non-2xx status code", que es exactamente el error
+ * genérico mudo que no queremos.
+ */
+async function parseFnError(error) {
+  const status = error?.context?.status ?? null;
+  let body = null;
+  try { body = await error?.context?.json?.(); } catch (_) { /* body no-JSON */ }
+  return { status, code: body?.code || null, mensaje: body?.error || error?.message || 'Error desconocido.' };
+}
+
+/**
+ * Invita a un usuario vía la Edge Function invite-user.
+ * El frontend NO manda contraseñas nunca más, y `club_id` lo resuelve la
+ * función a partir de la fila del caller (§2.1 paso 4 del plan).
+ */
+async function invitar({ email, nombre, telefono, rol, reinvitar }) {
+  const body = { email, nombre_completo: nombre, telefono: telefono || null, rol };
+  if (reinvitar) body.reinvitar = true;
+  return await sb.functions.invoke('invite-user', { body });
+}
+
 async function saveCreate() {
   const nombre   = document.getElementById('c-nombre').value.trim();
   const email    = document.getElementById('c-email').value.trim();
   const telefono = document.getElementById('c-telefono').value.trim();
-  const pass     = document.getElementById('c-pass').value;
-  const pass2    = document.getElementById('c-pass2').value;
   const rol      = document.getElementById('c-rol').value;
 
-  if (!nombre)          { setCreateError('El nombre es requerido.'); return; }
-  if (!email)           { setCreateError('El email es requerido.'); return; }
-  if (!pass || pass.length < 6) { setCreateError('La contraseña debe tener al menos 6 caracteres.'); return; }
-  if (pass !== pass2)   { setCreateError('Las contraseñas no coinciden.'); return; }
-  if (!CLUB_ID) { setCreateError('No hay hipódromo seleccionado. Usá ?club=UUID en la URL.'); return; }
+  if (!nombre) { setCreateError('El nombre es requerido.'); return; }
+  if (!email)  { setCreateError('El email es requerido.'); return; }
 
   const btn = document.getElementById('btn-create');
-  btn.disabled = true; btn.textContent = 'Creando…';
+  const restaurarBtn = () => { btn.disabled = false; btn.textContent = 'Invitar Usuario'; };
+  setCreateError('');
+  btn.disabled = true; btn.textContent = 'Invitando…';
 
   try {
-    const { data: authData, error: authErr } = await sb.auth.signUp({
-      email, password: pass,
-      options: { data: { nombre_completo: nombre } }
-    });
-    if (authErr) throw new Error('Error auth: ' + authErr.message);
-    if (!authData.user) throw new Error('No se pudo crear el usuario.');
+    let { error } = await invitar({ email, nombre, telefono, rol, reinvitar: false });
 
-    const { error: usrErr } = await sb.from('usuarios').insert({
-      email, nombre_completo: nombre,
-      telefono: telefono || null,
-      club_id: CLUB_ID, rol, activo: true,
-    });
-    if (usrErr) throw new Error('Error al guardar usuario: ' + usrErr.message);
+    if (error) {
+      const e = await parseFnError(error);
 
-    toast('Usuario creado correctamente');
+      // 409 ya_existe → hay una invitación o un alta previa sin confirmar.
+      // Se pregunta antes de reintentar: cada reenvío consume cuota de mail.
+      if (e.code === 'ya_existe') {
+        restaurarBtn();
+        if (!confirm(`${email} ya tiene una invitación o un alta previa.\n\n¿Reenviar la invitación?`)) {
+          setCreateError('Invitación cancelada.');
+          return;
+        }
+        btn.disabled = true; btn.textContent = 'Reenviando…';
+        const reintento = await invitar({ email, nombre, telefono, rol, reinvitar: true });
+        if (reintento.error) {
+          const e2 = await parseFnError(reintento.error);
+          setCreateError(mensajeError(e2));
+          return;
+        }
+        toast('Invitación reenviada a ' + email);
+        closeCreate();
+        load();
+        return;
+      }
+
+      setCreateError(mensajeError(e));
+      return;
+    }
+
+    toast('Invitación enviada a ' + email);
     closeCreate();
     load();
   } catch (err) {
-    setCreateError(err.message);
+    console.error('[usuarios.saveCreate]', err);
+    setCreateError('No se pudo invitar al usuario: ' + err.message);
   } finally {
-    btn.disabled = false; btn.textContent = 'Crear Usuario';
+    restaurarBtn();
+  }
+}
+
+/** Traduce el {status, code} de la Edge Function a un mensaje accionable. */
+function mensajeError(e) {
+  switch (e.code) {
+    case 'ya_activo':
+    case 'auth_ya_registrado':
+      return 'Ese email ya tiene una cuenta activa. Si perdió la contraseña, ' +
+             'tiene que usar "¿Olvidaste tu contraseña?" en el login — no se reinvita.';
+    case 'rate_limit_email':
+      return 'Se alcanzó el límite de emails por hora. Reintentá en una hora.';
+    case 'club_id_requerido':
+      // Pasa si el caller es super_admin: esta pantalla no manda club_id.
+      return 'Sos super_admin: la función pide un club_id explícito y esta pantalla no lo manda. ' +
+             'Dá de alta al usuario desde el hipódromo correspondiente.';
+    case 'rol_no_invitable':
+    case 'club_ajeno':
+    case 'rol_caller_no_autorizado':
+    case 'caller_inactivo':
+    case 'caller_sin_fila':
+      return e.mensaje;
+    default:
+      if (e.status === 429) return 'Se alcanzó el límite de emails por hora. Reintentá en una hora.';
+      if (e.status === 401) return 'Tu sesión expiró. Volvé a entrar y reintentá.';
+      return `${e.mensaje}${e.code ? ` (${e.code})` : ''}${e.status ? ` [HTTP ${e.status}]` : ''}`;
   }
 }
 
