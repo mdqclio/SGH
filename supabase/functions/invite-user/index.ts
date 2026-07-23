@@ -17,6 +17,11 @@
 //                     Se setea con `supabase secrets set`. Se lee SOLO con
 //                     Deno.env.get, y el cliente admin se construye DENTRO
 //                     del handler (nunca en scope de módulo).
+//                     Si no está, se cae a las que inyecta la plataforma
+//                     (SGH_SECRET_KEY / SB_SECRET_KEY / SUPABASE_SERVICE_ROLE_KEY),
+//                     DESCARTANDO las legacy `eyJ...` — están desactivadas en
+//                     este proyecto desde 2026-06-07 y devuelven 401. Ver
+//                     resolverDbKey().
 // Env NO secretas (con fallback razonable):
 //   SUPABASE_URL             → lo inyecta la plataforma
 //   INVITE_PUBLISHABLE_KEY   → key publishable (pública, ya vive en el repo)
@@ -94,6 +99,34 @@ const REGLAS_POR_ROL_CALLER: Readonly<Record<string, ReglaCaller>> = {
   },
   // operador / profesional / propietario / publico → sin entrada = 403.
 };
+
+// ------------------------------------------------------------------
+// Resolución de la key admin
+// ------------------------------------------------------------------
+// Orden de preferencia. `INVITE_DB_KEY` es el secret propio del proyecto y
+// gana siempre; el resto son los nombres que la plataforma puede inyectar sola.
+const CANDIDATAS_DB_KEY = [
+  'INVITE_DB_KEY',
+  'SGH_SECRET_KEY',
+  'SB_SECRET_KEY',
+  'SUPABASE_SERVICE_ROLE_KEY',
+] as const;
+
+// Las legacy `eyJ...` (anon + service_role) están DESACTIVADAS en este proyecto
+// desde 2026-06-07: devuelven 401 "Legacy API keys are disabled". Si la
+// plataforma sigue inyectando una, usarla daría un fallo tardío y confuso
+// (401 en la Admin API) en vez de un `server_misconfigured` claro. Se descarta.
+const esLegacyMuerta = (v: string) => v.startsWith('eyJ');
+
+// Devuelve la key y DE DÓNDE salió — el nombre de la env se loguea para poder
+// diagnosticar el deploy sin exponer nunca el valor.
+function resolverDbKey(): { key: string; fuente: string } | null {
+  for (const nombre of CANDIDATAS_DB_KEY) {
+    const v = (Deno.env.get(nombre) ?? '').trim();
+    if (v && !esLegacyMuerta(v)) return { key: v, fuente: nombre };
+  }
+  return null;
+}
 
 // ------------------------------------------------------------------
 // Helpers HTTP
@@ -209,9 +242,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   // La key secreta se lee SOLO acá dentro, nunca en scope de módulo.
-  const DB_KEY = Deno.env.get('INVITE_DB_KEY') ?? '';
-  if (!DB_KEY) {
-    return fail(500, 'server_misconfigured', 'INVITE_DB_KEY no está seteada.', origin);
+  const resuelta = resolverDbKey();
+  if (!resuelta) {
+    console.error('[invite-user] sin key admin usable. Probadas:', CANDIDATAS_DB_KEY.join(', '));
+    return fail(500, 'server_misconfigured',
+      'No hay una key admin server-side usable configurada.', origin);
+  }
+  const DB_KEY = resuelta.key;
+  // Sólo el NOMBRE de la env, nunca el valor. Se loguea únicamente cuando NO es
+  // el secret propio, para dejar rastro de que se está usando un fallback.
+  if (resuelta.fuente !== 'INVITE_DB_KEY') {
+    console.log('[invite-user] key admin tomada de', resuelta.fuente);
   }
 
   try {

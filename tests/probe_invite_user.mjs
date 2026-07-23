@@ -40,6 +40,22 @@
  *                          de Supabase (§3.2 del plan: si el mailer sólo entrega
  *                          a miembros de la org, el síntoma es silencioso).
  *
+ * Env OPCIONALES:
+ *   INVITE_KEEP_TEST_USER=1   NO borra el invitado de INVITE_TEST_EMAIL en el
+ *                             cleanup. Se usa cuando el mail de invitación se va
+ *                             a abrir a mano para probar el flujo completo por
+ *                             reset-password.html (test end-to-end de la etapa
+ *                             (b)): si el probe lo borra, el link muere. Los
+ *                             fixtures .invalid se limpian igual.
+ *   INVITE_REINVITACIONES=N   Reinvitaciones del caso 7. Default 1.
+ *                             Cada una CONSUME UN EMAIL de la cuota horaria, que
+ *                             en el mailer built-in de Supabase es de 2/hora en
+ *                             total. Con el default (1) la corrida entera gasta
+ *                             exactamente 2: el caso 1 + esta. Subirlo a 2 hace
+ *                             que la última pegue contra el rate limit y vuelva
+ *                             429 — lo cual es un resultado válido, pero deja de
+ *                             medir lo que el caso 7 quiere medir.
+ *
  * Uso:
  *   INVITE_FN_URL=... SUPABASE_URL=... SUPABASE_PUBLISHABLE_KEY=... \
  *   SUPABASE_SECRET_KEY=... INVITE_TEST_EMAIL=... \
@@ -48,9 +64,12 @@
  * ⚠️ ESCRIBE EN PROD. Crea 3 usuarios fixture (dominio .invalid, prefijo
  *    `probe-invite-`) y 1 invitado real, y los borra al final. El cleanup SÓLO
  *    toca emails que este probe creó en esta corrida — nunca datos ajenos.
- * ⚠️ CONSUME 1 EMAIL de la cuota horaria (sólo el caso 1 llega a mandar mail).
+ * ⚠️ CONSUME 2 EMAILS de la cuota horaria con los defaults: el caso 1 (feliz) y
+ *    la reinvitación del caso 7.
  * ⚠️ El caso 1 responde 200 aunque el mail no se entregue. Comprobar RECEPCIÓN
  *    a mano en INVITE_TEST_EMAIL — eso el probe no lo puede verificar.
+ * ⚠️ Si el caso 7 llega a reenviar, la casilla recibe DOS invitaciones. Vale la
+ *    ÚLTIMA: GoTrue rota el token en cada invitación.
  */
 import { createClient } from '@supabase/supabase-js';
 
@@ -72,9 +91,42 @@ const PUBLISHABLE_KEY = requireEnv('SUPABASE_PUBLISHABLE_KEY');
 const SECRET_KEY      = requireEnv('SUPABASE_SECRET_KEY');
 const TEST_EMAIL      = requireEnv('INVITE_TEST_EMAIL').trim().toLowerCase();
 
+// Opcionales — ver el encabezado.
+const KEEP_TEST_USER  = process.env.INVITE_KEEP_TEST_USER === '1';
+const REINVITACIONES  = Math.max(0, Number(process.env.INVITE_REINVITACIONES ?? 1) || 0);
+
 const admin = createClient(SUPABASE_URL, SECRET_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
+
+// ---------------------------------------------------------------------------
+// Reintentos por el fallo de plataforma "kid <nil> ES256"  (23/07/2026)
+// ---------------------------------------------------------------------------
+// Medido contra prod ese día: los endpoints ADMIN de GoTrue rechazan ~20-35% de
+// las llamadas con
+//   403 invalid JWT: ... unrecognized JWT kid <nil> for algorithm ES256
+// de forma intermitente, con la misma secret key que en la llamada anterior
+// funcionó. NO es de este código:
+//   · PostgREST con esa misma key: 20/20 OK.
+//   · GoTrue por el camino anon (settings, signInWithPassword): 12/12 OK.
+//   · Sólo falla secret key → endpoints admin de GoTrue.
+// Es la traducción `sb_secret_` → JWT de service_role del gateway, que a veces
+// emite un token que GoTrue no sabe verificar.
+//
+// Sin reintentos el probe no mide NADA: se cae armando los fixtures. Se reintenta
+// SÓLO esta firma de error — cualquier otro error se propaga tal cual, para no
+// tapar un bug real.
+const ES_KID_NIL = (msg) => /unrecognized JWT kid/i.test(String(msg ?? ''));
+
+async function reintentar(label, fn, intentos = 12) {
+  for (let i = 1; i <= intentos; i++) {
+    const { data, error } = await fn();
+    if (!error) return data;
+    if (!ES_KID_NIL(error.message)) throw new Error(`${label}: ${error.message}`);
+    if (i === intentos) throw new Error(`${label}: ${intentos} intentos, todos "kid <nil> ES256"`);
+    await new Promise((r) => setTimeout(r, 250));
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Assertions
@@ -106,10 +158,9 @@ const EMAIL_DEST_OPER    = `probe-invite-dest-oper-${RUN}@sgh-probe.invalid`;
 const creados = { auth: [], usuarios: [] };
 
 async function crearFixture(email, rol, clubId) {
-  const { data, error } = await admin.auth.admin.createUser({
+  const data = await reintentar(`createUser(${rol})`, () => admin.auth.admin.createUser({
     email, password: PASS, email_confirm: true,
-  });
-  if (error) throw new Error(`createUser(${rol}): ${error.message}`);
+  }));
   creados.auth.push(data.user.id);
 
   const { error: insErr } = await admin.from('usuarios').insert({
@@ -137,13 +188,38 @@ async function tokenDe(email) {
 // ---------------------------------------------------------------------------
 // Llamada a la función
 // ---------------------------------------------------------------------------
-async function invitar(token, body) {
+// La función también come el fallo "kid <nil>" de plataforma, porque usa los
+// mismos endpoints admin de GoTrue. Se reintenta SÓLO en los códigos que la
+// función devuelve ANTES de llamar a inviteUserByEmail — o sea, donde es seguro
+// que NO se mandó ningún mail y no se escribió nada:
+//
+//   caller_lookup_failed / dest_lookup_failed → lookups previos
+//   auth_lookup_failed / auth_scan_truncado   → escaneo de Auth previo
+//
+// `invite_failed` NO está en la lista a propósito: ahí ya se llamó a GoTrue y no
+// se puede afirmar que el mail no salió. Reintentarlo podría mandar dos mails y
+// quemar la cuota horaria. Si aparece, se reporta y listo.
+const REINTENTABLES_PRE_MAIL = new Set([
+  'caller_lookup_failed', 'dest_lookup_failed', 'auth_lookup_failed', 'auth_scan_truncado',
+]);
+
+async function invitarUnaVez(token, body) {
   const headers = { 'content-type': 'application/json', apikey: PUBLISHABLE_KEY };
   if (token) headers.authorization = `Bearer ${token}`;
   const res = await fetch(FN_URL, { method: 'POST', headers, body: JSON.stringify(body) });
   let payload = null;
   try { payload = await res.json(); } catch { /* la plataforma puede no devolver JSON */ }
   return { status: res.status, payload };
+}
+
+async function invitar(token, body, intentos = 10) {
+  let ultima;
+  for (let i = 1; i <= intentos; i++) {
+    ultima = await invitarUnaVez(token, body);
+    if (ultima.status !== 500 || !REINTENTABLES_PRE_MAIL.has(ultima.payload?.code)) return ultima;
+    if (i < intentos) await new Promise((r) => setTimeout(r, 250));
+  }
+  return ultima;
 }
 
 // ---------------------------------------------------------------------------
@@ -170,8 +246,7 @@ async function filaUsuario(email) {
 
 async function authUser(email) {
   for (let page = 1; page <= 25; page++) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
-    if (error) throw new Error(`listUsers: ${error.message}`);
+    const data = await reintentar('listUsers', () => admin.auth.admin.listUsers({ page, perPage: 200 }));
     const users = data?.users ?? [];
     const hit = users.find((u) => (u.email ?? '').toLowerCase() === email);
     if (hit) return hit;
@@ -185,18 +260,29 @@ async function authUser(email) {
 // ---------------------------------------------------------------------------
 async function cleanup() {
   console.log('\n— Cleanup —');
-  for (const email of [...creados.usuarios, TEST_EMAIL]) {
+
+  // El invitado real se conserva cuando alguien va a abrir el mail y completar
+  // el flujo a mano: borrarlo invalidaría el link de la invitación.
+  const emailsABorrar = KEEP_TEST_USER ? [...creados.usuarios] : [...creados.usuarios, TEST_EMAIL];
+  for (const email of emailsABorrar) {
     const { error } = await admin.from('usuarios').delete().ilike('email', ilikeLiteral(email));
     if (error) console.error(`  ⚠️ delete usuarios ${email}: ${error.message}`);
   }
+
   // El invitado del caso 1 se creó en Auth por la función, no por nosotros.
-  const invitado = await authUser(TEST_EMAIL).catch(() => null);
+  const invitado = KEEP_TEST_USER ? null : await authUser(TEST_EMAIL).catch(() => null);
   const ids = [...creados.auth, ...(invitado ? [invitado.id] : [])];
   for (const id of ids) {
-    const { error } = await admin.auth.admin.deleteUser(id);
-    if (error) console.error(`  ⚠️ deleteUser ${id}: ${error.message}`);
+    // Con reintentos: si no, el fallo de plataforma deja fixtures colgados en Auth.
+    await reintentar(`deleteUser ${id}`, () => admin.auth.admin.deleteUser(id))
+      .catch((e) => console.error(`  ⚠️ ${e.message}`));
   }
-  console.log(`  limpiados: ${creados.usuarios.length + 1} filas usuarios, ${ids.length} auth users`);
+
+  console.log(`  limpiados: ${emailsABorrar.length} filas usuarios, ${ids.length} auth users`);
+  if (KEEP_TEST_USER) {
+    console.log(`  ⏸️  CONSERVADO a propósito: ${TEST_EMAIL} (fila usuarios + cuenta Auth).`);
+    console.log('     Teardown pendiente cuando termine la prueba manual del flujo.');
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -370,32 +456,28 @@ try {
   // que valer sí o sí (no se duplica la fila, no se activa sola) y REPORTA lo
   // que respondió GoTrue para que Leo decida con el dato a la vista.
   //
-  // ⚠️ CONSUME 1-2 EMAILS más de la cuota horaria.
+  // ⚠️ CONSUME UN EMAIL por reinvitación (INVITE_REINVITACIONES, default 1).
   // =========================================================================
-  console.log('\n[7] reinvitación doble — comportamiento real de GoTrue');
+  console.log(`\n[7] reinvitación — comportamiento real de GoTrue (x${REINVITACIONES})`);
   {
     const antes = await filaUsuario(TEST_EMAIL);
 
-    const r1 = await invitar(tokSecre, {
-      email: TEST_EMAIL,
-      nombre_completo: 'Invitado De Prueba',
-      rol: 'operador',
-      reinvitar: true,
-    });
-    console.log(`  ℹ️  reinvitación #1 → HTTP ${r1.status} ${JSON.stringify(r1.payload)}`);
-
-    const r2 = await invitar(tokSecre, {
-      email: TEST_EMAIL,
-      nombre_completo: 'Invitado De Prueba',
-      rol: 'operador',
-      reinvitar: true,
-    });
-    console.log(`  ℹ️  reinvitación #2 → HTTP ${r2.status} ${JSON.stringify(r2.payload)}`);
+    const respuestas = [];
+    for (let i = 1; i <= REINVITACIONES; i++) {
+      const r = await invitar(tokSecre, {
+        email: TEST_EMAIL,
+        nombre_completo: 'Invitado De Prueba',
+        rol: 'operador',
+        reinvitar: true,
+      });
+      respuestas.push([`#${i}`, r]);
+      console.log(`  ℹ️  reinvitación #${i} → HTTP ${r.status} ${JSON.stringify(r.payload)}`);
+    }
 
     // Invariante 1: la respuesta nunca es un 500 sin diagnóstico. Puede ser 200
     // (reenvió) o 409 auth_ya_registrado (GoTrue se plantó) — las dos son
     // información útil; un 500 mudo no.
-    for (const [n, r] of [['#1', r1], ['#2', r2]]) {
+    for (const [n, r] of respuestas) {
       check(r.status !== 500 || !!r.payload?.code,
         `reinvitación ${n}: si falla, falla con un code identificable`,
         `HTTP ${r.status} ${JSON.stringify(r.payload)}`);
@@ -421,8 +503,10 @@ try {
     check(au !== null, 'la cuenta de Auth sigue existiendo');
     check(au ? !au.email_confirmed_at : false, 'sigue SIN confirmar');
 
-    if (r1.status === 200 && r2.status === 200) {
+    const todasOk = respuestas.length > 0 && respuestas.every(([, r]) => r.status === 200);
+    if (todasOk) {
       console.log('  ✅ GoTrue reenvía la invitación de un usuario sin confirmar (§2.4 confirmada).');
+      console.log('     La casilla recibió MÁS DE UNA invitación: vale la ÚLTIMA (el token rota).');
     } else {
       console.log('  ⚠️  GoTrue NO reenvía por esta vía. §2.4 del plan necesita revisión:');
       console.log('      evaluar admin.generateLink({type:"invite"}) o auth.resend() para el reenvío.');
