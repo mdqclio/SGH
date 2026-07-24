@@ -4,9 +4,32 @@
 
 ---
 
-## 📸 Snapshot 2026-07-21 — el más nuevo
+## 📸 Snapshot 2026-07-24 — el más nuevo
 
-> Autoritativo. Supera a los snapshots de abajo. En main/prod: tanda de premios (`feat/premios-display-v2`, merge `d626049`). Doc de premios + restore.
+> Autoritativo. Supera a los snapshots de abajo. En main/prod: alta por invitación (merge `f8f5b0a`), programa NULL-safe (`82f87d8`), chapa 4½ cpos (`f9f8807`), tapa + flyer (`feccf83`). Conteos verificados contra prod el 24/07.
+
+### Reunión 6 (20/06/2026) — primera oficialización real, end-to-end
+- **8 carreras corridas oficializadas** (8/8). De los 11 turnos, **3 anuladas** (turnos 4, 7, 10). `reuniones.estado='publicada'`.
+- **Liquidaciones generadas**: **79 headers / 203 líneas**, todas en `estado='borrador'`. Por concepto: premio 79 líneas, incentivo entrenador 57, fondo solidario 40, incentivo jockey 21, bono 6.
+- **Retención anti-doping activa**: **31 líneas** de premio en `estado_linea='retenido'` (1° y 2°). Liberación **manual** vía RPC `liberar_linea`.
+- ⚠️ Los conteos que circulaban antes (52 headers / 151 líneas) **no coinciden** con prod al 24/07. Los de arriba son los verificados por query directa.
+
+### Calendario — R7 suspendida, próxima 16/08
+- **R7 (19/07/2026): `cancelada`** por falta de inscriptos. Tiene 12 carreras cargadas y 0 resultados.
+- **Próxima reunión: R8, 16/08/2026**, `publicada`, 12 carreras.
+- ⚠️ La reunión de prueba **9999** (`2099-01-01`, `cancelada`, 3 carreras con resultados) **sigue viva** en Dolores. Teardown gateado a Fede (ISSUE-035).
+
+### Alta de usuarios v1 — operativa por invitación cerrada
+- Etapas **0 / (a) / (b) COMPLETADAS**. Edge Function `invite-user` + landing `reset-password.html` con `type=invite` + `usuarios.html`/`admin.html` migradas. Auto-registro fuera de v1.
+- **SMTP Resend** activo, dominio `hipodromodolores.com` verificado. Sender `sistema@` **provisorio** (definitivo pendiente de Fede).
+- Flujo end-to-end verificado contra prod por Leo el 24/07 (invitación → mail → contraseña → `activo=true` → login). Usuario de prueba borrado.
+- **Etapas (c) y (d) pendientes.** (c) queda gateada a reportar a Supabase el bug de plataforma `kid <nil>`/ES256 en la Admin API (~1/3 de las llamadas) + una mini-tanda de UI de error reintentable. Ver `docs/plan_alta_invitacion.md` §5.
+
+---
+
+## 📸 Snapshot 2026-07-21 — superado por el de arriba
+
+> En main/prod: tanda de premios (`feat/premios-display-v2`, merge `d626049`). Doc de premios + restore.
 
 ### Premios — modelo de display: NOMINAL + bonos aparte (decisión de Fede confirmada)
 - La **BOLSA impresa es el nominal** (`bolsa_total` tal cual se carga); ni el piso `ganancia_minima` ni los bonos inflan ese número. Helper `repartoDisplay()` en `premios-utils.js` (los 6 sitios de display lo usan). El reparto por puesto suma exacto a la bolsa (último puesto absorbe el resto del redondeo).

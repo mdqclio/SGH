@@ -286,3 +286,20 @@ Un probe de impresión/PDF debe **extraer el `.select()` real del archivo y ejec
 - Los **BONOS** siguen **aparte** como líneas condicionales — **NO** se suman al número BOLSA (`calcPremiosConPiso` los excluye). Esto sí es decisión de Fede y no cambia.
 - `calcPremiosConPiso` **intacto** (fuente de verdad del pago). `repartoDisplay` es un wrapper de redondeo sobre él.
 - Sigue vivo el warning `pisoSospechoso()` (piso > 20% de la bolsa → `confirm` al guardar) y la línea informativa "Ganancia mínima por puesto".
+
+## 64. Los links de invitación son de UN SOLO USO — el clic consume el token aunque no se complete (2026-07-24)
+El `/verify` de GoTrue consume el token de un solo uso **al abrir el link**, y ahí mismo estampa `email_confirmed_at` — **antes** de que la persona fije la contraseña. Si abandona en ese punto (cierra la pestaña, falla el `UPDATE` de activación), la cuenta queda **confirmada sin credencial usable** y **no se puede reinvitar**: `inviteUserByEmail()` rechaza cuentas confirmadas y la función devuelve `409 auth_ya_registrado`. Reclickear el link ya quemado da `403 One-time token not found` — es el token consumido, no un problema de entrega.
+Salida correcta: `resetPasswordForEmail()` (*recovery*), que sí funciona sobre una cuenta confirmada. Detector: filas de `usuarios` en `estado='pendiente'` cuyo `auth.users.email_confirmed_at` no es nulo.
+
+## 65. El `redirect_to` se hornea al GENERAR el mail — arreglar la config después no arregla los mails viejos (2026-07-24)
+La URL de retorno viaja **dentro del link** del mail, resuelta en el momento del envío. Si el `redirectTo` era incorrecto, o la URL no estaba en la allowlist de **Redirect URLs**, los mails **ya enviados** quedan rotos para siempre: cambiar la config del Dashboard no los repara. Hay que **reinvitar** para generar un link nuevo. Corolario: verificar la allowlist **antes** de la primera tanda de invitaciones, no después del primer reporte de "el link no anda".
+
+## 66. El mailer built-in de Supabase descarta o limita envíos sin devolver error (2026-07-24)
+Con el SMTP built-in la API responde `200` igual, así que un `200` **no** prueba entrega. Además el built-in tiene cuota baja por hora y puede no entregar a destinatarios externos a la organización. Verificar siempre contra una casilla **externa** real.
+Contracara del SMTP propio (Resend, activo desde el 24/07): GoTrue **deja de emitir el evento `mail.send`** en el log de Auth. Antes cada envío dejaba una línea `mail.send / mail_from=... / mail_type=invite`; ahora no hay ninguna aunque el mail se entregue. **La ausencia de `mail.send` no es prueba de que el mail no salió** — diagnosticar por `/invite 200` + `auth_event action=user_invited` + `confirmation_sent_at` estampado, y confirmar la entrega en el panel del proveedor.
+
+## 67. En las landings, capturar `location.hash` de forma SÍNCRONA al cargar (2026-07-24)
+`supabase-js` **limpia el hash** de la URL cuando procesa el token de recovery/invite. Si la página lo lee después (en un handler, en un `await`, en un `DOMContentLoaded` tardío), ya no está y el flujo muere con "enlace inválido". Patrón: guardarlo en una const de módulo apenas carga el script — `const INITIAL_HASH = window.location.hash || ''` (`reset-password.html:160`) — y leer siempre de ahí, nunca de `window.location.hash` más adelante.
+
+## 68. La allowlist de Redirect URLs matchea EXACTO (2026-07-24)
+La URL del `redirectTo` tiene que estar en **Redirect URLs** del Dashboard de Auth tal cual, con el path completo. No alcanza con tener el dominio o el Site URL. Si no matchea, Auth redirige al Site URL y **el token se pierde en el camino**: el usuario cae en la home sin hash y el link parece "vencido". Síntoma característico: el mail llega, el link abre, y no hay error — simplemente aterriza en la página equivocada.
