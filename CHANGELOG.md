@@ -1,5 +1,61 @@
 # Changelog
 
+## [2026-07-24] — Alta de usuarios por invitación cerrada (etapas a+b VIVAS) + reunión 6 oficializada
+
+> Merge `f8f5b0a` (branch `feat/alta-invitacion`). Cierra las etapas 0, (a) y (b) de
+> `docs/plan_alta_invitacion.md`. Etapas (c) y (d) siguen pendientes.
+
+### Alta por invitación — sistema completo en prod
+- **Edge Function `invite-user`** (`supabase/functions/invite-user/index.ts`, commits `4f0a45f` /
+  `7842ec6`): único lugar del sistema con la key secreta server-side. Autorización por **mapa de
+  datos** (`REGLAS_POR_ROL_CALLER`), no por cadena de `if` — `super_admin` invita cualquier rol a
+  cualquier club, `secretario_carreras` sólo `secretario_carreras`/`operador` **en su propio
+  club** (el `club_id` del body se descarta). Compensación anti-huérfanos: si el `INSERT` en
+  `usuarios` falla, se borra la cuenta de Auth **sólo si la creamos en ese request**.
+  Probe `tests/probe_invite_user.mjs` verde (37 assertions / 7 casos, incluye escalada de
+  privilegios) contra prod.
+- **Landing `reset-password.html`**: entiende `type=invite` además de `type=recovery`, con copy
+  diferenciado, y hace el `UPDATE activo=true` / `estado='activo'` al fijar la contraseña. Sin
+  esto la invitación llegaba al mail y moría en la landing.
+- **Pantallas migradas** (`usuarios.html`, `admin.html`, commit `abe6e35`): `signUp()` + insert
+  reemplazados por la llamada a `invite-user`. `login.html` perdió el link de auto-registro; el
+  alta pasa por secretaría. `signUp()` queda aislado en `registro.html` /
+  `registro-profesional.html` (legacy, sin enlaces entrantes, se deciden en la etapa (d)).
+- **SMTP propio**: **Resend** activo, dominio `hipodromodolores.com` verificado (SPF/DKIM).
+  Sender `sistema@` provisorio, el definitivo lo define Fede. Reemplaza al built-in de Supabase
+  y su cuota de 2 mails/hora.
+- **Verificación end-to-end** contra producción (24/07): invitación → mail entregado → link →
+  contraseña fijada → fila `activo=true`/`estado='activo'` → login con `club_id`/`rol` correctos.
+  Usuario de prueba borrado después de verificar.
+
+### Reunión 6 (20/06/2026) — primera oficialización real
+- **8 carreras corridas, 8 resultados en `oficial`** (turnos 4, 7 y 10 anuladas, de 11 turnos).
+- **Liquidaciones generadas**: **79 headers / 203 líneas** en `estado='borrador'`. Desglose por
+  concepto: premio 79, incentivo entrenador 57, fondo solidario 40, incentivo jockey 21, bono 6.
+- **Retención anti-doping activa**: 31 líneas de premio en `estado_linea='retenido'` (1° y 2°),
+  con liberación manual vía RPC `liberar_linea`.
+
+### Programa oficial — filtro de estado NULL-safe
+- Merge `82f87d8` (`ce52658`). `carreras.estado` es VARCHAR libre y admite NULL (gotcha #5): el
+  `.neq('estado','anulada')` se traduce a `estado <> 'anulada'`, que para NULL da NULL y
+  **descartaba la fila en silencio**. El turno 2 de la R6 desaparecía del programa con todos sus
+  ratificados. Corregido con `.or('estado.is.null,estado.neq.anulada')`.
+- Mismo commit: el banner de próxima reunión **nunca renderizó**. El filtro usaba
+  `.neq('estado','anulada')` sobre `reuniones.estado`, que es el ENUM `estado_reunion` y **no
+  tiene** la etiqueta `anulada` (usa `cancelada`) → reventaba con `22P02` y dejaba
+  `proximaReunion` en null. Corregido a `.or('estado.is.null,estado.neq.cancelada')`.
+- Los dos fixes en `programa-oficial.html` y `programa-oficial-color.html`. Probe
+  `tests/probe_programa_null_estado.mjs`.
+
+### Chapas — falta el margen "4½ cpos"
+- Commit `f9f8807`: se agrega `4½ cuerpos` (id 20) al catálogo de `chapas.js`. El margen existía
+  en el uso real y no estaba en la paleta, así que no se podía cargar.
+
+### Programa color — tapa nueva + sponsor
+- Merge de `feat/programa-tapa-sponsor` (`144daf7`, `feccf83`): foto de tapa `tapa-02.jpg`
+  (elección de Leo entre las subidas) y **flyer de Revista Palermo** al pie de
+  `programa-oficial-color.html`. Imágenes movidas de la raíz a `assets/`.
+
 ## [2026-07-22] — Pedigree en el programa: backfill SB + columna PADRE-MADRE sin placeholders
 
 > Branch `feat/pedigree-programa`. El programa sale por sistema con el padre y la madre de cada caballo, como el programa de papel.

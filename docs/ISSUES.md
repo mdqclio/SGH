@@ -255,3 +255,44 @@ Módulo: inscripciones / spcs. Estado: ⏳ Abierto — a investigar. Prioridad: 
 ### ISSUE-037: `fix/edad-siempre-abierta` — espera confirmación de Fede
 Descripción: fix de la condición de edad "siempre abierta" en branch, esperando confirmación de Fede antes de mergear.
 Módulo: por confirmar. Estado: ⏳ Abierto — branch a la espera de Fede. Prioridad: Baja.
+
+### ISSUE-038: Programa oficial — carreras y banner desaparecían por filtro de estado no NULL-safe — ✅ RESUELTO (2026-07-22)
+Descripción: dos bugs en el mismo filtro. (1) **Carreras**: `.neq('estado','anulada')` sobre `carreras.estado` (VARCHAR libre que admite NULL, gotcha #5) se traduce a `estado <> 'anulada'`, que para NULL da NULL y descarta la fila en silencio — el **turno 2 de la R6 desaparecía del programa** con todos sus ratificados. (2) **Banner de próxima reunión**: el mismo `.neq('estado','anulada')` sobre `reuniones.estado`, que es el ENUM `estado_reunion` y **no tiene** la etiqueta `anulada` (usa `cancelada`) → error `22P02`, `proximaReunion` en null y el banner **nunca renderizó**.
+Módulo: `programa-oficial.html`, `programa-oficial-color.html`.
+Estado: ✅ RESUELTO — merge `82f87d8` (commit `ce52658`). Filtros a `.or('estado.is.null,estado.neq.anulada')` y `.or('estado.is.null,estado.neq.cancelada')`. Probe `tests/probe_programa_null_estado.mjs`.
+
+### ISSUE-039: Alta de usuarios rota (signUp + password_hash) — ✅ RESUELTO (2026-07-24)
+Descripción: ninguno de los caminos de alta completaba el registro. Las pantallas de admin usaban `signUp()` desde el browser y después insertaban en `public.usuarios`, con `password_hash` NOT NULL sin default y RLS en el medio. El auto-registro quedaba a merced del toggle *"Allow new users to sign up"*.
+Módulo: `usuarios.html`, `admin.html`, `login.html`, `reset-password.html`.
+Estado: ✅ RESUELTO — alta por **invitación cerrada** v1, merge `f8f5b0a`. Edge Function `invite-user` (autorización por mapa de datos + compensación anti-huérfanos), landing con `type=invite` que activa la fila, pantallas migradas, SMTP Resend propio. Verificado end-to-end contra prod. Ver `docs/plan_alta_invitacion.md`. Etapas (c)/(d) siguen abiertas.
+
+### ISSUE-040: Chapa "4½ cpos" faltaba en el catálogo — ✅ RESUELTO (2026-07-22)
+Descripción: el margen de llegada `4½ cuerpos` se usa en la carga real pero no estaba en la paleta de `chapas.js`, así que no se podía seleccionar.
+Módulo: `chapas.js`. Estado: ✅ RESUELTO — commit `f9f8807`, entrada id 20.
+
+### ISSUE-041: Incentivo de entrenador — ¿por caballo o por entrenador? (bloquea recibos)
+Descripción: hoy el motor liquida el incentivo de entrenador **por caballo corrido** (1 línea por inscripción, `inscripcion_id` seteado) — `liquidaciones-engine.js:236-243`, descripción "Incentivo entrenador por caballo corrido". El jockey en cambio es **por reunión** con dedup. En R6 esto da 57 líneas de `incentivo_entrenador`. Está **preguntado a Fede** si la regla real es por-caballo o un monto único por-entrenador y por-reunión (como el jockey).
+Módulo: `liquidaciones-engine.js` + `liquidacion_config.incentivo_entrenador_monto`.
+Estado: ⏳ Abierto — **bloquea la emisión de recibos** de entrenadores (si la regla cambia, cambian los montos ya liquidados y hay que regenerar). Esperando a Fede. Prioridad: Alta.
+
+### ISSUE-042: `spcs.ult_performances` 100% NULL
+Descripción: la columna está vacía en **144/144** ejemplares (verificado 2026-07-24). Sin insumo no se puede imprimir la línea de últimas performances en el programa.
+Módulo: `spcs` / programa. Estado: ⏳ Abierto — falta definir origen del dato (Stud Book / carga manual / derivar de `resultado_posiciones`). Prioridad: Media.
+
+### ISSUE-043: Bug de plataforma — Auth Admin API rechaza ~1/3 de las llamadas (`kid <nil>` / ES256)
+Descripción: los endpoints **admin** de GoTrue devuelven de forma intermitente `403 invalid JWT: ... unrecognized JWT kid <nil> for algorithm ES256`, con la misma secret key que en la llamada anterior funcionó. Medido ~1 de cada 3. Alcance acotado: **sólo** secret key → endpoints admin de GoTrue; PostgREST con la misma key y el camino anon (login, `signInWithPassword`) **no** se ven afectados. Es la traducción `sb_secret_` → JWT de service_role del gateway. **No es código nuestro.**
+Impacto: si le pega al `/invite`, `invite-user` devuelve `500 invite_failed` y la invitación no sale (pasó en prod el 24/07; el segundo intento funcionó).
+Módulo: plataforma Supabase (Auth). Mitigación actual: wrapper `reintentar()` en los probes; la Edge Function **no** reintenta el `/invite` a propósito (no se puede afirmar que el mail no salió).
+Estado: ⏳ Abierto — **reportar a Supabase**. Es precondición de la etapa (c) del alta. Prioridad: Alta.
+
+### ISSUE-044: JSON para Diego — no filtra carreras anuladas
+Descripción: la Edge Function `reunion-json` no excluye las carreras `anulada`: el consumidor recibe turnos que no se corren. En R6 son 3 de 11.
+Módulo: `supabase/functions/reunion-json/index.ts`. Estado: ⏳ Abierto — coordinar con Diego junto a ISSUE-033 (mismo redeploy). Prioridad: Media.
+
+### ISSUE-045: `findClosest` no saltea reuniones suspendidas
+Descripción: `active-reunion.js:8` filtra `r.estado !== 'anulada'`, pero el ENUM `estado_reunion` **no tiene** esa etiqueta — usa `cancelada`. El filtro no descarta nada y la reunión activa puede resolverse a una suspendida (caso real: R7 del 19/07, `cancelada`).
+Módulo: `active-reunion.js`. Estado: ⏳ Abierto — mismo malentendido `anulada` vs `cancelada` que ISSUE-038; conviene barrer todos los call sites de una. Prioridad: Media.
+
+### ISSUE-046: `resultados_legacy.html` mantiene una lista de cuerpos paralela
+Descripción: la pantalla legacy no usa el catálogo de `chapas.js` — arma su propio `CUERPOS_OPCIONES` para el datalist de márgenes (`resultados_legacy.html:448`). Toda entrada nueva del catálogo (ej. el `4½ cpos` de ISSUE-040) hay que agregarla dos veces, o queda desalineada.
+Módulo: `resultados_legacy.html`. Estado: ⏳ Abierto — unificar contra `chapas.js` o dar de baja la pantalla legacy. Prioridad: Baja.
