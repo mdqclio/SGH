@@ -1,5 +1,29 @@
 # Changelog
 
+## [2026-07-25] — Alta por invitación: error reintentable (precondición 2 de la etapa (c))
+
+> Branch `feat/invitacion-reintento`. **Sin deploy todavía**: la Edge Function nueva no está en
+> producción, así que la etapa (c) de `docs/plan_alta_invitacion.md` sigue cerrada. La otra
+> precondición (reportar el bug `kid <nil>` a Supabase) sigue pendiente.
+
+- **`invite-user`**: el bug de plataforma `invalid JWT: unrecognized JWT kid <nil> for algorithm
+  ES256` (~1 de cada 3 llamadas a los endpoints admin de GoTrue) ya no se ve como error
+  definitivo. Nuevo `503 error_transitorio` en los dos puntos donde pega: el `listUsers` de
+  `findAuthUserByEmail()` y el `inviteUserByEmail()`. Dos predicados y no uno:
+  `esKidNilAdminApi()` es sólo texto y se usa sobre el `/invite` (un 502/504 de gateway ahí sí
+  puede haber mandado el mail); `esTransitorioPreMail()` agrega 502/503/504 y se usa sólo antes
+  del mail. La función **no** reintenta sola.
+- **`usuarios.html` / `admin.html`**: botón **↻ Reintentar** dentro del cuadro de error, sin
+  perder lo cargado en el formulario. Se ofrece con un allowlist explícito (`esReintentable()`) y
+  el criterio es único — sólo si se puede afirmar que ningún mail salió. `invite_failed` queda
+  afuera y su copy pide verificar el mail antes de reenviar.
+- **`admin.html`**: el alta de hipódromo son 3 escrituras (club → categorías → invitación). Nuevo
+  estado `altaEnCurso = {clubId, catsOk}`: el reintento **retoma** desde el paso que falló en vez
+  de volver a empezar, que crearía un hipódromo duplicado. Ante un fallo transitorio de la
+  invitación el modal ya no se cierra.
+- **`tests/probe_invite_user.mjs`**: `error_transitorio` sumado a `REINTENTABLES_PRE_MAIL` y el
+  reintento acepta 503 además de 500.
+
 ## [2026-07-24] — Alta de usuarios por invitación cerrada (etapas a+b VIVAS) + reunión 6 oficializada
 
 > Merge `f8f5b0a` (branch `feat/alta-invitacion`). Cierra las etapas 0, (a) y (b) de

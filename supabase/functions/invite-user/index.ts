@@ -217,6 +217,41 @@ function esYaRegistrado(err: { code?: string; message?: string } | null): boolea
     || txt.includes('user_already_exists');
 }
 
+// Bug de plataforma medido el 24/07/2026: los endpoints ADMIN de GoTrue rechazan
+// ~1 de cada 3 llamadas con `invalid JWT: unrecognized JWT kid <nil> for
+// algorithm ES256`, con la MISMA key con la que la llamada anterior funcionó.
+// Es transitorio: el reintento suele pasar (medido: pasó al segundo intento).
+// Alcance medido: sólo secret key → endpoints admin de GoTrue. PostgREST y el
+// camino anon (`signInWithPassword`) no se ven afectados.
+//
+// Se mapea a 503 con un code propio para que la UI ofrezca REINTENTAR en vez de
+// mostrar un error definitivo (precondición 2 de la etapa (c) del plan). NO se
+// reintenta acá adentro: el reintento es del operador, así ve qué pasó y no se
+// duplican mails a sus espaldas.
+//
+// Clave para que el reintento sea seguro: es un rechazo de FIRMA. GoTrue tira el
+// request antes de procesarlo, así que sobre el `/invite` significa que el mail
+// NO salió. Por eso este predicado es sólo texto y NO mira status: un 502/504 de
+// gateway sí puede haber procesado la invitación y mandado el mail, y ofrecer
+// "reintentar" ahí duplicaría el mail y quemaría la cuota horaria.
+function esKidNilAdminApi(err: { code?: string; message?: string } | null): boolean {
+  if (!err) return false;
+  const txt = `${err.code ?? ''} ${err.message ?? ''}`.toLowerCase();
+  return txt.includes('unrecognized jwt kid')
+    || (txt.includes('invalid jwt') && txt.includes('es256'));
+}
+
+// Variante para los pasos ANTERIORES al `/invite` (lookups, escaneo de Auth).
+// Ahí todavía no se mandó nada ni se escribió nada, así que un 502/503/504 de
+// gateway también es seguro de reintentar.
+function esTransitorioPreMail(
+  err: { status?: number; code?: string; message?: string } | null,
+): boolean {
+  if (!err) return false;
+  if (err.status === 502 || err.status === 503 || err.status === 504) return true;
+  return esKidNilAdminApi(err);
+}
+
 // ------------------------------------------------------------------
 // Handler
 // ------------------------------------------------------------------
@@ -403,7 +438,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
       authDest = res.user;
     } catch (e) {
-      console.error('[invite-user] findAuthUserByEmail:', (e as Error).message);
+      const msg = (e as Error).message;
+      console.error('[invite-user] findAuthUserByEmail:', msg);
+      // El `kid <nil>` de la Admin API también pega en `listUsers`, antes de
+      // llegar al `/invite`. Nada se escribió todavía: reintentar es seguro.
+      if (esTransitorioPreMail({ message: msg })) {
+        return fail(503, 'error_transitorio',
+          'Fallo transitorio de la plataforma de Auth. No se envió nada: reintentá.', origin);
+      }
       return fail(500, 'auth_lookup_failed', 'No se pudo consultar Auth.', origin);
     }
 
@@ -463,6 +505,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
         return fail(409, 'auth_ya_registrado',
           'Ese email ya está registrado y confirmado en Auth. No se puede reinvitar; usá recuperación de contraseña.',
           origin);
+      }
+      if (esKidNilAdminApi(invErr as never)) {
+        // Rechazo de firma: GoTrue descartó el request antes de procesarlo, así
+        // que no hay usuario de Auth nuevo, ni fila que compensar, ni mail
+        // enviado. Es el ÚNICO fallo del `/invite` donde eso es demostrable —
+        // de ahí que acá NO se use el predicado que mira status.
+        console.error('[invite-user] inviteUserByEmail transitorio:', invErr.message);
+        return fail(503, 'error_transitorio',
+          'Fallo transitorio de la plataforma de Auth. No se envió el mail: reintentá.', origin);
       }
       console.error('[invite-user] inviteUserByEmail:', invErr.message);
       return fail(500, 'invite_failed', 'No se pudo enviar la invitación.', origin);

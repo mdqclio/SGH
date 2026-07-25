@@ -475,10 +475,68 @@ function openCreate() {
     document.getElementById(id).value='';
   });
   showCError('');
+  // Alta nueva: se descarta cualquier alta a medio hacer que quedó de un intento
+  // anterior (si quedó, el club ya existe y se termina desde usuarios.html).
+  altaEnCurso=null;
+  document.getElementById('btn-create').textContent=rotuloBtnCreate();
   document.getElementById('modal-create').classList.add('open');
 }
 function closeCreate(){ document.getElementById('modal-create').classList.remove('open'); }
-function showCError(msg){ const el=document.getElementById('c-error'); el.textContent=msg; el.style.display=msg?'block':'none'; }
+
+/**
+ * Pinta el error del modal de alta. Con `reintentar` (una función) agrega un
+ * botón ↻ que la dispara — el formulario no se limpia, así que el operador
+ * reintenta de un click (precondición 2 de la etapa (c) del plan).
+ */
+function showCError(msg,{reintentar=null}={}){
+  const el=document.getElementById('c-error');
+  el.textContent='';
+  el.style.display=msg?'block':'none';
+  if(!msg) return;
+  // textContent, nunca innerHTML: el mensaje viene de la Edge Function (ISSUE-018).
+  const linea=document.createElement('div');
+  linea.textContent=msg;
+  el.appendChild(linea);
+  if(reintentar){
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.className='btn-sm btn-edit';
+    btn.style.marginTop='8px';
+    btn.textContent='↻ Reintentar invitación';
+    btn.onclick=()=>reintentar();
+    el.appendChild(btn);
+  }
+}
+
+/**
+ * ¿Vale ofrecer "Reintentar"? Mismo allowlist que `usuarios.html`: sólo los
+ * codes donde se puede AFIRMAR que no salió ningún mail (o que el que salió
+ * quedó muerto). `invite_failed` y `error_inesperado` quedan afuera porque ahí
+ * no se puede descartar que el mail se haya enviado. Un code desconocido cae en
+ * "no reintentable" hasta que se decida.
+ */
+function esReintentable(e){
+  const CODES=['error_transitorio','auth_lookup_failed','alta_revertida'];
+  if(CODES.includes(e.code)) return true;
+  return !e.code && [502,503,504].includes(e.status);
+}
+
+/**
+ * Progreso del alta en curso: `{clubId, catsOk}` o null.
+ *
+ * El alta son 3 escrituras (club → categorías → invitación) y cualquiera puede
+ * fallar. Sin este estado, "reintentar" volvería a correr las 3 y crearía un
+ * hipódromo DUPLICADO — que es justo el residuo que dejó el intento fallido de
+ * abril (club San Francisco, 0 usuarios). Con él, el reintento retoma desde el
+ * paso que falló.
+ */
+let altaEnCurso = null;
+
+/** Rótulo del botón según qué falta hacer. */
+function rotuloBtnCreate(){
+  if(!altaEnCurso) return 'Crear Hipódromo';
+  return altaEnCurso.catsOk ? 'Reintentar invitación' : 'Reintentar alta';
+}
 
 async function saveCreate(){
   const nombre=document.getElementById('c-nombre').value.trim();
@@ -489,8 +547,15 @@ async function saveCreate(){
   if(!adminEmail){showCError('El email del administrador es requerido.');return;}
 
   const btn=document.getElementById('btn-create');
-  btn.disabled=true; btn.textContent='Creando…';
+  showCError('');
+  btn.disabled=true; btn.textContent=altaEnCurso?'Invitando…':'Creando…';
   try {
+    if(altaEnCurso){
+      // Reanudación: el club ya existe, no se vuelve a insertar nada de arriba.
+      if(!altaEnCurso.catsOk) await crearCategorias(altaEnCurso.clubId);
+      await invitarAdminHipodromo(altaEnCurso.clubId, nombre, adminNombre, adminEmail);
+      return;
+    }
     const {data:clubData,error:clubErr}=await sb.from('clubs').insert({
       nombre,
       sigla:     document.getElementById('c-sigla').value.trim()||null,
@@ -505,50 +570,84 @@ async function saveCreate(){
     }).select('id').single();
     if(clubErr) throw new Error('Error al crear hipódromo: '+clubErr.message);
     const newClubId=clubData.id;
+    // El club YA está en la DB: desde acá, cualquier reintento tiene que retomar,
+    // no volver a empezar.
+    altaEnCurso={clubId:newClubId, catsOk:false};
 
-    const cats=[
-      {nombre:'Oficial Clásico',    codigo:'OC',  simbolo:'★', color_hex:'#c9a84c',es_computable:true, es_oficial:true, orden_display:1},
-      {nombre:'Oficial No Clásico', codigo:'ONC', simbolo:'◆', color_hex:'#4caf82',es_computable:true, es_oficial:true, orden_display:2},
-      {nombre:'No Oficial',         codigo:'NO',  simbolo:'▲', color_hex:'#a0b8a0',es_computable:false,es_oficial:false,orden_display:3},
-      {nombre:'Clásico Confirmado', codigo:'CC',  simbolo:'⭐',color_hex:'#e8b84b',es_computable:true, es_oficial:true, orden_display:4},
-    ].map(c=>({...c,club_id:newClubId,activo:true}));
-    const {error:catErr}=await sb.from('categorias_carrera').insert(cats);
-    if(catErr) throw new Error('Hipódromo creado, pero error en categorías: '+catErr.message);
+    await crearCategorias(newClubId);
+    await invitarAdminHipodromo(newClubId, nombre, adminNombre, adminEmail);
+  } catch(err){
+    // Con el club ya creado, reanudar es seguro (y necesario: si no, queda un
+    // hipódromo sin categorías o sin administrador).
+    showCError(err.message, altaEnCurso?{reintentar:()=>saveCreate()}:{});
+  } finally {
+    btn.disabled=false; btn.textContent=rotuloBtnCreate();
+  }
+}
 
-    // La invitación va ÚLTIMA y a propósito: es lo único que puede fallar sin
-    // dejar el hipódromo inutilizable. El frontend ya no manda contraseñas; el
-    // club_id lo mandamos explícito porque el caller acá es super_admin.
-    const {error:invErr}=await sb.functions.invoke('invite-user',{
-      body:{
-        email: adminEmail,
-        nombre_completo: adminNombre,
-        rol: 'secretario_carreras',
-        club_id: newClubId,
-      }
-    });
+/** Las 4 categorías por club (OC, ONC, NO, CC). Idempotente vía altaEnCurso.catsOk. */
+async function crearCategorias(clubId){
+  const cats=[
+    {nombre:'Oficial Clásico',    codigo:'OC',  simbolo:'★', color_hex:'#c9a84c',es_computable:true, es_oficial:true, orden_display:1},
+    {nombre:'Oficial No Clásico', codigo:'ONC', simbolo:'◆', color_hex:'#4caf82',es_computable:true, es_oficial:true, orden_display:2},
+    {nombre:'No Oficial',         codigo:'NO',  simbolo:'▲', color_hex:'#a0b8a0',es_computable:false,es_oficial:false,orden_display:3},
+    {nombre:'Clásico Confirmado', codigo:'CC',  simbolo:'⭐',color_hex:'#e8b84b',es_computable:true, es_oficial:true, orden_display:4},
+  ].map(c=>({...c,club_id:clubId,activo:true}));
+  const {error:catErr}=await sb.from('categorias_carrera').insert(cats);
+  if(catErr) throw new Error('Hipódromo creado, pero error en categorías: '+catErr.message);
+  if(altaEnCurso) altaEnCurso.catsOk=true;
+}
 
-    if(invErr){
-      // NO se borra el club: queda creado y se reintenta la invitación desde
-      // usuarios.html. Es exactamente el estado del club de San Francisco,
-      // contemplado en §4 del plan.
-      const e=await parseFnError(invErr);
-      console.error('[admin.saveCreate] invite-user falló',
-        {club:newClubId, email:adminEmail, code:e.code, status:e.status});
-      closeCreate();
-      load();
-      toast(`Hipódromo "${nombre}" quedó creado, pero la invitación falló: ${mensajeError(e)} `+
-            `Reintentá la invitación desde Usuarios.`,'error');
+/**
+ * Último paso del alta. Va ÚLTIMO a propósito: es lo único que puede fallar sin
+ * dejar el hipódromo inutilizable. El frontend ya no manda contraseñas; el
+ * `club_id` va explícito porque el caller acá es super_admin.
+ *
+ * Un fallo transitorio NO cierra el modal: el club ya existe, así que reintentar
+ * la invitación sola es la acción correcta (volver a correr `saveCreate()` desde
+ * cero duplicaría el hipódromo — de eso se ocupa `altaEnCurso`).
+ */
+async function invitarAdminHipodromo(clubId, nombreClub, adminNombre, adminEmail){
+  const {error:invErr}=await sb.functions.invoke('invite-user',{
+    body:{
+      email: adminEmail,
+      nombre_completo: adminNombre,
+      rol: 'secretario_carreras',
+      club_id: clubId,
+    }
+  });
+
+  if(invErr){
+    const e=await parseFnError(invErr);
+    console.error('[admin.invitarAdminHipodromo] invite-user falló',
+      {club:clubId, email:adminEmail, code:e.code, status:e.status});
+
+    if(esReintentable(e)){
+      // El reintento entra por saveCreate() y NO por esta función directamente:
+      // así el botón se deshabilita solo, y el operador puede corregir un email
+      // mal tipeado antes de reintentar. `altaEnCurso` garantiza que retoma en
+      // la invitación y no vuelve a crear el club.
+      showCError(`El hipódromo "${nombreClub}" quedó creado, pero la invitación falló: `+
+                 mensajeError(e),
+                 {reintentar:()=>saveCreate()});
       return;
     }
 
-    toast(`Hipódromo "${nombre}" creado — invitación enviada a ${adminEmail}`);
+    // Definitivo: NO se borra el club, queda creado y la invitación se resuelve
+    // desde usuarios.html. Es el estado del club de San Francisco, contemplado
+    // en §4 del plan.
+    altaEnCurso=null;
     closeCreate();
     load();
-  } catch(err){
-    showCError(err.message);
-  } finally {
-    btn.disabled=false; btn.textContent='Crear Hipódromo';
+    toast(`Hipódromo "${nombreClub}" quedó creado, pero la invitación falló: ${mensajeError(e)} `+
+          `Reintentá la invitación desde Usuarios.`,'error');
+    return;
   }
+
+  altaEnCurso=null;
+  toast(`Hipódromo "${nombreClub}" creado — invitación enviada a ${adminEmail}`);
+  closeCreate();
+  load();
 }
 
 /**
@@ -573,6 +672,13 @@ function mensajeError(e){
       return 'ese email ya tenía una invitación previa; reenviala desde Usuarios.';
     case 'rate_limit_email':
       return 'se alcanzó el límite de emails por hora, reintentá en una hora.';
+    case 'error_transitorio':
+      // Bug de plataforma `kid <nil>` / ES256: suele pasar al segundo intento.
+      return 'falla momentánea de la plataforma de Auth, no se envió el mail.';
+    case 'invite_failed':
+      return 'no se pudo enviar la invitación (verificá si el mail llegó antes de reenviar).';
+    case 'alta_revertida':
+      return 'el alta del usuario falló y se revirtió sola: ese link quedó muerto.';
     case 'club_id_inexistente':
       return 'el club_id no existe (algo raro: el club se acaba de crear).';
     default:

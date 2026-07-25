@@ -199,8 +199,13 @@ async function tokenDe(email) {
 // `invite_failed` NO está en la lista a propósito: ahí ya se llamó a GoTrue y no
 // se puede afirmar que el mail no salió. Reintentarlo podría mandar dos mails y
 // quemar la cuota horaria. Si aparece, se reporta y listo.
+// `error_transitorio` (503, agregado el 25/07/2026) entra en la lista: la función
+// sólo lo devuelve cuando GoTrue rechazó la FIRMA del request y por lo tanto lo
+// descartó antes de procesarlo — el mail no salió, ni siquiera cuando el rechazo
+// pegó en el `/invite`. Es el mismo criterio que usa la UI (§2.2 del plan).
 const REINTENTABLES_PRE_MAIL = new Set([
   'caller_lookup_failed', 'dest_lookup_failed', 'auth_lookup_failed', 'auth_scan_truncado',
+  'error_transitorio',
 ]);
 
 async function invitarUnaVez(token, body) {
@@ -216,7 +221,10 @@ async function invitar(token, body, intentos = 10) {
   let ultima;
   for (let i = 1; i <= intentos; i++) {
     ultima = await invitarUnaVez(token, body);
-    if (ultima.status !== 500 || !REINTENTABLES_PRE_MAIL.has(ultima.payload?.code)) return ultima;
+    // 503 además de 500: `error_transitorio` viaja con 503, el resto con 500.
+    const reintentable = (ultima.status === 500 || ultima.status === 503)
+      && REINTENTABLES_PRE_MAIL.has(ultima.payload?.code);
+    if (!reintentable) return ultima;
     if (i < intentos) await new Promise((r) => setTimeout(r, 250));
   }
   return ultima;

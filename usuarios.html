@@ -284,10 +284,53 @@ function openCreate() {
   document.getElementById('modal-create').classList.add('open');
 }
 function closeCreate() { document.getElementById('modal-create').classList.remove('open'); }
-function setCreateError(msg) {
+/**
+ * Pinta el error del modal de alta. Con `reintentable: true` agrega un botón
+ * ↻ Reintentar: el formulario NO se limpia, así que el operador reintenta de un
+ * click sin volver a tipear nada (precondición 2 de la etapa (c) del plan).
+ */
+function setCreateError(msg, { reintentable = false } = {}) {
   const el = document.getElementById('c-error');
-  el.textContent = msg;
+  el.textContent = '';
   el.className = 'modal-error' + (msg ? ' show' : '');
+  if (!msg) return;
+  // textContent, nunca innerHTML: el mensaje viene de la Edge Function (ISSUE-018).
+  const linea = document.createElement('div');
+  linea.textContent = msg;
+  el.appendChild(linea);
+  if (reintentable) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-sm btn-edit';
+    btn.style.marginTop = '8px';
+    btn.textContent = '↻ Reintentar';
+    btn.onclick = () => saveCreate();
+    el.appendChild(btn);
+  }
+}
+
+/**
+ * ¿Vale ofrecer "Reintentar"? Sólo cuando se puede AFIRMAR que no salió ningún
+ * mail y no quedó nada escrito a medias. Reintentar sobre un estado parcial
+ * duplica mails y quema la cuota horaria. El allowlist es explícito a propósito:
+ * un code nuevo desconocido cae en "no reintentable" hasta que se decida.
+ *
+ * Quedan AFUERA y por qué:
+ *   invite_failed        → ya se llamó a GoTrue: NO se puede afirmar que el mail no salió.
+ *   error_inesperado     → posición desconocida dentro del flujo, mismo argumento.
+ *   compensacion_fallida → quedó un huérfano en Auth, hay que mirarlo a mano.
+ *   reparacion_fallida   → el usuario de Auth preexistía: es un caso de reinvitación.
+ *   auth_scan_truncado   → el reintento da lo mismo; no se resuelve con un click.
+ *   409 / 422            → definitivos por definición (ya existe, rol, club).
+ *
+ * `alta_revertida` SÍ entra aunque el primer mail haya salido: ese link quedó
+ * muerto (se borró la cuenta de Auth), así que reinvitar es la única salida.
+ */
+function esReintentable(e) {
+  const CODES = ['error_transitorio', 'auth_lookup_failed', 'alta_revertida'];
+  if (CODES.includes(e.code)) return true;
+  // Sin code: 502/503/504 son la función caída o reiniciando, no un rechazo.
+  return !e.code && [502, 503, 504].includes(e.status);
 }
 
 /**
@@ -348,7 +391,9 @@ async function saveCreate() {
         const reintento = await invitar({ email, nombre, telefono, rol, reinvitar: true });
         if (reintento.error) {
           const e2 = await parseFnError(reintento.error);
-          setCreateError(mensajeError(e2));
+          // Reintentar vuelve a entrar por reinvitar:false → 409 ya_existe → el
+          // confirm() de arriba. Un click extra, pero nunca un mail duplicado.
+          setCreateError(mensajeError(e2), { reintentable: esReintentable(e2) });
           return;
         }
         toast('Invitación reenviada a ' + email);
@@ -357,7 +402,7 @@ async function saveCreate() {
         return;
       }
 
-      setCreateError(mensajeError(e));
+      setCreateError(mensajeError(e), { reintentable: esReintentable(e) });
       return;
     }
 
@@ -366,7 +411,8 @@ async function saveCreate() {
     load();
   } catch (err) {
     console.error('[usuarios.saveCreate]', err);
-    setCreateError('No se pudo invitar al usuario: ' + err.message);
+    // Acá caen los fallos de red / fetch abortado: transitorios por naturaleza.
+    setCreateError('No se pudo invitar al usuario: ' + err.message, { reintentable: true });
   } finally {
     restaurarBtn();
   }
@@ -381,6 +427,17 @@ function mensajeError(e) {
              'tiene que usar "¿Olvidaste tu contraseña?" en el login — no se reinvita.';
     case 'rate_limit_email':
       return 'Se alcanzó el límite de emails por hora. Reintentá en una hora.';
+    case 'error_transitorio':
+      // Bug de plataforma `kid <nil>` / ES256: la misma llamada suele pasar al
+      // segundo intento. No se mandó ningún mail, así que reintentar es gratis.
+      return 'Falla momentánea de la plataforma de Auth. No se envió el mail — reintentá.';
+    case 'invite_failed':
+      // Sin botón de reintento a propósito: acá ya se llamó a GoTrue y no se
+      // puede afirmar que el mail no salió.
+      return 'No se pudo enviar la invitación. Verificá si el mail llegó antes de reintentar — ' +
+             'un reenvío consume cuota.';
+    case 'alta_revertida':
+      return 'El alta falló y la invitación se revirtió sola: ese link quedó muerto. Reintentá.';
     case 'club_id_requerido':
       // Pasa si el caller es super_admin: esta pantalla no manda club_id.
       return 'Sos super_admin: la función pide un club_id explícito y esta pantalla no lo manda. ' +
