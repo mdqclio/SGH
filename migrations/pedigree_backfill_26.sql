@@ -1,8 +1,13 @@
 -- PASO 4 — backfill de pedigree (padre/madre) para SPCs sin dato
--- 21 UPDATE aprobados por review (Leonardo, 2026-07-22). GREAT ORPEN excluido.
+-- 22 UPDATE aplicados sobre 26 candidatos.
+--   21 aprobados por review (Leonardo, 2026-07-22) — bloque BEGIN/COMMIT de abajo.
+--    1 aplicado aparte el 2026-07-28: GREAT ORPEN, tras confirmacion de Fede (ver
+--      "BUCKET B" mas abajo). Esa sentencia NO forma parte de la transaccion del 22/07.
+--   Los 4 restantes siguen sin aplicar: no tienen match en el Stud Book.
 -- Fuente: www.studbook.org.ar via tools/sb_pedigree_26.py
 -- Evidencia por caballo: data/pedigree_scrape_26.json + data/pedigree_paso4_scrape.md
--- Alcance: SOLO padrillo_nombre y madre_nombre. No toca ningun otro campo.
+-- Alcance: SOLO padrillo_nombre y madre_nombre, con una excepcion documentada
+--   (GREAT ORPEN, que ademas corrige fecha_nacimiento y carga studbook_id).
 -- Precondicion: las 26 filas tienen padrillo_nombre IS NULL AND madre_nombre IS NULL.
 -- El WHERE lo reafirma: la sentencia es idempotente y no pisa dato existente.
 
@@ -64,12 +69,32 @@ UPDATE spcs SET padrillo_nombre = 'Remote (GB)', madre_nombre = 'Holiday Wave'
 -- Folke Dancer | SB 422244 | SB 2020-07-16 vs DB 2020-07-06
 UPDATE spcs SET padrillo_nombre = 'Forge (GB)', madre_nombre = 'Follow'
   WHERE id = '1c89581b-b0ec-4588-9e28-596312ce6a7b' AND padrillo_nombre IS NULL AND madre_nombre IS NULL;
--- EXCLUIDO POR REVIEW (Leonardo, 2026-07-22): GREAT ORPEN queda afuera.
--- 68 dias de discrepancia (SB 2023-12-12 vs DB 2023-10-05) + inscripcion viva.
--- Va a verificacion aparte con Fede. Sentencia dejada comentada, NO ejecutar
--- sin esa confirmacion:
--- UPDATE spcs SET padrillo_nombre = 'Orpen Farrero', madre_nombre = 'Great Perfection'
---   WHERE id = '6df0d170-4d32-43d3-82cb-b0c540963bc8' AND padrillo_nombre IS NULL AND madre_nombre IS NULL;
+-- GREAT ORPEN | SB 447875 | SB 2023-12-12 vs DB 2023-10-05 | match unico, 1 candidato exacto
+-- Excluido por review el 2026-07-22 (68 dias de discrepancia + inscripcion viva).
+-- RESUELTO 2026-07-28: Fede confirmo que la fecha correcta es la del Stud Book
+-- (2023-12-12). Eso valida el match completo del scrape, asi que ademas del pedigree
+-- se corrige fecha_nacimiento y se carga studbook_id.
+--
+-- OJO: esta sentencia se ejecuto SUELTA el 2026-07-28, fuera del BEGIN/COMMIT de arriba
+-- (que ya estaba aplicado desde el 22/07). Se deja aca por trazabilidad, no para
+-- re-ejecutar el archivo entero.
+--
+-- Verificado antes de aplicar:
+--   - padrillo_nombre y madre_nombre seguian NULL (el guard del WHERE habria salteado si no)
+--   - studbook_id '447875' libre: spcs_studbook_id_uniq es un UNIQUE parcial
+--     (WHERE studbook_id IS NOT NULL), 0 colisiones
+--   - studbook_id es TEXT, no integer: el literal va entre comillas
+-- Verificado despues:
+--   - UPDATE 1
+--   - inscripcion e7d7e085 (reunion 2026-06-20, edad_min=max=2) sigue valida:
+--     edad 2 con ambas fechas, validar_inscripcion() -> true.
+--     AGE() es aniversario civil: las dos fechas solo difieren entre el 5/10 y el 12/12.
+UPDATE spcs
+  SET fecha_nacimiento = DATE '2023-12-12',
+      studbook_id      = '447875',
+      padrillo_nombre  = 'Orpen Farrero',
+      madre_nombre     = 'Great Perfection'
+  WHERE id = '6df0d170-4d32-43d3-82cb-b0c540963bc8' AND padrillo_nombre IS NULL AND madre_nombre IS NULL;
 -- MONADESEDA | SB 445820 | SB 2023-10-02 vs DB 2023-10-01
 UPDATE spcs SET padrillo_nombre = 'Forge (GB)', madre_nombre = 'Shake (USA)'
   WHERE id = 'a91658ed-b79c-4abe-bd08-3a672bd923e4' AND padrillo_nombre IS NULL AND madre_nombre IS NULL;
@@ -86,12 +111,18 @@ UPDATE spcs SET padrillo_nombre = 'Peten Itza', madre_nombre = 'Honey Moon'
 COMMIT;
 
 -- ==== VERIFICACION ====
--- select count(*) filter (where padrillo_nombre is null) from spcs;  -- esperado: 5
--- (4 sin match en SB + GREAT ORPEN, excluido por review)
+-- select count(*) filter (where padrillo_nombre is null) from spcs;  -- esperado: 4
+-- (los 4 sin match en SB. GREAT ORPEN salio de esta lista el 2026-07-28.)
+-- Verificado 2026-07-28: devuelve 4. count(studbook_id) paso de 26 a 27.
 
 -- ==== ROLLBACK ====
--- Las 21 filas tenian padrillo_nombre y madre_nombre en NULL antes del backfill,
+-- Las 22 filas tenian padrillo_nombre y madre_nombre en NULL antes del backfill,
 -- asi que revertir es volverlas a NULL. No hay dato previo que restaurar.
+-- La lista de abajo son las 21 del 22/07. GREAT ORPEN va aparte porque ademas
+-- cambio fecha_nacimiento y studbook_id, y esos si tienen dato previo:
+--   UPDATE spcs SET padrillo_nombre = NULL, madre_nombre = NULL, studbook_id = NULL,
+--                   fecha_nacimiento = DATE '2023-10-05'
+--     WHERE id = '6df0d170-4d32-43d3-82cb-b0c540963bc8';
 -- BEGIN;
 -- UPDATE spcs SET padrillo_nombre = NULL, madre_nombre = NULL WHERE id IN (
 --   '019d9b9f-7b81-490e-b219-aff383fae166',
