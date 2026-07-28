@@ -55,11 +55,35 @@
  *                             que la última pegue contra el rate limit y vuelva
  *                             429 — lo cual es un resultado válido, pero deja de
  *                             medir lo que el caso 7 quiere medir.
+ *                             Con 0 el caso 7 se SALTEA (y se reporta como
+ *                             salteado, no como fallo): la corrida gasta 1 solo
+ *                             email. Es la corrida mínima.
  *
  * Uso:
  *   INVITE_FN_URL=... SUPABASE_URL=... SUPABASE_PUBLISHABLE_KEY=... \
  *   SUPABASE_SECRET_KEY=... INVITE_TEST_EMAIL=... \
  *   node tests/probe_invite_user.mjs
+ *
+ * ---------------------------------------------------------------------------
+ * CORRIDA MÍNIMA — 1 solo email, casilla descartable, teardown completo.
+ * Es la forma recomendada de correrlo salvo que se quiera medir el caso 7.
+ * ---------------------------------------------------------------------------
+ *   export INVITE_FN_URL='https://<ref>.supabase.co/functions/v1/invite-user'
+ *   export SUPABASE_URL='https://<ref>.supabase.co'
+ *   export SUPABASE_PUBLISHABLE_KEY='sb_publishable_...'   # pública, ya está en el repo
+ *   export SUPABASE_SECRET_KEY='sb_secret_...'             # NUNCA commitear
+ *   export INVITE_TEST_EMAIL='casilla+probe@descartable.tld'
+ *   export INVITE_REINVITACIONES=0     # saltea el caso 7 → 1 email en vez de 2
+ *   # INVITE_KEEP_TEST_USER SIN SETEAR → el invitado se borra al final
+ *   unset INVITE_KEEP_TEST_USER
+ *   node tests/probe_invite_user.mjs
+ *
+ *   Verificar <ref> ANTES de correr: el probe no valida contra qué proyecto
+ *   apunta, va a donde digan las env. Prod es unlhcuanfrtpatoipwve.
+ *   INVITE_TEST_EMAIL tiene que ser EXTERNA a la org de Supabase (§3.2).
+ *
+ *   Si el teardown deja residuo (el borrado en Auth también pega contra el
+ *   "kid <nil>"): tests/teardown_probe_invite_residuo.sql
  *
  * ⚠️ ESCRIBE EN PROD. Crea 3 usuarios fixture (dominio .invalid, prefijo
  *    `probe-invite-`) y 1 invitado real, y los borra al final. El cleanup SÓLO
@@ -118,11 +142,20 @@ const admin = createClient(SUPABASE_URL, SECRET_KEY, {
 // tapar un bug real.
 const ES_KID_NIL = (msg) => /unrecognized JWT kid/i.test(String(msg ?? ''));
 
+// Igual que `invitar()`: los reintentos se cuentan y se loguean. Estos son los
+// del PROBE contra la Admin API, distintos de los de la función — se registran
+// bajo `kid_nil_admin_api` para no mezclarlos con los codes que devuelve la
+// función. Sirven como termómetro independiente de si el bug sigue vivo.
 async function reintentar(label, fn, intentos = 12) {
   for (let i = 1; i <= intentos; i++) {
     const { data, error } = await fn();
-    if (!error) return data;
+    if (!error) {
+      if (i > 1) console.log(`  ↻ ${label}: resuelto en el intento ${i}/${intentos}`);
+      return data;
+    }
     if (!ES_KID_NIL(error.message)) throw new Error(`${label}: ${error.message}`);
+    registrarReintento('kid_nil_admin_api');
+    console.log(`  ↻ ${label}: intento ${i}/${intentos} → kid <nil> ES256 — reintentable`);
     if (i === intentos) throw new Error(`${label}: ${intentos} intentos, todos "kid <nil> ES256"`);
     await new Promise((r) => setTimeout(r, 250));
   }
@@ -217,16 +250,73 @@ async function invitarUnaVez(token, body) {
   return { status: res.status, payload };
 }
 
-async function invitar(token, body, intentos = 10) {
+// ---------------------------------------------------------------------------
+// Instrumentación de reintentos — PERMANENTE, no debug temporal
+// ---------------------------------------------------------------------------
+// Sin esto, una corrida verde no distingue "salió a la primera" de "la
+// plataforma rechazó 4 veces y el reintento lo tapó". Son dos estados muy
+// distintos del sistema y el resumen los mostraba igual.
+//
+// Importa especialmente para `error_transitorio`: como está en
+// REINTENTABLES_PRE_MAIL, el probe se lo traga y reintenta en silencio. O sea
+// que el mecanismo pensado para que el probe sea robusto es exactamente el que
+// oculta la evidencia de que la rama de retry de la función se ejecutó. El
+// contador de abajo es la única forma de verlo sin ir a los logs de la función.
+//
+// Se imprime SIEMPRE al final, incluso todo en cero: "0 reintentos" es un dato,
+// no un no-dato.
+const reintentosPorCode = new Map();
+
+function registrarReintento(code) {
+  reintentosPorCode.set(code, (reintentosPorCode.get(code) ?? 0) + 1);
+}
+
+function resumenReintentos() {
+  console.log('\n— Reintentos —');
+  if (reintentosPorCode.size === 0) {
+    console.log('  0 reintentos: ninguna llamada necesitó repetirse.');
+    console.log('  (con el bug "kid <nil>" activo esto es POCO probable — si la corrida');
+    console.log('   fue larga y no hubo ni uno, vale confirmar que el bug sigue vivo)');
+    return;
+  }
+  for (const [code, n] of [...reintentosPorCode].sort((a, b) => b[1] - a[1])) {
+    console.log(`  ${String(n).padStart(3)} × ${code}`);
+  }
+  if (reintentosPorCode.has('error_transitorio')) {
+    console.log('  ✅ `error_transitorio` aparece: la rama de retry de la función SE EJECUTÓ.');
+  } else {
+    console.log('  ℹ️  `error_transitorio` NO aparece: no hay evidencia de que esa rama');
+    console.log('     se haya ejecutado en esta corrida. Ojo: sólo puede aparecer si la');
+    console.log('     función deployada incluye el cambio del 25/07/2026.');
+  }
+}
+
+// `opts.label` sale en cada línea de reintento para poder atribuirla al caso.
+// `opts.intentos` sigue siendo 10 por defecto; ningún call site lo pisa hoy.
+async function invitar(token, body, opts = {}) {
+  const { label = 'invitar', intentos = 10 } = opts;
   let ultima;
   for (let i = 1; i <= intentos; i++) {
     ultima = await invitarUnaVez(token, body);
     // 503 además de 500: `error_transitorio` viaja con 503, el resto con 500.
     const reintentable = (ultima.status === 500 || ultima.status === 503)
       && REINTENTABLES_PRE_MAIL.has(ultima.payload?.code);
-    if (!reintentable) return ultima;
+
+    if (!reintentable) {
+      // Sólo se loguea si hubo reintentos: en el caso normal no ensucia la salida.
+      if (i > 1) {
+        console.log(`  ↻ ${label}: resuelto en el intento ${i}/${intentos} → HTTP ${ultima.status}`);
+      }
+      return ultima;
+    }
+
+    const code = ultima.payload?.code ?? `sin_code_http_${ultima.status}`;
+    registrarReintento(code);
+    console.log(`  ↻ ${label}: intento ${i}/${intentos} → HTTP ${ultima.status} ${code} — reintentable`);
     if (i < intentos) await new Promise((r) => setTimeout(r, 250));
   }
+  console.log(`  ⛔ ${label}: agotados los ${intentos} intentos → HTTP ${ultima.status} `
+    + `${ultima.payload?.code ?? ''}`);
   return ultima;
 }
 
@@ -328,7 +418,7 @@ try {
   {
     const r = await invitar(null, {
       email: EMAIL_DEST_OPER, nombre_completo: 'Sin Token', rol: 'operador',
-    });
+    }, { label: 'caso 2 (401 sin token)' });
     // Si la función quedó con verify_jwt=true, el 401 lo devuelve la plataforma
     // (body distinto). Sólo se asegura el status.
     check(r.status === 401, 'status 401', `recibido ${r.status}`);
@@ -341,7 +431,7 @@ try {
   {
     const r = await invitar(tokOper, {
       email: EMAIL_DEST_OPER, nombre_completo: 'Rechazado', rol: 'operador',
-    });
+    }, { label: 'caso 3 (403 rol operador)' });
     check(r.status === 403, 'status 403', `recibido ${r.status}`);
     check(r.payload?.code === 'rol_caller_no_autorizado',
       'code = rol_caller_no_autorizado', JSON.stringify(r.payload));
@@ -359,7 +449,7 @@ try {
       nombre_completo: 'Escalada Horizontal',
       rol: 'operador',
       club_id: CLUB_B,             // ← club que NO es el suyo
-    });
+    }, { label: 'caso 4 (403 club ajeno)' });
     check(r.status === 403, 'status 403', `recibido ${r.status}`);
     check(r.payload?.code === 'club_ajeno', 'code = club_ajeno', JSON.stringify(r.payload));
 
@@ -375,7 +465,7 @@ try {
   {
     const r = await invitar(tokSecre, {
       email: EMAIL_DEST_AJENO, nombre_completo: 'Escalada Vertical', rol: 'super_admin',
-    });
+    }, { label: 'caso 4b (403 rol no invitable)' });
     check(r.status === 403, 'status 403', `recibido ${r.status}`);
     check(r.payload?.code === 'rol_no_invitable', 'code = rol_no_invitable', JSON.stringify(r.payload));
     check(await filaUsuario(EMAIL_DEST_AJENO) === null, 'no se creó fila en usuarios');
@@ -391,7 +481,7 @@ try {
       nombre_completo: 'Rol Inexistente',
       rol: 'director_tecnico',      // no está en rol_usuario
       club_id: CLUB_A,
-    });
+    }, { label: 'caso 6 (422 rol inválido)' });
     check(r.status === 422, 'status 422', `recibido ${r.status}`);
     check(r.payload?.code === 'rol_invalido', 'code = rol_invalido', JSON.stringify(r.payload));
     check(await filaUsuario(EMAIL_DEST_ROLBAD) === null, 'no se creó fila en usuarios');
@@ -408,7 +498,7 @@ try {
       rol: 'operador',
       telefono: '+5492245000000',
       // club_id omitido a propósito: para 'propio' lo resuelve la función.
-    });
+    }, { label: 'caso 1 (200 feliz — MANDA MAIL)' });
     check(r.status === 200, 'status 200', `recibido ${r.status} ${JSON.stringify(r.payload)}`);
     check(r.payload?.ok === true, 'ok = true');
     check(r.payload?.estado === 'invitado', 'estado = invitado');
@@ -445,7 +535,7 @@ try {
       email: TEST_EMAIL.toUpperCase(),   // además prueba la normalización
       nombre_completo: 'Invitado De Prueba',
       rol: 'operador',
-    });
+    }, { label: 'caso 5 (409 repetido)' });
     check(r.status === 409, 'status 409', `recibido ${r.status}`);
     check(r.payload?.code === 'ya_existe', 'code = ya_existe', JSON.stringify(r.payload));
   }
@@ -477,7 +567,7 @@ try {
         nombre_completo: 'Invitado De Prueba',
         rol: 'operador',
         reinvitar: true,
-      });
+      }, { label: `caso 7 reinvitación #${i} (MANDA MAIL)` });
       respuestas.push([`#${i}`, r]);
       console.log(`  ℹ️  reinvitación #${i} → HTTP ${r.status} ${JSON.stringify(r.payload)}`);
     }
@@ -511,8 +601,16 @@ try {
     check(au !== null, 'la cuenta de Auth sigue existiendo');
     check(au ? !au.email_confirmed_at : false, 'sigue SIN confirmar');
 
-    const todasOk = respuestas.length > 0 && respuestas.every(([, r]) => r.status === 200);
-    if (todasOk) {
+    // Tres estados, no dos. Antes eran dos y `INVITE_REINVITACIONES=0` caía en
+    // el `else`, o sea gritaba "GoTrue NO reenvía" sin haber intentado ni una
+    // reinvitación. Salteado ≠ falló: no se puede concluir nada de una prueba
+    // que no se corrió.
+    if (respuestas.length === 0) {
+      console.log('  ⏭️  SALTEADO (INVITE_REINVITACIONES=0): no se probó el reenvío.');
+      console.log('     Los invariantes de arriba (1 sola fila, sigue pendiente/inactivo,');
+      console.log('     Auth sin confirmar) SÍ se verificaron sobre el estado del caso 1.');
+      console.log('     §2.4 del plan queda igual de sin verificar que antes de esta corrida.');
+    } else if (respuestas.every(([, r]) => r.status === 200)) {
       console.log('  ✅ GoTrue reenvía la invitación de un usuario sin confirmar (§2.4 confirmada).');
       console.log('     La casilla recibió MÁS DE UNA invitación: vale la ÚLTIMA (el token rota).');
     } else {
@@ -527,6 +625,8 @@ try {
 } finally {
   await cleanup().catch((e) => console.error(`  ⚠️ cleanup: ${e.message}`));
 }
+
+resumenReintentos();
 
 console.log(`\n=== ${ok} OK · ${fail} FAIL ===`);
 process.exit(exitCode || (fail > 0 ? 1 : 0));
