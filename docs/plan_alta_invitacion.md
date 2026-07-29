@@ -172,8 +172,34 @@ habilita, así que ese caso no se resuelve ahora, pero el mapa no debe cerrarle 
 **Errores**: `401` sin token / token inválido · `403` caller no autorizado o combinación
 rol+club prohibida · `409` el email ya tiene fila en `usuarios` y `reinvitar` no vino en true ·
 `422` payload inválido (email mal formado, rol fuera del enum) · `429` rate limit de email
-alcanzado (ver §3) · `500` fallo inesperado. **Los mensajes de error no exponen si un email
-existe en Auth** salvo al caller ya autenticado como admin.
+alcanzado (ver §3) · `500` fallo inesperado · `503 error_transitorio` fallo transitorio de la
+Admin API de GoTrue, **nada escrito y ningún mail enviado — reintentable**. **Los mensajes de
+error no exponen si un email existe en Auth** salvo al caller ya autenticado como admin.
+
+**Contrato de reintento** (precondición 2 de la etapa (c), agregado el 25/07/2026). La UI decide
+si ofrece "Reintentar" con un **allowlist explícito** de codes, no con una regla sobre el status.
+El criterio único: **se ofrece reintentar sólo si se puede afirmar que no salió ningún mail** (o
+que el que salió quedó muerto). Es el mismo razonamiento que ya usaba
+`tests/probe_invite_user.mjs` para su propio reintento automático.
+
+| Code | HTTP | ¿Reintentable? | Por qué |
+|---|---|---|---|
+| `error_transitorio` | 503 | **Sí** | Rechazo de firma (`kid <nil>` / ES256): GoTrue descarta el request antes de procesarlo. Nada escrito, ningún mail |
+| `auth_lookup_failed` | 500 | **Sí** | Falla en el `listUsers` previo: es anterior al `/invite` |
+| `alta_revertida` | 500 | **Sí** | El mail sí salió, pero la compensación borró la cuenta de Auth y el link quedó muerto: reinvitar es la única salida |
+| `invite_failed` | 500 | No | Ya se llamó a GoTrue: **no se puede afirmar que el mail no salió**. El mensaje pide verificar el mail antes de reenviar |
+| `error_inesperado` | 500 | No | Posición desconocida dentro del flujo: mismo argumento |
+| `compensacion_fallida` | 500 | No | Quedó un huérfano en Auth: se mira a mano |
+| `reparacion_fallida` | 500 | No | El usuario de Auth preexistía: es reinvitación, no reintento |
+| `auth_scan_truncado` | 500 | No | El reintento da lo mismo |
+| `ya_activo`, `ya_existe`, `auth_ya_registrado`, `rol_no_invitable`, `club_ajeno`, `club_id_*`, `rate_limit_email` | 409/422/429 | No | Definitivos: el reintento inmediato da el mismo resultado |
+
+Un code nuevo que no esté en el allowlist cae en **no reintentable** hasta que se decida.
+
+Corolario en la función: hay **dos** predicados, no uno. `esKidNilAdminApi()` es sólo texto y se
+usa sobre el `/invite`; `esTransitorioPreMail()` agrega los status 502/503/504 y se usa **sólo**
+en los pasos anteriores al `/invite`. Un 502/504 de gateway sobre el `/invite` sí puede haber
+mandado el mail, así que ahí no califica como transitorio.
 
 ### 2.3 Qué escribe, y en qué orden
 
@@ -470,10 +496,37 @@ Sólo con (a) y (b) verdes en producción — **ya lo están** (24/07/2026).
    directo en el alta: si le pega al `/invite`, la función devuelve `500 invite_failed` y la
    invitación no sale. Con el toggle apagado, la Admin API pasa a ser el **único** camino de
    alta, así que esta intermitencia deja de ser molestia y pasa a ser bloqueante.
-2. **Mini-tanda de UI: error reintentable.** Las pantallas de alta tienen que distinguir el fallo
-   transitorio del definitivo y ofrecer **reintentar** sin perder lo cargado en el formulario.
-   Hoy un `500 invite_failed` se ve como error genérico. Criterio: el operador de secretaría
+2. **Mini-tanda de UI: error reintentable.** — ✅ **CÓDIGO LISTO (25/07/2026), FALTA DEPLOY + PROBE.**
+   Las pantallas de alta tienen que distinguir el fallo transitorio del definitivo y ofrecer
+   **reintentar** sin perder lo cargado en el formulario. Criterio: el operador de secretaría
    puede reintentar de un click y el segundo intento suele pasar (medido: pasó al segundo).
+
+   Qué se hizo:
+
+   - **`invite-user`**: dos detectores nuevos, y son dos a propósito (ver el corolario de §2.2).
+     `esKidNilAdminApi()` matchea sólo el texto del rechazo de firma (`unrecognized JWT kid`,
+     `invalid JWT` + `es256`) y es el que se usa sobre el `inviteUserByEmail()`.
+     `esTransitorioPreMail()` agrega los status 502/503/504 y se usa **sólo** en el `listUsers` de
+     `findAuthUserByEmail()`, que es anterior al mail. Los dos puntos pasan a devolver
+     `503 error_transitorio` en lugar de `500 auth_lookup_failed` / `500 invite_failed`.
+     La función **no** reintenta sola: el reintento es del operador, así ve qué pasó y no se
+     duplican mails a sus espaldas.
+   - **`usuarios.html`**: `setCreateError(msg, {reintentable})` agrega un botón **↻ Reintentar**
+     dentro del cuadro de error. El formulario no se limpia, así que es un click. La decisión de
+     mostrarlo sale de `esReintentable(e)` — el allowlist de §2.2. El `catch` de red también es
+     reintentable. Mensajes propios para `error_transitorio`, `invite_failed` y `alta_revertida`
+     (antes caían en el `default` genérico con el code crudo). `invite_failed` tiene mensaje pero
+     **no** botón: el copy pide verificar si el mail llegó antes de reenviar.
+   - **`admin.html`**: el alta de hipódromo son 3 escrituras (club → categorías → invitación) y el
+     reintento **no puede volver a empezar**: duplicaría el hipódromo. Se agregó el estado
+     `altaEnCurso = {clubId, catsOk}` y `saveCreate()` **retoma** desde el paso que falló. Ante un
+     fallo transitorio de la invitación el modal **ya no se cierra** (antes cerraba y mandaba al
+     operador a `usuarios.html`): queda con el botón de reintento, y de paso permite corregir un
+     email mal tipeado. Ante un fallo **definitivo** el comportamiento anterior se mantiene —
+     club creado, modal cerrado, toast que manda a Usuarios.
+
+   Verificación local: `node --check` sobre los scripts inline de las dos pantallas — OK. **Sin
+   deploy**: la función nueva todavía no está en producción, así que la etapa (c) sigue cerrada.
 
 **Probe posterior, en este orden**:
 1. Alta por invitación desde `usuarios.html` → sigue funcionando (la Admin API **no** depende
