@@ -101,6 +101,15 @@ pero no estructural — la estructural es R2a.
 
 ## Pendiente
 
-- **R2a** — wrap de las 108 policies. Verificable con `EXPLAIN` buscando `InitPlan`.
-- Re-medir el resto de los planes de Fase 2 (a, b, e, f) después de R2a.
+- ~~**R2a** — wrap de las 108 policies.~~ ✅ **APLICADA el 01/08/2026** — ver
+  [`SEC_RLS_FASE3.md`](SEC_RLS_FASE3.md). 0 policies quedan sin envolver (120 en total).
+  Ojo al re-medir: la query (d) **no muestra mejora atribuible a R2a**, porque la policy
+  `liquidacion_detalle_select` se reescribió en SEC_RLS FASE 2c y nació envuelta — esa mejora
+  (8,50 → 4,32 ms, −49 %) ya estaba cobrada antes de aplicar R2a. El efecto de R2a se midió
+  con un A/B sobre `inscripciones_select`, que FASE 2 no tocó: **1.381 → 1.321 buffers y
+  8,94 → 4,70 ms (−47 %)**.
+- Re-medir el resto de los planes de Fase 2 (a, b, e, f) — ahora contra el estado post-SEC_RLS,
+  no contra el baseline viejo: la FASE 2 de seguridad cambió las policies de `liquidaciones`,
+  `liquidacion_detalle`, `recibos`, `usuarios` y los cuatro catálogos, así que varios planes
+  de referencia quedaron obsoletos.
 - Recién con R2a aplicada tiene sentido decidir sobre ISSUE-032 (Pro vs Free).
