@@ -367,6 +367,22 @@ try {
     `spc=${ve.spc} insc=${ve.insc} detalle=${ve.det}`);
 
   // =========================================================================
+  console.log('\n── Assert 13: escalada por auto-edición (guarda de FASE 2c) ──');
+  // =========================================================================
+  // `usuarios_update` deja editar la fila propia y RLS no tiene granularidad de
+  // columna. Como la identidad del portal se resuelve por usuarios.entidad_id,
+  // sin guarda una cuenta podría reapuntarse a la ficha de otro y suplantarlo
+  // SIN tocar la fila de la víctima. Lo frena trg_usuarios_guard_privilegios.
+  const { data: snapU } = await admin.from('usuarios')
+    .select('entidad_id').eq('email', uA.email).maybeSingle();
+  await sbA.from('usuarios').update({ entidad_id: propB }).eq('email', uA.email);
+  const { data: postU } = await admin.from('usuarios')
+    .select('entidad_id').eq('email', uA.email).maybeSingle();
+  check(13, postU?.entidad_id === snapU?.entidad_id,
+    'A NO puede reapuntar su propio entidad_id a la ficha de B',
+    `antes=${snapU?.entidad_id} después=${postU?.entidad_id}`);
+
+  // =========================================================================
   console.log('\n── Asserts del RPC (11-12) ──');
   // =========================================================================
   const { error: eRpc } = await sbA.rpc('portal_inscribir', { p_spc_id: spcB, p_carrera_id: carrFix });
