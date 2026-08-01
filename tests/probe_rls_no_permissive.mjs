@@ -29,22 +29,17 @@ function requireSecret() {
 }
 
 // --------------------------------------------------------------------------
-// ALLOWLIST — policies permisivas TOLERADAS temporalmente.
-// Son los catálogos globales (club_id-nullable) cuyo endurecimiento está
-// GATEADO en FASE 3 (pendiente de decisión de producto, ver SECURITY_AUDIT.md).
-// >>> QUITAR CADA ENTRADA AL APLICAR FASE 3 <<<  (cuando la lista quede vacía,
-// el probe pasa a ser estricto total).
+// ALLOWLIST — VACÍA desde el 01/08/2026. El probe es estricto total.
+//
+// Las 8 entradas que había (spcs, propietarios, profesionales y
+// spc_propietarios, insert+update) eran los catálogos globales gateados. Se
+// cerraron en SEC_RLS FASE 2a — ver docs/SEC_RLS_FASE2.md y
+// migrations/sec_rls_fase2a_catalogos.sql.
+//
+// >>> NO volver a agregar entradas sin justificación escrita. <<<
+// Una policy de escritura con USING(true) o WITH CHECK(true) es RLS anulada.
 // --------------------------------------------------------------------------
-const ALLOWLIST = new Set([
-  'spcs.spcs_insert',
-  'spcs.spcs_update',
-  'propietarios.propietarios_insert',
-  'propietarios.propietarios_update',
-  'profesionales.profesionales_insert',
-  'profesionales.profesionales_update',
-  'spc_propietarios.spc_propietarios_insert',
-  'spc_propietarios.spc_propietarios_update',
-]);
+const ALLOWLIST = new Set([]);
 
 const sb = createClient(SUPABASE_URL, requireSecret(), {
   auth: { autoRefreshToken: false, persistSession: false },
