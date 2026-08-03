@@ -159,7 +159,11 @@ export function buildReunionJson({
       // deja al final a cualquier competidor sin mandil en vez de mezclarlo.
       .sort((a, b) => (mandilMap[a.id] ?? 9999) - (mandilMap[b.id] ?? 9999))
       .map(i => {
-        const rp = posByInsc.get(i.id) || null;
+        // La fila de resultado_posiciones SÓLO se lee si el resultado está
+        // oficializado. Si no, la carrera viaja como programa y no puede
+        // filtrar nada de un resultado sin oficializar: ni dividendos
+        // (pagaria), ni márgenes (cuerpos), ni distanciamientos.
+        const rp = hasResult ? (posByInsc.get(i.id) || null) : null;
         const spc = spcMap.get(i.spc_id) || null;
         const jock = profMap.get(i.jockey_titular_id) || null;
         const cuid = profMap.get(i.entrenador_id) || null;
