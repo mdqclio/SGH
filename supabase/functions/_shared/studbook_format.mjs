@@ -10,6 +10,8 @@
 // NO hace fetch, NO toca env, NO escribe archivos.
 // ============================================================
 
+import { renumerarChapas } from './mandil.mjs';
+
 export const TZ_DEFAULT = 'America/Argentina/Buenos_Aires';
 
 // max(bolsa*pct/100, ganancia_minima) — réplica de premios-utils.js#calcPremiosConPiso
@@ -128,6 +130,16 @@ export function buildReunionJson({
       ? insc.filter(i => posByInsc.has(i.id))
       : insc.filter(i => i.estado === 'ratificado');
 
+    // MANDIL — se calcula sobre TODAS las inscripciones de la carrera, nunca
+    // sobre `comps`. Los dos conjuntos no coinciden: con resultado, `comps`
+    // son los que tienen fila en resultado_posiciones, que puede no ser
+    // exactamente el set de ratificados. Renumerar `comps` daría mandiles
+    // corridos respecto del programa y la carta de llamados ya impresos.
+    // Ver docs/YUNTA_MANDIL_ESTADO.md §3.
+    // El que no largó (no_largo) conserva su mandil y deja el hueco: es
+    // ratificado, así que el mapa se lo asigna igual.
+    const mandilMap = renumerarChapas(insc);
+
     // premios puestos 1..5
     const dist = c.distribucion_premios || {};
     const premios = [];
@@ -141,7 +153,10 @@ export function buildReunionJson({
     }
 
     const competidores = comps
-      .sort((a, b) => (a.numero_partidor ?? 0) - (b.numero_partidor ?? 0))
+      // Orden de salida por MANDIL. Para los ratificados es equivalente a
+      // ordenar por gatera (el mandil es monótono en numero_partidor), pero
+      // deja al final a cualquier competidor sin mandil en vez de mezclarlo.
+      .sort((a, b) => (mandilMap[a.id] ?? 9999) - (mandilMap[b.id] ?? 9999))
       .map(i => {
         const rp = posByInsc.get(i.id) || null;
         const spc = spcMap.get(i.spc_id) || null;
@@ -160,8 +175,13 @@ export function buildReunionJson({
           puesto,
           estado: null,                 // ignorable v1
           estado_equino_carrera: null,  // ignorable v1
-          orden: str(i.numero_partidor),
-          yunta: null,                  // gap v1
+          // orden = MANDIL (número del dorsal, 1..N), NO la gatera.
+          // Confirmado por Diego. Sin fallback a numero_partidor: si el
+          // competidor no está en el mapa (dejó de ser ratificado después de
+          // cargado el resultado) sale null, porque mandar la gatera ahí
+          // sería mandar otra cosa con el mismo nombre.
+          orden: str(mandilMap[i.id] ?? null),
+          yunta: null,                  // columna futura — no existe en el schema
           distanciado: rp?.descalificado ? 'SI' : 'NO',
           motivo_distanciado: rp?.motivo_desc ?? null,
           ejemplar: { nombre: spc?.nombre ?? null, id: str(spc?.studbook_id) },
