@@ -11,6 +11,7 @@
 // ============================================================
 
 import { renumerarChapas } from './mandil.mjs';
+import { resolverChapa } from './chapas_map.mjs';
 
 export const TZ_DEFAULT = 'America/Argentina/Buenos_Aires';
 
@@ -204,7 +205,14 @@ export function buildReunionJson({
             procedencia: procedenciaCaballeriza(cab),
           },
           jockey_kilos: str2(i.peso_final),
-          cuerpos: { id_interno: null, nombre: rp?.diferencia ?? null },
+          // cuerpos: id_interno resuelto contra el catálogo de chapas.js.
+          // `nombre` SIEMPRE viaja como está en la DB — no se reescribe ni se
+          // normaliza el texto; sólo se agrega el id cuando se puede resolver.
+          // Sin match (hoy: "nariz") → id_interno null y texto intacto.
+          cuerpos: {
+            id_interno: resolverChapa(rp?.diferencia).id,
+            nombre: rp?.diferencia ?? null,
+          },
           pagaria: str(rp?.dividendo),
         };
       });
