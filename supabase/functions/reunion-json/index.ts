@@ -4,8 +4,12 @@
 // Expone el JSON de reunión del Stud Book POR FECHA, scope Dolores.
 //
 //   GET /reunion-json?fecha=YYMMDD   (ej 990101 → 2099-01-01)
-//   Auth: header  Authorization: Bearer <STUDBOOK_API_TOKEN>
-//         o query  ?token=<STUDBOOK_API_TOKEN>
+//   Auth: SÓLO header  Authorization: Bearer <STUDBOOK_API_TOKEN>
+//
+//   El soporte de ?token= por query string se eliminó (2026-08-03): los query
+//   params quedan registrados en logs de acceso, proxies intermedios e
+//   historial del cliente, o sea que era una vía de fuga del token
+//   independiente de cualquier otra. Ver docs/ROTACION_STUDBOOK_FASE0.md §1.
 //
 // Devuelve EXACTAMENTE el mismo JSON que tools/studbook_reunion_json.mjs:
 // usa la MISMA buildReunionJson() compartida (_shared/studbook_format.mjs),
@@ -33,12 +37,13 @@ const json = (obj: unknown, status = 200) =>
     headers: { 'content-type': 'application/json; charset=utf-8' },
   });
 
-// Extrae el token de Authorization: Bearer <x> o de ?token=<x>.
-function extractToken(req: Request, url: URL): string | null {
+// Extrae el token SÓLO de Authorization: Bearer <x>.
+// No se acepta por query string: ?token= deja el secreto en logs de acceso,
+// proxies e historial. Un cliente que llame con ?token= recibe 401.
+function extractToken(req: Request): string | null {
   const auth = req.headers.get('authorization') ?? req.headers.get('Authorization');
   if (auth && /^Bearer\s+/i.test(auth)) return auth.replace(/^Bearer\s+/i, '').trim();
-  const q = url.searchParams.get('token');
-  return q ? q.trim() : null;
+  return null;
 }
 
 // YYMMDD → "20YY-MM-DD" (ej 990101 → 2099-01-01). null si no es válido.
@@ -55,7 +60,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   // 1) AUTH obligatoria — sin token válido → 401.
   if (!API_TOKEN) return json({ status: 500, error: 'server misconfigured: STUDBOOK_API_TOKEN unset' }, 500);
-  const token = extractToken(req, url);
+  const token = extractToken(req);
   if (!token || token !== API_TOKEN) {
     return json({ status: 401, error: 'unauthorized' }, 401);
   }
