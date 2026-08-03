@@ -91,16 +91,34 @@ export function buildReunionJson({
   catMap, profMap, cabMap, spcMap,
   tz = TZ_DEFAULT,
 }) {
-  // Solo carreras OFICIALES: el estado vive en resultados.estado
-  // (valores reales: oficial/provisional/anulado). carreras.estado NO tiene
-  // 'oficial' (abierta/programada/confirmada/anulada). Las no-oficiales no
-  // aparecen en el JSON.
-  const carrerasOficiales = carreras.filter(
-    c => resByCarrera.get(c.id)?.estado === 'oficial'
-  );
+  // ------------------------------------------------------------
+  // Qué carreras VIAJAN. Conjunto fijo, dos condiciones y nada más:
+  //   1. la CATEGORÍA de la carrera es oficial (categorias_carrera.es_oficial)
+  //   2. la carrera no está anulada
+  //
+  // El estado del RESULTADO no filtra carreras — sólo decide si se adjunta
+  // el resultado (ver `res` más abajo). Una carrera con resultado provisional
+  // viaja igual, como programa.
+  //
+  // El eje es el FLAG es_oficial, nunca el `codigo`: hay clubes que reusan
+  // los códigos OC/ONC/CC con otra semántica (p.ej. en 710d43c1 `ONC` es
+  // "Oficial No Clásico" y es computable). Ver INTEGRACION_STUDBOOK_ESTADO §2.2.
+  //
+  // Fail-closed: carrera sin categoria_id, o con una que no está en catMap,
+  // NO viaja (no se puede afirmar que sea oficial).
+  const carrerasVisibles = carreras.filter(c => {
+    if (c.estado === 'anulada') return false;
+    const cat = c.categoria_id ? catMap.get(c.categoria_id) : null;
+    return cat?.es_oficial === true;
+  });
 
-  const carrerasJson = carrerasOficiales.map(c => {
-    const res = resByCarrera.get(c.id) || null;
+  const carrerasJson = carrerasVisibles.map(c => {
+    // "Tiene resultado" = tiene resultado OFICIALIZADO. Un resultado
+    // provisional o en_protesta se ignora: la carrera viaja como programa
+    // (estado null, puesto '0', sin tiempo, sin estado_pista, sin dividendos,
+    // competidores = ratificados). Nuestra regla de publicación.
+    const resRaw = resByCarrera.get(c.id) || null;
+    const res = resRaw?.estado === 'oficial' ? resRaw : null;
     const hasResult = !!res;
 
     // competidores: con resultado → los que aparecen en resultado_posiciones;

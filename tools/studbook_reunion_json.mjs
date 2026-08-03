@@ -114,7 +114,9 @@ async function main() {
   }
 
   // 6) Lookups por id
-  const catMap = await fetchByIds('categorias_carrera', carreras.map(c => c.categoria_id), 'id, nombre');
+  // es_oficial es OBLIGATORIO: el builder filtra las carreras por ese flag.
+  const catMap = await fetchByIds('categorias_carrera', carreras.map(c => c.categoria_id),
+    'id, nombre, codigo, es_oficial, es_computable');
   const profIds = allInsc.flatMap(i => [i.jockey_titular_id, i.entrenador_id]);
   const profMap = await fetchByIds('profesionales', profIds, 'id, nombre, apellido, documento_nro');
   const cabMap = await fetchByIds('caballerizas', allInsc.map(i => i.caballeriza_id),
