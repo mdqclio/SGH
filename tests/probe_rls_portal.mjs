@@ -83,6 +83,7 @@ const fx = {
   authIds: [], usuarios: [], propietarios: [], spcs: [],
   reuniones: [], carreras: [], inscripciones: [],
   liquidaciones: [], recibos: [], resultados: [],
+  solicitudes: [],
 };
 
 async function columnaExiste(tabla, columna) {
@@ -114,6 +115,46 @@ async function crearUsuarioPortal(q, propietarioId) {
   }
   const { error: e2 } = await admin.from('usuarios').insert(fila);
   if (e2) throw new Error(`insert usuarios(${q}): ${e2.message}`);
+  fx.usuarios.push(email);
+  return { email, authId: data.user.id };
+}
+
+// Cuenta PENDIENTE: existe en auth.users y NO tiene fila en `usuarios`. Es el
+// estado del auto-registrado antes de que la secretaría lo apruebe (Gate 2).
+// Todo el diseño se apoya en que sin fila en usuarios, fn_is_staff(),
+// fn_get_user_club_id(), fn_mis_entidades() y fn_mis_spc_ids() devuelven
+// falso/NULL/vacío, así que las policies ya lo deniegan sin excepción alguna.
+async function crearCuentaPendiente(q) {
+  const email = emailPortal(q);
+  const { data, error } = await admin.auth.admin.createUser({
+    email, password: PASS, email_confirm: true,
+  });
+  if (error) throw new Error(`createUser(${q}): ${error.message}`);
+  fx.authIds.push(data.user.id);
+  return { email, authId: data.user.id };
+}
+
+// Staff real, para poder ejercitar las RPCs de resolución con una sesión que
+// pase fn_is_staff(). El admin client NO sirve: auth.uid() es null y el guard
+// corta con 'No autenticado' — que es justamente lo que queremos que haga.
+async function crearStaff(q) {
+  const email = emailPortal(q);
+  const { data, error } = await admin.auth.admin.createUser({
+    email, password: PASS, email_confirm: true,
+  });
+  if (error) throw new Error(`createUser(${q}): ${error.message}`);
+  fx.authIds.push(data.user.id);
+  const { error: e2 } = await admin.from('usuarios').insert({
+    email,
+    nombre_completo: `Probe staff ${q} ${RUN}`,
+    club_id: CLUB_DOLORES,
+    rol: 'secretario_carreras',
+    activo: true,
+    estado: 'activo',
+    auth_user_id: data.user.id,
+    password_hash: '',
+  });
+  if (e2) throw new Error(`insert usuarios staff(${q}): ${e2.message}`);
   fx.usuarios.push(email);
   return { email, authId: data.user.id };
 }
@@ -154,6 +195,7 @@ async function teardown() {
     console.log(error ? `  ⚠️  ${tabla}: ${error.message}` : `  🗑  ${tabla}: ${ids.length}`);
   };
   // Orden inverso al de creación, respetando FKs.
+  await borrar('solicitudes_acceso', fx.solicitudes);
   await borrar('recibos', fx.recibos);
   if (fx.liquidaciones.length) {
     await admin.from('liquidacion_detalle').delete().in('liquidacion_id', fx.liquidaciones);
@@ -392,6 +434,170 @@ try {
   check(13, postU?.entidad_id === snapU?.entidad_id,
     'A NO puede reapuntar su propio entidad_id a la ficha de B',
     `antes=${snapU?.entidad_id} después=${postU?.entidad_id}`);
+
+  // =========================================================================
+  console.log('\n── Cuenta PENDIENTE — auto-registro, Gate 2 (P1-P12) ──');
+  // =========================================================================
+  // Una cuenta que existe en auth.users y NO tiene fila en `usuarios`. Es lo
+  // que produce el auto-registro antes de la aprobación de la secretaría.
+  // Diseño en docs/AUTOREGISTRO_PLAN.md §B.2 y §C.7.
+  //
+  // Los asserts de ESCRITURA respetan la trampa del encabezado: un UPDATE
+  // bloqueado por RLS devuelve éxito con 0 filas. Todo se verifica releyendo
+  // con el cliente ADMIN y comparando VALORES.
+
+  const propC = await ins('propietarios', {
+    club_id: CLUB_DOLORES, tipo: 'persona', nombre: `PROBE-C-${RUN}`,
+    email: `probe-rls-propc-${RUN}@sgh-probe.invalid`, activo: true,
+  }, 'propietarios');
+
+  const staff = await crearStaff('staff');
+  const pend1 = await crearCuentaPendiente('pend1');
+  const pend2 = await crearCuentaPendiente('pend2');
+  const sbP1 = await clientePortal(pend1.email);
+  const sbP2 = await clientePortal(pend2.email);
+  const sbStaff = await clientePortal(staff.email);
+  info(`pendiente 1: ${pend1.email}`);
+
+  // Cada solicitud usa un DNI distinto: el índice parcial anti-flood prohíbe
+  // dos pendientes con el mismo documento en el mismo club.
+  const doc1 = String(30000000 + Math.floor(Math.random() * 9000000));
+  const doc2 = String(30000000 + Math.floor(Math.random() * 9000000));
+
+  const { data: sol1, error: eSol1 } = await sbP1.rpc('rpc_solicitar_acceso', {
+    p_nombre: 'Probe', p_apellido: `Pendiente ${RUN}`, p_documento_nro: doc1,
+    p_telefono: '2245-000000', p_rol_pedido: 'propietario', p_club_id: CLUB_DOLORES,
+  });
+  check('P0', !eSol1 && !!sol1, 'el pendiente puede crear su solicitud',
+    eSol1?.message ?? `id=${sol1}`);
+  if (sol1) fx.solicitudes.push(sol1);
+
+  const { data: sol2 } = await sbP2.rpc('rpc_solicitar_acceso', {
+    p_nombre: 'Probe', p_apellido: `Pendiente2 ${RUN}`, p_documento_nro: doc2,
+    p_telefono: '2245-000001', p_rol_pedido: 'propietario', p_club_id: CLUB_DOLORES,
+  });
+  if (sol2) fx.solicitudes.push(sol2);
+
+  // --- validaciones de rpc_solicitar_acceso -------------------------------
+  const { error: eDni } = await sbP1.rpc('rpc_solicitar_acceso', {
+    p_nombre: 'X', p_apellido: 'Y', p_documento_nro: '12.345.678',
+    p_telefono: '1', p_rol_pedido: 'propietario', p_club_id: CLUB_DOLORES,
+  });
+  check('P0b', !!eDni && /DNI/i.test(eDni.message),
+    'rechaza un DNI con formato inválido', eDni?.message);
+
+  const { error: eDup } = await sbP1.rpc('rpc_solicitar_acceso', {
+    p_nombre: 'X', p_apellido: 'Y', p_documento_nro: doc1,
+    p_telefono: '1', p_rol_pedido: 'propietario', p_club_id: CLUB_DOLORES,
+  });
+  check('P0c', !!eDup, 'una cuenta no puede enviar dos solicitudes', eDup?.message);
+
+  // --- P1-P5: el pendiente no lee NADA ------------------------------------
+  const vacio = async (tabla) => {
+    const { data } = await sbP1.from(tabla).select('id').limit(5);
+    return (data?.length ?? 0) === 0;
+  };
+  check('P1', (await vacio('propietarios')) && (await vacio('profesionales')) && (await vacio('spcs')),
+    'no lee propietarios / profesionales / spcs');
+  check('P2', (await vacio('reuniones')) && (await vacio('carreras')) && (await vacio('inscripciones'))
+             && (await vacio('caballerizas')) && (await vacio('resultados')),
+    'no lee reuniones / carreras / inscripciones / caballerizas / resultados');
+  check('P3', (await vacio('liquidaciones')) && (await vacio('recibos')) && (await vacio('liquidacion_detalle')),
+    'no lee liquidaciones / recibos / liquidacion_detalle');
+  check('P4', await vacio('usuarios'), 'no lee usuarios (no tiene fila propia)');
+  check('P5', (await vacio('performances')) && (await vacio('sanciones')),
+    'no lee performances / sanciones (cerrado en el Gate 1)');
+
+  // --- P6-P7: el pendiente no escribe -------------------------------------
+  await sbP1.from('usuarios').insert({
+    email: `colado-${RUN}@sgh-probe.invalid`, club_id: CLUB_DOLORES,
+    rol: 'secretario_carreras', activo: true, password_hash: '',
+  });
+  const { data: colUsr } = await admin.from('usuarios').select('id')
+    .eq('email', `colado-${RUN}@sgh-probe.invalid`);
+  check('P6', (colUsr?.length ?? 0) === 0, 'no puede crearse una fila en usuarios',
+    `filas coladas=${colUsr?.length}`);
+
+  const { data: snapPropC } = await admin.from('propietarios').select('nombre').eq('id', propC).single();
+  await sbP1.from('propietarios').update({ nombre: `HACKEADO-${RUN}` }).eq('id', propC);
+  const { data: postPropC } = await admin.from('propietarios').select('nombre').eq('id', propC).single();
+  check('P7', postPropC?.nombre === snapPropC?.nombre,
+    'no puede modificar una ficha de propietario', `nombre=${postPropC?.nombre}`);
+
+  // --- P8-P9: su solicitud, y sólo la suya --------------------------------
+  const { data: misSol } = await sbP1.from('solicitudes_acceso').select('id, estado');
+  check('P8', (misSol?.length ?? 0) === 1 && misSol[0].id === sol1,
+    've exactamente 1 solicitud: la suya', `filas=${misSol?.length}`);
+  check('P11', !(misSol ?? []).some((s) => s.id === sol2),
+    'NO ve la solicitud de otra cuenta pendiente');
+
+  await sbP1.from('solicitudes_acceso').update({ estado: 'aprobada' }).eq('id', sol1);
+  const { data: postSol } = await admin.from('solicitudes_acceso').select('estado').eq('id', sol1).single();
+  check('P9', postSol?.estado === 'pendiente',
+    'no puede auto-aprobarse editando la fila', `estado=${postSol?.estado}`);
+
+  // --- P10: tampoco por la RPC --------------------------------------------
+  const { error: eAprSelf } = await sbP1.rpc('rpc_aprobar_solicitud', {
+    p_solicitud_id: sol1, p_entidad_tipo: 'propietario', p_entidad_id: propC,
+  });
+  check('P10', !!eAprSelf && /autorizado|secretar/i.test(eAprSelf.message),
+    'rpc_aprobar_solicitud rechaza a quien no es staff', eAprSelf?.message);
+
+  const { error: eRechSelf } = await sbP1.rpc('rpc_rechazar_solicitud', {
+    p_solicitud_id: sol1, p_motivo: 'me auto-rechazo',
+  });
+  check('P10b', !!eRechSelf, 'rpc_rechazar_solicitud rechaza a quien no es staff',
+    eRechSelf?.message);
+
+  // --- P12: el staff aprueba, y la ficha queda tomada ----------------------
+  const { data: usrNuevo, error: eApr } = await sbStaff.rpc('rpc_aprobar_solicitud', {
+    p_solicitud_id: sol1, p_entidad_tipo: 'propietario', p_entidad_id: propC,
+    p_copiar_documento: true,
+  });
+  check('P12', !eApr && !!usrNuevo, 'el staff SÍ puede aprobar', eApr?.message ?? `usuario=${usrNuevo}`);
+  if (usrNuevo) fx.usuarios.push(pend1.email);
+
+  const { data: solPost } = await admin.from('solicitudes_acceso')
+    .select('estado, resuelta_por, resuelta_at').eq('id', sol1).single();
+  check('P12b', solPost?.estado === 'aprobada' && !!solPost?.resuelta_por && !!solPost?.resuelta_at,
+    'la aprobación deja estado, resuelta_por y resuelta_at', `estado=${solPost?.estado}`);
+
+  const { data: usrCreado } = await admin.from('usuarios')
+    .select('rol, activo, entidad_tipo, entidad_id, club_id').eq('email', pend1.email).single();
+  check('P12c',
+    usrCreado?.rol === 'propietario' && usrCreado?.activo === true
+    && usrCreado?.entidad_tipo === 'propietario' && usrCreado?.entidad_id === propC
+    && usrCreado?.club_id === CLUB_DOLORES,
+    'la fila de usuarios queda con rol explícito, activa y vinculada',
+    JSON.stringify(usrCreado));
+
+  // El DNI declarado se copió a la ficha, que lo tenía vacío.
+  const { data: propCPost } = await admin.from('propietarios')
+    .select('documento_nro').eq('id', propC).single();
+  check('P12d', propCPost?.documento_nro === doc1,
+    'copia el DNI declarado a la ficha que lo tenía vacío', `doc=${propCPost?.documento_nro}`);
+
+  // Segunda cuenta contra LA MISMA ficha → tiene que fallar por ux_entidad_una_cuenta.
+  const { error: eApr2 } = await sbStaff.rpc('rpc_aprobar_solicitud', {
+    p_solicitud_id: sol2, p_entidad_tipo: 'propietario', p_entidad_id: propC,
+  });
+  check('P13', !!eApr2 && /ya está vinculada/i.test(eApr2.message),
+    'dos cuentas NO pueden quedar vinculadas a la misma ficha', eApr2?.message);
+
+  const { data: sol2Post } = await admin.from('solicitudes_acceso').select('estado').eq('id', sol2).single();
+  check('P13b', sol2Post?.estado === 'pendiente',
+    'la solicitud rechazada por ficha tomada queda pendiente, no a medias',
+    `estado=${sol2Post?.estado}`);
+
+  // --- descartar: los curiosos, sin motivo y sin avisar -------------------
+  const { error: eDesc } = await sbStaff.rpc('rpc_descartar_solicitud', { p_solicitud_id: sol2 });
+  const { data: sol2Desc } = await admin.from('solicitudes_acceso').select('estado').eq('id', sol2).single();
+  check('P14', !eDesc && sol2Desc?.estado === 'descartada',
+    'el staff descarta una solicitud de curioso', eDesc?.message ?? `estado=${sol2Desc?.estado}`);
+
+  const { error: eDesc2 } = await sbStaff.rpc('rpc_descartar_solicitud', { p_solicitud_id: sol2 });
+  check('P15', !!eDesc2 && /ya fue resuelta/i.test(eDesc2.message),
+    'no se puede resolver dos veces la misma solicitud', eDesc2?.message);
 
   // =========================================================================
   console.log('\n── Asserts del RPC (11-12) ──');
