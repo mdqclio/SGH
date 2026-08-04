@@ -143,6 +143,9 @@ OK de Leo. Aplicado por MCP `apply_migration`, migración `spcs_r8_tanda_1b`.
 | typos de la planilla, resueltos sin alta | 2 (`GRAND VUETERA`→`GRAND VUELTERA`, `WISKA KEN`→`WISLA KEN`) |
 | **pendientes** | **0** |
 
-Sigue pendiente de Yesi, pero **fuera del circuito** (los carga a mano con el DNI): 8
-caballerizas, 3 jockeys y 5 cuidadores + 2 a confirmar. Detalle en
-[`TANDA_1_R8.md`](TANDA_1_R8.md) §4.
+Sigue pendiente de Yesi, pero **fuera del circuito** (los carga por pantalla con el DNI):
+**8 caballerizas, 3 jockeys y 5 cuidadores**. Detalle en [`TANDA_1_R8.md`](TANDA_1_R8.md) §4.
+
+Las dos dudas de matcheo de personas quedaron confirmadas por Yesi el 04/08 y **no
+requieren alta**: `GIULINIANI NICOLAS` = `GIULIANI, NICOLAS JULIAN` y `ALDAY ESTEBAN` =
+`ALDAY, SERGIO ESTEBAN`.
