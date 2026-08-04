@@ -79,7 +79,8 @@ otro caballo, no un typo.
 
 ## 2. Cruce de caballerizas (22 únicas en la planilla)
 
-`caballerizas` tiene 276 filas. **14 matchean, 8 faltan.**
+`caballerizas` tiene 276 filas. **15 matchean, 7 faltan** (`EL POBRE` cerrado por Yesi el
+04/08: es `EL POE`).
 
 | caballeriza | estado |
 |---|---|
@@ -90,7 +91,7 @@ otro caballo, no un typo.
 | **BETTY SANTI** | ❌ falta — hay `LA BETTY (TDL)`, pero no es lo mismo |
 | **LOS MORENITOS** | ❌ falta — ojo: existe `LOS MONCHITOS` (parecido, otra caballeriza) |
 | **LOS EDUCADITOS** | ❌ falta — sin parecidos |
-| **EL POBRE** | ❌ falta — ojo: existe `EL POE`. ¿Es la misma o son dos? |
+| **EL POBRE** | ✅ es `EL POE` — typo de la planilla, confirmado por Yesi el 04/08. Sin alta |
 | **ESTAMPA DEL SUR** | ❌ falta — sin parecidos |
 
 Fuera de alcance del circuito: **las crea Yesi a mano**.
@@ -141,16 +142,17 @@ resultó ser `LOGUACIOUS` y `SOY RICARDO` (sb 434608) se dieron de alta; `GRAND 
 Queda sólo alta de entidades por pantalla — fuera del alcance del circuito, con el DNI que
 Yesi le pida a cada uno:
 
-**Caballerizas (8)**: SAICA · NUEVO MUNDO · SANTOS VEGA · BETTY SANTI · LOS MORENITOS ·
-LOS EDUCADITOS · EL POBRE (⚠️ existe `EL POE`, confirmar si es la misma) · ESTAMPA DEL SUR.
+**Caballerizas (7)**: SAICA · NUEVO MUNDO · SANTOS VEGA · BETTY SANTI · LOS MORENITOS ·
+LOS EDUCADITOS · ESTAMPA DEL SUR.
 
 **Jockeys (3)**: GUZMAN CLAUDIO · GONZALEZ LUCAS · GONZALEZ AGUSTIN.
 
 **Cuidadores (5)**: GONZALEZ ADRIAN AGUSTIN · VARELA LORENA · ALLEN JUAN JOSE ·
 DIAZ EMILIANO · CAMPELO LEONARDO.
 
-Confirmado por Yesi el 04/08, **sin alta**: `GIULINIANI NICOLAS` = `GIULIANI, NICOLAS JULIAN`
-y `ALDAY ESTEBAN` = `ALDAY, SERGIO ESTEBAN` — los dos ya estaban en `profesionales`.
+Confirmado por Yesi el 04/08, **sin alta** — typos de la planilla contra registros que ya
+estaban: `EL POBRE` = `EL POE` (caballeriza), `GIULINIANI NICOLAS` = `GIULIANI, NICOLAS JULIAN`
+y `ALDAY ESTEBAN` = `ALDAY, SERGIO ESTEBAN` (los dos en `profesionales`).
 
 ---
 

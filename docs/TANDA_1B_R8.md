@@ -144,8 +144,19 @@ OK de Leo. Aplicado por MCP `apply_migration`, migración `spcs_r8_tanda_1b`.
 | **pendientes** | **0** |
 
 Sigue pendiente de Yesi, pero **fuera del circuito** (los carga por pantalla con el DNI):
-**8 caballerizas, 3 jockeys y 5 cuidadores**. Detalle en [`TANDA_1_R8.md`](TANDA_1_R8.md) §4.
+**7 caballerizas, 3 jockeys y 5 cuidadores**. Detalle en [`TANDA_1_R8.md`](TANDA_1_R8.md) §4.
 
-Las dos dudas de matcheo de personas quedaron confirmadas por Yesi el 04/08 y **no
-requieren alta**: `GIULINIANI NICOLAS` = `GIULIANI, NICOLAS JULIAN` y `ALDAY ESTEBAN` =
-`ALDAY, SERGIO ESTEBAN`.
+Confirmado por Yesi el 04/08, **sin alta** — eran typos de la planilla contra registros que
+ya estaban:
+
+| en la planilla | en la base |
+|---|---|
+| `EL POBRE` (caballeriza) | `EL POE` · id `a5a0e7a2-4c60-4cbe-bbcc-5271e6a8d40f` · responsable MEDINA OSCAR ROBERTO · activa · DOL |
+| `GIULINIANI NICOLAS` (cuidador) | `GIULIANI, NICOLAS JULIAN` |
+| `ALDAY ESTEBAN` (cuidador) | `ALDAY, SERGIO ESTEBAN` |
+
+Detalle que corrobora lo de `EL POE`: su responsable es **MEDINA OSCAR ROBERTO**, y
+`MEDINA OSCAR` figura como cuidador en la misma planilla de R8.
+
+**Con esto el cruce de la tanda 1 queda cerrado**: no quedan dudas abiertas, sólo las 15
+altas de entidades que hace Yesi por pantalla.
