@@ -133,13 +133,28 @@ async function crearFixtureSecretaria() {
   creado.usuarioEmail = EMAIL_SECRE;
 }
 
-async function clienteSecretaria() {
+// Auth del probe — NO por signInWithPassword.
+// Desde el 04/08/2026 hay Attack Protection (Turnstile) activo y GoTrue
+// rechaza grant_type=password con captcha_failed antes de mirar credenciales.
+// /auth/v1/verify NO está gateado, así que se canjea un magiclink generado por
+// Admin API (no manda mail, no gasta cuota).
+async function sesionPorMagiclink(email, label) {
+  const { data: link, error: eLink } =
+    await admin.auth.admin.generateLink({ type: 'magiclink', email });
+  if (eLink) throw new Error(`generateLink ${label}: ${eLink.message}`);
+  const hashed = link?.properties?.hashed_token;
+  if (!hashed) throw new Error(`generateLink ${label}: sin hashed_token`);
+
   const sb = createClient(SUPABASE_URL, PUBLISHABLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
-  const { error } = await sb.auth.signInWithPassword({ email: EMAIL_SECRE, password: PASS });
-  if (error) throw new Error(`signIn secretaria: ${error.message}`);
+  const { error } = await sb.auth.verifyOtp({ token_hash: hashed, type: 'magiclink' });
+  if (error) throw new Error(`verifyOtp ${label}: ${error.message}`);
   return sb;
+}
+
+async function clienteSecretaria() {
+  return sesionPorMagiclink(EMAIL_SECRE, 'secretaria');
 }
 
 async function teardown() {

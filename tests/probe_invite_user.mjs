@@ -214,12 +214,32 @@ async function crearFixture(email, rol, clubId) {
   creados.usuarios.push(email);
 }
 
+// Autenticación del probe — NO por signInWithPassword.
+//
+// Desde el 04/08/2026 el proyecto tiene Attack Protection (Cloudflare
+// Turnstile) activo. GoTrue rechaza /auth/v1/token?grant_type=password con
+//   400 captcha_failed: "captcha protection: request disallowed"
+// ANTES de mirar credenciales, y un probe headless no puede resolver un
+// captcha. Medido el 04/08: /auth/v1/otp y /auth/v1/recover también están
+// gateados, pero **/auth/v1/verify NO** (con un token bogus devuelve
+// otp_expired, no captcha_failed).
+//
+// Así que se genera un magiclink por Admin API —que NO manda mail, sólo
+// devuelve el link y su hashed_token— y se canjea por sesión contra verify.
+// Ese camino es inmune al captcha y no gasta cuota de emails.
 async function tokenDe(email) {
+  const link = await reintentar(`generateLink(${email})`, () =>
+    admin.auth.admin.generateLink({ type: 'magiclink', email }));
+
+  const hashed = link?.properties?.hashed_token;
+  if (!hashed) throw new Error(`generateLink(${email}): sin hashed_token`);
+
   const anon = createClient(SUPABASE_URL, PUBLISHABLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
-  const { data, error } = await anon.auth.signInWithPassword({ email, password: PASS });
-  if (error) throw new Error(`signIn(${email}): ${error.message}`);
+  const { data, error } = await anon.auth.verifyOtp({ token_hash: hashed, type: 'magiclink' });
+  if (error) throw new Error(`verifyOtp(${email}): ${error.message}`);
+  if (!data?.session?.access_token) throw new Error(`verifyOtp(${email}): sin sesión`);
   return data.session.access_token;
 }
 

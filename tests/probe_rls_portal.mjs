@@ -118,12 +118,23 @@ async function crearUsuarioPortal(q, propietarioId) {
   return { email, authId: data.user.id };
 }
 
+// Auth del probe — NO por signInWithPassword.
+// Desde el 04/08/2026 hay Attack Protection (Turnstile) activo y GoTrue
+// rechaza grant_type=password con captcha_failed antes de mirar credenciales.
+// /auth/v1/verify NO está gateado, así que se canjea un magiclink generado por
+// Admin API (no manda mail, no gasta cuota).
 async function clientePortal(email) {
+  const { data: link, error: eLink } =
+    await admin.auth.admin.generateLink({ type: 'magiclink', email });
+  if (eLink) throw new Error(`generateLink(${email}): ${eLink.message}`);
+  const hashed = link?.properties?.hashed_token;
+  if (!hashed) throw new Error(`generateLink(${email}): sin hashed_token`);
+
   const sb = createClient(SUPABASE_URL, PUBLISHABLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
-  const { error } = await sb.auth.signInWithPassword({ email, password: PASS });
-  if (error) throw new Error(`signIn(${email}): ${error.message}`);
+  const { error } = await sb.auth.verifyOtp({ token_hash: hashed, type: 'magiclink' });
+  if (error) throw new Error(`verifyOtp(${email}): ${error.message}`);
   return sb;
 }
 
