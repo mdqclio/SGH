@@ -10,6 +10,9 @@
 // NO hace fetch, NO toca env, NO escribe archivos.
 // ============================================================
 
+import { renumerarChapas } from './mandil.mjs';
+import { resolverChapa } from './chapas_map.mjs';
+
 export const TZ_DEFAULT = 'America/Argentina/Buenos_Aires';
 
 // max(bolsa*pct/100, ganancia_minima) — réplica de premios-utils.js#calcPremiosConPiso
@@ -91,16 +94,34 @@ export function buildReunionJson({
   catMap, profMap, cabMap, spcMap,
   tz = TZ_DEFAULT,
 }) {
-  // Solo carreras OFICIALES: el estado vive en resultados.estado
-  // (valores reales: oficial/provisional/anulado). carreras.estado NO tiene
-  // 'oficial' (abierta/programada/confirmada/anulada). Las no-oficiales no
-  // aparecen en el JSON.
-  const carrerasOficiales = carreras.filter(
-    c => resByCarrera.get(c.id)?.estado === 'oficial'
-  );
+  // ------------------------------------------------------------
+  // Qué carreras VIAJAN. Conjunto fijo, dos condiciones y nada más:
+  //   1. la CATEGORÍA de la carrera es oficial (categorias_carrera.es_oficial)
+  //   2. la carrera no está anulada
+  //
+  // El estado del RESULTADO no filtra carreras — sólo decide si se adjunta
+  // el resultado (ver `res` más abajo). Una carrera con resultado provisional
+  // viaja igual, como programa.
+  //
+  // El eje es el FLAG es_oficial, nunca el `codigo`: hay clubes que reusan
+  // los códigos OC/ONC/CC con otra semántica (p.ej. en 710d43c1 `ONC` es
+  // "Oficial No Clásico" y es computable). Ver INTEGRACION_STUDBOOK_ESTADO §2.2.
+  //
+  // Fail-closed: carrera sin categoria_id, o con una que no está en catMap,
+  // NO viaja (no se puede afirmar que sea oficial).
+  const carrerasVisibles = carreras.filter(c => {
+    if (c.estado === 'anulada') return false;
+    const cat = c.categoria_id ? catMap.get(c.categoria_id) : null;
+    return cat?.es_oficial === true;
+  });
 
-  const carrerasJson = carrerasOficiales.map(c => {
-    const res = resByCarrera.get(c.id) || null;
+  const carrerasJson = carrerasVisibles.map(c => {
+    // "Tiene resultado" = tiene resultado OFICIALIZADO. Un resultado
+    // provisional o en_protesta se ignora: la carrera viaja como programa
+    // (estado null, puesto '0', sin tiempo, sin estado_pista, sin dividendos,
+    // competidores = ratificados). Nuestra regla de publicación.
+    const resRaw = resByCarrera.get(c.id) || null;
+    const res = resRaw?.estado === 'oficial' ? resRaw : null;
     const hasResult = !!res;
 
     // competidores: con resultado → los que aparecen en resultado_posiciones;
@@ -109,6 +130,16 @@ export function buildReunionJson({
     const comps = hasResult
       ? insc.filter(i => posByInsc.has(i.id))
       : insc.filter(i => i.estado === 'ratificado');
+
+    // MANDIL — se calcula sobre TODAS las inscripciones de la carrera, nunca
+    // sobre `comps`. Los dos conjuntos no coinciden: con resultado, `comps`
+    // son los que tienen fila en resultado_posiciones, que puede no ser
+    // exactamente el set de ratificados. Renumerar `comps` daría mandiles
+    // corridos respecto del programa y la carta de llamados ya impresos.
+    // Ver docs/YUNTA_MANDIL_ESTADO.md §3.
+    // El que no largó (no_largo) conserva su mandil y deja el hueco: es
+    // ratificado, así que el mapa se lo asigna igual.
+    const mandilMap = renumerarChapas(insc);
 
     // premios puestos 1..5
     const dist = c.distribucion_premios || {};
@@ -123,9 +154,16 @@ export function buildReunionJson({
     }
 
     const competidores = comps
-      .sort((a, b) => (a.numero_partidor ?? 0) - (b.numero_partidor ?? 0))
+      // Orden de salida por MANDIL. Para los ratificados es equivalente a
+      // ordenar por gatera (el mandil es monótono en numero_partidor), pero
+      // deja al final a cualquier competidor sin mandil en vez de mezclarlo.
+      .sort((a, b) => (mandilMap[a.id] ?? 9999) - (mandilMap[b.id] ?? 9999))
       .map(i => {
-        const rp = posByInsc.get(i.id) || null;
+        // La fila de resultado_posiciones SÓLO se lee si el resultado está
+        // oficializado. Si no, la carrera viaja como programa y no puede
+        // filtrar nada de un resultado sin oficializar: ni dividendos
+        // (pagaria), ni márgenes (cuerpos), ni distanciamientos.
+        const rp = hasResult ? (posByInsc.get(i.id) || null) : null;
         const spc = spcMap.get(i.spc_id) || null;
         const jock = profMap.get(i.jockey_titular_id) || null;
         const cuid = profMap.get(i.entrenador_id) || null;
@@ -142,8 +180,13 @@ export function buildReunionJson({
           puesto,
           estado: null,                 // ignorable v1
           estado_equino_carrera: null,  // ignorable v1
-          orden: str(i.numero_partidor),
-          yunta: null,                  // gap v1
+          // orden = MANDIL (número del dorsal, 1..N), NO la gatera.
+          // Confirmado por Diego. Sin fallback a numero_partidor: si el
+          // competidor no está en el mapa (dejó de ser ratificado después de
+          // cargado el resultado) sale null, porque mandar la gatera ahí
+          // sería mandar otra cosa con el mismo nombre.
+          orden: str(mandilMap[i.id] ?? null),
+          yunta: null,                  // columna futura — no existe en el schema
           distanciado: rp?.descalificado ? 'SI' : 'NO',
           motivo_distanciado: rp?.motivo_desc ?? null,
           ejemplar: { nombre: spc?.nombre ?? null, id: str(spc?.studbook_id) },
@@ -166,7 +209,14 @@ export function buildReunionJson({
             procedencia: procedenciaCaballeriza(cab),
           },
           jockey_kilos: str2(i.peso_final),
-          cuerpos: { id_interno: null, nombre: rp?.diferencia ?? null },
+          // cuerpos: id_interno resuelto contra el catálogo de chapas.js.
+          // `nombre` SIEMPRE viaja como está en la DB — no se reescribe ni se
+          // normaliza el texto; sólo se agrega el id cuando se puede resolver.
+          // Sin match (hoy: "nariz") → id_interno null y texto intacto.
+          cuerpos: {
+            id_interno: resolverChapa(rp?.diferencia).id,
+            nombre: rp?.diferencia ?? null,
+          },
           pagaria: str(rp?.dividendo),
         };
       });

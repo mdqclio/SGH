@@ -1,0 +1,16 @@
+{
+  "status": 200,
+  "data": {
+    "id": "a0000000-0000-0000-0000-000000009999",
+    "titulo_reunion": null,
+    "fecha": {
+      "date": "2099-01-01",
+      "timezone": "America/Argentina/Buenos_Aires"
+    },
+    "hipodromo": {
+      "nombre": "Hipódromo de Dolores",
+      "id": null
+    },
+    "carreras": []
+  }
+}
