@@ -48,13 +48,18 @@
  *                             (b)): si el probe lo borra, el link muere. Los
  *                             fixtures .invalid se limpian igual.
  *   INVITE_REINVITACIONES=N   Reinvitaciones del caso 7. Default 1.
- *                             Cada una CONSUME UN EMAIL de la cuota horaria, que
- *                             en el mailer built-in de Supabase es de 2/hora en
- *                             total. Con el default (1) la corrida entera gasta
- *                             exactamente 2: el caso 1 + esta. Subirlo a 2 hace
- *                             que la última pegue contra el rate limit y vuelva
- *                             429 — lo cual es un resultado válido, pero deja de
- *                             medir lo que el caso 7 quiere medir.
+ *                             Cada una CONSUME UN EMAIL de la cuota horaria del
+ *                             proyecto. Desde el 24/07/2026 el proyecto usa SMTP
+ *                             propio (Resend, etapa 0 del plan): el techo de
+ *                             2 mails/hora del mailer built-in ya NO aplica —
+ *                             con SMTP custom el default de GoTrue es 30/hora,
+ *                             ajustable en Dashboard → Authentication → Rate
+ *                             Limits (el valor efectivo no se puede leer por MCP
+ *                             ni por SQL; ver §3.2 de docs/plan_alta_invitacion.md).
+ *                             Con el default (1) la corrida entera gasta 2 mails:
+ *                             el caso 1 + esta. Subirlo sigue siendo un costo en
+ *                             mails reales, pero ya no choca contra el límite a
+ *                             la segunda invitación.
  *                             Con 0 el caso 7 se SALTEA (y se reporta como
  *                             salteado, no como fallo): la corrida gasta 1 solo
  *                             email. Es la corrida mínima.
