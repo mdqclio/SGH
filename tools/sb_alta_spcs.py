@@ -242,8 +242,32 @@ def sql_lit(v):
     return "'" + str(v).replace("'", "''") + "'"
 
 
-def procesar(nombres, snapshot, tanda, sleep=1.0):
-    """Clasifica cada nombre. Devuelve (altas, casos)."""
+def parse_linea(linea):
+    """'SOY RICARDO | sb=434608' -> ('SOY RICARDO', '434608').
+
+    El sb_id pinneado es la respuesta de Yesi a un AMBIGUO_SB de una tanda
+    anterior. El script NO desambigua solo: sólo obedece la elección ya hecha,
+    y verifica que ese sb_id esté entre los homónimos que devuelve el SB.
+    """
+    partes = [p.strip() for p in linea.split("|")]
+    nombre = partes[0]
+    pin = None
+    for p in partes[1:]:
+        m = re.fullmatch(r"sb\s*=\s*(\d+)", p, re.I)
+        if m:
+            pin = m.group(1)
+        elif p:
+            raise SystemExit(f"anotación no reconocida en {linea!r}: {p!r} "
+                             f"(sólo se acepta 'sb=NNNN')")
+    return nombre, pin
+
+
+def procesar(nombres, snapshot, tanda, sleep=1.0, pins=None):
+    """Clasifica cada nombre. Devuelve (altas, casos).
+
+    `pins`: {norm(nombre) -> sb_id} con los homónimos ya resueltos por Yesi.
+    """
+    pins = pins or {}
     por_nombre = {}
     por_sbid = {}
     for r in snapshot:
@@ -312,6 +336,23 @@ def procesar(nombres, snapshot, tanda, sleep=1.0):
             time.sleep(sleep)
             continue
 
+        pin = pins.get(nn)
+        if pin:
+            elegidos = [c for c in exact if str(c.get("id")) == pin]
+            if not elegidos:
+                caso("PIN_NO_MATCHEA",
+                     f"Se pinneó sb={pin} para {nombre!r}, pero el Stud Book no "
+                     f"devuelve ese id entre los matches exactos. No se da de alta: "
+                     f"confirmar el sb_id con Yesi.",
+                     sb_id_pinneado=pin,
+                     candidatos=[cand_resumen(c) for c in exact])
+                time.sleep(sleep)
+                continue
+            if len(exact) > 1:
+                print(f"   homónimo resuelto por Yesi: sb={pin} "
+                      f"(de {len(exact)} candidatos)")
+            exact = elegidos
+
         if len(exact) > 1:
             caso("AMBIGUO_SB",
                  f"{len(exact)} homónimos exactos en el Stud Book. El ejemplar no "
@@ -363,6 +404,8 @@ def procesar(nombres, snapshot, tanda, sleep=1.0):
             continue
 
         alertas = []
+        if pin:
+            alertas.append(f"homónimo desambiguado por Yesi (sb={pin})")
         if not padre or not madre:
             alertas.append("pedigree incompleto en el SB")
         if prof.get("pais") and norm(prof["pais"]) != "ARGENTINA":
@@ -478,10 +521,12 @@ def render_reporte(altas, casos, tanda, snapshot_total, total_pedidos):
                 "; ".join(a["alertas"]) or "—"))
         L.append("")
 
-    orden = ["AMBIGUO_SB", "SIN_MATCH_SB", "YA_EXISTE_OTRO_NOMBRE",
-             "YA_EXISTE_EN_DB", "DATOS_INSUFICIENTES", "DUP_EN_TANDA"]
+    orden = ["AMBIGUO_SB", "PIN_NO_MATCHEA", "SIN_MATCH_SB",
+             "YA_EXISTE_OTRO_NOMBRE", "YA_EXISTE_EN_DB",
+             "DATOS_INSUFICIENTES", "DUP_EN_TANDA"]
     titulos = {
         "AMBIGUO_SB": "Homónimos en el Stud Book — Yesi tiene que elegir",
+        "PIN_NO_MATCHEA": "sb_id pinneado que el Stud Book no devuelve",
         "SIN_MATCH_SB": "Sin match en el Stud Book — confirmar grafía",
         "YA_EXISTE_OTRO_NOMBRE": "Ya está en la base con otro nombre (typo)",
         "YA_EXISTE_EN_DB": "Ya está en la base con el mismo nombre",
@@ -554,13 +599,20 @@ def main():
     if not a.tanda or not a.nombres:
         ap.error("--tanda y --nombres son obligatorios (o usá --selftest)")
 
-    nombres = [l for l in open(a.nombres, encoding="utf-8").read().splitlines()
-               if l.strip() and not l.strip().startswith("#")]
+    crudas = [l for l in open(a.nombres, encoding="utf-8").read().splitlines()
+              if l.strip() and not l.strip().startswith("#")]
+    nombres, pins = [], {}
+    for l in crudas:
+        nombre, pin = parse_linea(l)
+        nombres.append(nombre)
+        if pin:
+            pins[norm(nombre)] = pin
     snap = json.load(open(a.snapshot, encoding="utf-8"))
     spcs = snap["spcs"] if isinstance(snap, dict) else snap
 
-    print(f"tanda {a.tanda}: {len(nombres)} nombres | snapshot {len(spcs)} spcs\n")
-    altas, casos = procesar(nombres, spcs, a.tanda, sleep=a.sleep)
+    print(f"tanda {a.tanda}: {len(nombres)} nombres "
+          f"({len(pins)} con sb_id pinneado) | snapshot {len(spcs)} spcs\n")
+    altas, casos = procesar(nombres, spcs, a.tanda, sleep=a.sleep, pins=pins)
 
     os.makedirs("data", exist_ok=True)
     os.makedirs("migrations", exist_ok=True)
@@ -583,8 +635,9 @@ def main():
     print("\n==== RESUMEN ====")
     print(f"  altas propuestas : {len(altas)}")
     print(f"  casos a Yesi     : {len(casos)}")
-    for t in ["AMBIGUO_SB", "SIN_MATCH_SB", "YA_EXISTE_OTRO_NOMBRE",
-              "YA_EXISTE_EN_DB", "DATOS_INSUFICIENTES", "DUP_EN_TANDA"]:
+    for t in ["AMBIGUO_SB", "PIN_NO_MATCHEA", "SIN_MATCH_SB",
+              "YA_EXISTE_OTRO_NOMBRE", "YA_EXISTE_EN_DB",
+              "DATOS_INSUFICIENTES", "DUP_EN_TANDA"]:
         n = sum(1 for c in casos if c["tipo"] == t)
         if n:
             print(f"    {t:22} {n}")

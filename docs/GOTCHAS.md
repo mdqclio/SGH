@@ -303,3 +303,15 @@ Contracara del SMTP propio (Resend, activo desde el 24/07): GoTrue **deja de emi
 
 ## 68. La allowlist de Redirect URLs matchea EXACTO (2026-07-24)
 La URL del `redirectTo` tiene que estar en **Redirect URLs** del Dashboard de Auth tal cual, con el path completo. No alcanza con tener el dominio o el Site URL. Si no matchea, Auth redirige al Site URL y **el token se pierde en el camino**: el usuario cae en la home sin hash y el link parece "vencido". Síntoma característico: el mail llega, el link abre, y no hay error — simplemente aterriza en la página equivocada.
+
+## 69. Un caballo se anota en VARIAS categorías a la vez — es proceso normal, no error (2026-08-04)
+Regla de negocio confirmada por Yesica: en la ventana de inscripción **el mismo ejemplar se anota en varias carreras de la misma reunión**, en distintas categorías. El **lunes previo** la secretaría decide en cuál queda y se dan de baja las otras. Las inscripciones múltiples son el estado **esperado** entre el cierre de anotaciones y el lunes; **no** son duplicados, no son error de carga, y no hay que "limpiarlas" automáticamente.
+
+El schema ya lo soporta: el único constraint es `inscripciones_carrera_id_spc_id_key` = `UNIQUE (carrera_id, spc_id)` — **por carrera, no por reunión**. Nada impide `N` filas del mismo `spc_id` en turnos distintos de la misma reunión.
+
+Evidencia en prod (04/08): R6 del 20/06 tiene **13 ejemplares anotados en 2 turnos cada uno** (BELLO PRESAGIO 7/11, DESDEN 2/5, DOCTORA MIA 3/5, EL BORJA 2/5, HEART OF GOLD 2/5, LATIN PRESUMIDA 9/10, LATIN RAIN 3/5, LE BIRD 7/11, MAESTRO DE ARMAS 4/5, NO TIENE CONTRAS 7/11, QUIET GAUCHO 9/11, THE SULTAN 2/5, VISION SECURITY 2/5).
+
+Consecuencias:
+- **No** agregar un unique por `(reunion_id, spc_id)`, ni una validación de "ya está anotado en esta reunión" que **bloquee**. Como mucho, un aviso informativo.
+- Todo conteo **por caballo y por reunión** (incentivos de montas, resúmenes, cupos) tiene que decidir explícitamente si cuenta inscripciones o ejemplares distintos — contar filas de `inscripciones` sobrecuenta a estos 13.
+- Después de la ratificación el problema desaparece solo: el que no corre queda `forfait` / `mal_inscrito`, y `renumerarChapas` ya filtra por `estado === 'ratificado'`.

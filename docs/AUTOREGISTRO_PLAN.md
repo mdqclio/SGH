@@ -476,7 +476,9 @@ Cada gate exige su probe en verde. Ningún gate avanza sin el anterior.
 
 `PORTAL_V2_PLAN` §C.2. **No existe nada de esto todavía.** Es el que convierte "el entrenador entró" en "el entrenador se anotó".
 
-**Probe**: assert 11/12 de `probe_rls_portal` (hoy PENDIENTES) + una inscripción real verificada contra `inscripciones`.
+⚠️ **Requisito de diseño — inscripciones múltiples** (confirmado por Yesica el 04/08; GOTCHA #69, ISSUE-048): un caballo **se anota en varias categorías de la misma reunión** y recién el **lunes previo** la secretaría decide en cuál queda. El RPC de inscripción **no** puede validar unicidad por reunión — el schema tampoco lo hace (`UNIQUE (carrera_id, spc_id)`, por carrera). En prod ya pasa: R6 del 20/06 tiene 13 ejemplares en 2 turnos cada uno. Si hace falta, aviso informativo en la UI; nunca un rechazo. Queda por definir quién da de baja las sobrantes del lunes.
+
+**Probe**: assert 11/12 de `probe_rls_portal` (hoy PENDIENTES) + una inscripción real verificada contra `inscripciones`. **Sumar** un assert de inscripción múltiple: el mismo `spc_id` en dos carreras de la misma reunión tiene que ser **aceptado**.
 
 ### E.1 Los asserts nuevos del probe de "cuenta pendiente"
 

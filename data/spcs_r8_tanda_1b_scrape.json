@@ -1,0 +1,54 @@
+{
+  "_meta": {
+    "fuente": "www.studbook.org.ar",
+    "tanda": "1b",
+    "escribe_en_db": false,
+    "nombres_pedidos": 2,
+    "altas_propuestas": 2,
+    "casos_no_resueltos": 0,
+    "snapshot_spcs": 156
+  },
+  "ALTAS": [
+    {
+      "nombre_pedido": "LOGUACIOUS",
+      "nombre_sb": "LOGUACIOUS",
+      "sb_id": "431567",
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/431567/loguacious",
+      "fecha_nacimiento": "2021-10-23",
+      "sexo_sb": "Hembra",
+      "sexo": "hembra",
+      "color": "Zaino",
+      "padrillo_nombre": "Le Blues",
+      "madre_nombre": "Effervesence",
+      "padre_id_sb": "328106",
+      "madre_id_sb": "320140",
+      "abuelo_materno_id_sb": "215750",
+      "pais_origen": "Argentina",
+      "criador": "Triple Alliance S.A.",
+      "microchip": "981098108694459",
+      "alertas": []
+    },
+    {
+      "nombre_pedido": "SOY RICARDO",
+      "nombre_sb": "SOY RICARDO",
+      "sb_id": "434608",
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/434608/soy-ricardo",
+      "fecha_nacimiento": "2022-08-01",
+      "sexo_sb": "Macho",
+      "sexo": "macho",
+      "color": "Alazan",
+      "padrillo_nombre": "El Moises",
+      "madre_nombre": "Western Dream",
+      "padre_id_sb": "314684",
+      "madre_id_sb": "273588",
+      "abuelo_materno_id_sb": "265519",
+      "pais_origen": "Argentina",
+      "criador": "Don Eduardo",
+      "microchip": "981098108891104",
+      "alertas": [
+        "homónimo desambiguado por Yesi (sb=434608)"
+      ]
+    }
+  ],
+  "CASOS": []
+}
