@@ -2,7 +2,11 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://raw.githubusercontent.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
+  <!-- challenges.cloudflare.com: widget de Turnstile. Necesita script-src (la
+       api.js), frame-src (el widget se renderiza en un iframe) y connect-src
+       (el challenge habla con Cloudflare). Sin los tres, el widget no carga y
+       el login queda bloqueado por captcha_failed. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://raw.githubusercontent.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/png" sizes="32x32" href="logo32x32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="logo180x180.png">
@@ -194,6 +198,8 @@ VALUES (
           </div>
         </div>
 
+        <div id="cf-login" style="margin:14px 0; display:flex; justify-content:center;"></div>
+
         <button type="submit" class="btn-login" id="btn-login">
           <span id="btn-text">Ingresar al sistema</span>
         </button>
@@ -218,7 +224,9 @@ VALUES (
         </div>
       </div>
 
-      <button class="btn-login" id="btn-reset" onclick="doReset()" style="display:block;" id="reset-email-group">
+      <div id="cf-reset" style="margin:14px 0; display:flex; justify-content:center;"></div>
+
+      <button class="btn-login" id="btn-reset" onclick="doReset()" style="display:block;">
         <span id="btn-reset-text">Enviar link de recuperación</span>
       </button>
 
@@ -242,6 +250,11 @@ VALUES (
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Cloudflare Turnstile — el proyecto tiene Attack Protection activo, así que
+     GoTrue rechaza signInWithPassword y resetPasswordForEmail sin captchaToken.
+     Render explícito: hay dos widgets (login y recuperación) y uno arranca
+     oculto, así que el render implícito por clase no sirve. -->
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 <script>
 document.getElementById('year').textContent = new Date().getFullYear();
 
@@ -250,6 +263,47 @@ const sb = createClient(
   'https://unlhcuanfrtpatoipwve.supabase.co',
   'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK'
 );
+
+// ---------------------------------------------------------------------------
+// Cloudflare Turnstile
+// ---------------------------------------------------------------------------
+// El proyecto tiene Attack Protection activo: GoTrue rechaza con
+// captcha_failed cualquier signInWithPassword o resetPasswordForEmail que no
+// traiga captchaToken. El site key es PÚBLICO por diseño (va en el HTML); el
+// secret vive sólo en Supabase.
+//
+// El token es de UN SOLO USO: si el login falla, hay que resetear el widget
+// antes del siguiente intento, o el segundo intento muere por token gastado.
+const TURNSTILE_SITE_KEY = '0x4AAAAAAEFtOBOaoVEG7A6C';
+const cfIds = { login: null, reset: null };
+
+function cfRender() {
+  if (typeof turnstile === 'undefined') return false;
+  if (cfIds.login === null) {
+    cfIds.login = turnstile.render('#cf-login', { sitekey: TURNSTILE_SITE_KEY, theme: 'dark' });
+  }
+  if (cfIds.reset === null) {
+    cfIds.reset = turnstile.render('#cf-reset', { sitekey: TURNSTILE_SITE_KEY, theme: 'dark' });
+  }
+  return true;
+}
+// api.js carga async: si todavía no llegó, se reintenta.
+(function cfBoot(intentos = 0) {
+  if (cfRender()) return;
+  if (intentos > 40) { console.error('[turnstile] no cargó el widget'); return; }
+  setTimeout(() => cfBoot(intentos + 1), 250);
+})();
+
+function cfToken(cual) {
+  const id = cfIds[cual];
+  if (id === null || typeof turnstile === 'undefined') return null;
+  const t = turnstile.getResponse(id);
+  return t || null;
+}
+function cfReset(cual) {
+  const id = cfIds[cual];
+  if (id !== null && typeof turnstile !== 'undefined') turnstile.reset(id);
+}
 
 // Si ya hay sesión activa, redirigir según rol
 (async () => {
@@ -290,13 +344,24 @@ async function doLogin(e) {
 
   if (!email || !password) { showError('Completá email y contraseña.'); return; }
 
+  const captchaToken = cfToken('login');
+  if (!captchaToken) {
+    showError('Esperá a que termine la verificación de seguridad y volvé a intentar.');
+    return;
+  }
+
   setLoading(true);
 
   // 1. Autenticar con Supabase Auth
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  const { data, error } = await sb.auth.signInWithPassword({
+    email, password, options: { captchaToken },
+  });
 
   if (error || !data.session) {
     setLoading(false);
+    // El token de Turnstile es de un solo uso: sin este reset, el segundo
+    // intento falla por captcha aunque la contraseña sea correcta.
+    cfReset('login');
     const msg = error?.message?.includes('Invalid') || error?.message?.includes('credentials')
       ? 'Email o contraseña incorrectos.'
       : (error?.message || 'Error al iniciar sesión. Intentá de nuevo.');
@@ -360,6 +425,7 @@ function showForgot() {
   document.getElementById('reset-success').classList.remove('show');
   document.getElementById('reset-email-group').style.display = '';
   document.getElementById('btn-reset').style.display = '';
+  document.getElementById('cf-reset').style.display = 'flex';
 }
 
 function showLogin() {
@@ -370,21 +436,32 @@ function showLogin() {
 async function doReset() {
   const email = document.getElementById('reset-email').value.trim();
   if (!email) { return; }
+
+  const captchaToken = cfToken('reset');
+  if (!captchaToken) {
+    showError('Esperá a que termine la verificación de seguridad y volvé a intentar.');
+    return;
+  }
+
   const btn = document.getElementById('btn-reset');
   const txt = document.getElementById('btn-reset-text');
   btn.disabled = true;
   txt.innerHTML = '<span class="spin"></span> Enviando…';
 
   await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://mdqclio.github.io/SGH/reset-password.html'
+    redirectTo: 'https://mdqclio.github.io/SGH/reset-password.html',
+    captchaToken,
   });
 
   btn.disabled = false;
   txt.textContent = 'Enviar link de recuperación';
+  // El token ya se consumió: si el usuario vuelve a pedir, necesita uno nuevo.
+  cfReset('reset');
   // Mostrar éxito siempre (por seguridad no revelamos si el email existe)
   document.getElementById('reset-success').classList.add('show');
   document.getElementById('reset-email-group').style.display = 'none';
   document.getElementById('btn-reset').style.display = 'none';
+  document.getElementById('cf-reset').style.display = 'none';
 }
 </script>
 </body>
