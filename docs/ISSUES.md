@@ -305,3 +305,18 @@ Mitigación **ya implementada** (Gate 3): el DNI se valida en el cliente **antes
 Falta la mitigación 2: un **barrido periódico** que liste (y opcionalmente borre) las cuentas de `auth.users` sin `usuarios` ni `solicitudes_acceso` y con más de N días. Hoy hay **2 huérfanas preexistentes**, de abril, anteriores a todo esto (ver `docs/AUTOREGISTRO_GATE_0.md` §0.4).
 
 Módulo: `supabase/functions/` o script en `tools/`. Estado: ⏳ Abierto — **queda para después del piloto**, por decisión explícita. Prioridad: Baja (una cuenta huérfana no ve nada: sin fila en `usuarios` todas las policies la deniegan).
+
+### ISSUE-048: El Gate 4 (inscribir desde el portal) no debe bloquear inscripciones múltiples del mismo ejemplar
+Descripción: regla de negocio confirmada por Yesica el 04/08 (ver GOTCHA #69) — un caballo **se anota en varias categorías de la misma reunión** y recién el **lunes previo** la secretaría define en cuál queda. El schema ya lo permite (`UNIQUE (carrera_id, spc_id)`, por carrera y no por reunión) y en prod ya pasa: R6 del 20/06 tiene 13 ejemplares en 2 turnos cada uno.
+
+Riesgo: la reacción intuitiva al diseñar el RPC de inscripción del portal es rechazar "este caballo ya está anotado en esta reunión". Eso **rompe el proceso real** del hipódromo.
+
+**División de responsabilidades — resuelta por Leo el 04/08**: *el portal anota, la secretaría resuelve.* El entrenador **sí** puede anotar el mismo caballo en varias categorías desde el portal: es el proceso real, el papel funciona así. Lo único que queda **exclusivo de secretaría** es la **resolución del lunes** — decidir en qué categoría queda el ejemplar y dar de baja las otras inscripciones.
+
+Qué hay que hacer en el Gate 4:
+- El RPC de inscripción **no** valida unicidad por reunión. Si hace falta, aviso informativo en la UI ("ya lo anotaste en el turno N"), nunca un rechazo.
+- La pantalla del portal tiene que **mostrar** las otras inscripciones del mismo ejemplar en esa reunión, para que el entrenador vea lo que ya hizo.
+- La baja de las inscripciones sobrantes **no** va en el portal del Gate 4: es la resolución del lunes y la hace la secretaría desde el back office. El portal no necesita un botón de baja para esto.
+- Revisar todo conteo por caballo/reunión (incentivos de montas, resumen de la Fase 5, cupos) para que no sobrecuente estas filas.
+
+Módulo: `portal.html` + RPC de inscripción del Gate 4 (`docs/AUTOREGISTRO_PLAN.md` §Gate 4). Estado: ⏳ Abierto — es requisito de diseño, hay que resolverlo **antes** de escribir el RPC. Prioridad: Alta (bloquea el Gate 4, apuntado a R9 del 06/09).
