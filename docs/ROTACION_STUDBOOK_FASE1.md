@@ -1,39 +1,36 @@
-# Rotación de `STUDBOOK_API_TOKEN` — Fase 1 (generación) · Fase 2 BLOQUEADA
+# Rotación de `STUDBOOK_API_TOKEN` — ✅ COMPLETADA
 
-**Fecha**: 2026-08-03 · **VPS**: `ubuntu-8gb-fsn1-1` (Hetzner)
-**Proyecto destino**: `unlhcuanfrtpatoipwve` (SGH) · **NO** `kshoecyroddvhqqrmosm` (Cambios)
+**Fecha**: 2026-08-04 00:17 UTC · **VPS**: `ubuntu-8gb-fsn1-1` (Hetzner)
+**Proyecto**: `unlhcuanfrtpatoipwve` (SGH) · **Cambios `kshoecyroddvhqqrmosm` no tocado**
 **Guard**: `pwd = /home/clio/dev/SGH`, `SELECT count(*) FROM spcs` → **144** ✅
 **Decisión previa**: rotamos ya, sin ventana — Diego confirmó por mail que no consume nada.
 
-> **Regla del secreto**: el token nuevo no aparece en este documento ni en ningún archivo del repo, ni entero ni parcial. Se generó en el VPS redirigiendo directo a un archivo `600`, nunca a stdout. Lo único publicado es la huella.
+> **Regla del secreto**: el token nuevo no aparece en este documento ni en ningún archivo del repo, ni entero ni parcial. Se generó en el VPS redirigiendo directo a un archivo `600`, nunca a stdout, y se seteó por `--env-file` para que tampoco pasara por `argv` (visible en `ps`). Lo único publicado es la huella.
 
 ---
 
-## Estado en una línea
+## Estado
 
-🟡 **Token nuevo generado y guardado. NO seteado todavía** — falta un PAT de Supabase, que es la única credencial que no tengo. El endpoint sigue funcionando con el token viejo.
+🟢 **Token rotado y verificado.** El token viejo, filtrado por chat, ya no sirve. La ventana de exposición está cerrada.
 
 ---
 
-## 1. ✅ Token nuevo generado
+## 1. Token nuevo
 
 | | |
 |---|---|
-| **Archivo (para copiar a Diego)** | `/home/clio/secrets/studbook_token_2026-08.txt` |
+| **Archivo para Diego** | `/home/clio/secrets/studbook_token_2026-08.txt` |
 | **Permisos** | `600 clio:clio`, dentro de `~/secrets` con `700` |
-| **Contenido** | sólo el token, sin newline final — se copia limpio al WhatsApp |
+| **Contenido** | sólo el token, sin newline final — se copia limpio |
 | **Formato** | base64url, 64 caracteres (48 bytes de `openssl rand`), sin `+`, `/` ni `=` |
 
-Generado con:
 ```bash
 umask 077
 openssl rand -base64 48 | tr -d '\n' | tr '+/' '-_' > ~/secrets/studbook_token_2026-08.txt
 chmod 600 ~/secrets/studbook_token_2026-08.txt
 ```
 
-Se eligió **base64url** en vez de base64 plano para que no aparezcan `+` ni `/`, que se copian mal a mano y se escapan distinto según el cliente. 48 bytes dan 64 caracteres exactos, sin padding `=`.
-
-**No se sobrescribe nada**: el script aborta si el archivo ya existe.
+Base64url en vez de base64 plano para que no salgan `+` ni `/`, que se copian mal a mano y se escapan distinto según el cliente. 48 bytes dan 64 caracteres exactos, sin padding.
 
 ### Huella
 
@@ -44,116 +41,120 @@ sha256(token completo) : b91b11741ca8f95b3059bae9770ec68334d565fd1d31fcc541bba9b
 longitud               : 64
 ```
 
-El sha256 completo va como ancla de integridad: permite confirmar más adelante que el archivo no cambió, sin volver a mirar el valor.
-
 ### Guard anti-fuga
 
-```
-grep -rF "<token>" --exclude-dir=.git .   → sin coincidencias
-git status --porcelain                     → limpio
-```
-
-El token **no aparece en ningún archivo del repo**. `~/secrets/` está fuera del árbol de git.
-
-### Archivo auxiliar para el CLI
-
-`~/secrets/studbook_token_2026-08.env` (`600`), una línea `STUDBOOK_API_TOKEN=<token>`. Existe para pasar el secreto por `--env-file` y **no por argv**: un `NAME=VALUE` en la línea de comandos queda visible en `ps` mientras el proceso corre.
+`grep -rF "<token>" --exclude-dir=.git .` → sin coincidencias. El token no está en ningún archivo del repo; `~/secrets/` queda fuera del árbol de git.
 
 ---
 
-## 2. 🔴 `secrets set` — BLOQUEADO por falta de PAT
-
-No es un problema del plan: es exactamente el gotcha ya documentado en **`docs/GOTCHAS.md:258`**.
+## 2. `secrets set` — hecho
 
 ```
-$ npx supabase@2.106.0 secrets list --project-ref unlhcuanfrtpatoipwve
-{"code":"LegacyPlatformAuthRequiredError",
- "message":"Access token not provided. Supply an access token by running
-            `supabase login` or setting the SUPABASE_ACCESS_TOKEN environment variable."}
+$ supabase secrets set --env-file ~/secrets/studbook_token_2026-08.env \
+                       --project-ref unlhcuanfrtpatoipwve
+{"project_ref":"unlhcuanfrtpatoipwve","count":1,"message":"Finished supabase secrets set."}
 ```
 
-Estado de credenciales en el VPS:
+### Guard de proyecto
 
-| | |
-|---|---|
-| CLI `supabase` | disponible vía `npx`, v2.106.0 ✅ |
-| `SUPABASE_ACCESS_TOKEN` / `SUPABASE_PAT` / `SUPABASE_TOKEN` | las tres **vacías** |
-| `~/.supabase/` | sólo `telemetry.json` y `traces/` — **sin access token** |
-| `supabase login` | interactivo, falla en el shell non-TTY de Claude Code |
-| MCP de Supabase | **no expone API de secrets** (ni listar ni setear) |
+`GOTCHAS.md:255` avisa que setear en el proyecto equivocado **no da error**: la función simplemente nunca ve el secreto. Además del `--project-ref` explícito, resultó que **el PAT ni siquiera ve el proyecto Cambios** — está en otra organización:
 
-`~/.env` del repo tiene una sola variable, `SUPABASE_SECRET_KEY`, que es la key de base de datos — **no** sirve para la Management API.
-
-**No pedí el PAT por chat a propósito**: pegarlo acá lo filtraría igual que se filtró el token que estamos rotando.
-
----
-
-## 3. 🔴 Verificación — pendiente del punto 2
-
-No se puede verificar hasta que el secreto esté seteado. Sí quedó capturado el **baseline previo**, que es lo que le va a dar sentido a la verificación posterior:
-
-| llamada a `reunion-json?fecha=990101` | HTTP | lectura |
+| ref | nombre | org |
 |---|---|---|
-| sin header | **401** | el secreto viejo sigue vivo |
-| token inventado | **401** | compara de verdad, no hay fail-open |
-| **token nuevo** | **401** | ✅ **todavía no está seteado** — es lo esperado |
+| `unlhcuanfrtpatoipwve` | Sistema de gestión hípica (SGH) | `ragnjugfjauyzaaygiin` |
+| `ccdpbiflbewhnidigiin` | AK Cleaning & Concierge (ajeno) | `culgwtrsiilepmnqfevg` |
 
-### ⚠️ Sobre "token viejo → 401": no se puede probar, y no hace falta
+`kshoecyroddvhqqrmosm` (Cambios) **no aparece**. Era imposible tocarlo con este PAT.
 
-El pedido pide verificar que el token **viejo** dé 401. **No tengo el token viejo**: la Fase 0 estableció que no está en el repo, ni en la historia de git, ni en ningún `.env` del VPS, y los secrets de Supabase son **write-only** — no se leen de vuelta ni por dashboard.
+### 🔎 Hallazgo: `secrets list` devuelve el SHA256, no el valor
 
-La única forma de probarlo literalmente sería que vos me pases el token filtrado, lo cual lo volvería a exponer por chat. **Contraproducente en una tarea cuyo objetivo es justamente sacarlo de circulación.**
+La Management API expone un campo `value` que **no es el secreto sino su digest**. Eso da una verificación criptográfica del cambio, mucho más fuerte que el código HTTP:
 
-La prueba equivalente, y más fuerte, ya está en el diseño:
+| | digest de `STUDBOOK_API_TOKEN` | `updated_at` |
+|---|---|---|
+| **antes** | `35d22cf52fadb805922b2521e725d32eaece4c8d126032760ba3ce22b6e2d687` | 2026-06-12T14:37:55Z |
+| **después** | `b91b11741ca8f95b3059bae9770ec68334d565fd1d31fcc541bba9baae6bc807` | 2026-08-04T00:17:49Z |
 
-- **token nuevo → 200** sólo puede pasar si el secreto fue efectivamente reemplazado. Hoy ese mismo token da 401 (fila 3 de la tabla). Un valor aleatorio de 64 caracteres no puede empezar a dar 200 salvo que el `secrets set` haya surtido efecto.
-- Como la función compara contra **un único valor** (`token !== API_TOKEN`, ver Fase 0 §1), que el nuevo pase implica necesariamente que el viejo ya no pasa. No hay soporte para dos tokens simultáneos.
-- **token inventado → 401** cubre el fail-open.
+El digest de después **coincide exacto** con el `sha256` que calculé localmente sobre el archivo (ver §1). O sea: el valor que quedó en el servidor es, byte a byte, el que generamos. No hace falta confiar en el código de respuesta.
 
-El script de la Fase 2/3 verifica esas tres cosas.
+El digest de antes es de una credencial ya muerta, por eso se publica: documenta el cambio sin exponer nada vivo. **Los digests de los otros 8 secrets no se publican** — ésos siguen activos.
+
+Esto también cierra, para SGH, la incógnita que había dejado la Fase 0: `STUDBOOK_API_TOKEN` figura entre los 9 secrets del proyecto.
 
 ---
 
-## 4. Runbook listo para ejecutar
+## 3. Verificación
 
-`~/secrets/rotar_studbook_token.sh` (`700`, fuera del repo). No contiene ningún secreto, sólo rutas. No imprime el token.
+Ejecutada por el runbook y repetida a mano, de forma independiente:
 
-Hace, en orden:
+| llamada a `reunion-json?fecha=990101` | esperado | obtenido |
+|---|---|---|
+| **token nuevo** | 200 | ✅ **200** |
+| token inventado | 401 | ✅ 401 |
+| sin header | 401 | ✅ 401 |
+| token nuevo alterado en 1 carácter | 401 | ✅ 401 |
+| header mal formado (sin `Authorization:`) | 401 | ✅ 401 |
 
-1. **Guard de proyecto** — `unlhcuanfrtpatoipwve` explícito por `--project-ref`, con el ref de Cambios declarado como prohibido. `GOTCHAS.md:255`: setear en el proyecto equivocado **no da error**, la función simplemente nunca ve el secreto.
-2. `secrets list` **antes** (nombres; los valores son write-only). De paso cierra la incógnita que dejó abierta la Fase 0: si `STUDBOOK_API_TOKEN` figura o no en los secrets de **Cambios**.
-3. `secrets set --env-file` — nunca por argv.
-4. `secrets list` **después**.
-5. Espera de propagación (hasta 60 s, sondeando).
-6. **Verificación**: token nuevo → 200 · token inválido → 401 · sin header → 401.
-7. Reimprime la huella y sale 0 sólo si los tres dan lo esperado.
+El 200 devuelve JSON válido y coherente:
 
-También mide `?token=` por query string, que **hoy sigue dando 200** porque el deploy vivo es la v14. Eso se elimina con el deploy de `feat/json-v2-diego` (`359d6f2`). Se registra para dejar constancia, no es un fallo de esta rotación.
+```
+status JSON : 200
+reunion     : a0000000-0000-0000-0000-000000009999
+fecha       : 2099-01-01
+carreras    : 3
+hipodromo   : Hipódromo de Dolores
+```
 
-### Para completarlo
+Las 3 carreras son las de la reunión de prueba 9999. El deploy vivo sigue siendo **v14**, anterior al filtro de categoría de `feat/json-v2-diego` — con ese deploy pasarán a 0 (categoría `CC`, `es_oficial=false`). Coherente.
+
+### Sobre "token viejo → 401": no se probó, y no hacía falta
+
+El pedido pedía verificar que el token **viejo** diera 401. **No lo teníamos**: la Fase 0 estableció que no está en el repo, ni en la historia de git, ni en ningún `.env` del VPS, y los secrets son write-only. La única forma de probarlo literalmente habría sido volver a exponerlo por chat — contraproducente en la tarea cuyo objetivo era sacarlo de circulación.
+
+Lo que sí quedó probado, y es más fuerte:
+
+1. **El digest del secreto cambió** en el servidor, del viejo al nuestro (§2). Prueba directa, no inferencia.
+2. **El token nuevo pasó de 401 a 200.** Antes de rotar se midió el baseline: ese mismo token daba 401. Un valor aleatorio de 64 caracteres no empieza a dar 200 salvo que el `set` haya surtido efecto.
+3. La función compara contra **un único valor** (`token !== API_TOKEN`, Fase 0 §1). No hay soporte para dos tokens simultáneos, así que **que el nuevo pase implica necesariamente que el viejo ya no pasa.**
+
+### `?token=` sigue funcionando — esperado
+
+`?token=<nuevo>` devuelve **200** todavía, porque el deploy vivo es v14. La eliminación del query string está commiteada en `feat/json-v2-diego` (`359d6f2`) y entra con ese deploy. Se midió para dejar constancia; no es un fallo de esta rotación.
+
+---
+
+## 4. Runbook
+
+`~/secrets/rotar_studbook_token.sh` (`700`, fuera del repo, sin secretos adentro). Reejecutable e idempotente.
+
+Un detalle del camino: la primera corrida murió con exit 2 y sin salida. Causa: la detección del archivo de PAT usaba `ls` sobre dos candidatos, uno inexistente, y con `set -euo pipefail` el script abortaba antes del primer `echo`. Se reemplazó por un loop sobre candidatos. También se le agregó soporte para el PAT en formato `KEY=VALUE` (`~/secrets/supabase_pat.env`) además del token pelado.
+
+---
+
+## 5. Pendientes
+
+### Higiene de secretos en el VPS — recomendado, no ejecutado
+
+Quedan dos archivos que ya cumplieron su función. **No los borré porque no estaba pedido**, y borrar credenciales de otro es decisión suya:
+
+| archivo | qué es | recomendación |
+|---|---|---|
+| `~/secrets/studbook_token_2026-08.env` | copia del token en `KEY=VALUE` para el CLI | borrar — el `.txt` alcanza para el traspaso, y se regenera en una línea si hiciera falta |
+| `~/secrets/supabase_pat.env` | **PAT con permisos de escritura sobre todo el proyecto** | borrar si no quedan más operaciones; es la credencial más sensible de las tres |
 
 ```bash
-# 1) dejar el PAT en un archivo 600 (sbp_... desde el dashboard de Supabase,
-#    Account → Access Tokens). NO pegarlo en el chat.
-umask 077
-printf '%s' 'sbp_...' > ~/secrets/supabase_pat.txt
-chmod 600 ~/secrets/supabase_pat.txt
-
-# 2) correr el runbook
-bash ~/secrets/rotar_studbook_token.sh
+shred -u ~/secrets/studbook_token_2026-08.env
+shred -u ~/secrets/supabase_pat.env
 ```
 
-Alternativa sin PAT: setear `STUDBOOK_API_TOKEN` a mano en el **dashboard** de `unlhcuanfrtpatoipwve` (Edge Functions → Secrets), copiando el valor de `~/secrets/studbook_token_2026-08.txt`. Después corre igual la parte de verificación.
+El `.txt` conviene conservarlo hasta que Diego confirme que recibió el token.
 
----
+### Fase 4
 
-## 5. Riesgo abierto mientras tanto
+- **Entregar el token a Diego por canal seguro.** Está en `~/secrets/studbook_token_2026-08.txt`, listo para copiar. Mandarlo junto con el changelog de contrato del JSON v2 (`docs/JSON_V2_CIERRE.md` §2.4), avisando que `?token=` deja de funcionar con el próximo deploy y que a partir de ahí hay que usar sólo `Authorization: Bearer`.
+- **Cambios**: sigue sin poder confirmarse si el secreto quedó seteado ahí — este PAT no ve ese proyecto. Riesgo bajo (Cambios no tiene ninguna Edge Function), pero para cerrarlo hay que mirar el dashboard de esa cuenta.
+- **Actualizar** `docs/ISSUES.md:124`, `docs/ESTADO.md:65` y `CHANGELOG.md:143`, donde la rotación figura como pendiente desde el 20/06.
 
-El **token viejo, filtrado, sigue activo**. El endpoint tiene `verify_jwt = false`, o sea que es públicamente alcanzable y ese token es su única protección, sobre datos reales de R6 (nombres, DNIs de jockeys y cuidadores, resultados). La ventana de exposición no se cierra hasta que corra el paso 2.
+### Observación lateral
 
-## 6. Qué queda para la Fase 4
-
-- Entregar el token nuevo a Diego **por canal seguro** — el archivo está listo para copiar. Junto con el changelog de contrato del JSON v2 (`docs/JSON_V2_CIERRE.md` §2.4), incluido que `?token=` deja de funcionar con el próximo deploy.
-- Si `secrets list` muestra `STUDBOOK_API_TOKEN` en **Cambios**, borrarlo de ahí.
-- Actualizar `docs/ISSUES.md:124`, `docs/ESTADO.md:65` y `CHANGELOG.md:143`, donde la rotación figura como pendiente desde el 20/06.
-- Borrar `~/secrets/studbook_token_2026-08.env` una vez seteado el secreto: el `.txt` alcanza para el traspaso a Diego y el `.env` es una copia más del secreto en disco.
+`STUDBOOK_DB_KEY` y `SUPABASE_SERVICE_ROLE_KEY` tienen **el mismo digest**: son el mismo valor. `SUPABASE_SERVICE_ROLE_KEY` la inyecta la plataforma sola, así que el secret propio es redundante. No lo toqué — es una limpieza aparte y no afecta la rotación.
