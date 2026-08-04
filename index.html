@@ -309,6 +309,7 @@ function buildUI(rol) {
       ]) +
       navSection('Administración', [
         ['usuarios.html',                 '👥', 'Usuarios'],
+        ['solicitudes.html',              '📥', 'Solicitudes<span id="nav-pend"></span>'],
         ['admin.html',                    '🔧', 'Configuración'],
         ['auditoria.html',                '📋', 'Auditoría'],
       ]);
@@ -333,6 +334,7 @@ function buildUI(rol) {
       ]) +
       moduleSection('Administración', [
         moduleCard('usuarios.html',                 '👥', 'Usuarios',              'Gestión de usuarios del hipódromo'),
+        moduleCard('solicitudes.html',              '📥', 'Solicitudes de acceso', 'Pedidos de entrenadores y propietarios para entrar al portal'),
         moduleCard('admin.html',                    '🔧', 'Configuración',         'Gestión global de hipódromos clientes'),
         moduleCard('auditoria.html',                '📋', 'Auditoría',             'Registro de cambios'),
       ]);
@@ -360,6 +362,7 @@ function buildUI(rol) {
       ]) +
       navSection('Administración', [
         ['usuarios.html',                 '👥', 'Usuarios'],
+        ['solicitudes.html',              '📥', 'Solicitudes<span id="nav-pend"></span>'],
         ['admin.html',                    '🏠', 'Mi Hipódromo'],
         ['auditoria.html',                '📋', 'Auditoría'],
       ]);
@@ -384,6 +387,7 @@ function buildUI(rol) {
       ]) +
       moduleSection('Administración', [
         moduleCard('usuarios.html',                 '👥', 'Usuarios',              'Gestión de usuarios del hipódromo'),
+        moduleCard('solicitudes.html',              '📥', 'Solicitudes de acceso', 'Pedidos de entrenadores y propietarios para entrar al portal'),
         moduleCard('admin.html',                    '🏠', 'Mi Hipódromo',          'Comisión, sponsors, apuestas, redes sociales y leyendas del PDF'),
         moduleCard('auditoria.html',                '📋', 'Auditoría',             'Registro de cambios'),
       ]);
@@ -395,8 +399,25 @@ function buildUI(rol) {
     buildUI(currentUser.rol);
     loadDashboard();
     loadClubSelector();
+    cargarPendientes();
   }
 })();
+
+// Contador de solicitudes de acceso pendientes, en el link del sidebar.
+// Silencioso si falla: es un adorno, no puede tumbar el dashboard.
+async function cargarPendientes() {
+  const el = document.getElementById('nav-pend');
+  if (!el || !CLUB_ID) return;
+  try {
+    const { count, error } = await sb.from('solicitudes_acceso')
+      .select('id', { count: 'exact', head: true })
+      .eq('club_id', CLUB_ID).eq('estado', 'pendiente');
+    if (error || !count) return;
+    el.textContent = ` ${count}`;
+    el.style.cssText = 'background:var(--accent);color:#0e2318;border-radius:10px;'
+      + 'padding:0 7px;font-size:11px;font-weight:700;margin-left:6px;';
+  } catch (_) { /* adorno: no romper la navegación */ }
+}
 </script>
 </body>
 </html>

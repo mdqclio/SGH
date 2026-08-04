@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="logo32x32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="logo180x180.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0e2318">
+  <title>Solicitudes de acceso — SGH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#0e2318;--card:#1a3d26;--border:#245033;--accent:#c9a84c;
+          --accent-soft:#e8d5a3;--text:#f5f0e8;--muted:#8a9e90}
+    body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;min-height:100vh}
+    #auth-overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999}
+    .spinner{width:20px;height:20px;border:2px solid rgba(201,168,76,.25);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;display:inline-block}
+    @keyframes sp{to{transform:rotate(360deg)}}
+    .topbar{background:rgba(0,0,0,.3);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+    .topbar h1{font-size:20px;color:var(--accent);flex:1;font-family:'Playfair Display',serif}
+    .btn-back,.btn-logout{background:transparent;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:7px;font-size:13px;cursor:pointer;text-decoration:none;font-family:inherit}
+    .btn-back:hover,.btn-logout:hover{color:var(--accent-soft);border-color:var(--accent-soft)}
+    .topbar-club{font-size:12px;color:var(--muted);background:var(--card);padding:4px 12px;border-radius:20px;border:1px solid var(--border)}
+    .user-name{font-size:13px;color:var(--muted)}
+    .content{padding:24px;max-width:1000px;margin:0 auto}
+    .tabs{display:flex;gap:8px;margin-bottom:20px}
+    .tab{background:transparent;border:1px solid var(--border);color:var(--muted);padding:8px 18px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:14px}
+    .tab.on{background:rgba(201,168,76,.12);border-color:var(--accent);color:var(--accent-soft);font-weight:600}
+    .badge{background:var(--accent);color:var(--bg);border-radius:11px;padding:1px 8px;font-size:12px;font-weight:700;margin-left:6px}
+    .sol{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:16px}
+    .sol-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+    .sol-nombre{font-size:17px;color:var(--accent-soft);font-weight:600}
+    .sol-meta{font-size:13px;color:var(--muted);line-height:1.6}
+    .chip{display:inline-block;font-size:11px;padding:2px 9px;border-radius:11px;border:1px solid var(--border);color:var(--muted)}
+    .chip-rol{border-color:var(--accent);color:var(--accent-soft)}
+    .match{margin-top:14px;border-top:1px solid var(--border);padding-top:14px}
+    .match-title{font-size:11.5px;letter-spacing:.9px;color:var(--muted);text-transform:uppercase;margin-bottom:9px}
+    .ficha{border:1px solid var(--border);border-radius:9px;padding:11px 13px;margin-bottom:8px;cursor:pointer;background:rgba(0,0,0,.18)}
+    .ficha:hover{border-color:var(--accent-soft)}
+    .ficha.sel{border-color:var(--accent);background:rgba(201,168,76,.11)}
+    .ficha-nom{font-size:14.5px;color:var(--text)}
+    .ficha-sub{font-size:12px;color:var(--muted);margin-top:2px}
+    .tag{font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:4px;margin-right:7px}
+    .tag-exacto{background:#2e7d4f;color:#eafaf0}
+    .tag-sug{background:#5a4a1e;color:var(--accent-soft)}
+    .vacio{font-size:13px;color:var(--muted);padding:8px 0;line-height:1.6}
+    .buscador{display:flex;gap:8px;margin:10px 0}
+    .buscador input{flex:1;padding:9px 12px;background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:14px}
+    .buscador input:focus{outline:none;border-color:var(--accent)}
+    .acciones{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap}
+    .btn{padding:9px 16px;border-radius:8px;border:none;font-family:inherit;font-size:13.5px;cursor:pointer;font-weight:600}
+    .btn-ok{background:var(--accent);color:var(--bg)}
+    .btn-ok:disabled{opacity:.45;cursor:not-allowed}
+    .btn-sec{background:transparent;border:1px solid var(--border);color:var(--muted)}
+    .btn-sec:hover{color:var(--accent-soft);border-color:var(--accent-soft)}
+    .copiar{font-size:12.5px;color:var(--muted);margin-top:9px;display:flex;align-items:center;gap:7px}
+    .estado-tag{font-size:11px;padding:2px 9px;border-radius:11px;font-weight:600}
+    .e-aprobada{background:#2e7d4f;color:#eafaf0}
+    .e-rechazada{background:#7d2e2e;color:#ffd9d4}
+    .e-descartada{background:#3a4a40;color:var(--muted)}
+    #toast-container{position:fixed;top:16px;right:16px;z-index:1000}
+    .toast{padding:11px 16px;border-radius:8px;margin-bottom:8px;font-size:13.5px;max-width:380px}
+    .toast-success{background:#2e7d4f;color:#eafaf0}
+    .toast-error{background:#7d2e2e;color:#ffd9d4}
+    .loading-state{color:var(--muted);padding:30px;text-align:center;font-size:14px}
+  </style>
+</head>
+<body>
+<div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;"></div></div>
+<div id="toast-container"></div>
+
+<div class="topbar">
+  <a href="index.html" class="btn-back">← Volver</a>
+  <h1>📥 Solicitudes de acceso</h1>
+  <span class="topbar-club" id="club-name">Cargando…</span>
+  <span class="user-name" id="user-name"></span>
+  <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+</div>
+
+<div class="content">
+  <div class="tabs">
+    <button class="tab on" id="tab-pend" onclick="setTab('pendiente')">
+      Pendientes<span class="badge" id="badge-pend">0</span>
+    </button>
+    <button class="tab" id="tab-res" onclick="setTab('resueltas')">Resueltas</button>
+  </div>
+  <div id="lista"><div class="loading-state"><div class="spinner"></div> Cargando…</div></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK';
+
+let sb, CLUB_ID, currentUser;
+let tab = 'pendiente';
+const elegido = {};   // solicitud_id → {tipo, id, nombre, tieneDoc}
+
+async function initAuth(){
+  const{createClient}=supabase; sb=createClient(SUPABASE_URL,SUPABASE_KEY);
+  const{data:{session}}=await sb.auth.getSession();
+  if(!session){window.location.replace('login.html');return false;}
+  const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol')
+    .eq('auth_user_id',session.user.id).maybeSingle();
+  if(!usr){await sb.auth.signOut();window.location.replace('login.html');return false;}
+  if(!['super_admin','secretario_carreras','operador'].includes(usr.rol)){
+    window.location.replace('index.html');return false;
+  }
+  if(usr.rol==='super_admin'){
+    const urlClub=new URLSearchParams(window.location.search).get('club');
+    CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;
+  }else{CLUB_ID=usr.club_id;}
+  currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};
+  document.getElementById('user-name').textContent=usr.nombre_completo||session.user.email;
+  document.getElementById('auth-overlay').style.display='none';
+  return true;
+}
+function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
+function toast(msg,type='success'){const t=document.createElement('div');t.className=`toast toast-${type}`;
+  t.textContent=msg;document.getElementById('toast-container').appendChild(t);setTimeout(()=>t.remove(),5000);}
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// --- Aviso por WhatsApp ----------------------------------------------------
+// Es la vía de aviso del piloto: sin mail automático y sin Edge Function.
+// Se normaliza de nuevo acá, defensivo: puede haber solicitudes viejas
+// guardadas antes de que el formulario normalizara.
+function telWa(t) {
+  let d = String(t || '').replace(/\D/g, '');
+  if (!d) return '';
+  if (d.startsWith('54')) return d;
+  if (d.startsWith('0')) d = d.slice(1);
+  return '549' + d;
+}
+const LOGIN_URL = 'https://mdqclio.github.io/SGH/login.html';
+function waLink(tel, texto) {
+  const d = telWa(tel);
+  return d ? `https://wa.me/${d}?text=${encodeURIComponent(texto)}` : '';
+}
+function msgAprobado(nombre) {
+  return `Hola ${nombre}! Tu acceso al sistema del Hipódromo de Dolores ya está aprobado. `
+       + `Podés entrar en ${LOGIN_URL} con tu email y la contraseña que elegiste.`;
+}
+function msgRechazado(nombre) {
+  return `Hola ${nombre}! Sobre tu pedido de acceso al sistema del Hipódromo de Dolores: `
+       + `necesitamos verificar algunos datos. Comunicate con la secretaría cuando puedas.`;
+}
+// Se abre en pestaña nueva y se avisa si no hay teléfono, en vez de no hacer nada.
+function abrirWa(tel, texto) {
+  const url = waLink(tel, texto);
+  if (!url) { toast('Esta solicitud no tiene teléfono cargado.', 'error'); return; }
+  window.open(url, '_blank', 'noopener');
+}
+const fecha = (iso) => new Date(iso).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+
+function setTab(t){
+  tab=t;
+  document.getElementById('tab-pend').classList.toggle('on',t==='pendiente');
+  document.getElementById('tab-res').classList.toggle('on',t!=='pendiente');
+  load();
+}
+
+// ---------------------------------------------------------------------------
+// Matcheo por DNI — lo hace la secretaría, no el sistema
+// ---------------------------------------------------------------------------
+// El sistema SÓLO sugiere. El vínculo se crea con la ficha que Yesi elige y
+// que viaja como parámetro explícito de rpc_aprobar_solicitud. No hay ninguna
+// ruta que vincule por coincidencia. Ver AUTOREGISTRO_PLAN.md §C.8.
+async function buscarFichas(sol, textoManual) {
+  const tabla = sol.rol_pedido === 'profesional' ? 'profesionales' : 'propietarios';
+  const cols  = sol.rol_pedido === 'profesional'
+    ? 'id,nombre,apellido,documento_nro,tipo,hipodromo_patente'
+    : 'id,nombre,nombre_stud,documento_nro,tipo';
+
+  if (textoManual) {
+    const q = `%${textoManual}%`;
+    const filtro = sol.rol_pedido === 'profesional'
+      ? `nombre.ilike.${q},apellido.ilike.${q},documento_nro.ilike.${q}`
+      : `nombre.ilike.${q},nombre_stud.ilike.${q},documento_nro.ilike.${q}`;
+    const { data } = await sb.from(tabla).select(cols).eq('club_id', CLUB_ID).or(filtro).limit(12);
+    return { exactas: [], sugeridas: data || [], manual: true, tabla };
+  }
+
+  // 1) EXACTO por documento_nro.
+  const { data: ex } = await sb.from(tabla).select(cols)
+    .eq('club_id', CLUB_ID).eq('documento_nro', sol.documento_nro).limit(5);
+
+  // 2) Sin exacto: sugerencias por apellido. Muchos entrenadores no tienen DNI
+  //    cargado (103/167), así que este camino es el habitual, no la excepción.
+  let sug = [];
+  if (!ex || ex.length === 0) {
+    const ape = `%${sol.apellido}%`;
+    const filtro = sol.rol_pedido === 'profesional'
+      ? `apellido.ilike.${ape},nombre.ilike.${ape}`
+      : `nombre.ilike.${ape},nombre_stud.ilike.${ape}`;
+    const { data } = await sb.from(tabla).select(cols).eq('club_id', CLUB_ID).or(filtro).limit(8);
+    sug = data || [];
+  }
+  return { exactas: ex || [], sugeridas: sug, manual: false, tabla };
+}
+
+function fichaHTML(sol, f, tipoTag) {
+  const nom = sol.rol_pedido === 'profesional'
+    ? `${esc(f.apellido || '')}, ${esc(f.nombre || '')}`
+    : esc(f.nombre || '');
+  const sub = [];
+  sub.push(f.documento_nro ? `DNI ${esc(f.documento_nro)}` : '<em>sin DNI cargado</em>');
+  if (f.tipo) sub.push(esc(f.tipo));
+  if (f.hipodromo_patente) sub.push(esc(f.hipodromo_patente));
+  if (f.nombre_stud) sub.push(`stud ${esc(f.nombre_stud)}`);
+  const tag = tipoTag === 'exacto'
+    ? '<span class="tag tag-exacto">EXACTO</span>'
+    : '<span class="tag tag-sug">SUGERENCIA</span>';
+  return `<div class="ficha" data-sol="${sol.id}" data-fid="${f.id}" data-fnom="${nom}"
+              data-fdoc="${f.documento_nro ? '1' : '0'}">
+    <div class="ficha-nom">${tag}${nom}</div>
+    <div class="ficha-sub">${sub.join(' · ')}</div>
+  </div>`;
+}
+
+// ---------------------------------------------------------------------------
+async function load(){
+  const cont = document.getElementById('lista');
+  cont.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando…</div>';
+
+  const { data: club } = await sb.from('clubs').select('nombre,sigla').eq('id', CLUB_ID).single();
+  if (club) document.getElementById('club-name').textContent = club.sigla || club.nombre;
+
+  let q = sb.from('solicitudes_acceso').select('*').eq('club_id', CLUB_ID).order('created_at',{ascending:false});
+  q = (tab === 'pendiente') ? q.eq('estado','pendiente') : q.neq('estado','pendiente');
+  const { data: sols, error } = await q;
+  if (error) { cont.innerHTML = `<div class="vacio">No se pudo cargar: ${esc(error.message)}</div>`; return; }
+
+  // El contador cuenta SIEMPRE los pendientes, esté abierta la pestaña que esté.
+  const { count } = await sb.from('solicitudes_acceso')
+    .select('id',{count:'exact',head:true}).eq('club_id',CLUB_ID).eq('estado','pendiente');
+  document.getElementById('badge-pend').textContent = count ?? 0;
+
+  if (!sols || sols.length === 0) {
+    cont.innerHTML = tab === 'pendiente'
+      ? '<div class="vacio">No hay solicitudes pendientes. Cuando alguien pida acceso, aparece acá.</div>'
+      : '<div class="vacio">Todavía no hay solicitudes resueltas.</div>';
+    return;
+  }
+
+  cont.innerHTML = '';
+  for (const s of sols) {
+    const div = document.createElement('div');
+    div.className = 'sol';
+    div.id = `sol-${s.id}`;
+    div.innerHTML = await tarjetaHTML(s);
+    cont.appendChild(div);
+    if (s.estado === 'pendiente') {
+      cablear(div, s);
+    } else {
+      const b = div.querySelector(`[data-wa="${s.id}"]`);
+      if (b) b.onclick = () => abrirWa(s.telefono,
+        s.estado === 'aprobada' ? msgAprobado(s.nombre) : msgRechazado(s.nombre));
+    }
+  }
+}
+
+async function tarjetaHTML(s){
+  const rolTxt = s.rol_pedido === 'profesional' ? 'Entrenador' : 'Propietario';
+  const cabecera = `
+    <div class="sol-head">
+      <div>
+        <div class="sol-nombre">${esc(s.nombre)} ${esc(s.apellido)}</div>
+        <div class="sol-meta">
+          DNI ${esc(s.documento_nro)} · <span class="chip chip-rol">${rolTxt}</span>
+          ${s.telefono ? ' · ' + esc(s.telefono) : ''}<br>
+          ${esc(s.email)} · solicitado ${fecha(s.created_at)}
+        </div>
+      </div>
+      ${s.estado !== 'pendiente' ? `<span class="estado-tag e-${s.estado}">${s.estado.toUpperCase()}</span>` : ''}
+    </div>`;
+
+  if (s.estado !== 'pendiente') {
+    const motivo = s.motivo_rechazo
+      ? `<div class="sol-meta" style="margin-top:8px;">Motivo: ${esc(s.motivo_rechazo)}</div>` : '';
+    // Reenvío del aviso: sirve si el primero no salió o la persona lo perdió.
+    // Sólo para aprobadas y rechazadas — a las descartadas no se les avisa nada.
+    const avisa = s.telefono && (s.estado === 'aprobada' || s.estado === 'rechazada')
+      ? `<div class="acciones"><button class="btn btn-sec" data-wa="${s.id}">💬 Avisar por WhatsApp</button></div>`
+      : '';
+    return cabecera + motivo + avisa;
+  }
+
+  const { exactas, sugeridas } = await buscarFichas(s);
+  let cuerpo = '<div class="match"><div class="match-title">Matcheo por DNI</div>';
+  if (exactas.length) {
+    cuerpo += exactas.map(f => fichaHTML(s, f, 'exacto')).join('');
+  } else if (sugeridas.length) {
+    cuerpo += `<div class="vacio">No hay ficha con ese DNI. Estas se parecen por apellido — <strong>ninguna está preseleccionada</strong>:</div>`;
+    cuerpo += sugeridas.map(f => fichaHTML(s, f, 'sug')).join('');
+  } else {
+    cuerpo += `<div class="vacio">No hay ficha con ese DNI ni con ese apellido. Buscá a mano o creá la ficha desde
+      ${s.rol_pedido === 'profesional' ? '<a href="profesionales.html" style="color:var(--accent-soft)">Entrenadores</a>'
+                                       : '<a href="propietarios.html" style="color:var(--accent-soft)">Propietarios</a>'}
+      y volvé.</div>`;
+  }
+  cuerpo += `
+    <div class="buscador">
+      <input type="text" placeholder="Buscar ficha por nombre, apellido o DNI…" data-busca="${s.id}">
+      <button class="btn btn-sec" data-btnbusca="${s.id}">Buscar</button>
+    </div>
+    <div data-resultados="${s.id}"></div>
+    <div class="copiar">
+      <input type="checkbox" data-copiar="${s.id}" checked>
+      <label>Si la ficha no tiene DNI cargado, copiarle el declarado (${esc(s.documento_nro)})</label>
+    </div>
+    <div class="acciones">
+      <button class="btn btn-ok" data-aprobar="${s.id}" disabled>Vincular y aprobar</button>
+      <button class="btn btn-sec" data-rechazar="${s.id}">Rechazar…</button>
+      <button class="btn btn-sec" data-descartar="${s.id}">Descartar</button>
+    </div>
+    <div class="vacio" data-aviso="${s.id}">Elegí una ficha para poder aprobar.</div>
+  </div>`;
+  return cabecera + cuerpo;
+}
+
+function cablear(div, s){
+  const marcarSel = (el) => {
+    div.querySelectorAll('.ficha').forEach(f => f.classList.remove('sel'));
+    el.classList.add('sel');
+    elegido[s.id] = { tipo: s.rol_pedido, id: el.dataset.fid, nombre: el.dataset.fnom };
+    div.querySelector(`[data-aprobar="${s.id}"]`).disabled = false;
+    div.querySelector(`[data-aviso="${s.id}"]`).textContent =
+      `Se va a vincular a: ${el.dataset.fnom}`;
+  };
+  div.querySelectorAll('.ficha').forEach(el => el.onclick = () => marcarSel(el));
+
+  const inp = div.querySelector(`[data-busca="${s.id}"]`);
+  const hacerBusqueda = async () => {
+    const txt = inp.value.trim();
+    const cont = div.querySelector(`[data-resultados="${s.id}"]`);
+    if (!txt) { cont.innerHTML = ''; return; }
+    cont.innerHTML = '<div class="vacio">Buscando…</div>';
+    const { sugeridas } = await buscarFichas(s, txt);
+    cont.innerHTML = sugeridas.length
+      ? sugeridas.map(f => fichaHTML(s, f, 'sug')).join('')
+      : '<div class="vacio">Sin resultados.</div>';
+    cont.querySelectorAll('.ficha').forEach(el => el.onclick = () => marcarSel(el));
+  };
+  div.querySelector(`[data-btnbusca="${s.id}"]`).onclick = hacerBusqueda;
+  inp.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); hacerBusqueda(); } };
+
+  div.querySelector(`[data-aprobar="${s.id}"]`).onclick = async (ev) => {
+    const sel = elegido[s.id];
+    if (!sel) return;
+    if (!confirm(`Vincular a ${s.nombre} ${s.apellido} con la ficha "${sel.nombre}" y darle acceso?`)) return;
+    ev.target.disabled = true;
+    const copiar = div.querySelector(`[data-copiar="${s.id}"]`).checked;
+    const { error } = await sb.rpc('rpc_aprobar_solicitud', {
+      p_solicitud_id: s.id, p_entidad_tipo: sel.tipo, p_entidad_id: sel.id,
+      p_copiar_documento: copiar,
+    });
+    if (error) { toast(error.message, 'error'); ev.target.disabled = false; return; }
+    toast(`${s.nombre} ${s.apellido} quedó habilitado.`);
+    // Aviso por WhatsApp: se ofrece en el momento, antes de recargar la lista,
+    // porque después la solicitud se va a la pestaña de resueltas.
+    if (s.telefono) {
+      if (confirm(`Listo. ¿Le avisás por WhatsApp a ${s.nombre}?`)) {
+        abrirWa(s.telefono, msgAprobado(s.nombre));
+      }
+    } else {
+      toast('No cargó teléfono: avisale por la vía que tengas.', 'error');
+    }
+    load();
+  };
+
+  div.querySelector(`[data-rechazar="${s.id}"]`).onclick = async () => {
+    const motivo = prompt('Motivo del rechazo (se le muestra a la persona):');
+    if (motivo === null) return;
+    if (!motivo.trim()) { toast('El motivo es obligatorio.', 'error'); return; }
+    const { error } = await sb.rpc('rpc_rechazar_solicitud', { p_solicitud_id: s.id, p_motivo: motivo });
+    if (error) { toast(error.message, 'error'); return; }
+    toast('Solicitud rechazada.');
+    // El aviso de rechazo es OPCIONAL y con texto neutro: no repite el motivo
+    // interno, sólo invita a comunicarse con la secretaría.
+    if (s.telefono && confirm(`¿Le avisás por WhatsApp a ${s.nombre}? El mensaje es neutro, sin el motivo.`)) {
+      abrirWa(s.telefono, msgRechazado(s.nombre));
+    }
+    load();
+  };
+
+  div.querySelector(`[data-descartar="${s.id}"]`).onclick = async () => {
+    if (!confirm('Descartar esta solicitud? No se le avisa nada a la persona.')) return;
+    const { error } = await sb.rpc('rpc_descartar_solicitud', { p_solicitud_id: s.id });
+    if (error) { toast(error.message, 'error'); return; }
+    toast('Solicitud descartada.');
+    load();
+  };
+}
+
+(async () => { if (await initAuth()) load(); })();
+</script>
+</body>
+</html>
