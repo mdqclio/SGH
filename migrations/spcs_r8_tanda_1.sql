@@ -1,7 +1,8 @@
 -- ============================================================
 -- spcs_r8_tanda_1.sql — alta incremental de SPCs para R8
 -- ============================================================
--- PROPUESTA. NO EJECUTADO. Requiere OK explícito de Leo.
+-- APLICADO el 2026-08-04 por MCP apply_migration (migración spcs_r8_tanda_1).
+-- Verificación: spcs 144 -> 156, 12 filas nuevas, 0 studbook_id duplicados.
 --
 -- Origen: www.studbook.org.ar, match EXACTO por nombre normalizado.
 -- Evidencia: data/spcs_r8_tanda_1_scrape.json

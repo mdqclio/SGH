@@ -150,8 +150,28 @@ es el `GIULIANI NICOLAS JULIAN` existente, y si `ALDAY ESTEBAN` es `ALDAY SERGIO
 
 ---
 
-## 5. 🚦 GATE
+## 5. 🚦 GATE — ✅ APLICADO (04/08)
 
-`migrations/spcs_r8_tanda_1.sql` está **propuesto, no ejecutado**. Espera OK explícito
-de Leo. Con el OK: aplicar por MCP, revisar los dos SELECT antes del `COMMIT`, y verificar
-que `spcs` quede en **156** (144 + 12).
+OK de Leo. Los 12 INSERTs se aplicaron por MCP `apply_migration`, migración
+`spcs_r8_tanda_1` (mismos valores que `migrations/spcs_r8_tanda_1.sql`, sin el
+`BEGIN/COMMIT` ni los SELECT: `apply_migration` ya envuelve todo en una transacción).
+
+### Verificación post-ejecución
+
+| chequeo | esperado | obtenido | |
+|---|---|---|---|
+| `SELECT count(*) FROM spcs` | 156 (144 + 12) | **156** | ✅ |
+| filas con los 12 `studbook_id` de la tanda | 12 | **12** | ✅ |
+| `studbook_id` duplicados | 0 filas | **0** | ✅ |
+| `club_id` / `caballeriza_id` / `registro_stud_book` en las 12 | NULL | NULL | ✅ |
+| `pais_origen` / `estado` | `Argentina` / `activo` | ídem | ✅ |
+
+Todos los campos (nombre, fecha, sexo, color, padre, madre) coinciden fila por fila con
+el scrape de `data/spcs_r8_tanda_1_scrape.json`.
+
+`data/spcs_snapshot.json` actualizado a **156** — queda listo para la tanda 2.
+
+### Sigue pendiente
+
+Los 4 SPCs dudosos (§1) y las altas de caballerizas/jockeys/cuidadores (§2, §3) **no**
+se tocaron. Van por Yesi.
