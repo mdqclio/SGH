@@ -11,3 +11,4 @@ supabase/.temp/
 .env.*
 *.key
 *service*account*.json
+tools/__pycache__/

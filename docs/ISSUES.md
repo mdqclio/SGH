@@ -311,10 +311,12 @@ Descripción: regla de negocio confirmada por Yesica el 04/08 (ver GOTCHA #69) �
 
 Riesgo: la reacción intuitiva al diseñar el RPC de inscripción del portal es rechazar "este caballo ya está anotado en esta reunión". Eso **rompe el proceso real** del hipódromo.
 
+**División de responsabilidades — resuelta por Leo el 04/08**: *el portal anota, la secretaría resuelve.* El entrenador **sí** puede anotar el mismo caballo en varias categorías desde el portal: es el proceso real, el papel funciona así. Lo único que queda **exclusivo de secretaría** es la **resolución del lunes** — decidir en qué categoría queda el ejemplar y dar de baja las otras inscripciones.
+
 Qué hay que hacer en el Gate 4:
 - El RPC de inscripción **no** valida unicidad por reunión. Si hace falta, aviso informativo en la UI ("ya lo anotaste en el turno N"), nunca un rechazo.
 - La pantalla del portal tiene que **mostrar** las otras inscripciones del mismo ejemplar en esa reunión, para que el entrenador vea lo que ya hizo.
-- Definir quién puede dar de baja las inscripciones sobrantes del lunes y por qué camino (¿el propio entrenador desde el portal, o sólo la secretaría?). **Sin definir.**
+- La baja de las inscripciones sobrantes **no** va en el portal del Gate 4: es la resolución del lunes y la hace la secretaría desde el back office. El portal no necesita un botón de baja para esto.
 - Revisar todo conteo por caballo/reunión (incentivos de montas, resumen de la Fase 5, cupos) para que no sobrecuente estas filas.
 
 Módulo: `portal.html` + RPC de inscripción del Gate 4 (`docs/AUTOREGISTRO_PLAN.md` §Gate 4). Estado: ⏳ Abierto — es requisito de diseño, hay que resolverlo **antes** de escribir el RPC. Prioridad: Alta (bloquea el Gate 4, apuntado a R9 del 06/09).

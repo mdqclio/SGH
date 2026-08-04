@@ -22,7 +22,10 @@
 | `LOGARCIUS` | No era typo: el nombre real es **`LOGUACIOUS`** | ✅ scrapeado, **alta propuesta** |
 | `SOY RICARDO` | Confirmado el del **2022, sb `434608`** | ✅ **alta propuesta** (homónimo resuelto) |
 | `GRAND VUETERA` | Es **`GRAND VUELTERA`**, que ya existe | ⛔ **resuelto sin alta** — ver §3 |
-| `WISKA KEN` | Sin respuesta todavía | ⏳ **sigue pendiente**, no se tocó |
+| `WISKA KEN` | Es **`WISLA KEN`**, ya cargado (sb `433894`) | ⛔ **resuelto sin alta** — ver §4 |
+
+**Los 4 dudosos de la tanda 1 quedaron cerrados**: 2 con alta, 2 sin alta por ser typos de
+la planilla contra ejemplares que ya estaban.
 
 ## 2. Altas propuestas (2)
 
@@ -61,10 +64,27 @@ y se saca de la lista de pendientes.
 ⚠️ Nota aparte, no se tocó: ese registro **no tiene `studbook_id`**. Es parte del backlog
 de SPCs sin vincular al Stud Book, no un problema de esta tanda.
 
-## 4. `WISKA KEN` — sigue abierto
+## 4. `WISKA KEN` — resuelto sin alta
 
-Único pendiente de la tanda 1. La base tiene `WISLA KEN` (sb `433894`, similitud 0.889) y
-el SB no devuelve ningún match exacto para `WISKA KEN`. Falta que Yesi diga si son el mismo.
+Yesi confirmó que es **`WISLA KEN`**, ya cargado. Era typo de la planilla (`K`/`L`), el
+mismo patrón que `GRAND VUETERA`. **No se da de alta.**
+
+Fila en la base, verificada el 04/08:
+
+| campo | valor |
+|---|---|
+| `id` | `29db5000-920f-4185-9cc7-2d310d584b78` |
+| `nombre` | WISLA KEN |
+| `studbook_id` | 433894 |
+| `fecha_nacimiento` | 2021-09-28 |
+| `sexo` / `color` | hembra / Zaino |
+| padre / madre | Le Ken × Wilkenia |
+| `estado` | activo |
+
+Fila única — no hay duplicado por nombre ni por `studbook_id`. Que el SB no devuelva
+ningún match exacto para `WISKA KEN` es coherente con que el nombre correcto sea el otro.
+
+Con esto **no queda ningún SPC pendiente** de la tanda 1.
 
 ---
 
@@ -86,14 +106,43 @@ Documentado en:
   (no agregar unique por reunión; los conteos por caballo/reunión sobrecuentan; después
   de la ratificación se resuelve solo vía `forfait`/`mal_inscrito`).
 - **`docs/ISSUES.md` ISSUE-048** — requisito de diseño del Gate 4: el RPC de inscripción
-  **no** valida unicidad por reunión, la UI muestra las otras inscripciones del ejemplar,
-  y queda por definir quién da de baja las sobrantes del lunes.
+  **no** valida unicidad por reunión y la UI muestra las otras inscripciones del ejemplar.
 - **`docs/AUTOREGISTRO_PLAN.md` §Gate 4** — el requisito y un assert nuevo para el probe:
   el mismo `spc_id` en dos carreras de la misma reunión tiene que ser **aceptado**.
 
+**División de responsabilidades, resuelta por Leo el 04/08**: *el portal anota, la
+secretaría resuelve.* El entrenador **sí** puede anotar el mismo caballo en varias
+categorías desde el portal — es el proceso real, el papel funciona así. La **resolución
+del lunes** (elegir la categoría definitiva y dar de baja las otras) queda **fuera del
+portal**: la hace la secretaría desde el back office. El Gate 4 no necesita UI de baja.
+
 ---
 
-## 6. 🚦 GATE
+## 6. 🚦 GATE — ✅ APLICADO (04/08)
 
-`migrations/spcs_r8_tanda_1b.sql` está **propuesto, no ejecutado**. Espera OK explícito.
-Con el OK: aplicar por MCP y verificar que `spcs` quede en **158** (156 + 2).
+OK de Leo. Aplicado por MCP `apply_migration`, migración `spcs_r8_tanda_1b`.
+
+| chequeo | esperado | obtenido | |
+|---|---|---|---|
+| `count(*) FROM spcs` | 158 (156 + 2) | **158** | ✅ |
+| filas con sb `431567` / `434608` | 2 | **2** | ✅ |
+| `studbook_id` duplicados | 0 filas | **0** | ✅ |
+| sb `35625` (el `SOY RICARDO` de 1976) NO cargado | 0 filas | **0** | ✅ |
+| `club_id`/`caballeriza_id`/`registro_stud_book` | NULL | NULL | ✅ |
+| `pais_origen` / `estado` | `Argentina` / `activo` | ídem | ✅ |
+
+`data/spcs_snapshot.json` actualizado a **158**.
+
+## 7. Estado de los 27 SPCs de R8 tras la tanda 1b
+
+| | n |
+|---|---|
+| ya estaban en la base | 11 |
+| dados de alta en la tanda 1 | 12 |
+| dados de alta en la tanda 1b | 2 |
+| typos de la planilla, resueltos sin alta | 2 (`GRAND VUETERA`→`GRAND VUELTERA`, `WISKA KEN`→`WISLA KEN`) |
+| **pendientes** | **0** |
+
+Sigue pendiente de Yesi, pero **fuera del circuito** (los carga a mano con el DNI): 8
+caballerizas, 3 jockeys y 5 cuidadores + 2 a confirmar. Detalle en
+[`TANDA_1_R8.md`](TANDA_1_R8.md) §4.
