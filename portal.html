@@ -304,13 +304,62 @@ let sb, currentUser, propietarioId, profesionalId;
 const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK';
 
+// Pantalla para una cuenta sin fila en `usuarios`. Sólo estado — ni programa,
+// ni datos del club. Se dibuja sobre el overlay de auth, así que el portal
+// nunca llega a montarse.
+async function pantallaSolicitud(session) {
+  const { data: sol } = await sb.from('solicitudes_acceso')
+    .select('estado, motivo_rechazo, documento_nro, created_at')
+    .eq('auth_user_id', session.user.id).maybeSingle();
+
+  const TEL = 'la secretaría del hipódromo';
+  let titulo, cuerpo;
+
+  if (!sol) {
+    titulo = 'Falta completar tu solicitud';
+    cuerpo = `Tu cuenta está creada pero todavía no enviaste los datos.
+      <br><a href="solicitar-acceso.html" style="color:#e8d5a3;">Completar la solicitud</a>`;
+  } else if (sol.estado === 'pendiente') {
+    const f = new Date(sol.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+    titulo = 'Tu solicitud está en revisión';
+    cuerpo = `Enviada el ${f} · DNI ${sol.documento_nro}<br><br>
+      La secretaría valida los datos y te avisa cuando tu acceso esté habilitado.
+      <br>Cualquier consulta, en ${TEL}.`;
+  } else if (sol.estado === 'aprobada') {
+    titulo = 'Tu acceso está habilitado';
+    cuerpo = `Cerrá sesión y volvé a entrar para verlo.<br>Si sigue sin aparecer, consultá en ${TEL}.`;
+  } else {
+    // rechazada y descartada muestran lo mismo: mensaje neutro, sin detalle
+    // de por qué el sistema las distingue.
+    titulo = 'Tu solicitud no fue aprobada';
+    cuerpo = (sol.motivo_rechazo ? `Motivo: ${sol.motivo_rechazo}<br><br>` : '')
+      + `Si creés que es un error, consultá en ${TEL}.`;
+  }
+
+  document.getElementById('auth-overlay').innerHTML = `
+    <div style="text-align:center;padding:40px 28px;max-width:430px;">
+      <p style="color:#c9a84c;font-size:18px;font-family:'Playfair Display',serif;">${titulo}</p>
+      <p style="color:#a0b8a0;margin-top:12px;font-size:13.5px;line-height:1.65;">${cuerpo}</p>
+      <button onclick="sb.auth.signOut().then(()=>location.replace('login.html'))"
+        style="margin-top:24px;background:#c9a84c;color:#1a1a0a;border:none;padding:10px 20px;
+               border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;">
+        Cerrar sesión
+      </button>
+    </div>`;
+  return false;
+}
+
 async function initAuth() {
   const { createClient } = supabase;
   sb = createClient(SUPABASE_URL, SUPABASE_KEY);
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.replace('login.html'); return false; }
-  const { data: usr } = await sb.from('usuarios').select('club_id,nombre_completo,rol,estado').eq('email', session.user.email).single();
-  if (!usr) { await sb.auth.signOut(); window.location.replace('login.html'); return false; }
+  const { data: usr } = await sb.from('usuarios').select('club_id,nombre_completo,rol,estado').eq('email', session.user.email).maybeSingle();
+
+  // Sin fila en `usuarios` = auto-registrado todavía sin aprobar (Gate 2).
+  // Se le muestra el estado de su solicitud y NADA del club: no tiene acceso a
+  // ningún dato y tampoco debe ver estructura. Decisión 1 de AUTOREGISTRO_PLAN.
+  if (!usr) { return await pantallaSolicitud(session); }
   if (usr.rol !== 'propietario' && usr.rol !== 'profesional') { window.location.replace('index.html'); return false; }
   if (usr.estado === 'pendiente') {
     document.getElementById('auth-overlay').innerHTML = '<div style="text-align:center;padding:40px;"><p style="color:#c9a84c;font-size:16px;font-family:\'Playfair Display\',serif;">Registro pendiente</p><p style="color:#a0b8a0;margin-top:8px;font-size:13px;">Tu cuenta está siendo revisada por un administrador.</p><button onclick="sb.auth.signOut().then(()=>location.replace(\'login.html\'))" style="margin-top:20px;background:#c9a84c;color:#1a1a0a;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-family:\'DM Sans\',sans-serif;font-weight:600;">Cerrar sesión</button></div>';

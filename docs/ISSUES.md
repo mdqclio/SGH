@@ -296,3 +296,12 @@ Módulo: `active-reunion.js`. Estado: ⏳ Abierto — mismo malentendido `anulad
 ### ISSUE-046: `resultados_legacy.html` mantiene una lista de cuerpos paralela
 Descripción: la pantalla legacy no usa el catálogo de `chapas.js` — arma su propio `CUERPOS_OPCIONES` para el datalist de márgenes (`resultados_legacy.html:448`). Toda entrada nueva del catálogo (ej. el `4½ cpos` de ISSUE-040) hay que agregarla dos veces, o queda desalineada.
 Módulo: `resultados_legacy.html`. Estado: ⏳ Abierto — unificar contra `chapas.js` o dar de baja la pantalla legacy. Prioridad: Baja.
+
+### ISSUE-047: Barrido de cuentas huérfanas de `auth.users` (auto-registro)
+Descripción: en el flujo de auto-registro, el `signUp` crea la cuenta en `auth.users` **antes** de que `rpc_solicitar_acceso` registre la solicitud. Si la RPC falla en el medio —o si la persona confirma el email y nunca vuelve a completar los datos— queda una cuenta en `auth.users` sin fila en `usuarios` ni en `solicitudes_acceso`. Una RPC no puede borrar de `auth.users` (necesita Admin API).
+
+Mitigación **ya implementada** (Gate 3): el DNI se valida en el cliente **antes** del `signUp`, que era la causa más probable de que la RPC fallara después de crear la cuenta. Además `solicitar-acceso.html` reintenta **sólo la RPC** cuando la cuenta ya existe, sin repetir el `signUp`.
+
+Falta la mitigación 2: un **barrido periódico** que liste (y opcionalmente borre) las cuentas de `auth.users` sin `usuarios` ni `solicitudes_acceso` y con más de N días. Hoy hay **2 huérfanas preexistentes**, de abril, anteriores a todo esto (ver `docs/AUTOREGISTRO_GATE_0.md` §0.4).
+
+Módulo: `supabase/functions/` o script en `tools/`. Estado: ⏳ Abierto — **queda para después del piloto**, por decisión explícita. Prioridad: Baja (una cuenta huérfana no ve nada: sin fila en `usuarios` todas las policies la deniegan).

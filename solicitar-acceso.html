@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <!-- challenges.cloudflare.com: widget de Turnstile. script-src (api.js),
+       frame-src (el widget es un iframe) y connect-src (el challenge habla con
+       Cloudflare). Sin los tres el signUp queda bloqueado por captcha_failed. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="logo32x32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="logo180x180.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0e2318">
+  <title>Solicitar acceso — SGH</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --verde: #0e2318; --verde-mid: #163520; --verde-card: #1a3d26;
+      --verde-borde: #245033; --oro: #c9a84c; --oro-suave: #e8d5a3;
+      --crema: #f5f0e8; --gris: #8a9e90;
+    }
+    body {
+      background: linear-gradient(160deg, var(--verde) 0%, var(--verde-mid) 100%);
+      color: var(--crema); font-family: 'DM Sans', system-ui, sans-serif;
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 24px 16px;
+    }
+    .wrap { width: 100%; max-width: 480px; }
+    .card {
+      background: var(--verde-card); border: 1px solid var(--verde-borde);
+      border-radius: 16px; padding: 32px 28px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+    }
+    .brand { text-align: center; margin-bottom: 22px; }
+    .brand h1 { font-family: 'Playfair Display', serif; color: var(--oro); font-size: 26px; letter-spacing: .5px; }
+    .brand p { color: var(--gris); font-size: 13px; margin-top: 4px; }
+    .card-title { font-family: 'Playfair Display', serif; font-size: 19px; color: var(--oro-suave); margin-bottom: 4px; }
+    .card-sub { color: var(--gris); font-size: 13px; margin-bottom: 20px; line-height: 1.5; }
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: 12.5px; color: var(--oro-suave); margin-bottom: 5px; font-weight: 500; }
+    input[type=text], input[type=email], input[type=password], input[type=tel] {
+      width: 100%; padding: 11px 13px; background: rgba(0,0,0,0.25);
+      border: 1px solid var(--verde-borde); border-radius: 9px;
+      color: var(--crema); font-size: 15px; font-family: inherit;
+    }
+    input:focus { outline: none; border-color: var(--oro); }
+    input::placeholder { color: #5f7568; }
+    .row { display: flex; gap: 10px; }
+    .row > * { flex: 1; }
+    .hint { font-size: 11.5px; color: var(--gris); margin-top: 4px; }
+    .roles { display: flex; gap: 10px; margin-top: 4px; }
+    .role-opt {
+      flex: 1; border: 1px solid var(--verde-borde); border-radius: 10px;
+      padding: 13px 10px; text-align: center; cursor: pointer; font-size: 14.5px;
+      background: rgba(0,0,0,0.18); transition: .15s;
+    }
+    .role-opt:hover { border-color: var(--oro-suave); }
+    .role-opt.sel { border-color: var(--oro); background: rgba(201,168,76,0.12); color: var(--oro-suave); font-weight: 600; }
+    .role-opt input { display: none; }
+    .btn {
+      width: 100%; padding: 13px; background: var(--oro); color: var(--verde);
+      border: none; border-radius: 9px; font-size: 15px; font-weight: 600;
+      font-family: inherit; cursor: pointer; margin-top: 8px;
+    }
+    .btn:hover:not(:disabled) { opacity: .9; }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .btn-sec {
+      background: transparent; color: var(--oro-suave);
+      border: 1px solid var(--verde-borde);
+    }
+    .msg { padding: 12px 14px; border-radius: 9px; font-size: 13.5px; line-height: 1.5; margin-bottom: 16px; display: none; }
+    .msg.show { display: block; }
+    .msg-error { background: rgba(180,60,50,0.16); border: 1px solid rgba(200,80,70,0.45); color: #ffc9c2; }
+    .msg-ok { background: rgba(60,150,90,0.14); border: 1px solid rgba(80,180,110,0.4); color: #bff0cf; }
+    .foot { text-align: center; margin-top: 18px; }
+    .foot a { color: var(--gris); font-size: 13px; text-decoration: none; }
+    .foot a:hover { color: var(--oro-suave); }
+    .cf { margin: 16px 0; display: flex; justify-content: center; }
+    .spin {
+      display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(14,35,24,.3);
+      border-top-color: var(--verde); border-radius: 50%; animation: sp .7s linear infinite;
+      vertical-align: -2px; margin-right: 6px;
+    }
+    @keyframes sp { to { transform: rotate(360deg); } }
+    .ok-icon { font-size: 40px; text-align: center; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <h1>Sistema de Gestión Hípica</h1>
+    <p>Hipódromo de Dolores</p>
+  </div>
+
+  <div class="card">
+    <div class="msg msg-error" id="err"></div>
+    <div class="msg msg-ok" id="ok"></div>
+
+    <!-- ===== FORMULARIO ===== -->
+    <div id="sec-form">
+      <h2 class="card-title">Solicitar acceso</h2>
+      <p class="card-sub" id="sub-form">
+        Completá tus datos y la secretaría del hipódromo va a revisar la solicitud.
+        Te avisamos cuando esté habilitada.
+      </p>
+
+      <div class="form-group">
+        <label>Soy…</label>
+        <div class="roles">
+          <label class="role-opt sel" id="opt-prof">
+            <input type="radio" name="rol" value="profesional" checked> Entrenador
+          </label>
+          <label class="role-opt" id="opt-prop">
+            <input type="radio" name="rol" value="propietario"> Propietario
+          </label>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="f-nombre">Nombre</label>
+          <input type="text" id="f-nombre" placeholder="Juan" autocomplete="given-name">
+        </div>
+        <div class="form-group">
+          <label for="f-apellido">Apellido</label>
+          <input type="text" id="f-apellido" placeholder="Pérez" autocomplete="family-name">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="f-dni">DNI</label>
+        <input type="text" id="f-dni" placeholder="12345678" inputmode="numeric" maxlength="10">
+        <p class="hint">Sólo números, sin puntos. Es con lo que la secretaría te identifica.</p>
+      </div>
+
+      <div class="form-group">
+        <label for="f-tel">Teléfono <span style="color:var(--gris);font-weight:400;">(recomendado)</span></label>
+        <input type="tel" id="f-tel" placeholder="2245 123456" autocomplete="tel">
+        <p class="hint">Lo usamos para avisarte por WhatsApp cuando tu acceso esté aprobado.</p>
+      </div>
+
+      <div id="grp-cuenta">
+        <div class="form-group">
+          <label for="f-email">Correo electrónico</label>
+          <input type="email" id="f-email" placeholder="tu@correo.com" autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label for="f-pass">Contraseña</label>
+          <input type="password" id="f-pass" placeholder="••••••••" autocomplete="new-password">
+          <p class="hint">Mínimo 8 caracteres.</p>
+        </div>
+        <div class="cf" id="cf-widget"></div>
+      </div>
+
+      <button class="btn" id="btn-enviar">
+        <span id="btn-txt">Enviar solicitud</span>
+      </button>
+    </div>
+
+    <!-- ===== CONFIRMAR EMAIL ===== -->
+    <div id="sec-confirmar" style="display:none;">
+      <div class="ok-icon">📬</div>
+      <h2 class="card-title" style="text-align:center;">Revisá tu correo</h2>
+      <p class="card-sub" style="text-align:center;">
+        Te mandamos un mail a <strong id="conf-email"></strong> para confirmar la dirección.
+        Abrilo y volvés acá para terminar la solicitud.
+      </p>
+      <p class="card-sub" style="text-align:center;">
+        Si no lo ves, mirá en correo no deseado.
+      </p>
+    </div>
+
+    <!-- ===== SOLICITUD ENVIADA ===== -->
+    <div id="sec-listo" style="display:none;">
+      <div class="ok-icon">✅</div>
+      <h2 class="card-title" style="text-align:center;">Solicitud enviada</h2>
+      <p class="card-sub" style="text-align:center;">
+        La secretaría del hipódromo va a revisar tus datos y habilitar tu acceso.
+        Te avisamos cuando esté lista.
+      </p>
+      <p class="card-sub" style="text-align:center;">
+        Cualquier consulta, en la secretaría del hipódromo.
+      </p>
+      <a class="btn btn-sec" href="login.html" style="display:block;text-align:center;text-decoration:none;padding:13px;">
+        Ir al inicio de sesión
+      </a>
+    </div>
+
+    <!-- ===== REINTENTO DE LA SOLICITUD ===== -->
+    <!-- La cuenta ya se creó; sólo falta registrar la solicitud. NO se repite
+         el signUp: eso daría "usuario ya registrado" y confundiría. -->
+    <div id="sec-reintento" style="display:none;">
+      <h2 class="card-title">Falta un paso</h2>
+      <p class="card-sub">
+        Tu cuenta se creó, pero la solicitud no se pudo registrar. Revisá el mensaje
+        de arriba, corregí lo que haga falta y volvé a enviarla. No hace falta
+        crear la cuenta de nuevo.
+      </p>
+      <button class="btn" id="btn-reintentar">
+        <span id="btn-retxt">Reenviar solicitud</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="foot">
+    <a href="login.html">← Ya tengo cuenta</a>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Cloudflare Turnstile — el proyecto tiene Attack Protection activo, así que
+     GoTrue rechaza signUp sin captchaToken. Render explícito, igual que en
+     login.html. -->
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+<script>
+const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK';
+const CLUB_DOLORES = '0649e9c5-9e87-4aad-842f-101458e6b33c';
+const TURNSTILE_SITE_KEY = '0x4AAAAAAEFtOBOaoVEG7A6C';
+const BORRADOR = 'sgh_solicitud_borrador';
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// --- Turnstile -------------------------------------------------------------
+// El token es de UN SOLO USO: se resetea el widget después de cada intento
+// fallido, o el siguiente muere por token gastado.
+let cfId = null;
+function cfRender() {
+  if (typeof turnstile === 'undefined') return false;
+  if (cfId === null) cfId = turnstile.render('#cf-widget', { sitekey: TURNSTILE_SITE_KEY, theme: 'dark' });
+  return true;
+}
+(function cfBoot(i = 0) {
+  if (cfRender()) return;
+  if (i > 40) { console.error('[turnstile] no cargó el widget'); return; }
+  setTimeout(() => cfBoot(i + 1), 250);
+})();
+function cfToken() {
+  if (cfId === null || typeof turnstile === 'undefined') return null;
+  return turnstile.getResponse(cfId) || null;
+}
+function cfReset() { if (cfId !== null && typeof turnstile !== 'undefined') turnstile.reset(cfId); }
+
+// --- UI --------------------------------------------------------------------
+function showErr(m) { const e = document.getElementById('err'); e.textContent = m; e.classList.add('show');
+                      document.getElementById('ok').classList.remove('show'); }
+function hideMsgs() { document.getElementById('err').classList.remove('show');
+                      document.getElementById('ok').classList.remove('show'); }
+function seccion(id) {
+  ['sec-form','sec-confirmar','sec-listo','sec-reintento'].forEach(s => {
+    document.getElementById(s).style.display = (s === id) ? '' : 'none';
+  });
+}
+function loading(btnId, txtId, on, txt) {
+  const b = document.getElementById(btnId), t = document.getElementById(txtId);
+  b.disabled = on;
+  t.innerHTML = on ? '<span class="spin"></span> Enviando…' : txt;
+}
+
+document.getElementById('opt-prof').onclick = () => setRol('profesional');
+document.getElementById('opt-prop').onclick = () => setRol('propietario');
+function setRol(r) {
+  document.getElementById('opt-prof').classList.toggle('sel', r === 'profesional');
+  document.getElementById('opt-prop').classList.toggle('sel', r === 'propietario');
+  document.querySelector(`input[name=rol][value="${r}"]`).checked = true;
+}
+function rolElegido() { return document.querySelector('input[name=rol]:checked').value; }
+
+// Sólo dígitos en el DNI, mientras se tipea.
+document.getElementById('f-dni').addEventListener('input', (e) => {
+  e.target.value = e.target.value.replace(/\D/g, '');
+});
+
+// --- Validación en el CLIENTE ----------------------------------------------
+// Corre ANTES del signUp a propósito: si la RPC fallara después de crear la
+// cuenta, quedaría una cuenta huérfana en auth.users que sólo se limpia a mano.
+// Validar acá elimina la causa más probable de que eso pase.
+function leerDatos(conCuenta) {
+  const d = {
+    nombre:   document.getElementById('f-nombre').value.trim(),
+    apellido: document.getElementById('f-apellido').value.trim(),
+    dni:      document.getElementById('f-dni').value.trim(),
+    telefono: normalizarTel(document.getElementById('f-tel').value),
+    rol:      rolElegido(),
+  };
+  if (conCuenta) {
+    d.email = document.getElementById('f-email').value.trim().toLowerCase();
+    d.pass  = document.getElementById('f-pass').value;
+  }
+  return d;
+}
+// Normalización del teléfono para que el link de wa.me funcione.
+// Reglas: sólo dígitos · si ya arranca con 54 se deja · si arranca con 0 se le
+// saca · si no, se le antepone 549 (Argentina, móvil).
+// Limitación conocida: el "15" intermedio de algunos números viejos no se
+// detecta. Si el link no abre, el teléfono igual queda visible en la bandeja
+// para copiarlo a mano.
+function normalizarTel(t) {
+  let d = String(t || '').replace(/\D/g, '');
+  if (!d) return '';
+  if (d.startsWith('54')) return d;
+  if (d.startsWith('0')) d = d.slice(1);
+  return '549' + d;
+}
+
+function validar(d, conCuenta) {
+  if (!d.nombre)   return 'Escribí tu nombre.';
+  if (!d.apellido) return 'Escribí tu apellido.';
+  if (!/^\d{7,8}$/.test(d.dni)) return 'El DNI tiene que tener 7 u 8 números, sin puntos.';
+  // El teléfono es recomendado, no obligatorio: si no está, la secretaría
+  // avisa por otra vía. No bloquea la solicitud.
+  if (conCuenta) {
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.email)) return 'Revisá el correo electrónico.';
+    if ((d.pass || '').length < 8) return 'La contraseña tiene que tener al menos 8 caracteres.';
+  }
+  return null;
+}
+
+// --- Envío de la solicitud (la RPC) ----------------------------------------
+async function enviarSolicitud(d) {
+  const { error } = await sb.rpc('rpc_solicitar_acceso', {
+    p_nombre: d.nombre, p_apellido: d.apellido, p_documento_nro: d.dni,
+    p_telefono: d.telefono, p_rol_pedido: d.rol, p_club_id: CLUB_DOLORES,
+  });
+  return error;
+}
+
+function mensajeRpc(error) {
+  const m = error.message || '';
+  if (/ya tiene acceso/i.test(m))       return 'Esta cuenta ya tiene acceso al sistema. Iniciá sesión.';
+  if (/ya envió una solicitud/i.test(m))return 'Esta cuenta ya envió una solicitud. La secretaría la va a revisar.';
+  if (/solicitud pendiente con ese documento/i.test(m))
+    return 'Ya hay una solicitud pendiente con ese DNI. Si fuiste vos, esperá la respuesta de la secretaría.';
+  if (/DNI/i.test(m))                   return 'El DNI tiene que tener 7 u 8 números, sin puntos.';
+  if (/teléfono/i.test(m))              return 'Escribí un teléfono donde te podamos ubicar.';
+  return 'No se pudo registrar la solicitud. Probá de nuevo en un rato.';
+}
+
+// --- Camino 1: sin sesión → crear cuenta + solicitud ------------------------
+document.getElementById('btn-enviar').onclick = async () => {
+  hideMsgs();
+  const yaLogueado = !!(await sb.auth.getSession()).data.session;
+  const d = leerDatos(!yaLogueado);
+  const err = validar(d, !yaLogueado);
+  if (err) { showErr(err); return; }
+
+  if (yaLogueado) {
+    // Volvió de confirmar el email: sólo falta la solicitud.
+    loading('btn-enviar', 'btn-txt', true);
+    const e = await enviarSolicitud(d);
+    loading('btn-enviar', 'btn-txt', false, 'Enviar solicitud');
+    if (e) { showErr(mensajeRpc(e)); return; }
+    localStorage.removeItem(BORRADOR);
+    seccion('sec-listo');
+    return;
+  }
+
+  const captchaToken = cfToken();
+  if (!captchaToken) { showErr('Esperá a que termine la verificación de seguridad y volvé a intentar.'); return; }
+
+  loading('btn-enviar', 'btn-txt', true);
+
+  // El borrador se guarda ANTES del signUp: si el usuario tiene que confirmar
+  // el email, al volver la página recupera los datos sin hacérselos escribir
+  // de nuevo.
+  localStorage.setItem(BORRADOR, JSON.stringify(d));
+
+  const { data: authData, error: authErr } = await sb.auth.signUp({
+    email: d.email, password: d.pass,
+    options: { captchaToken, emailRedirectTo: window.location.href.split('?')[0] },
+  });
+
+  if (authErr) {
+    loading('btn-enviar', 'btn-txt', false, 'Enviar solicitud');
+    cfReset();
+    const m = authErr.message || '';
+    if (/already registered|already exists/i.test(m)) {
+      showErr('Ya hay una cuenta con ese correo. Iniciá sesión y volvé a esta página.');
+    } else if (/signups? not allowed|signup_disabled/i.test(m)) {
+      showErr('El registro está cerrado por el momento. Pedí tu cuenta en la secretaría del hipódromo.');
+    } else {
+      showErr(m || 'No se pudo crear la cuenta. Probá de nuevo.');
+    }
+    return;
+  }
+
+  // Con "Confirm email" activo, signUp NO devuelve sesión: hay que esperar a
+  // que el usuario abra el mail. Sin sesión, la RPC no puede correr todavía.
+  if (!authData.session) {
+    loading('btn-enviar', 'btn-txt', false, 'Enviar solicitud');
+    document.getElementById('conf-email').textContent = d.email;
+    seccion('sec-confirmar');
+    return;
+  }
+
+  const e = await enviarSolicitud(d);
+  loading('btn-enviar', 'btn-txt', false, 'Enviar solicitud');
+  if (e) {
+    // La cuenta ya existe. NO se repite el signUp: sólo se reintenta la RPC.
+    showErr(mensajeRpc(e));
+    seccion('sec-reintento');
+    return;
+  }
+  localStorage.removeItem(BORRADOR);
+  seccion('sec-listo');
+};
+
+// --- Reintento de la RPC sola ----------------------------------------------
+document.getElementById('btn-reintentar').onclick = async () => {
+  hideMsgs();
+  const d = JSON.parse(localStorage.getItem(BORRADOR) || '{}');
+  const err = validar(d, false);
+  if (err) { showErr(err + ' Volvé al formulario para corregirlo.'); seccion('sec-form'); return; }
+  loading('btn-reintentar', 'btn-retxt', true);
+  const e = await enviarSolicitud(d);
+  loading('btn-reintentar', 'btn-retxt', false, 'Reenviar solicitud');
+  if (e) { showErr(mensajeRpc(e)); return; }
+  localStorage.removeItem(BORRADOR);
+  seccion('sec-listo');
+};
+
+// --- Camino 2: ya logueado (volvió de confirmar el email) -------------------
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return;
+
+  // Si ya tiene usuario en el sistema, no tiene nada que solicitar.
+  const { data: usr } = await sb.from('usuarios')
+    .select('id').eq('auth_user_id', session.user.id).maybeSingle();
+  if (usr) { window.location.replace('portal.html'); return; }
+
+  // Si ya mandó la solicitud, mostrar el estado y no el formulario.
+  const { data: sol } = await sb.from('solicitudes_acceso')
+    .select('id').eq('auth_user_id', session.user.id).maybeSingle();
+  if (sol) { seccion('sec-listo'); return; }
+
+  // Logueado, sin usuario y sin solicitud: sólo faltan los datos.
+  document.getElementById('grp-cuenta').style.display = 'none';
+  document.getElementById('sub-form').textContent =
+    'Ya confirmaste tu correo. Revisá los datos y enviá la solicitud.';
+  const b = JSON.parse(localStorage.getItem(BORRADOR) || '{}');
+  if (b.nombre)   document.getElementById('f-nombre').value = b.nombre;
+  if (b.apellido) document.getElementById('f-apellido').value = b.apellido;
+  if (b.dni)      document.getElementById('f-dni').value = b.dni;
+  if (b.telefono) document.getElementById('f-tel').value = b.telefono;
+  if (b.rol)      setRol(b.rol);
+})();
+</script>
+</body>
+</html>
