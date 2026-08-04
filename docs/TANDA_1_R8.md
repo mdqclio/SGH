@@ -109,18 +109,19 @@ GATICA DARIO · YALET IRINEO · ROJAS HERNAN · AGUIRRE HUGO · GIL SANTINO · M
 - **GONZALEZ LUCAS**
 - **GONZALEZ AGUSTIN**
 
-### Cuidadores (17 en la planilla) — 11 OK, 6 faltan
+### Cuidadores (17 en la planilla) — 12 OK, 5 faltan
 
 ✅ MAITIA LUIS · FARIAS OSVALDO (`FARIAS, OSVALDO ISMAEL`) · FLEKSTEIN LEONARDO ·
 ETCHEVERRY MARIO ALFREDO · QUINTEROS CARLA (`CARLA ELISABETH`) · GIMENEZ MARCOS
 (`MARCOS EZEQUIEL`) · DIAZ CARLOS RODOLFO · SAN MARTIN SERGIO (`SERGIO SEBASTIAN`) ·
 ZUBIARRAIN SANTIAGO · MEDINA OSCAR (`OSCAR ROBERTO`)
 
-⚠️ **ALDAY ESTEBAN** → matchea `ALDAY, SERGIO ESTEBAN`, pero en la base hay **3 ALDAY**
-(`ADRIAN ALFREDO`, `GERMAN CEFERINO`, `SERGIO ESTEBAN`). Que Yesi confirme que es Sergio Esteban.
+✅ **Las dos dudas de matcheo, confirmadas por Yesi (04/08)** — ninguna requiere alta:
+- **ALDAY ESTEBAN** = `ALDAY, SERGIO ESTEBAN` (había 3 ALDAY en la base: `ADRIAN ALFREDO`,
+  `GERMAN CEFERINO`, `SERGIO ESTEBAN`).
+- **GIULINIANI NICOLAS** = `GIULIANI, NICOLAS JULIAN`. Era typo de la planilla.
 
-❌ **Faltan**:
-- **GIULINIANI NICOLAS** — casi seguro es typo de `GIULIANI, NICOLAS JULIAN`, que **ya está**. Confirmar.
+❌ **Faltan (5)**:
 - **GONZALEZ ADRIAN AGUSTIN**
 - **VARELA LORENA**
 - **ALLEN JUAN JOSE**
@@ -131,22 +132,25 @@ Fuera de alcance del circuito: **las carga Yesi con el DNI**.
 
 ---
 
-## 4. Para devolverle a Yesi
+## 4. Pendiente — todo carga de Yesi por pantalla, nada nuestro
 
-**SPCs — 4 a confirmar**
-1. `SOY RICARDO`: dos homónimos en el SB → ¿sb 434608 (2022) o sb 35625 (1976)?
-2. `GRAND VUETERA`: ¿es `GRAND VUELTERA`, que ya está en el sistema?
-3. `WISKA KEN`: ¿es `WISLA KEN`, que ya está en el sistema?
-4. `LOGARCIUS`: no aparece en el Stud Book ni parecido — confirmar grafía.
+Los 4 SPCs dudosos **están cerrados** (ver [`TANDA_1B_R8.md`](TANDA_1B_R8.md)): `LOGARCIUS`
+resultó ser `LOGUACIOUS` y `SOY RICARDO` (sb 434608) se dieron de alta; `GRAND VUETERA` y
+`WISKA KEN` eran typos de la planilla contra ejemplares que ya estaban. **0 SPCs pendientes.**
 
-**Caballerizas a crear (8)**: SAICA, NUEVO MUNDO, SANTOS VEGA, BETTY SANTI, LOS MORENITOS,
-LOS EDUCADITOS, EL POBRE (¿o es `EL POE`?), ESTAMPA DEL SUR.
+Queda sólo alta de entidades por pantalla — fuera del alcance del circuito, con el DNI que
+Yesi le pida a cada uno:
 
-**Jockeys a crear (3)**: GUZMAN CLAUDIO, GONZALEZ LUCAS, GONZALEZ AGUSTIN.
+**Caballerizas (8)**: SAICA · NUEVO MUNDO · SANTOS VEGA · BETTY SANTI · LOS MORENITOS ·
+LOS EDUCADITOS · EL POBRE (⚠️ existe `EL POE`, confirmar si es la misma) · ESTAMPA DEL SUR.
 
-**Cuidadores a crear (5)** + 2 a confirmar: GONZALEZ ADRIAN AGUSTIN, VARELA LORENA,
-ALLEN JUAN JOSE, DIAZ EMILIANO, CAMPELO LEONARDO — y confirmar si `GIULINIANI NICOLAS`
-es el `GIULIANI NICOLAS JULIAN` existente, y si `ALDAY ESTEBAN` es `ALDAY SERGIO ESTEBAN`.
+**Jockeys (3)**: GUZMAN CLAUDIO · GONZALEZ LUCAS · GONZALEZ AGUSTIN.
+
+**Cuidadores (5)**: GONZALEZ ADRIAN AGUSTIN · VARELA LORENA · ALLEN JUAN JOSE ·
+DIAZ EMILIANO · CAMPELO LEONARDO.
+
+Confirmado por Yesi el 04/08, **sin alta**: `GIULINIANI NICOLAS` = `GIULIANI, NICOLAS JULIAN`
+y `ALDAY ESTEBAN` = `ALDAY, SERGIO ESTEBAN` — los dos ya estaban en `profesionales`.
 
 ---
 
