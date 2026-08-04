@@ -1,8 +1,9 @@
 {
   "_meta": {
     "fuente": "supabase.spcs",
-    "fecha_snapshot": "2026-08-03",
-    "total": 144
+    "fecha_snapshot": "2026-08-04",
+    "total": 156,
+    "nota": "post tanda 1 R8 (+12)"
   },
   "spcs": [
     {
@@ -39,14 +40,14 @@
       "estado": "activo"
     },
     {
-      "id": "019d9b9f-7b81-490e-b219-aff383fae166",
-      "nombre": "Amiguito Peligroso",
-      "fecha_nacimiento": "2023-07-07",
-      "sexo": "macho",
-      "color": null,
-      "padrillo_nombre": "Amiguito Calificado",
-      "madre_nombre": "Amiguita Bohemia",
-      "studbook_id": null,
+      "id": "cb050a3e-22d8-4d53-9ac6-821fb57fbbf2",
+      "nombre": "AMOROUS",
+      "fecha_nacimiento": "2021-09-13",
+      "sexo": "hembra",
+      "color": "Zaino",
+      "padrillo_nombre": "Angiolo",
+      "madre_nombre": "Shadow Queen",
+      "studbook_id": "429711",
       "estado": "activo"
     },
     {
@@ -68,6 +69,17 @@
       "color": "Alazan",
       "padrillo_nombre": "Footnotes (USA)",
       "madre_nombre": "Astata Ride",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
+      "id": "019d9b9f-7b81-490e-b219-aff383fae166",
+      "nombre": "Amiguito Peligroso",
+      "fecha_nacimiento": "2023-07-07",
+      "sexo": "macho",
+      "color": null,
+      "padrillo_nombre": "Amiguito Calificado",
+      "madre_nombre": "Amiguita Bohemia",
       "studbook_id": null,
       "estado": "activo"
     },
@@ -127,14 +139,25 @@
       "estado": "activo"
     },
     {
-      "id": "3ce64b58-0d87-47fd-98e6-d9705fa118d4",
-      "nombre": "Berry Nik",
-      "fecha_nacimiento": "2023-10-23",
+      "id": "b046d003-d34e-416c-9455-d1ac79342783",
+      "nombre": "BESO CURIOSO",
+      "fecha_nacimiento": "2022-10-22",
       "sexo": "macho",
-      "color": null,
-      "padrillo_nombre": "Nicodemus (USA)",
-      "madre_nombre": "Bafana",
-      "studbook_id": null,
+      "color": "Zaino",
+      "padrillo_nombre": "Curioso Johan",
+      "madre_nombre": "Belhart",
+      "studbook_id": "439623",
+      "estado": "activo"
+    },
+    {
+      "id": "9abddbff-1395-4a3d-8ed4-35fb8cd335e8",
+      "nombre": "BOHEMIO TOP",
+      "fecha_nacimiento": "2020-08-12",
+      "sexo": "macho",
+      "color": "Zaino",
+      "padrillo_nombre": "Maipo Top",
+      "madre_nombre": "Bohemia Mia",
+      "studbook_id": "433253",
       "estado": "activo"
     },
     {
@@ -156,6 +179,17 @@
       "color": "Zaino",
       "padrillo_nombre": "Defuniak",
       "madre_nombre": "Buena Pata",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
+      "id": "3ce64b58-0d87-47fd-98e6-d9705fa118d4",
+      "nombre": "Berry Nik",
+      "fecha_nacimiento": "2023-10-23",
+      "sexo": "macho",
+      "color": null,
+      "padrillo_nombre": "Nicodemus (USA)",
+      "madre_nombre": "Bafana",
       "studbook_id": null,
       "estado": "activo"
     },
@@ -248,6 +282,17 @@
       "estado": "activo"
     },
     {
+      "id": "685bf933-b6e8-4b00-9759-c73144106a21",
+      "nombre": "CRAZY RABID",
+      "fecha_nacimiento": "2020-09-23",
+      "sexo": "macho",
+      "color": "Zaino",
+      "padrillo_nombre": "Rabid In The Rye",
+      "madre_nombre": "Santa Lia",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
       "id": "9944b791-3bb7-46d7-8590-1e0b8bca6bb4",
       "nombre": "Come on Baby",
       "fecha_nacimiento": "2020-08-21",
@@ -270,17 +315,6 @@
       "estado": "activo"
     },
     {
-      "id": "685bf933-b6e8-4b00-9759-c73144106a21",
-      "nombre": "CRAZY RABID",
-      "fecha_nacimiento": "2020-09-23",
-      "sexo": "macho",
-      "color": "Zaino",
-      "padrillo_nombre": "Rabid In The Rye",
-      "madre_nombre": "Santa Lia",
-      "studbook_id": null,
-      "estado": "activo"
-    },
-    {
       "id": "44abb392-8b73-4c68-9160-edfd8d58f27b",
       "nombre": "Cursi Nik",
       "fecha_nacimiento": "2023-10-27",
@@ -299,17 +333,6 @@
       "color": "Zaino",
       "padrillo_nombre": "Fortify (USA)",
       "madre_nombre": "La Mas Posh",
-      "studbook_id": null,
-      "estado": "activo"
-    },
-    {
-      "id": "70f275b6-0337-4617-99c2-fefb7447cb2e",
-      "nombre": "De Moda",
-      "fecha_nacimiento": "2023-09-04",
-      "sexo": "macho",
-      "color": null,
-      "padrillo_nombre": "Valid Stripes",
-      "madre_nombre": "Vauquita",
       "studbook_id": null,
       "estado": "activo"
     },
@@ -391,6 +414,17 @@
       "estado": "activo"
     },
     {
+      "id": "70f275b6-0337-4617-99c2-fefb7447cb2e",
+      "nombre": "De Moda",
+      "fecha_nacimiento": "2023-09-04",
+      "sexo": "macho",
+      "color": null,
+      "padrillo_nombre": "Valid Stripes",
+      "madre_nombre": "Vauquita",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
       "id": "2c6900b7-7f8e-416f-b3d9-cc1058228985",
       "nombre": "Don Dolores",
       "fecha_nacimiento": "2020-09-18",
@@ -446,17 +480,6 @@
       "estado": "activo"
     },
     {
-      "id": "8a5e5777-e0ff-4e54-9f8e-76441968603b",
-      "nombre": "El Caudillo",
-      "fecha_nacimiento": "2020-04-30",
-      "sexo": "macho",
-      "color": "Colorado",
-      "padrillo_nombre": "Interaction",
-      "madre_nombre": "Doña Carmen",
-      "studbook_id": null,
-      "estado": "activo"
-    },
-    {
       "id": "0f40daa9-676d-4391-91ea-a543d165352c",
       "nombre": "EL MEJOR DUQUE",
       "fecha_nacimiento": "2022-10-27",
@@ -468,14 +491,14 @@
       "estado": "activo"
     },
     {
-      "id": "3b54e7ff-6bf1-4949-ba40-3f838323b492",
-      "nombre": "El Pampeano",
-      "fecha_nacimiento": "2021-11-22",
+      "id": "055efb05-93d1-4e26-9aea-8edfe25a426e",
+      "nombre": "ELSEPTIMOESDECALDERA",
+      "fecha_nacimiento": "2022-10-27",
       "sexo": "macho",
-      "color": "Colorado",
-      "padrillo_nombre": "Interaction",
-      "madre_nombre": "Pampa Verde",
-      "studbook_id": null,
+      "color": "Zaino Colorado",
+      "padrillo_nombre": "Presagio Key",
+      "madre_nombre": "La Dama Alada",
+      "studbook_id": "440489",
       "estado": "activo"
     },
     {
@@ -490,17 +513,6 @@
       "estado": "activo"
     },
     {
-      "id": "9fc5b39c-0579-4cd9-acbb-f023ab35d168",
-      "nombre": "Es Mistres",
-      "fecha_nacimiento": "2023-10-05",
-      "sexo": "macho",
-      "color": null,
-      "padrillo_nombre": "Master Of Hounds (USA)",
-      "madre_nombre": "Ando Mateando",
-      "studbook_id": null,
-      "estado": "activo"
-    },
-    {
       "id": "f17f49f0-6ad3-4a2a-bdee-f15b44425dae",
       "nombre": "ESCUCHAR TU VOZ",
       "fecha_nacimiento": "2019-08-22",
@@ -508,17 +520,6 @@
       "color": "Zaino",
       "padrillo_nombre": "Tantos Años",
       "madre_nombre": "Sister Ridge",
-      "studbook_id": null,
-      "estado": "activo"
-    },
-    {
-      "id": "f78a132a-7fe7-4713-8ac2-9bd41a34f565",
-      "nombre": "Esplendido Craf",
-      "fecha_nacimiento": "2020-10-18",
-      "sexo": "macho",
-      "color": null,
-      "padrillo_nombre": null,
-      "madre_nombre": null,
       "studbook_id": null,
       "estado": "activo"
     },
@@ -545,17 +546,6 @@
       "estado": "activo"
     },
     {
-      "id": "058dff5d-28e6-427b-860e-2f8a09d22691",
-      "nombre": "Estrella Federal",
-      "fecha_nacimiento": "2021-07-14",
-      "sexo": "hembra",
-      "color": "Zaino oscuro",
-      "padrillo_nombre": "Equal Stripes",
-      "madre_nombre": "Luna Nueva",
-      "studbook_id": null,
-      "estado": "activo"
-    },
-    {
       "id": "42f5fe13-39ae-48e2-961f-8e00c80e23a9",
       "nombre": "EVER AHEAD",
       "fecha_nacimiento": "2022-09-06",
@@ -567,6 +557,61 @@
       "estado": "activo"
     },
     {
+      "id": "8a5e5777-e0ff-4e54-9f8e-76441968603b",
+      "nombre": "El Caudillo",
+      "fecha_nacimiento": "2020-04-30",
+      "sexo": "macho",
+      "color": "Colorado",
+      "padrillo_nombre": "Interaction",
+      "madre_nombre": "Doña Carmen",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
+      "id": "3b54e7ff-6bf1-4949-ba40-3f838323b492",
+      "nombre": "El Pampeano",
+      "fecha_nacimiento": "2021-11-22",
+      "sexo": "macho",
+      "color": "Colorado",
+      "padrillo_nombre": "Interaction",
+      "madre_nombre": "Pampa Verde",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
+      "id": "9fc5b39c-0579-4cd9-acbb-f023ab35d168",
+      "nombre": "Es Mistres",
+      "fecha_nacimiento": "2023-10-05",
+      "sexo": "macho",
+      "color": null,
+      "padrillo_nombre": "Master Of Hounds (USA)",
+      "madre_nombre": "Ando Mateando",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
+      "id": "f78a132a-7fe7-4713-8ac2-9bd41a34f565",
+      "nombre": "Esplendido Craf",
+      "fecha_nacimiento": "2020-10-18",
+      "sexo": "macho",
+      "color": null,
+      "padrillo_nombre": null,
+      "madre_nombre": null,
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
+      "id": "058dff5d-28e6-427b-860e-2f8a09d22691",
+      "nombre": "Estrella Federal",
+      "fecha_nacimiento": "2021-07-14",
+      "sexo": "hembra",
+      "color": "Zaino oscuro",
+      "padrillo_nombre": "Equal Stripes",
+      "madre_nombre": "Luna Nueva",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
       "id": "fb319df9-eaa7-4833-9239-611b694d715b",
       "nombre": "FALAYS",
       "fecha_nacimiento": "2021-10-26",
@@ -574,6 +619,50 @@
       "color": "Zaino",
       "padrillo_nombre": "Fyrulays",
       "madre_nombre": "Pasion Fatal",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
+      "id": "b52c1ecd-a9ef-4f67-b2d5-cbcad5c7d93f",
+      "nombre": "FLORENTINA IN YOU",
+      "fecha_nacimiento": "2020-11-01",
+      "sexo": "hembra",
+      "color": "Alazan",
+      "padrillo_nombre": "Star In You",
+      "madre_nombre": "Humbly",
+      "studbook_id": "423146",
+      "estado": "activo"
+    },
+    {
+      "id": "34423341-70bb-4f17-843e-d892c7307a4c",
+      "nombre": "FREE CRY",
+      "fecha_nacimiento": "2021-10-03",
+      "sexo": "macho",
+      "color": "Tordillo",
+      "padrillo_nombre": "Holy Boss (USA)",
+      "madre_nombre": "Free Exchange",
+      "studbook_id": "430759",
+      "estado": "activo"
+    },
+    {
+      "id": "bfb697af-0a73-4c53-a387-3a851ea9bb2f",
+      "nombre": "FURIA ENCANTADA",
+      "fecha_nacimiento": "2020-07-03",
+      "sexo": "hembra",
+      "color": "Zaino Negro",
+      "padrillo_nombre": "Furious Key",
+      "madre_nombre": "Charm Scent",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
+      "id": "50364813-85b5-4510-9f62-4a2a0b766abb",
+      "nombre": "FURIOSO ON",
+      "fecha_nacimiento": "2020-09-24",
+      "sexo": "macho",
+      "color": "Zaino",
+      "padrillo_nombre": "Star In You",
+      "madre_nombre": "Odisea Especial",
       "studbook_id": null,
       "estado": "activo"
     },
@@ -622,17 +711,6 @@
       "estado": "activo"
     },
     {
-      "id": "b52c1ecd-a9ef-4f67-b2d5-cbcad5c7d93f",
-      "nombre": "FLORENTINA IN YOU",
-      "fecha_nacimiento": "2020-11-01",
-      "sexo": "hembra",
-      "color": "Alazan",
-      "padrillo_nombre": "Star In You",
-      "madre_nombre": "Humbly",
-      "studbook_id": "423146",
-      "estado": "activo"
-    },
-    {
       "id": "1c89581b-b0ec-4588-9e28-596312ce6a7b",
       "nombre": "Folke Dancer",
       "fecha_nacimiento": "2020-07-06",
@@ -640,61 +718,6 @@
       "color": null,
       "padrillo_nombre": "Forge (GB)",
       "madre_nombre": "Follow",
-      "studbook_id": null,
-      "estado": "activo"
-    },
-    {
-      "id": "34423341-70bb-4f17-843e-d892c7307a4c",
-      "nombre": "FREE CRY",
-      "fecha_nacimiento": "2021-10-03",
-      "sexo": "macho",
-      "color": "Tordillo",
-      "padrillo_nombre": "Holy Boss (USA)",
-      "madre_nombre": "Free Exchange",
-      "studbook_id": "430759",
-      "estado": "activo"
-    },
-    {
-      "id": "bfb697af-0a73-4c53-a387-3a851ea9bb2f",
-      "nombre": "FURIA ENCANTADA",
-      "fecha_nacimiento": "2020-07-03",
-      "sexo": "hembra",
-      "color": "Zaino Negro",
-      "padrillo_nombre": "Furious Key",
-      "madre_nombre": "Charm Scent",
-      "studbook_id": null,
-      "estado": "activo"
-    },
-    {
-      "id": "50364813-85b5-4510-9f62-4a2a0b766abb",
-      "nombre": "FURIOSO ON",
-      "fecha_nacimiento": "2020-09-24",
-      "sexo": "macho",
-      "color": "Zaino",
-      "padrillo_nombre": "Star In You",
-      "madre_nombre": "Odisea Especial",
-      "studbook_id": null,
-      "estado": "activo"
-    },
-    {
-      "id": "ec936bca-6128-44cc-870c-d21286b1be8b",
-      "nombre": "Gaucha Linda",
-      "fecha_nacimiento": "2022-06-05",
-      "sexo": "hembra",
-      "color": "Tordillo",
-      "padrillo_nombre": "Magnus",
-      "madre_nombre": "Linda Noche",
-      "studbook_id": null,
-      "estado": "activo"
-    },
-    {
-      "id": "72896c7d-6265-4dcd-82ca-bd37f7146b2b",
-      "nombre": "Gaucho Bravo",
-      "fecha_nacimiento": "2019-06-20",
-      "sexo": "castrado",
-      "color": "Tordillo",
-      "padrillo_nombre": "Fortify",
-      "madre_nombre": "Llanura Alta",
       "studbook_id": null,
       "estado": "activo"
     },
@@ -765,6 +788,28 @@
       "estado": "activo"
     },
     {
+      "id": "ec936bca-6128-44cc-870c-d21286b1be8b",
+      "nombre": "Gaucha Linda",
+      "fecha_nacimiento": "2022-06-05",
+      "sexo": "hembra",
+      "color": "Tordillo",
+      "padrillo_nombre": "Magnus",
+      "madre_nombre": "Linda Noche",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
+      "id": "72896c7d-6265-4dcd-82ca-bd37f7146b2b",
+      "nombre": "Gaucho Bravo",
+      "fecha_nacimiento": "2019-06-20",
+      "sexo": "castrado",
+      "color": "Tordillo",
+      "padrillo_nombre": "Fortify",
+      "madre_nombre": "Llanura Alta",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
       "id": "8e72a714-8599-4ec2-afa1-2186730ca18c",
       "nombre": "HEART OF GOLD",
       "fecha_nacimiento": "2021-11-24",
@@ -772,17 +817,6 @@
       "color": "Zaino",
       "padrillo_nombre": "Pure Miron",
       "madre_nombre": "Shy Salediza",
-      "studbook_id": null,
-      "estado": "activo"
-    },
-    {
-      "id": "8a6aea98-d121-4ad6-90d6-c08e8cfd8c75",
-      "nombre": "Icy Tom",
-      "fecha_nacimiento": "2018-09-02",
-      "sexo": "macho",
-      "color": null,
-      "padrillo_nombre": "Icy Glory",
-      "madre_nombre": "Normandina",
       "studbook_id": null,
       "estado": "activo"
     },
@@ -805,6 +839,17 @@
       "color": "Zaino",
       "padrillo_nombre": "Peten Itza",
       "madre_nombre": "Quita Glory",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
+      "id": "8a6aea98-d121-4ad6-90d6-c08e8cfd8c75",
+      "nombre": "Icy Tom",
+      "fecha_nacimiento": "2018-09-02",
+      "sexo": "macho",
+      "color": null,
+      "padrillo_nombre": "Icy Glory",
+      "madre_nombre": "Normandina",
       "studbook_id": null,
       "estado": "activo"
     },
@@ -842,39 +887,6 @@
       "estado": "activo"
     },
     {
-      "id": "577f9d58-b81c-4c10-a11f-a1be622aa433",
-      "nombre": "La Bonaerense",
-      "fecha_nacimiento": "2021-04-27",
-      "sexo": "hembra",
-      "color": "Alazan tostado",
-      "padrillo_nombre": "Equal Stripes",
-      "madre_nombre": "Bonita Flor",
-      "studbook_id": null,
-      "estado": "activo"
-    },
-    {
-      "id": "fcc0bbdb-e3f7-4830-b038-beabe11faf7c",
-      "nombre": "La City Porteña",
-      "fecha_nacimiento": "2023-07-01",
-      "sexo": "macho",
-      "color": null,
-      "padrillo_nombre": "Cityscape (GB)",
-      "madre_nombre": "La Remota",
-      "studbook_id": null,
-      "estado": "activo"
-    },
-    {
-      "id": "dd2e3818-7ffb-47bc-86a3-4df55fe68d12",
-      "nombre": "La Criolla",
-      "fecha_nacimiento": "2022-05-03",
-      "sexo": "hembra",
-      "color": "Alazán",
-      "padrillo_nombre": "Indy Point",
-      "madre_nombre": "Campo Abierto",
-      "studbook_id": null,
-      "estado": "activo"
-    },
-    {
       "id": "cc1d70a1-3b58-4185-b6d5-20f911bc3365",
       "nombre": "LA DIVERTENTE",
       "fecha_nacimiento": "2020-07-27",
@@ -886,14 +898,25 @@
       "estado": "activo"
     },
     {
-      "id": "3539cab0-e2d4-4748-945d-67e36787a96d",
-      "nombre": "La Motocicleta",
-      "fecha_nacimiento": "2023-08-22",
-      "sexo": "macho",
-      "color": null,
-      "padrillo_nombre": "Manipulator (USA)",
-      "madre_nombre": "Ampi Nistel",
-      "studbook_id": null,
+      "id": "edde1a8c-5722-40b6-b1c9-a52a84990c50",
+      "nombre": "LA GRAN TEMPESTAD",
+      "fecha_nacimiento": "2021-09-08",
+      "sexo": "hembra",
+      "color": "Alazan",
+      "padrillo_nombre": "Sea Dog",
+      "madre_nombre": "Me Salvo El Doctor",
+      "studbook_id": "431248",
+      "estado": "activo"
+    },
+    {
+      "id": "3e90190a-24c4-4d63-b820-07bc04c9abce",
+      "nombre": "LA LAGUNERA J",
+      "fecha_nacimiento": "2022-10-10",
+      "sexo": "hembra",
+      "color": "Zaino",
+      "padrillo_nombre": "Shawerton",
+      "madre_nombre": "Señorita Ana J",
+      "studbook_id": "438800",
       "estado": "activo"
     },
     {
@@ -904,17 +927,6 @@
       "color": "Zaino",
       "padrillo_nombre": "Emmanuel",
       "madre_nombre": "La Nouba",
-      "studbook_id": null,
-      "estado": "activo"
-    },
-    {
-      "id": "2c76bde6-bef1-47e0-b8b4-33aa423b4a57",
-      "nombre": "La Porteña",
-      "fecha_nacimiento": "2021-03-22",
-      "sexo": "hembra",
-      "color": "Alazán",
-      "padrillo_nombre": "Cityscape",
-      "madre_nombre": "Flor de Campo",
       "studbook_id": null,
       "estado": "activo"
     },
@@ -985,6 +997,17 @@
       "estado": "activo"
     },
     {
+      "id": "eb630d5b-b5e7-4783-ba68-85884c05eae4",
+      "nombre": "LINDA MAIPUENSE",
+      "fecha_nacimiento": "2022-09-30",
+      "sexo": "hembra",
+      "color": "Zaino Colorado",
+      "padrillo_nombre": "Lucky Island",
+      "madre_nombre": "Mirror Plus",
+      "studbook_id": "438809",
+      "estado": "activo"
+    },
+    {
       "id": "83dca3e3-bbce-4c5f-9d0e-2fa5ce0d5967",
       "nombre": "LOCA DUBAI",
       "fecha_nacimiento": "2022-11-06",
@@ -1018,6 +1041,72 @@
       "estado": "activo"
     },
     {
+      "id": "577f9d58-b81c-4c10-a11f-a1be622aa433",
+      "nombre": "La Bonaerense",
+      "fecha_nacimiento": "2021-04-27",
+      "sexo": "hembra",
+      "color": "Alazan tostado",
+      "padrillo_nombre": "Equal Stripes",
+      "madre_nombre": "Bonita Flor",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
+      "id": "fcc0bbdb-e3f7-4830-b038-beabe11faf7c",
+      "nombre": "La City Porteña",
+      "fecha_nacimiento": "2023-07-01",
+      "sexo": "macho",
+      "color": null,
+      "padrillo_nombre": "Cityscape (GB)",
+      "madre_nombre": "La Remota",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
+      "id": "dd2e3818-7ffb-47bc-86a3-4df55fe68d12",
+      "nombre": "La Criolla",
+      "fecha_nacimiento": "2022-05-03",
+      "sexo": "hembra",
+      "color": "Alazán",
+      "padrillo_nombre": "Indy Point",
+      "madre_nombre": "Campo Abierto",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
+      "id": "3539cab0-e2d4-4748-945d-67e36787a96d",
+      "nombre": "La Motocicleta",
+      "fecha_nacimiento": "2023-08-22",
+      "sexo": "macho",
+      "color": null,
+      "padrillo_nombre": "Manipulator (USA)",
+      "madre_nombre": "Ampi Nistel",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
+      "id": "2c76bde6-bef1-47e0-b8b4-33aa423b4a57",
+      "nombre": "La Porteña",
+      "fecha_nacimiento": "2021-03-22",
+      "sexo": "hembra",
+      "color": "Alazán",
+      "padrillo_nombre": "Cityscape",
+      "madre_nombre": "Flor de Campo",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
+      "id": "a82769b8-10fe-434d-808c-50479fe88328",
+      "nombre": "MAC VITAL",
+      "fecha_nacimiento": "2022-11-23",
+      "sexo": "macho",
+      "color": "Zaino",
+      "padrillo_nombre": "Manipuler",
+      "madre_nombre": "Vital Spark",
+      "studbook_id": "440906",
+      "estado": "activo"
+    },
+    {
       "id": "f260bc98-5730-4daf-9374-1125034f5238",
       "nombre": "MAESTRO DE ARMAS",
       "fecha_nacimiento": "2021-10-26",
@@ -1025,28 +1114,6 @@
       "color": "Zaino",
       "padrillo_nombre": "Master Of Hounds (USA)",
       "madre_nombre": "Inter Copla",
-      "studbook_id": null,
-      "estado": "activo"
-    },
-    {
-      "id": "da839b11-00a3-4eb8-b09f-03790d425ed9",
-      "nombre": "Malenuchi",
-      "fecha_nacimiento": "2023-10-15",
-      "sexo": "macho",
-      "color": null,
-      "padrillo_nombre": null,
-      "madre_nombre": null,
-      "studbook_id": null,
-      "estado": "activo"
-    },
-    {
-      "id": "9c9c742c-86a1-4c7b-a060-6ab47900b451",
-      "nombre": "Malenuchi Jack",
-      "fecha_nacimiento": "2023-10-15",
-      "sexo": "macho",
-      "color": null,
-      "padrillo_nombre": "Emir Jack",
-      "madre_nombre": "Quartermaster",
       "studbook_id": null,
       "estado": "activo"
     },
@@ -1106,6 +1173,28 @@
       "estado": "activo"
     },
     {
+      "id": "da839b11-00a3-4eb8-b09f-03790d425ed9",
+      "nombre": "Malenuchi",
+      "fecha_nacimiento": "2023-10-15",
+      "sexo": "macho",
+      "color": null,
+      "padrillo_nombre": null,
+      "madre_nombre": null,
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
+      "id": "9c9c742c-86a1-4c7b-a060-6ab47900b451",
+      "nombre": "Malenuchi Jack",
+      "fecha_nacimiento": "2023-10-15",
+      "sexo": "macho",
+      "color": null,
+      "padrillo_nombre": "Emir Jack",
+      "madre_nombre": "Quartermaster",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
       "id": "5a33b6be-7002-4b96-9aee-46441ec9585d",
       "nombre": "NO TIENE CONTRAS",
       "fecha_nacimiento": "2021-07-20",
@@ -1128,25 +1217,14 @@
       "estado": "activo"
     },
     {
-      "id": "a37acadd-89e9-47ca-8741-1e8c871f196c",
-      "nombre": "Pampa Libre",
-      "fecha_nacimiento": "2021-08-10",
+      "id": "d838d0b9-0ef8-4f79-9dc5-a5fdc69d6ea9",
+      "nombre": "NORMANDO LU",
+      "fecha_nacimiento": "2019-08-27",
       "sexo": "macho",
-      "color": "Zaino",
-      "padrillo_nombre": "Southern Wind",
-      "madre_nombre": "Libre Viento",
-      "studbook_id": null,
-      "estado": "activo"
-    },
-    {
-      "id": "555690c6-d426-45f4-82e5-c5caad9a0cec",
-      "nombre": "Pampero Real",
-      "fecha_nacimiento": "2022-01-18",
-      "sexo": "macho",
-      "color": "Zaino",
-      "padrillo_nombre": "Cima de Triomphe",
-      "madre_nombre": "Lluvia de Oro",
-      "studbook_id": null,
+      "color": "Tordillo",
+      "padrillo_nombre": "Lunatico Emperor",
+      "madre_nombre": "Normandina",
+      "studbook_id": "414815",
       "estado": "activo"
     },
     {
@@ -1179,6 +1257,28 @@
       "color": null,
       "padrillo_nombre": "Peten Itza",
       "madre_nombre": "Honey Moon",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
+      "id": "a37acadd-89e9-47ca-8741-1e8c871f196c",
+      "nombre": "Pampa Libre",
+      "fecha_nacimiento": "2021-08-10",
+      "sexo": "macho",
+      "color": "Zaino",
+      "padrillo_nombre": "Southern Wind",
+      "madre_nombre": "Libre Viento",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
+      "id": "555690c6-d426-45f4-82e5-c5caad9a0cec",
+      "nombre": "Pampero Real",
+      "fecha_nacimiento": "2022-01-18",
+      "sexo": "macho",
+      "color": "Zaino",
+      "padrillo_nombre": "Cima de Triomphe",
+      "madre_nombre": "Lluvia de Oro",
       "studbook_id": null,
       "estado": "activo"
     },
@@ -1326,6 +1426,17 @@
       "estado": "activo"
     },
     {
+      "id": "212f4073-949d-4ef6-af6e-17d61165001f",
+      "nombre": "SI TIN",
+      "fecha_nacimiento": "2023-10-07",
+      "sexo": "macho",
+      "color": "Alazan",
+      "padrillo_nombre": "Il Mercato",
+      "madre_nombre": "Sobra Fe",
+      "studbook_id": "446891",
+      "estado": "activo"
+    },
+    {
       "id": "d36b0b52-370b-435a-bcb3-505dde9ae3bc",
       "nombre": "SIEMPREHAYESPERANZA",
       "fecha_nacimiento": "2022-09-07",
@@ -1447,14 +1558,14 @@
       "estado": "activo"
     },
     {
-      "id": "5cdd311a-ab08-4f43-b9a4-57973cacfe2f",
-      "nombre": "Tormenta Sur",
-      "fecha_nacimiento": "2022-03-15",
+      "id": "4b7dd532-b140-4a3e-99f4-12bbc4990a6d",
+      "nombre": "TOUCH OF BLUE",
+      "fecha_nacimiento": "2022-10-30",
       "sexo": "hembra",
-      "color": "Alazan",
-      "padrillo_nombre": "Cityscape",
-      "madre_nombre": "Tormenta Bella",
-      "studbook_id": null,
+      "color": "Zaino",
+      "padrillo_nombre": "Heliostatic (IRE)",
+      "madre_nombre": "Honradeza",
+      "studbook_id": "441094",
       "estado": "activo"
     },
     {
@@ -1480,6 +1591,17 @@
       "estado": "activo"
     },
     {
+      "id": "5cdd311a-ab08-4f43-b9a4-57973cacfe2f",
+      "nombre": "Tormenta Sur",
+      "fecha_nacimiento": "2022-03-15",
+      "sexo": "hembra",
+      "color": "Alazan",
+      "padrillo_nombre": "Cityscape",
+      "madre_nombre": "Tormenta Bella",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
       "id": "517466e5-0b19-4eca-9a80-2842ba49a745",
       "nombre": "UNBOTHERED",
       "fecha_nacimiento": "2022-07-31",
@@ -1487,17 +1609,6 @@
       "color": "Zaino",
       "padrillo_nombre": "Forge (GB)",
       "madre_nombre": "I'll Be Waiting",
-      "studbook_id": null,
-      "estado": "activo"
-    },
-    {
-      "id": "209eef9a-922e-48b0-b6ef-ae66ab004bb8",
-      "nombre": "Viento del Sur",
-      "fecha_nacimiento": "2020-09-15",
-      "sexo": "macho",
-      "color": "Zaino",
-      "padrillo_nombre": "Southern Wind",
-      "madre_nombre": "Pampa Linda",
       "studbook_id": null,
       "estado": "activo"
     },
@@ -1513,6 +1624,17 @@
       "estado": "activo"
     },
     {
+      "id": "209eef9a-922e-48b0-b6ef-ae66ab004bb8",
+      "nombre": "Viento del Sur",
+      "fecha_nacimiento": "2020-09-15",
+      "sexo": "macho",
+      "color": "Zaino",
+      "padrillo_nombre": "Southern Wind",
+      "madre_nombre": "Pampa Linda",
+      "studbook_id": null,
+      "estado": "activo"
+    },
+    {
       "id": "53c1892a-68eb-4ce4-b198-a7985e4048b5",
       "nombre": "Vito lo capo",
       "fecha_nacimiento": "2021-10-22",
@@ -1521,6 +1643,28 @@
       "padrillo_nombre": "Cosmic Trigger",
       "madre_nombre": "Campirina",
       "studbook_id": null,
+      "estado": "activo"
+    },
+    {
+      "id": "82351c05-4d69-4f9a-82cb-392785e06457",
+      "nombre": "WILSON SECURITY",
+      "fecha_nacimiento": "2022-08-05",
+      "sexo": "macho",
+      "color": "Alazan",
+      "padrillo_nombre": "Victor Security",
+      "madre_nombre": "Cataluya",
+      "studbook_id": "436668",
+      "estado": "activo"
+    },
+    {
+      "id": "29db5000-920f-4185-9cc7-2d310d584b78",
+      "nombre": "WISLA KEN",
+      "fecha_nacimiento": "2021-09-28",
+      "sexo": "hembra",
+      "color": "Zaino",
+      "padrillo_nombre": "Le Ken",
+      "madre_nombre": "Wilkenia",
+      "studbook_id": "433894",
       "estado": "activo"
     },
     {
@@ -1543,17 +1687,6 @@
       "padrillo_nombre": "Remote (GB)",
       "madre_nombre": "Holiday Wave",
       "studbook_id": null,
-      "estado": "activo"
-    },
-    {
-      "id": "29db5000-920f-4185-9cc7-2d310d584b78",
-      "nombre": "WISLA KEN",
-      "fecha_nacimiento": "2021-09-28",
-      "sexo": "hembra",
-      "color": "Zaino",
-      "padrillo_nombre": "Le Ken",
-      "madre_nombre": "Wilkenia",
-      "studbook_id": "433894",
       "estado": "activo"
     },
     {
