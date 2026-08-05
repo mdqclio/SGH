@@ -197,15 +197,28 @@ Ver §2. Bloque comentado esperando confirmación de Yesi.
 
 ---
 
-## 5. Hallazgo lateral — `club_id` no se manda en el alta de personas
+## 5. Hallazgo lateral — aislamiento por tenant en `profesionales.html` (ISSUE-049, ya resuelto)
 
-`profesionales.html:393-406` y `jockeys.html:384-396` arman el payload del INSERT **sin
-`club_id`**. La columna es nullable, así que el alta por pantalla crea la persona con
-`club_id = NULL`, mientras que las **167/167** filas actuales de la tabla lo tienen
-cargado.
+**Corrección**: la primera versión de esta sección decía que `profesionales.html` **y**
+`jockeys.html` armaban el INSERT sin `club_id`. Falso: `jockeys.html:382` sí lo manda. El
+defecto era sólo de `profesionales.html`, y al revisarlo apareció uno más grave al lado.
 
-No es un bug de esta tanda (el SQL propuesto sí setea `club_id`), pero toda persona dada de
-alta por la UI desde que existe ese form queda huérfana de tenant. Vale como ISSUE aparte.
+Los dos defectos, los dos en `profesionales.html`:
+
+1. **Fuga cross-tenant en la lectura** — `load()` consultaba `profesionales` filtrando sólo
+   por `tipo = 'entrenador'`, **sin** `.eq('club_id', CLUB_ID)`. Desde Dolores se listaban,
+   editaban y daban de baja los **11** profesionales de `Mi Club Hípico`.
+   `jockeys.html:271` sí filtraba: era una asimetría entre las dos pantallas hermanas.
+2. **Alta sin tenant** — el payload del INSERT no incluía `club_id` (nullable), así que el
+   alta por pantalla creaba la fila con `club_id = NULL`.
+
+Chequeo read-only contra prod antes de tocar nada: `count(*) FILTER (WHERE club_id IS NULL)`
+= **0** sobre 167 filas (Dolores 156, Mi Club Hípico 11). **No hubo filas huérfanas que
+adoptar** → ninguna migración de datos.
+
+Fix aplicado en branch aparte `fix/club-id-alta-profesionales` (`8f08e70`): `.eq('club_id',
+CLUB_ID)` en `load()` + `club_id: CLUB_ID` en el payload. Detalle en `docs/ISSUES.md`
+ISSUE-049. Nada de esto toca el SQL de esta tanda, que ya seteaba `club_id`.
 
 ---
 
