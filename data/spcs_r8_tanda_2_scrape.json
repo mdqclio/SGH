@@ -1,0 +1,222 @@
+{
+  "_meta": {
+    "fuente": "www.studbook.org.ar",
+    "tanda": "2",
+    "escribe_en_db": false,
+    "nombres_pedidos": 13,
+    "altas_propuestas": 5,
+    "casos_no_resueltos": 8,
+    "snapshot_spcs": 158
+  },
+  "ALTAS": [
+    {
+      "nombre_pedido": "RECUERDAME IN YOU",
+      "nombre_sb": "RECUERDAME IN YOU",
+      "sb_id": "423281",
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/423281/recuerdame-in-you",
+      "fecha_nacimiento": "2020-10-05",
+      "sexo_sb": "Hembra",
+      "sexo": "hembra",
+      "color": "Zaino",
+      "padrillo_nombre": "Star In You",
+      "madre_nombre": "Olvidame",
+      "padre_id_sb": "251860",
+      "madre_id_sb": "317031",
+      "abuelo_materno_id_sb": "193713",
+      "pais_origen": "Argentina",
+      "criador": "Berutti Jorge Adolfo Hernan",
+      "microchip": "032050000624786",
+      "alertas": []
+    },
+    {
+      "nombre_pedido": "REINA ATREVIDA",
+      "nombre_sb": "REINA ATREVIDA",
+      "sb_id": "418581",
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/418581/reina-atrevida",
+      "fecha_nacimiento": "2019-10-12",
+      "sexo_sb": "Hembra",
+      "sexo": "hembra",
+      "color": "Alazan",
+      "padrillo_nombre": "Detonator",
+      "madre_nombre": "Atrevida Sola",
+      "padre_id_sb": "318417",
+      "madre_id_sb": "250693",
+      "abuelo_materno_id_sb": "183506",
+      "pais_origen": "Argentina",
+      "criador": "Lindner Aldo Cesar",
+      "microchip": "981098108600298",
+      "alertas": []
+    },
+    {
+      "nombre_pedido": "TIENE RITMO",
+      "nombre_sb": "TIENE RITMO",
+      "sb_id": "427217",
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/427217/tiene-ritmo",
+      "fecha_nacimiento": "2021-08-04",
+      "sexo_sb": "Macho",
+      "sexo": "macho",
+      "color": "Alazan",
+      "padrillo_nombre": "Touareg",
+      "madre_nombre": "Muy Alegre",
+      "padre_id_sb": "324062",
+      "madre_id_sb": "298578",
+      "abuelo_materno_id_sb": "226176",
+      "pais_origen": "Argentina",
+      "criador": "Don Florentino",
+      "microchip": "032050000623500",
+      "alertas": []
+    },
+    {
+      "nombre_pedido": "EL GRAN HECTOR",
+      "nombre_sb": "EL GRAN HECTOR",
+      "sb_id": "430047",
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/430047/el-gran-hector",
+      "fecha_nacimiento": "2021-08-25",
+      "sexo_sb": "Macho",
+      "sexo": "macho",
+      "color": "Zaino",
+      "padrillo_nombre": "Grand Reward (USA)",
+      "madre_nombre": "Beauty Shiner",
+      "padre_id_sb": "396645",
+      "madre_id_sb": "342234",
+      "abuelo_materno_id_sb": "251125",
+      "pais_origen": "Argentina",
+      "criador": "Lovisi Felipe",
+      "microchip": "981098108693679",
+      "alertas": []
+    },
+    {
+      "nombre_pedido": "IDALIA MARO",
+      "nombre_sb": "IDALIA MARO",
+      "sb_id": "431374",
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/431374/idalia-maro",
+      "fecha_nacimiento": "2021-10-15",
+      "sexo_sb": "Hembra",
+      "sexo": "hembra",
+      "color": "Zaino",
+      "padrillo_nombre": "Engelhard",
+      "madre_nombre": "Itzel Chica",
+      "padre_id_sb": "287347",
+      "madre_id_sb": "336199",
+      "abuelo_materno_id_sb": "380450",
+      "pais_origen": "Argentina",
+      "criador": "Bucheler Marcela Renee",
+      "microchip": "981098108891184",
+      "alertas": []
+    }
+  ],
+  "CASOS": [
+    {
+      "nombre_pedido": "GRILLADA RYE",
+      "tipo": "YA_EXISTE_EN_DB",
+      "motivo": "Ya hay 1 SPC con ese nombre en la base. No se da de alta.",
+      "existentes": [
+        {
+          "id": "dec9fe8d-4671-4689-91f5-b2df01d67a66",
+          "nombre": "GRILLADA RYE",
+          "fecha_nacimiento": "2019-11-12",
+          "sexo": "hembra",
+          "studbook_id": null
+        }
+      ]
+    },
+    {
+      "nombre_pedido": "FLORENTINA IN YOU",
+      "tipo": "YA_EXISTE_EN_DB",
+      "motivo": "Ya hay 1 SPC con ese nombre en la base. No se da de alta.",
+      "existentes": [
+        {
+          "id": "b52c1ecd-a9ef-4f67-b2d5-cbcad5c7d93f",
+          "nombre": "FLORENTINA IN YOU",
+          "fecha_nacimiento": "2020-11-01",
+          "sexo": "hembra",
+          "studbook_id": "423146"
+        }
+      ]
+    },
+    {
+      "nombre_pedido": "ALIADO SCAT",
+      "tipo": "YA_EXISTE_EN_DB",
+      "motivo": "Ya hay 1 SPC con ese nombre en la base. No se da de alta.",
+      "existentes": [
+        {
+          "id": "e8934aa5-4fd6-41b0-8b91-ef41112c8f0c",
+          "nombre": "ALIADO SCAT",
+          "fecha_nacimiento": "2019-08-18",
+          "sexo": "macho",
+          "studbook_id": "414038"
+        }
+      ]
+    },
+    {
+      "nombre_pedido": "IX GOAL TUN",
+      "tipo": "YA_EXISTE_EN_DB",
+      "motivo": "Ya hay 1 SPC con ese nombre en la base. No se da de alta.",
+      "existentes": [
+        {
+          "id": "49abdb5b-f3cd-48cd-b535-a1db6cf24884",
+          "nombre": "IX GOAL TUN",
+          "fecha_nacimiento": "2018-07-29",
+          "sexo": "hembra",
+          "studbook_id": null
+        }
+      ]
+    },
+    {
+      "nombre_pedido": "TATA FOOT",
+      "tipo": "YA_EXISTE_EN_DB",
+      "motivo": "Ya hay 1 SPC con ese nombre en la base. No se da de alta.",
+      "existentes": [
+        {
+          "id": "028ed453-bafe-491b-afe1-8aa93e56f675",
+          "nombre": "TATA FOOT",
+          "fecha_nacimiento": "2021-08-30",
+          "sexo": "macho",
+          "studbook_id": null
+        }
+      ]
+    },
+    {
+      "nombre_pedido": "INDIO VALIDO",
+      "tipo": "YA_EXISTE_EN_DB",
+      "motivo": "Ya hay 1 SPC con ese nombre en la base. No se da de alta.",
+      "existentes": [
+        {
+          "id": "e9861c14-8f9f-4098-9bd5-11249450747e",
+          "nombre": "INDIO VALIDO",
+          "fecha_nacimiento": "2021-10-28",
+          "sexo": "macho",
+          "studbook_id": null
+        }
+      ]
+    },
+    {
+      "nombre_pedido": "COLONIAL JOHAN",
+      "tipo": "YA_EXISTE_EN_DB",
+      "motivo": "Ya hay 1 SPC con ese nombre en la base. No se da de alta.",
+      "existentes": [
+        {
+          "id": "ffc0dd8d-f198-4321-8f7c-a5241fc59daf",
+          "nombre": "COLONIAL JOHAN",
+          "fecha_nacimiento": "2021-10-15",
+          "sexo": "macho",
+          "studbook_id": "432758"
+        }
+      ]
+    },
+    {
+      "nombre_pedido": "QUE TAL OREJA",
+      "tipo": "YA_EXISTE_EN_DB",
+      "motivo": "Ya hay 1 SPC con ese nombre en la base. No se da de alta.",
+      "existentes": [
+        {
+          "id": "8871fd1f-28d2-4527-a3bc-0783c4cc3aff",
+          "nombre": "QUE TAL OREJA",
+          "fecha_nacimiento": "2020-10-25",
+          "sexo": "macho",
+          "studbook_id": null
+        }
+      ]
+    }
+  ]
+}
