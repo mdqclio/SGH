@@ -320,3 +320,17 @@ Qué hay que hacer en el Gate 4:
 - Revisar todo conteo por caballo/reunión (incentivos de montas, resumen de la Fase 5, cupos) para que no sobrecuente estas filas.
 
 Módulo: `portal.html` + RPC de inscripción del Gate 4 (`docs/AUTOREGISTRO_PLAN.md` §Gate 4). Estado: ⏳ Abierto — es requisito de diseño, hay que resolverlo **antes** de escribir el RPC. Prioridad: Alta (bloquea el Gate 4, apuntado a R9 del 06/09).
+
+### ISSUE-049: `profesionales.html` listaba entrenadores de todos los clubes y los creaba sin `club_id` — RESUELTO
+Descripción: dos defectos de aislamiento por tenant en el ABM de entrenadores, detectados el 05/08 mientras se cruzaba la tanda 2 de R8 (`docs/TANDA_2_R8.md` §5).
+
+1. **Fuga cross-tenant en la lectura**: `load()` consultaba `profesionales` filtrando sólo por `tipo = 'entrenador'`, **sin** `.eq('club_id', CLUB_ID)`. Desde Dolores se veían —y se podían editar y dar de baja— los 11 profesionales de `Mi Club Hípico`. `jockeys.html:271` sí filtraba; era una asimetría entre las dos pantallas hermanas.
+2. **Alta sin tenant**: el payload del INSERT no incluía `club_id`. La columna es nullable, así que toda alta por pantalla creaba la fila con `club_id = NULL`, contra 167/167 filas de la tabla que lo tienen cargado. `jockeys.html:382` sí lo mandaba.
+
+Impacto real medido antes del fix: **0 filas huérfanas** (`count(*) FILTER (WHERE club_id IS NULL)` = 0 sobre 167). El alta por pantalla de entrenadores nunca se usó, o las filas se cargaron por otra vía. Por eso **no hizo falta ninguna migración de adopción**.
+
+Fix: `profesionales.html` — `.eq('club_id', CLUB_ID)` en `load()` + `club_id: CLUB_ID` en el payload. Branch `fix/club-id-alta-profesionales`.
+
+Nota: con el fix, un `super_admin` sin club seleccionado (`CLUB_ID` null) no ve entrenadores, igual que hoy no ve jockeys. Es el comportamiento de `jockeys.html`; se unifica, no se empeora.
+
+Módulo: `profesionales.html`. Estado: ✅ Resuelto (05/08/2026). Prioridad: era Alta (aislamiento por tenant).
