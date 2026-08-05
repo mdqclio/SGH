@@ -16,8 +16,9 @@ tandas previas: [`TANDA_1_R8.md`](TANDA_1_R8.md) · [`TANDA_1B_R8.md`](TANDA_1B_
 | selftest scraper | **16/16 OK**, exit 0 — el HTML/JSON del SB no cambió |
 | casts validados read-only | `'jockey'/'entrenador'/'ambos'::tipo_profesional` ✅ |
 
-**Nada fue ejecutado contra la base.** Hay tres migraciones propuestas y tres gates
-separados.
+Estado: **los tres gates fueron aprobados por Leo y aplicados el 05/08**. El detalle de
+verificación de cada uno está en su sección. Lo único que quedó sin aplicar es el bloque de
+`DON NITO` (§2), que sigue comentado esperando a Yesi.
 
 ---
 
@@ -67,9 +68,22 @@ SQL en `migrations/spcs_r8_tanda_2.sql`, evidencia cruda en
 `data/spcs_r8_tanda_2_scrape.json`, reporte del script en
 `data/spcs_r8_tanda_2_reporte.md`.
 
-### 🚦 GATE 1 — SPCs · esperando OK
+### 🚦 GATE 1 — SPCs · ✅ APLICADO (05/08)
 
-`spcs` pasa de **158 → 163**.
+OK de Leo. Los 5 INSERT se aplicaron por MCP `apply_migration`, migración `spcs_r8_tanda_2`
+(mismos valores que el `.sql`, sin `BEGIN/COMMIT` ni los SELECT: `apply_migration` ya
+envuelve todo en una transacción).
+
+| chequeo | esperado | obtenido | |
+|---|---|---|---|
+| `SELECT count(*) FROM spcs` | 163 (158 + 5) | **163** | ✅ |
+| filas con los 5 `studbook_id` | 5 | **5** | ✅ |
+| `studbook_id` duplicados | 0 | **0** | ✅ |
+| `club_id` / `caballeriza_id` / `registro_stud_book` | NULL | NULL | ✅ |
+| `pais_origen` / `estado` | Argentina / activo | ídem | ✅ |
+
+Nombre, fecha, sexo, color, padre y madre coinciden fila por fila con
+`data/spcs_r8_tanda_2_scrape.json`. `data/spcs_snapshot.json` actualizado a **163**.
 
 ---
 
@@ -123,79 +137,128 @@ el `WHERE NOT EXISTS` de cada INSERT, no la base. La tabla ya trae duplicados hi
 por mayúsculas (`LA NARCISA`/`La Narcisa`, `EL LINYE Y RAMI`/`El linye y Rami`) — por eso
 el chequeo final de duplicados está acotado a los nombres de esta tanda.
 
-### 🚦 GATE 2 — caballerizas · esperando OK
+### 🚦 GATE 2 — caballerizas · ✅ APLICADO (05/08)
 
-Caballerizas de Dolores: **272 → 281** (282 si se descomenta DON NITO).
+OK de Leo. Las 9 altas se aplicaron por MCP `apply_migration`, migración
+`caballerizas_r8_tanda_2`. **DON NITO no se aplicó** — sigue comentado.
 
----
-
-## 3. Personas — 8 altas + 1 cambio de tipo
-
-Cruce contra las **167** filas de `profesionales`. Para cada alta se verificó: 0 filas con
-el mismo apellido, 0 con el apellido cargado en el campo `nombre`, 0 con el nombre cargado
-en el campo `apellido`.
-
-### Altas propuestas (8) — todas venían pendientes de la tanda 1
-
-| tipo | apellido | nombre | nota |
+| chequeo | esperado | obtenido | |
 |---|---|---|---|
-| jockey | GUZMAN | CLAUDIO | — |
-| jockey | GONZALEZ | LUCAS | ningún GONZALEZ en la base |
+| caballerizas de Dolores | 281 (272 + 9) | **281** | ✅ |
+| caballerizas totales | 285 | **285** | ✅ |
+| filas de la tanda | 9 | **9** | ✅ |
+| filas con nombre `DON NITO` | 0 | **0** | ✅ |
+| `hipodromo_patente` / `estado` / `activo` en las 9 | DOL / activo / true | ídem | ✅ |
+| `responsable` en las 9 | NULL | NULL — lo completa Yesi | ✅ |
+
+---
+
+## 3. Personas — padrón completo cruzado, 10 altas + 1 cambio de tipo
+
+Padrón del xlsx: **18 jockeys + 25 cuidadores** (ALDECOA IVAN figura en las dos listas →
+42 personas distintas). `XX` en la planilla = sin jockey asignado, no es persona.
+Cruce contra las 167 filas de `profesionales`: **32 ya existían, 10 son alta, 1 es cambio
+de tipo**.
+
+### Altas aplicadas (10)
+
+| tipo | apellido | nombre | por qué era alta |
+|---|---|---|---|
+| jockey | GUZMAN | CLAUDIO | ningún GUZMAN en la tabla |
+| jockey | GONZALEZ | LUCAS | ningún GONZALEZ en la tabla |
 | jockey | GONZALEZ | AGUSTIN | ídem |
-| entrenador | GONZALEZ | ADRIAN AGUSTIN | ídem |
-| entrenador | VARELA | LORENA | — |
-| entrenador | ALLEN | JUAN JOSE | — |
-| entrenador | DIAZ | EMILIANO | hay `DIAZ AMERICO RAMON` y `DIAZ CARLOS RODOLFO`, ningún Emiliano |
-| entrenador | CAMPELO | LEONARDO | — |
+| jockey | MUÑIZ | MATIAS | ni MUÑIZ ni MUNIZ |
+| entrenador | GONZALEZ | ADRIAN AGUSTIN | ídem GONZALEZ |
+| entrenador | VARELA | LORENA SOLEDAD | ningún VARELA |
+| entrenador | ALLEN | JUAN JOSE | ningún ALLEN |
+| entrenador | DIAZ | EMILIANO LUJAN | hay `DIAZ AMERICO RAMON` y `DIAZ CARLOS RODOLFO`, ningún Emiliano |
+| entrenador | CAMPELO | LEONARDO | ningún CAMPELO |
+| entrenador | PAGANO | JUAN MAURICIO | ningún PAGANO — resuelve el typo `PAGANDO` de la hoja 12 |
 
-`documento_nro` y `documento_tipo` quedan **NULL** (regla nueva). `hipodromo_patente` NULL
-—es lo que produce un alta por pantalla en `profesionales.html` / `jockeys.html`.
-"Cuidador" en la planilla = `tipo = 'entrenador'` en la base.
+Todas con `documento_nro` NULL (regla nueva), `hipodromo_patente` NULL —lo que produce un
+alta por pantalla—, `club_id` = Dolores, `estado` activo.
 
-### Los 4 casos que marcó Leo — ninguno es alta
+### Ya existían (32) — no se tocaron
 
-| caso | resultado del cruce |
+**Jockeys (13)**: DIESTRA PEDRO · PRESA DANIEL · YALET JORGE · DELLI QUADRI IGNACIO ·
+TORRES ANIBAL · GATICA DARIO · YALET IRINEO · ROJAS HERNAN · AGUIRRE HUGO · GIL SANTINO ·
+OSUNA JOSE · CONTRERAS JUAN CRUZ · MARTINEZ AGUSTIN.
+
+**Cuidadores (19)**: MAITIA LUIS · MAITIA MIGUEL A · FLEKSTEIN LEONARDO ·
+ALDAY SERGIO ESTEBAN · ETCHEVERRY MARIO ALFREDO · GIULIANI NICOLAS JULIAN ·
+DIAZ CARLOS RODOLFO · TEDESCHI ALEJANDRO · ZUBIARRAIN SANTIAGO · BARRERA MARIA LAURA ·
+DI FRANCO GUSTAVO · GAINLE JOSE MARIA · ALDECOA IVAN (→ ver cambio de tipo) · más los 6
+que matchean contra una grafía más larga de la base:
+
+| planilla | en base |
 |---|---|
-| **ALDECOA IVAN** (jockey Y cuidador) | Ya está, como `entrenador`, con DNI `39491188` y patente DOL. **No es alta: es `UPDATE tipo → 'ambos'`.** El enum `tipo_profesional` tiene ese valor justo para esto. No se toca ningún otro campo. |
-| **MAITIA MIGUEL A** | **No hay duda que reportar.** En la base el registro es literalmente `MAITIA, MIGUEL A` (entrenador, sin DNI). No existe ningún `MAITIA MIGUEL` a secas — los dos MAITIA de la base son `LUIS` y `MIGUEL A`. Es la misma persona. Sin alta, sin duplicado. |
-| **TEDESCHI ALEJANDRO** | Ya existe (`entrenador`, sin DNI). ✅ como anticipó Leo |
-| **OSUNA JOSE** | Ya existe (`jockey`, sin DNI). ✅ como anticipó Leo |
+| FARIAS OSVALDO | `FARIAS, OSVALDO ISMAEL` |
+| QUINTEROS CARLA | `QUINTEROS, CARLA ELISABETH` |
+| GIMENEZ MARCOS | `GIMENEZ, MARCOS EZEQUIEL` |
+| SAN MARTIN SERGIO | `SAN MARTIN, SERGIO SEBASTIAN` |
+| MEDINA OSCAR | `MEDINA, OSCAR ROBERTO` |
+| VALENCIA GERARDO | `VALENCIA, GERARDO MANUEL` |
 
-### 🚦 GATE 3 — personas · esperando OK
+Cuatro de estos —**CONTRERAS JUAN CRUZ, DI FRANCO GUSTAVO, BARRERA MARIA LAURA,
+GAINLE JOSE MARIA**— estaban en la lista de altas de la versión anterior de este
+documento, armada sin el padrón. El cruce completo los descartó: ya estaban.
 
-`profesionales`: **167 → 175**, más 1 UPDATE de tipo sobre ALDECOA IVAN.
+### ALDECOA IVAN — cambio de tipo, no alta
 
----
+Figura en la lista de jockeys **y** en la de cuidadores. En la base ya estaba como
+`entrenador` con DNI `39491188` y patente DOL. Se aplicó
+`UPDATE tipo → 'ambos'`; ningún otro campo se tocó.
 
-## 4. Lo que quedó abierto — necesita respuesta
+### ⚠ MAITIA MIGUEL A — no hacía falta ni comentarlo
 
-### 4.1 ⚠ La planilla xlsx no está en el repo ni en el disco
+Leo pidió dejarlo comentado como DON NITO, por dudoso contra "el MAITIA MIGUEL existente".
+El cruce lo resuelve: en la base el registro es literalmente `MAITIA, 'MIGUEL A'`
+(entrenador, sin DNI), y **no existe ningún `MAITIA MIGUEL` a secas** — los dos MAITIA de
+la tabla son `LUIS` y `MIGUEL A`. Coincide carácter por carácter con la planilla: es la
+misma persona. No había nada que duplicar ni que desambiguar, así que no lleva ni INSERT ni
+bloque comentado. Queda la nota en el `.sql`.
 
-No hay ningún `.xlsx` en `/home/clio/dev/SGH` ni en el árbol de `/home/clio`. El cruce de
-esta tanda se hizo con **las listas que vinieron en el mensaje**, no con el archivo.
+### 🚦 GATE 3 — personas · ✅ APLICADO (05/08)
 
-Consecuencia concreta: para SPCs y caballerizas la lista vino completa y el cruce cierra.
-Para **personas** vinieron sólo los 4 nombres que Leo marcó como dudosos —
-**el padrón de jockeys y cuidadores de la tanda 2 no se pudo cruzar entero**. Las 8 altas
-de §3 son las que ya venían pendientes de la tanda 1, no las nuevas de la tanda 2.
+Migración `personas_r8_tanda_2` por MCP `apply_migration`.
 
-**Hace falta**: el listado de jockeys y cuidadores de las 12 categorías de la planilla
-(o el xlsx en `data/`) para completar el gate 3.
+| chequeo | esperado | obtenido | |
+|---|---|---|---|
+| `SELECT count(*) FROM profesionales` | 177 (167 + 10) | **177** | ✅ |
+| filas con `club_id IS NULL` | 0 | **0** | ✅ |
+| filas con `tipo = 'ambos'` | 1 (ALDECOA IVAN) | **1** | ✅ |
+| duplicados de (apellido, nombre) en toda la tabla | 0 | **0** | ✅ |
+| las 10 altas: `documento_nro` | NULL | NULL | ✅ |
+| ALDECOA IVAN: DNI tras el UPDATE | 39491188 | **39491188** | ✅ |
 
-### 4.2 ⚠ `PAGANO` — no se pudo clasificar
+## 4. Lo que quedó abierto
 
-El typo `PAGANDO`→`PAGANO` está normalizado, pero `PAGANO` **no aparece en ningún lado**:
-0 hits en `caballerizas.nombre`, `caballerizas.responsable`, `propietarios.nombre`,
-`profesionales` y `spcs`. Sin la planilla no se sabe si es un cuidador, un jockey, un
-propietario o una caballeriza, así que no se propone alta.
+### 4.1 ✅ Padrón de personas — resuelto
 
-**Hace falta**: qué es PAGANO.
+La versión anterior de este documento marcaba que el xlsx no estaba en el disco y que el
+padrón de personas de la tanda 2 no se había podido cruzar entero. Leo pasó el listado
+completo el 05/08 (18 jockeys + 25 cuidadores) y el cruce se rehízo sobre ese padrón. Ver §3.
 
-### 4.3 `DON NITO` vs `DON NINO`
+El resultado cambió lo propuesto: **4 personas que iban a darse de alta ya existían**
+(CONTRERAS JUAN CRUZ, DI FRANCO GUSTAVO, BARRERA MARIA LAURA, GAINLE JOSE MARIA) y
+aparecieron **2 altas nuevas** (MUÑIZ MATIAS, PAGANO JUAN MAURICIO). Dos nombres se
+cargaron con la grafía completa del padrón en vez de la corta de la tanda 1
+(`VARELA LORENA SOLEDAD`, `DIAZ EMILIANO LUJAN`).
 
-Ver §2. Bloque comentado esperando confirmación de Yesi.
+Moraleja para la próxima tanda: **el cruce de personas sin el padrón completo no sirve** —
+sobre 10 altas propuestas a ciegas, 4 habrían sido duplicados.
 
----
+### 4.2 ✅ `PAGANO` — resuelto
+
+Es **PAGANO JUAN MAURICIO**, cuidador (de REINA ATREVIDA en la cat. 8, TIENE RITMO en la
+ESPECIAL, IDALIA MARO en la 11 y la 12). El `PAGANDO` de la hoja 12 es typo. Dado de alta
+como `entrenador` en el gate 3.
+
+### 4.3 ⏳ `DON NITO` vs `DON NINO` — sigue abierto
+
+Único pendiente de la tanda. Ver §2: el INSERT quedó comentado en
+`migrations/caballerizas_r8_tanda_2.sql`. Se descomenta sólo con confirmación de Yesi de
+que `DON NITO` existe y es distinto del `DON NINO` que ya está en la base.
 
 ## 5. Hallazgo lateral — aislamiento por tenant en `profesionales.html` (ISSUE-049, ya resuelto)
 
@@ -222,19 +285,23 @@ ISSUE-049. Nada de esto toca el SQL de esta tanda, que ya seteaba `club_id`.
 
 ---
 
-## 6. Estado
+## 6. Estado — aplicado 05/08
 
-| | antes | después de los 3 gates |
-|---|---|---|
-| `spcs` | 158 | 163 |
-| `caballerizas` (Dolores) | 272 | 281 |
-| `profesionales` | 167 | 175 |
+| tabla | antes | después | migración |
+|---|---|---|---|
+| `spcs` | 158 | **163** | `spcs_r8_tanda_2` |
+| `caballerizas` (Dolores) | 272 | **281** | `caballerizas_r8_tanda_2` |
+| `caballerizas` (total) | 276 | **285** | ídem |
+| `profesionales` | 167 | **177** | `personas_r8_tanda_2` |
 
-**Cero cambios en la base hasta acá.** Tres migraciones propuestas:
+Más 1 UPDATE: ALDECOA IVAN pasó de `entrenador` a `ambos`.
 
-- `migrations/spcs_r8_tanda_2.sql` — 5 INSERT
-- `migrations/caballerizas_r8_tanda_2.sql` — 9 INSERT + 1 bloque comentado
-- `migrations/personas_r8_tanda_2.sql` — 8 INSERT + 1 UPDATE
+Las tres migraciones son idempotentes (`WHERE NOT EXISTS`) — correrlas de nuevo no duplica.
+Los archivos `.sql` en `migrations/` quedan como fuente de verdad, con la cabecera de
+APLICADO y los SELECT de verificación que se corrieron.
 
-Las tres son idempotentes (`WHERE NOT EXISTS`) y traen sus SELECT de verificación **antes**
-del `COMMIT`.
+### Pendiente
+
+- **`DON NITO`** — bloque comentado, esperando a Yesi (§4.3).
+- **DNI de las 10 personas nuevas** — llegan por auto-registro (Gate 3), no por esta vía.
+- **`responsable` de las 9 caballerizas nuevas** — lo completa Yesi por pantalla.

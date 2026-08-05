@@ -484,6 +484,17 @@
   "estado": "activo"
  },
  {
+  "id": "6e7ef66d-efb7-47d7-923c-dd0b8979e34a",
+  "nombre": "EL GRAN HECTOR",
+  "fecha_nacimiento": "2021-08-25",
+  "sexo": "macho",
+  "color": "Zaino",
+  "padrillo_nombre": "Grand Reward (USA)",
+  "madre_nombre": "Beauty Shiner",
+  "studbook_id": "430047",
+  "estado": "activo"
+ },
+ {
   "id": "0f40daa9-676d-4391-91ea-a543d165352c",
   "nombre": "EL MEJOR DUQUE",
   "fecha_nacimiento": "2022-10-27",
@@ -822,6 +833,17 @@
   "padrillo_nombre": "Icy Glory",
   "madre_nombre": "Normandina",
   "studbook_id": null,
+  "estado": "activo"
+ },
+ {
+  "id": "b743522a-4e80-4694-a0ce-cec99663787f",
+  "nombre": "IDALIA MARO",
+  "fecha_nacimiento": "2021-10-15",
+  "sexo": "hembra",
+  "color": "Zaino",
+  "padrillo_nombre": "Engelhard",
+  "madre_nombre": "Itzel Chica",
+  "studbook_id": "431374",
   "estado": "activo"
  },
  {
@@ -1342,6 +1364,28 @@
   "estado": "activo"
  },
  {
+  "id": "0124e863-a975-420d-bd5f-07f11352142b",
+  "nombre": "RECUERDAME IN YOU",
+  "fecha_nacimiento": "2020-10-05",
+  "sexo": "hembra",
+  "color": "Zaino",
+  "padrillo_nombre": "Star In You",
+  "madre_nombre": "Olvidame",
+  "studbook_id": "423281",
+  "estado": "activo"
+ },
+ {
+  "id": "9bdab685-498f-4fd3-8d16-abb278f80d93",
+  "nombre": "REINA ATREVIDA",
+  "fecha_nacimiento": "2019-10-12",
+  "sexo": "hembra",
+  "color": "Alazan",
+  "padrillo_nombre": "Detonator",
+  "madre_nombre": "Atrevida Sola",
+  "studbook_id": "418581",
+  "estado": "activo"
+ },
+ {
   "id": "5f94e992-1033-4078-81aa-1f822bb6ecc7",
   "nombre": "REY DE PILA",
   "fecha_nacimiento": "2021-10-14",
@@ -1548,6 +1592,17 @@
   "padrillo_nombre": "Che Micky",
   "madre_nombre": "Odalisca Tub",
   "studbook_id": null,
+  "estado": "activo"
+ },
+ {
+  "id": "6ecc516a-3440-428d-9bc4-351a4693924c",
+  "nombre": "TIENE RITMO",
+  "fecha_nacimiento": "2021-08-04",
+  "sexo": "macho",
+  "color": "Alazan",
+  "padrillo_nombre": "Touareg",
+  "madre_nombre": "Muy Alegre",
+  "studbook_id": "427217",
   "estado": "activo"
  },
  {

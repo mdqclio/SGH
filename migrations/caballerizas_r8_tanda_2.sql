@@ -1,8 +1,9 @@
 -- ============================================================
 -- caballerizas_r8_tanda_2.sql — alta de caballerizas faltantes (R8, tandas 1 + 2)
 -- ============================================================
--- PROPUESTA. NO EJECUTADO. Requiere OK explícito de Leo (gate 2 de 3).
---
+-- ✅ APLICADO el 05/08/2026 por MCP apply_migration, migración `caballerizas_r8_tanda_2`
+--    9 altas. Caballerizas de Dolores 272 -> 281. DON NITO NO se aplicó
+--    (sigue comentado, esperando a Yesi). Verificado.
 -- Cambio de regla autorizado por Leo el 05/08: esta tanda SÍ crea
 -- caballerizas. Antes quedaban fuera del circuito (las cargaba Yesi).
 --
