@@ -270,7 +270,7 @@ async function load() {
   }
   document.getElementById('list-container').innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando entrenadores…</div>';
   const filtro = document.getElementById('filter-estado').value;
-  let query = sb.from('profesionales').select('*').eq('tipo', 'entrenador').order('apellido').order('nombre');
+  let query = sb.from('profesionales').select('*').eq('club_id', CLUB_ID).eq('tipo', 'entrenador').order('apellido').order('nombre');
   if (filtro === 'activos')  query = query.eq('estado', 'activo');
   else if (filtro === 'visibles') query = query.in('estado', ['activo', 'inactivo']);
   const { data, error } = await query;
@@ -391,6 +391,7 @@ async function saveRecord(e) {
     }
   }
   const payload = {
+    club_id: CLUB_ID,
     tipo: 'entrenador',
     nombre: document.getElementById('f-nombre').value.trim(),
     apellido: document.getElementById('f-apellido').value.trim(),
