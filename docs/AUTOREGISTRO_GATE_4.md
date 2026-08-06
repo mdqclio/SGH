@@ -124,15 +124,17 @@ Mismo criterio, en paralelo, para **`spcs.caballeriza_id`** desde `inscripciones
 
 | | SPCs |
 |---|---:|
-| con `entrenador_id` derivable | **113** |
-| con `caballeriza_id` derivable | **114** |
-| con **ambos** | **112** |
+| con `entrenador_id` derivable | **114** |
+| con `caballeriza_id` derivable | **115** |
+| **filas de `spcs` tocadas** (unión) | **116** |
 | con entrenador **ambiguo** (2 entrenadores distintos en su historia) | **1** |
-| **quedan en `NULL`** | **50** |
+| **quedan en `NULL`** | **49** |
 
 Entrenadores distintos involucrados: **63**. Toda la evidencia es de R6 (20/06) en adelante.
 
-**Los 50 sin dato quedan en `NULL` y no se inventan.** Consecuencia concreta y aceptada: esos caballos **no aparecen** en "Mis caballos" y **no se pueden inscribir desde el portal**. La secretaría los inscribe como siempre. Se drenan solos cuando Yesi complete la ficha o cuando el caballo corra una vez más.
+> Números corregidos el 06/08 en el dry-run del gate 4.1: la primera medición decía 113/114/50 por un `JOIN` de más en la consulta de relevamiento. Detalle en `docs/GATE_4_1_BACKFILL_TENENCIA.md §1`.
+
+**Los 49 sin dato quedan en `NULL` y no se inventan.** Consecuencia concreta y aceptada: esos caballos **no aparecen** en "Mis caballos" y **no se pueden inscribir desde el portal**. La secretaría los inscribe como siempre. Se drenan solos cuando Yesi complete la ficha o cuando el caballo corra una vez más.
 
 **El 1 ambiguo no se resuelve automáticamente.** Gana el más reciente por la regla, pero sale listado en el reporte del gate para que Yesi lo confirme. Un solo caso: no justifica maquinaria.
 
@@ -148,7 +150,7 @@ El backfill es un gate aparte, con su propio informe y su propio rollback:
 
 - SQL versionado en `migrations/backfill_tenencia_spcs.sql`, idempotente (`WHERE entrenador_id IS NULL`), aplicado por MCP.
 - **Snapshot previo** de `(id, entrenador_id, caballeriza_id)` de las 163 filas → `migrations/rollback_tenencia_spcs.sql` con los `UPDATE` de vuelta. Como hoy todo es NULL, el rollback es un `UPDATE ... SET entrenador_id = NULL, caballeriza_id = NULL WHERE id IN (...)` acotado a los ids tocados.
-- Reporte: `docs/GATE_4_1_BACKFILL_TENENCIA.md` con conteos antes/después, la lista de los 50 sin dato y el 1 ambiguo.
+- Reporte: `docs/GATE_4_1_BACKFILL_TENENCIA.md` con conteos antes/después, la lista de los 49 sin dato y el 1 ambiguo.
 - **Verificación**: `count(*) FILTER (WHERE entrenador_id IS NOT NULL)` = 113, y una muestra de 10 SPCs cruzada a mano contra su última inscripción.
 
 ---
@@ -340,7 +342,7 @@ Lista de carreras que cumplen §B.1, agrupadas por reunión, con fecha, **turno*
 
 `fn_mis_spc_ids()`, sólo lectura, como ya está diseñado.
 
-> **Vacío**: «Todavía no tenemos caballos asociados a tu ficha. Si tenés caballos a tu cargo, avisale a la secretaría para que los vincule.» — es el estado que van a ver los entrenadores de los **50 SPCs sin tenencia** (§A.4). Tiene que explicar qué hacer, no dejarlos mirando la nada.
+> **Vacío**: «Todavía no tenemos caballos asociados a tu ficha. Si tenés caballos a tu cargo, avisale a la secretaría para que los vincule.» — es el estado que van a ver los entrenadores de los **49 SPCs sin tenencia** (§A.4). Tiene que explicar qué hacer, no dejarlos mirando la nada.
 
 ### E.3 Anotar
 
