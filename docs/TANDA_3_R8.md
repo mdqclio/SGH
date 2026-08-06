@@ -29,8 +29,8 @@ Typos normalizados aguas arriba por Leo, **no propagados**: `PAGANDO`→`PAGANO`
 
 | grupo | pedidos | ya existen | altas | vuelven a Yesi |
 |---|---|---|---|---|
-| SPCs | 10 | 5 | **4** | 1 (`ESPLENDID CRAF`) |
-| Caballerizas | 6 | 6 | **0** | 1 (`HS EL ORIGEN`) |
+| SPCs | 10 | 5 | **4** | 0 — `ESPLENDID CRAF` se cerró con un UPDATE |
+| Caballerizas | 6 | 6 | **0** | 0 — `HS EL ORIGEN` se unificó sin escribir |
 | Personas | 11 | 9 | **2** | 0 |
 
 **Es una tanda de cruce, no de alta.** 20 de los 27 nombres ya estaban en la base.
@@ -93,11 +93,37 @@ base, no en la planilla.**
 Insertarlo dejaría dos SPCs para el mismo caballo —`spcs` no tiene unique en `nombre`— y
 las inscripciones se repartirían entre las dos filas.
 
-El INSERT quedó **comentado** en `migrations/spcs_r8_tanda_3.sql`, con un **UPDATE
-alternativo también comentado** que corrige la grafía de la fila existente y la enriquece
-con el dato del SB (`studbook_id`, color, padre, madre). El UPDATE no toca ninguna FK: las
-inscripciones referencian `spcs.id`, no el nombre. **Recomendado aplicarlo**, pero es
-decisión de Leo y va aparte del gate 1.
+El INSERT quedó **comentado** en `migrations/spcs_r8_tanda_3.sql`.
+
+En su lugar se aplicó un **UPDATE** que corrige la grafía de la fila existente y la
+enriquece con el dato del SB (`studbook_id`, color, padre, madre). Va aparte del gate 1
+porque no es un alta.
+
+#### 🚦 UPDATE `Esplendido Craf` → `ESPLENDID CRAF` · ✅ APLICADO (06/08)
+
+OK de Leo en la segunda pasada. Migración `spcs_r8_tanda_3_esplendid_craf_grafia`.
+
+Precondiciones verificadas **antes** de escribir:
+
+| chequeo | esperado | obtenido | |
+|---|---|---|---|
+| filas con `studbook_id = '421807'` | 0 (libre) | **0** | ✅ |
+| fila target `f78a132a-…` con `studbook_id` NULL | 1 | **1** | ✅ |
+| `inscripciones` apuntando a ese `spc_id` | — | **0** | ✅ |
+
+Resultado:
+
+| chequeo | esperado | obtenido | |
+|---|---|---|---|
+| filas con nombre `ESPLENDID CRAF` | 1 | **1** | ✅ |
+| filas con nombre que contenga `ESPLENDIDO` | 0 | **0** | ✅ |
+| `studbook_id` duplicados en toda la tabla | 0 | **0** | ✅ |
+| `count(*) FROM spcs` | 167 (sin cambio: es UPDATE) | **167** | ✅ |
+
+La fila quedó: `ESPLENDID CRAF` · 2020-10-18 · macho · Zaino ·
+Mastercraftsman (IRE) / Esplendida Halo · sb 421807 · Argentina · activo.
+
+El `id` **no cambió**, así que cualquier inscripción futura o pasada sigue resolviendo.
 
 ### Chequeo extra — colisión por fecha+sexo
 
@@ -151,17 +177,22 @@ número con el que cerró la tanda 2.
 Dos vecinos que **no** son typo: `MI MARTINCITO` convive con `MI MARTINA` (DOL, AGUIRRE
 DIEGO FELIX ALBERTO), y `MARTIN Y NICOLAS` con `GRAN NICOLAS` (DOL, LORENTE NICOLAS).
 
-### ⚠ HS EL ORIGEN — no se inserta, vuelve a Yesi
+### ✅ HS EL ORIGEN — unificada con HARAS EL ORIGEN (ratificado por Leo, 06/08)
 
 En la base ya está **`HARAS EL ORIGEN`** (Dolores, patente NULL, responsable NULL). `HS` es
 la abreviatura corriente de `Haras` en las planillas del turf.
 
 No es el mismo dilema que `DON NITO`/`DON NINO` de la tanda 2: allá las dos hipótesis
 —misma caballeriza o dos distintas— eran igual de sostenibles. Acá la hipótesis de que
-`HS EL ORIGEN` sea un haras **distinto** de `HARAS EL ORIGEN` es mucho más floja. Se aplica
-el criterio conservador igual: **no insertar**, y que Yesi confirme.
+`HS EL ORIGEN` sea un haras **distinto** de `HARAS EL ORIGEN` es mucho más floja.
 
-El INSERT quedó comentado en `migrations/caballerizas_r8_tanda_3.sql`.
+Leo ratificó la unificación el 06/08 sin esperar a Yesi. **La unificación no requiere
+ninguna escritura**: es exactamente el estado que ya tenía la base. `HS EL ORIGEN` nunca se
+insertó, `HARAS EL ORIGEN` es la fila única, y las inscripciones de esa caballeriza van a
+resolver contra ella. La decisión *es* el no-INSERT.
+
+El INSERT quedó comentado en `migrations/caballerizas_r8_tanda_3.sql` como escape, por si
+Yesi contradice más adelante.
 
 ### 🚦 GATE 2 — caballerizas · ✅ SIN ACCIÓN (verificado 06/08)
 
@@ -238,11 +269,22 @@ OK de Leo. Migración `personas_r8_tanda_3` por MCP `apply_migration`.
 
 ## 4. Lo que vuelve a Yesi
 
-1. **`ESPLENDID CRAF`** — la base lo tiene como `Esplendido Craf` y el Stud Book dice que
-   esa grafía no existe. ¿Se corrige el nombre en la base? (UPDATE ya escrito y comentado).
-2. **`HS EL ORIGEN`** — ¿es la misma que `HARAS EL ORIGEN` que ya está, o son dos?
-3. **`DON NITO`** — sigue abierto de la tanda 2 (`TANDA_2_R8.md` §4.3). Si Yesi está
-   contestando estas dos, conviene arrastrar esta también antes del congelamiento.
+Los dos casos que esta tanda levantó se cerraron por decisión de Leo el 06/08, sin esperar
+respuesta:
+
+1. ~~**`ESPLENDID CRAF`**~~ — resuelto: se corrigió la grafía de la fila existente (§1).
+2. ~~**`HS EL ORIGEN`**~~ — resuelto: unificada con `HARAS EL ORIGEN`, sin escritura (§2).
+
+Queda uno solo, heredado:
+
+3. **`DON NITO`** — abierto desde la tanda 2 (`TANDA_2_R8.md` §4.3). ¿Es distinto del
+   `DON NINO` que ya está en la base? El INSERT sigue comentado en
+   `migrations/caballerizas_r8_tanda_2.sql`. Conviene cerrarlo antes del congelamiento.
+
+Si Yesi contradice alguna de las dos decisiones cerradas, las dos son reversibles: el
+INSERT de `HS EL ORIGEN` está comentado y listo, y el UPDATE de `ESPLENDID CRAF` se
+deshace volviendo el `nombre` a `Esplendido Craf` y el `studbook_id` a NULL sobre el mismo
+`id` (`f78a132a-7fe7-4713-8ac2-9bd41a34f565`), que no cambió.
 
 ## 5. Estado — aplicado 06/08
 
@@ -253,10 +295,13 @@ OK de Leo. Migración `personas_r8_tanda_3` por MCP `apply_migration`.
 | `caballerizas` (Dolores) | 281 | **281** | — (0 altas) |
 | `caballerizas` (total) | 285 | **285** | — |
 
-Sin UPDATEs: el de `Esplendido Craf` **no se aplicó** (no estaba en el pedido; queda
-comentado esperando a Yesi).
+Más 1 UPDATE (migración `spcs_r8_tanda_3_esplendid_craf_grafia`): `Esplendido Craf` pasó a
+`ESPLENDID CRAF` con `studbook_id` 421807 y pedigree del SB. No mueve el conteo.
 
-Las dos migraciones son idempotentes (`WHERE NOT EXISTS`) — correrlas de nuevo no duplica.
+`HS EL ORIGEN` → `HARAS EL ORIGEN`: unificación ratificada, **cero escrituras** — ya era el
+estado de la base.
+
+Las dos migraciones de alta son idempotentes (`WHERE NOT EXISTS`) — correrlas de nuevo no duplica.
 Los `.sql` en `migrations/` quedan como fuente de verdad, con la cabecera de APLICADO.
 
 ## 6. Pendientes que no van por esta vía

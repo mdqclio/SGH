@@ -87,9 +87,14 @@ WHERE NOT EXISTS (
 --   SELECT 1 FROM spcs WHERE studbook_id = '421807'
 -- );
 --
---   ALTERNATIVA propuesta (tampoco se aplica sin OK): corregir la grafía de
---   la fila existente y enriquecerla con el dato del SB. No toca ninguna FK
---   — las inscripciones referencian spcs.id, no el nombre.
+--   ALTERNATIVA — ✅ APLICADA el 06/08/2026 por MCP apply_migration, migración
+--   `spcs_r8_tanda_3_esplendid_craf_grafia`. Corrige la grafía de la fila
+--   existente y la enriquece con el dato del SB. No toca ninguna FK — las
+--   inscripciones referencian spcs.id, no el nombre (y eran 0 al aplicar).
+--   Precondiciones verificadas antes: sb 421807 libre (0 filas), fila target
+--   con studbook_id NULL (1 fila), 0 inscripciones apuntando.
+--   Post: 1 fila 'ESPLENDID CRAF', 0 filas con 'ESPLENDIDO', 0 sb_id duplicados.
+--   El SQL aplicado es exactamente el de abajo:
 --
 -- UPDATE spcs
 --    SET nombre          = 'ESPLENDID CRAF',

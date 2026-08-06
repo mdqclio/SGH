@@ -595,13 +595,13 @@
  },
  {
   "id": "f78a132a-7fe7-4713-8ac2-9bd41a34f565",
-  "nombre": "Esplendido Craf",
+  "nombre": "ESPLENDID CRAF",
   "fecha_nacimiento": "2020-10-18",
   "sexo": "macho",
-  "color": null,
-  "padrillo_nombre": null,
-  "madre_nombre": null,
-  "studbook_id": null,
+  "color": "Zaino",
+  "padrillo_nombre": "Mastercraftsman (IRE)",
+  "madre_nombre": "Esplendida Halo",
+  "studbook_id": "421807",
   "estado": "activo"
  },
  {
