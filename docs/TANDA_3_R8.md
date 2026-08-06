@@ -1,0 +1,243 @@
+# R8 — Tanda 3: planilla final del cierre
+
+**Fecha**: 2026-08-06 · **Branch**: `fix/spcs-r8-tanda-3`
+**Fuente**: planilla final de Yesi (la del cierre).
+**Circuito**: [`docs/CIRCUITO_ALTA_SPCS_R8.md`](CIRCUITO_ALTA_SPCS_R8.md) ·
+tandas previas: [`TANDA_1_R8.md`](TANDA_1_R8.md) · [`TANDA_1B_R8.md`](TANDA_1B_R8.md) ·
+[`TANDA_2_R8.md`](TANDA_2_R8.md)
+
+**Ventana**: mañana cierra la inscripción; el congelamiento arranca al mediodía.
+Esta tanda tiene que quedar aplicada hoy.
+
+## Guard
+
+| chequeo | valor |
+|---|---|
+| `pwd` | `/home/clio/dev/SGH` |
+| project ref | `unlhcuanfrtpatoipwve` |
+| `SELECT count(*) FROM spcs` | **163** ✅ (coincide con el cierre de la tanda 2) |
+| branch base | `main` @ `d8472c0` — sin tocar |
+| snapshot | `data/spcs_snapshot.json` regenerado por MCP el 06/08 — 163 filas, **idéntico al previo** |
+| selftest scraper | **16/16 OK**, exit 0 — el HTML/JSON del SB no cambió |
+
+Typos normalizados aguas arriba por Leo, **no propagados**: `PAGANDO`→`PAGANO`,
+`LOGUACIUS`→`LOGUACIOUS`, `WISKA`→`WISLA`, `EL POBRE`→`EL POE`.
+
+---
+
+## Resumen de la tanda
+
+| grupo | pedidos | ya existen | altas | vuelven a Yesi |
+|---|---|---|---|---|
+| SPCs | 10 | 5 | **4** | 1 (`ESPLENDID CRAF`) |
+| Caballerizas | 6 | 6 | **0** | 1 (`HS EL ORIGEN`) |
+| Personas | 11 | 9 | **2** | 0 |
+
+**Es una tanda de cruce, no de alta.** 20 de los 27 nombres ya estaban en la base.
+El valor de esta pasada está en los dos casos que se detuvieron a tiempo: `ESPLENDID CRAF`
+y `HS EL ORIGEN` habrían entrado como duplicados si se aplicaba la salida del script sin
+revisar.
+
+---
+
+## 1. SPCs — 10 pedidos, 4 altas
+
+`data/r8_tanda_3.txt` → `python3 tools/sb_alta_spcs.py --tanda 3`.
+
+El cruce contra el snapshot corre **antes** del scrape (`sb_alta_spcs.py:306` vs `:316`),
+así que los 5 que ya estaban no se scrapearon. Se scrapearon 5 nombres, no 10 — como pidió
+Leo.
+
+### Altas propuestas (4)
+
+| nombre SB | sb_id | nac | sexo | pelaje | padre | madre |
+|---|---|---|---|---|---|---|
+| BAHIA ROMANA | 435330 | 2022-08-10 | hembra | Alazan | Roman Joy | Oh Bahia |
+| INDIO GOLDEN | 439349 | 2022-10-30 | macho | Zaino | Golden Cigars | India Candela's |
+| CONI ROSE | 430718 | 2021-10-15 | hembra | Tordillo | Marconi (USA) | Rose City |
+| ES SABALERO | 432333 | 2021-10-20 | macho | Tordillo | Pure Miron | Ori Champ |
+
+### Ya existen (5) — no se dan de alta
+
+`LOCA DUBAI` · `AMIGUITO JESUS` (sb 436018) · `KUCCINI` · `CHAMPION GOLDEN` ·
+**`DESTINADO JOHAN`**.
+
+La corazonada de Leo sobre `DESTINADO JOHAN` era correcta: ya estaba (nac 2020-09-07,
+macho, `studbook_id` NULL). No se scrapeó.
+
+### ⚠ ESPLENDID CRAF — no se inserta, es la misma mancha que ya está
+
+El script lo clasificó `ALTA_OK`. **Está mal**, y el motivo es interesante porque puede
+volver a pasar:
+
+- la base tiene `Esplendido Craf` — normalizado `ESPLENDIDOCRAF`;
+- la planilla pide `ESPLENDID CRAF` — normalizado `ESPLENDIDCRAF`;
+- `norm()` ignora acentos, puntuación y mayúsculas, pero **no** una letra de diferencia,
+  así que no matchean;
+- la fila de la base tiene `studbook_id` **NULL**, así que el
+  `WHERE NOT EXISTS (… studbook_id = '421807')` tampoco la ve.
+
+Los dos guards de idempotencia fallan a la vez. Lo que lo resuelve es el dato duro:
+
+| | base | Stud Book |
+|---|---|---|
+| nombre | `Esplendido Craf` | `ESPLENDID CRAF` |
+| id | `f78a132a-7fe7-4713-8ac2-9bd41a34f565` | sb 421807 |
+| nacimiento | 2020-10-18 | 18/10/2020 |
+| sexo | macho | Macho |
+
+Misma fecha y mismo sexo. Y el autocomplete del SB con el término `ESPLENDIDO CRAF`
+devuelve **cero** resultados: no existe un ejemplar con esa grafía. **El typo está en la
+base, no en la planilla.**
+
+Insertarlo dejaría dos SPCs para el mismo caballo —`spcs` no tiene unique en `nombre`— y
+las inscripciones se repartirían entre las dos filas.
+
+El INSERT quedó **comentado** en `migrations/spcs_r8_tanda_3.sql`, con un **UPDATE
+alternativo también comentado** que corrige la grafía de la fila existente y la enriquece
+con el dato del SB (`studbook_id`, color, padre, madre). El UPDATE no toca ninguna FK: las
+inscripciones referencian `spcs.id`, no el nombre. **Recomendado aplicarlo**, pero es
+decisión de Leo y va aparte del gate 1.
+
+### Chequeo extra — colisión por fecha+sexo
+
+Como `ESPLENDID CRAF` mostró que el match por nombre puede fallar, se cruzaron las otras 4
+altas por `(fecha_nacimiento, sexo)` contra toda la tabla. Única coincidencia:
+`IDALIA MARO` (2021-10-15, hembra, sb **431374**) contra `CONI ROSE` (2021-10-15, hembra,
+sb **430718**). Distinto `studbook_id`, distinto pedigree (`Engelhard`/`Itzel Chica` vs
+`Marconi (USA)`/`Rose City`) → dos yeguas distintas nacidas el mismo día. No hay colisión.
+
+SQL en `migrations/spcs_r8_tanda_3.sql`, evidencia cruda en
+`data/spcs_r8_tanda_3_scrape.json`, reporte del script en
+`data/spcs_r8_tanda_3_reporte.md`.
+
+### 🚦 GATE 1 — SPCs · ⏳ ESPERA OK DE LEO
+
+Aplicar los **4** INSERT por MCP `apply_migration`, migración `spcs_r8_tanda_3` (mismos
+valores que el `.sql`, sin `BEGIN/COMMIT` ni los SELECT: `apply_migration` ya envuelve todo
+en una transacción).
+
+| chequeo | esperado |
+|---|---|
+| `SELECT count(*) FROM spcs` | 167 (163 + 4) |
+| filas con los 4 `studbook_id` | 4 |
+| `studbook_id` duplicados en toda la tabla | 0 |
+| `club_id` / `caballeriza_id` / `registro_stud_book` | NULL |
+| `pais_origen` / `estado` | Argentina / activo |
+| filas con nombre `ESPLENDID CRAF` | 0 |
+
+---
+
+## 2. Caballerizas — 6 cruzadas, 0 altas
+
+Cruce contra las **281** caballerizas de Dolores (285 en total).
+
+### Ya existen con nombre exacto (5)
+
+| pedida | en base | patente | responsable |
+|---|---|---|---|
+| RD NECOCHEA | `RD NECOCHEA` | NULL | NULL |
+| MARTIN Y NICOLAS | `MARTIN Y NICOLAS` | NULL | NULL |
+| MI MARTINCITO | `MI MARTINCITO` | NULL | NULL |
+| EL DESEMPEÑO | `EL DESEMPEÑO` | DOL | MORAGA MILLAN ADRIAN LEONARDO (propietario) |
+| LA INTERPERIE | `LA INTERPERIE` | DOL | CASINELLI FABRICIO (propietario) |
+
+Las de patente NULL son anteriores a esta tanda: el total de Dolores sigue en 281, el mismo
+número con el que cerró la tanda 2.
+
+Dos vecinos que **no** son typo: `MI MARTINCITO` convive con `MI MARTINA` (DOL, AGUIRRE
+DIEGO FELIX ALBERTO), y `MARTIN Y NICOLAS` con `GRAN NICOLAS` (DOL, LORENTE NICOLAS).
+
+### ⚠ HS EL ORIGEN — no se inserta, vuelve a Yesi
+
+En la base ya está **`HARAS EL ORIGEN`** (Dolores, patente NULL, responsable NULL). `HS` es
+la abreviatura corriente de `Haras` en las planillas del turf.
+
+No es el mismo dilema que `DON NITO`/`DON NINO` de la tanda 2: allá las dos hipótesis
+—misma caballeriza o dos distintas— eran igual de sostenibles. Acá la hipótesis de que
+`HS EL ORIGEN` sea un haras **distinto** de `HARAS EL ORIGEN` es mucho más floja. Se aplica
+el criterio conservador igual: **no insertar**, y que Yesi confirme.
+
+El INSERT quedó comentado en `migrations/caballerizas_r8_tanda_3.sql`.
+
+### 🚦 GATE 2 — caballerizas · ✅ SIN ACCIÓN
+
+**No hay nada que aplicar.** El `.sql` es sólo constancia del cruce y de los SELECT de
+verificación. Los conteos tienen que seguir en 285 / 281.
+
+---
+
+## 3. Personas — 11 cruzadas, 2 altas
+
+Padrón de la tanda: **4 jockeys + 5 cuidadores**, más los 2 que Leo pidió cruzar por venir
+de junio. Cruce contra las **177** filas de `profesionales`: **9 ya existían, 2 son alta,
+0 cambios de tipo**.
+
+### Altas propuestas (2)
+
+| tipo | apellido | nombre | por qué es alta |
+|---|---|---|---|
+| jockey | LOPEZ | ALEXIS | 0 filas con apellido `L[OÓ]PEZ` en las 177 |
+| jockey | MARCHANT | JUAN | 0 filas con apellido `MARCHAN` en las 177 |
+
+El chequeo se hizo con regex acento-insensible (`~*`), no con `ILIKE`, justamente para que
+un `LÓPEZ` acentuado no se escapara. El único `ALEXIS` de la tabla es
+`CONSTANCIO ALEXIS` (entrenador) — otro apellido, otra persona.
+
+Las dos van con `documento_nro` NULL (regla de la tanda 2), `hipodromo_patente` NULL,
+`club_id` = Dolores, estado activo.
+
+### Ya existían (9) — no se tocan
+
+**Jockeys (2 de 4)**: `D'ELIA THIAGO` · `DIESTRA BAUTISTA`.
+
+**Cuidadores (5 de 5)**: `BLANCO MARCELO` · `PREBE JOSE` · `CANTO HORACIO` ·
+`MORAGA ADRIAN` (en base `MORAGA, 'ADRIAN LEONARDO'`, DNI 43001366, DOL) ·
+`CASINELLI FABRICIO` (DNI 41434669, DOL).
+
+**Los 2 de junio (2 de 2)**: `BOLONTI ROBERTO` · `CANTO TOBIAS`. Están los dos, como
+esperaba Leo.
+
+`MORAGA ADRIAN` matchea contra la grafía más larga de la base, el mismo patrón que los 6
+casos de la tanda 2. Confirmado además por dato externo: la caballeriza `EL DESEMPEÑO`
+tiene responsable `MORAGA MILLAN ADRIAN LEONARDO (propietario)`.
+
+### DIESTRA BAUTISTA — confirmado, no es typo de DIESTRA PEDRO
+
+Leo avisó y el cruce lo respalda: los dos ya están en la tabla como filas separadas
+(`70907ee8-…` y `654dc3ea-…`), los dos jockeys. La tabla tiene además tres DIESTRA
+entrenadores (`CLAUDIO MAXIMILIANO`, `FLORENCIA`, `JUAN DOMINGO`). Es una familia, no
+duplicados. **Ninguno se tocó.**
+
+Mismo caso con los CANTO: `HORACIO` (entrenador), `TOMAS` (entrenador) y `TOBIAS` (jockey)
+son tres personas distintas.
+
+### 🚦 GATE 3 — personas · ⏳ ESPERA OK DE LEO
+
+Aplicar las **2** altas por MCP `apply_migration`, migración `personas_r8_tanda_3`.
+
+| chequeo | esperado |
+|---|---|
+| `SELECT count(*) FROM profesionales` | 179 (177 + 2) |
+| filas con `club_id IS NULL` | 0 |
+| las 2 altas: `documento_nro` / `hipodromo_patente` | NULL / NULL |
+| las 2 altas: `tipo` | jockey |
+| duplicados de (apellido, nombre) en toda la tabla | 0 |
+
+---
+
+## 4. Lo que vuelve a Yesi
+
+1. **`ESPLENDID CRAF`** — la base lo tiene como `Esplendido Craf` y el Stud Book dice que
+   esa grafía no existe. ¿Se corrige el nombre en la base? (UPDATE ya escrito y comentado).
+2. **`HS EL ORIGEN`** — ¿es la misma que `HARAS EL ORIGEN` que ya está, o son dos?
+3. **`DON NITO`** — sigue abierto de la tanda 2 (`TANDA_2_R8.md` §4.3). Si Yesi está
+   contestando estas dos, conviene arrastrar esta también antes del congelamiento.
+
+## 5. Pendientes que no van por esta vía
+
+- **DNI de las 2 personas nuevas** — llegan por auto-registro (Gate 3), como en la tanda 2.
+- **`responsable` de las caballerizas con patente NULL** (`RD NECOCHEA`,
+  `MARTIN Y NICOLAS`, `MI MARTINCITO`, `HARAS EL ORIGEN`) — lo completa Yesi por pantalla.
+  No es alcance de esta tanda, pero son 4 caballerizas que van a aparecer en la R8 sin
+  responsable cargado.

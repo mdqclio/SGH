@@ -1,0 +1,180 @@
+{
+  "_meta": {
+    "fuente": "www.studbook.org.ar",
+    "tanda": "3",
+    "escribe_en_db": false,
+    "nombres_pedidos": 10,
+    "altas_propuestas": 5,
+    "casos_no_resueltos": 5,
+    "snapshot_spcs": 163
+  },
+  "ALTAS": [
+    {
+      "nombre_pedido": "BAHIA ROMANA",
+      "nombre_sb": "BAHIA ROMANA",
+      "sb_id": "435330",
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/435330/bahia-romana",
+      "fecha_nacimiento": "2022-08-10",
+      "sexo_sb": "Hembra",
+      "sexo": "hembra",
+      "color": "Alazan",
+      "padrillo_nombre": "Roman Joy",
+      "madre_nombre": "Oh Bahia",
+      "padre_id_sb": "358793",
+      "madre_id_sb": "305557",
+      "abuelo_materno_id_sb": "253163",
+      "pais_origen": "Argentina",
+      "criador": "Cortines",
+      "microchip": "032050000622834",
+      "alertas": []
+    },
+    {
+      "nombre_pedido": "INDIO GOLDEN",
+      "nombre_sb": "INDIO GOLDEN",
+      "sb_id": "439349",
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/439349/indio-golden",
+      "fecha_nacimiento": "2022-10-30",
+      "sexo_sb": "Macho",
+      "sexo": "macho",
+      "color": "Zaino",
+      "padrillo_nombre": "Golden Cigars",
+      "madre_nombre": "India Candela's",
+      "padre_id_sb": "323382",
+      "madre_id_sb": "340337",
+      "abuelo_materno_id_sb": "244239",
+      "pais_origen": "Argentina",
+      "criador": "Palazzo Jorge Mario",
+      "microchip": "981098108886515",
+      "alertas": []
+    },
+    {
+      "nombre_pedido": "CONI ROSE",
+      "nombre_sb": "CONI ROSE",
+      "sb_id": "430718",
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/430718/coni-rose",
+      "fecha_nacimiento": "2021-10-15",
+      "sexo_sb": "Hembra",
+      "sexo": "hembra",
+      "color": "Tordillo",
+      "padrillo_nombre": "Marconi (USA)",
+      "madre_nombre": "Rose City",
+      "padre_id_sb": "424818",
+      "madre_id_sb": "258044",
+      "abuelo_materno_id_sb": "209744",
+      "pais_origen": "Argentina",
+      "criador": "La Generacion",
+      "microchip": "981098108701931",
+      "alertas": []
+    },
+    {
+      "nombre_pedido": "ESPLENDID CRAF",
+      "nombre_sb": "ESPLENDID CRAF",
+      "sb_id": "421807",
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/421807/esplendid-craf",
+      "fecha_nacimiento": "2020-10-18",
+      "sexo_sb": "Macho",
+      "sexo": "macho",
+      "color": "Zaino",
+      "padrillo_nombre": "Mastercraftsman (IRE)",
+      "madre_nombre": "Esplendida Halo",
+      "padre_id_sb": "393714",
+      "madre_id_sb": "277271",
+      "abuelo_materno_id_sb": "125874",
+      "pais_origen": "Argentina",
+      "criador": "Firmamento",
+      "microchip": "032050000288538",
+      "alertas": []
+    },
+    {
+      "nombre_pedido": "ES SABALERO",
+      "nombre_sb": "ES SABALERO",
+      "sb_id": "432333",
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/432333/es-sabalero",
+      "fecha_nacimiento": "2021-10-20",
+      "sexo_sb": "Macho",
+      "sexo": "macho",
+      "color": "Tordillo",
+      "padrillo_nombre": "Pure Miron",
+      "madre_nombre": "Ori Champ",
+      "padre_id_sb": "339170",
+      "madre_id_sb": "349656",
+      "abuelo_materno_id_sb": "252834",
+      "pais_origen": "Argentina",
+      "criador": "El Yatay",
+      "microchip": "981098109022766",
+      "alertas": []
+    }
+  ],
+  "CASOS": [
+    {
+      "nombre_pedido": "LOCA DUBAI",
+      "tipo": "YA_EXISTE_EN_DB",
+      "motivo": "Ya hay 1 SPC con ese nombre en la base. No se da de alta.",
+      "existentes": [
+        {
+          "id": "83dca3e3-bbce-4c5f-9d0e-2fa5ce0d5967",
+          "nombre": "LOCA DUBAI",
+          "fecha_nacimiento": "2022-11-06",
+          "sexo": "hembra",
+          "studbook_id": null
+        }
+      ]
+    },
+    {
+      "nombre_pedido": "AMIGUITO JESUS",
+      "tipo": "YA_EXISTE_EN_DB",
+      "motivo": "Ya hay 1 SPC con ese nombre en la base. No se da de alta.",
+      "existentes": [
+        {
+          "id": "d9d93d98-483e-4ff3-9a82-1b4e8088a5f3",
+          "nombre": "AMIGUITO JESUS",
+          "fecha_nacimiento": "2022-07-29",
+          "sexo": "macho",
+          "studbook_id": "436018"
+        }
+      ]
+    },
+    {
+      "nombre_pedido": "KUCCINI",
+      "tipo": "YA_EXISTE_EN_DB",
+      "motivo": "Ya hay 1 SPC con ese nombre en la base. No se da de alta.",
+      "existentes": [
+        {
+          "id": "cc8e4e35-b7ae-4624-9e6b-1138e1a4dfbc",
+          "nombre": "KUCCINI",
+          "fecha_nacimiento": "2022-07-28",
+          "sexo": "macho",
+          "studbook_id": null
+        }
+      ]
+    },
+    {
+      "nombre_pedido": "CHAMPION GOLDEN",
+      "tipo": "YA_EXISTE_EN_DB",
+      "motivo": "Ya hay 1 SPC con ese nombre en la base. No se da de alta.",
+      "existentes": [
+        {
+          "id": "de7886a7-f71a-4421-a299-6a1cde46edfc",
+          "nombre": "CHAMPION GOLDEN",
+          "fecha_nacimiento": "2022-11-06",
+          "sexo": "macho",
+          "studbook_id": null
+        }
+      ]
+    },
+    {
+      "nombre_pedido": "DESTINADO JOHAN",
+      "tipo": "YA_EXISTE_EN_DB",
+      "motivo": "Ya hay 1 SPC con ese nombre en la base. No se da de alta.",
+      "existentes": [
+        {
+          "id": "3f62772e-1dce-44cc-a028-e9c7493f4812",
+          "nombre": "DESTINADO JOHAN",
+          "fecha_nacimiento": "2020-09-07",
+          "sexo": "macho",
+          "studbook_id": null
+        }
+      ]
+    }
+  ]
+}
