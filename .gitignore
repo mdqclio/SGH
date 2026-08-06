@@ -12,3 +12,6 @@ supabase/.temp/
 *.key
 *service*account*.json
 tools/__pycache__/
+
+# Artefactos generados del build de Edge Functions (se regeneran con _build/build.mjs)
+supabase/functions/*/_build/r6_build.json
