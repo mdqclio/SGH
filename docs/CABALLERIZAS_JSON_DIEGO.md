@@ -247,7 +247,7 @@ De esas 65 sin patente, 8 igual resuelven procedencia por el sufijo del nombre; 
 | `LP` | 1 |
 | `SL` | 1 |
 
-⚠️ El único `SL` es `PRUEBA 9999 — BORRAR Stud (SL)`, de la reunión de prueba 9999. Se va cuando se corra `teardown_prueba_resumen_9999.sql`.
+⚠️ El único `SL` es `PRUEBA 9999 — BORRAR Stud (SL)`, de la reunión de prueba 9999. **No se borra por ahora**: Fede la usa para las pruebas de pagos. Ver §11.
 
 ### Texto para pegar en el mail
 
@@ -283,10 +283,23 @@ De esas 65 sin patente, 8 igual resuelven procedencia por el sufijo del nombre; 
 
 ---
 
-## 10. Estado y pendientes
+## 10. Decisión: las 57 sin procedencia se quedan en `null`
 
-- Deployado y verificado. Branch `tmp/caballerizas-diego`, **sin mergear a `main`**.
-- **Backfill de `hipodromo_patente`** en las 57 caballerizas sin procedencia — es dato, no código. Decisión de padrón (¿todas DOL por defecto, o se revisa una por una?): la dejo abierta, no la asumo.
-- **Duplicados de padrón** `CAROSUEÑO` / `SANTA BARBARA` — unificar del lado nuestro.
-- `PRUEBA 9999 — BORRAR Stud (SL)` sigue viva; se va con `teardown_prueba_resumen_9999.sql` (deadline 20/6, ya vencido).
+**No se backfillea `hipodromo_patente`.** Ni en bloque ni ficha por ficha. Decidido por Leo el 06/08.
+
+Poner `DOL` por defecto es **inventar un dato registral**. Si alguna de esas 57 es un stud de afuera, le estaríamos mintiendo a Diego justo en el campo que usa para desambiguar procedencia — y una mentira plausible es peor que un hueco, porque no se detecta.
+
+`null` es la respuesta honesta: **sin dato ≠ dato local**. El JSON ya lo emite así, y el criterio del builder (`patente → sufijo → null`, sin fallback inventado) es exactamente el correcto. No hay nada que arreglar acá.
+
+El backfill real sale gratis con el tiempo, por dos vías que ya existen:
+- **Yesi** completa la patente cuando toca cada ficha en el ABM de caballerizas.
+- El **auto-registro** da de alta los studs nuevos con el dato fresco de origen.
+
+O sea: el set de 57 se drena solo, con dato verdadero, sin una migración que adivine.
+
+## 11. Estado y pendientes
+
+- Deployado, verificado y **mergeado a `main`**.
+- **Duplicados de padrón** `CAROSUEÑO` / `SANTA BARBARA` — unificar del lado nuestro. Abierto.
+- ⚠️ `PRUEBA 9999 — BORRAR Stud (SL)` **NO se toca**. Diego ya no la usa, pero **las pruebas de pagos de Fede sí**. El teardown (`teardown_prueba_resumen_9999.sql`) sigue gateado como siempre: no se corre sin confirmación.
 - `supabase/functions/*/_build/r6_build.json` agregado al `.gitignore`: es artefacto generado y se coló en un commit anterior.
