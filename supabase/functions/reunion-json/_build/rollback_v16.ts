@@ -234,24 +234,6 @@ function procedenciaCaballeriza(cab) {
   return m ? m[1].trim() : null;
 }
 
-// Nombre de la caballeriza SIN el sufijo de procedencia pegado:
-// "LA BETTY (TDL)" → "LA BETTY". El sufijo entre paréntesis es la MISMA
-// información que ya viaja en `procedencia`, duplicada dentro del texto;
-// Diego consume el nombre puro en `nombre` y la procedencia en su campo.
-//
-// Se saca exactamente el paréntesis final que lee procedenciaCaballeriza —
-// ningún otro paréntesis del nombre se toca. Si al sacarlo no queda nada,
-// se devuelve el nombre original: no emitimos un nombre vacío.
-//
-// Dos nombres puros pueden colisionar entre sí ("SANTA BARBARA" y
-// "SANTA BARBARA (DOL)" son dos caballerizas distintas en la DB). Se
-// desambiguan por `caballeriza.id`, que ya viaja en el mismo objeto.
-function nombreCaballerizaLimpio(cab) {
-  if (!cab || !cab.nombre) return cab?.nombre ?? null;
-  const limpio = String(cab.nombre).replace(/\s*\([^)]+\)\s*$/, '').trim();
-  return limpio || cab.nombre;
-}
-
 function nombreCompleto(p) {
   if (!p) return null;
   return [p.nombre, p.apellido].filter(Boolean).join(' ') || null;
@@ -392,8 +374,7 @@ function buildReunionJson({
             cuit: null,
           },
           caballeriza: {
-            // nombre PURO — el sufijo "(XX)" sale por `procedencia`, no acá.
-            nombre: nombreCaballerizaLimpio(cab),
+            nombre: cab?.nombre ?? null,
             id: str(cab?.id),
             descripcion_chaquetilla: cab?.chaquetilla_descripcion ?? null,
             procedencia: procedenciaCaballeriza(cab),
