@@ -5,7 +5,8 @@
 --
 -- ALCANCE, Y POR QUÉ ES ESTE Y NO OTRO
 --   Sólo se puede borrar una fila que cumpla LAS CUATRO condiciones:
---     1. canal = 'portal' AND inscripto_por = auth.uid()
+--     1. canal = 'portal' AND inscripto_por = el usuarios.id del que llama
+--        (inscripto_por es FK a usuarios, no a auth.users)
 --          → es una fila que creó él, desde el portal. El portal NUNCA
 --            puede borrar una inscripción cargada por la secretaría,
 --            aunque sea del mismo caballo: si Yesi la cargó a mano hubo
@@ -36,6 +37,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
+  v_usuario_id uuid;
   v_insc    RECORD;
   v_carrera RECORD;
 BEGIN
@@ -46,6 +48,13 @@ BEGIN
     RAISE EXCEPTION 'No autorizado: esta operación es para entrenadores del portal.';
   END IF;
 
+  -- inscripto_por es FK a usuarios(id), no a auth.users.
+  SELECT u.id INTO v_usuario_id
+    FROM usuarios u WHERE u.auth_user_id = auth.uid() AND u.activo;
+  IF v_usuario_id IS NULL THEN
+    RAISE EXCEPTION 'No autorizado: la cuenta no tiene usuario activo.';
+  END IF;
+
   SELECT * INTO v_insc FROM inscripciones WHERE id = p_inscripcion_id;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Esa inscripción no existe.';
@@ -54,7 +63,7 @@ BEGIN
   -- 2. Tiene que ser una fila que creó él, desde el portal.
   --    Las dos condiciones juntas, no una u otra.
   IF v_insc.canal IS DISTINCT FROM 'portal'
-     OR v_insc.inscripto_por IS DISTINCT FROM auth.uid()
+     OR v_insc.inscripto_por IS DISTINCT FROM v_usuario_id
   THEN
     RAISE EXCEPTION 'Esa inscripción no la cargó usted desde el portal. Para darla de baja, hablá con la secretaría.';
   END IF;

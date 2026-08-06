@@ -1,10 +1,10 @@
-# Gate 4.1 — Backfill de tenencia · **PROPUESTA** (no aplicado)
+# Gate 4.1 — Backfill de tenencia · ✅ **APLICADO Y VERIFICADO**
 
 **Fecha**: 2026-08-06 · **Branch**: `sec/autoregistro-gate-4` · **Ref**: `unlhcuanfrtpatoipwve`
 **Guard**: `pwd = /home/clio/dev/SGH`, `SELECT count(*) FROM spcs` → **163** ✅
 **Autorizado por Leo** (06/08): backfill SÍ, como §A del plan — derivación como semilla por única vez, `spcs.entrenador_id` como fuente de verdad, `NULL` donde no hay evidencia.
 
-> 🔴 **NADA APLICADO.** Este documento es la propuesta con los números reales medidos en un dry-run de sólo lectura. El `UPDATE` se corre después de tu OK.
+> ✅ **Aplicado el 06/08** con el OK de Leo. Los números salieron exactamente como los proyectó el dry-run. Verificación en §11.
 
 ---
 
@@ -62,7 +62,7 @@ ORDER BY reuniones.fecha DESC, inscripciones.created_at DESC
 | R8 | 16/08/2026 | 17 |
 | R6 | 20/06/2026 | 97 |
 
-Toda la evidencia es de junio en adelante. **63 entrenadores distintos** quedan involucrados.
+Toda la evidencia es de junio en adelante. **64 entrenadores distintos** quedan involucrados.
 
 ---
 
@@ -137,4 +137,26 @@ Lo que mitiga:
 - El único consumidor real es `fn_mis_spc_ids()`, que hoy devuelve 0 filas para todos.
 - Rollback pre-staged y exacto.
 
-**Esperando tu OK para aplicar.**
+---
+
+## 11. Verificación post-aplicación — todo verde
+
+Migraciones aplicadas por MCP: `canal_inscripcion_add_portal`, luego `backfill_tenencia_spcs_gate41`.
+
+| chequeo | esperado | obtenido |
+|---|---:|---|
+| `spcs` con `entrenador_id` | 114 | ✅ **114** |
+| `spcs` con `caballeriza_id` | 115 | ✅ **115** |
+| filas en `_gate41_backfill_tenencia` | 116 | ✅ **116** |
+| `entrenador_id` colgados (sin fila en `profesionales`) | 0 | ✅ **0** |
+| `caballeriza_id` colgados | 0 | ✅ **0** |
+| filas donde el backfill **pisó** un valor existente | 0 | ✅ **0** |
+| `spcs` totales | 163 | ✅ **163** |
+
+Lista para Yesi generada en **`docs/GATE_4_1_LISTA_YESI.md`**: 114 caballos agrupados por entrenador (64), con la reunión de la que salió cada asignación, el caso dudoso marcado y los 49 sin asignar listados aparte.
+
+### Nota: llegaron 12 inscripciones nuevas después del backfill
+
+Entre el relevamiento y ahora, la secretaría cargó 12 inscripciones (186 → 198 filas, todas `canal='manual'`, `inscripto_por` nulo — o sea, back office normal, nada del probe).
+
+Recorrida la derivación de nuevo con esos datos: **0 SPCs ganarían tenencia**. Son caballos que ya la tenían. No hace falta re-correr el backfill.

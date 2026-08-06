@@ -22,6 +22,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
+  v_usuario_id     uuid;
   v_carrera        RECORD;
   v_reunion_estado text;
   v_spc            RECORD;
@@ -39,6 +40,14 @@ BEGIN
     SELECT 1 FROM fn_mis_entidades() e WHERE e.entidad_tipo = 'profesional'
   ) THEN
     RAISE EXCEPTION 'No autorizado: esta operación es para entrenadores del portal.';
+  END IF;
+
+  -- inscripciones.inscripto_por es FK a usuarios(id), NO a auth.users.
+  -- Meter auth.uid() ahí revienta con inscripciones_inscripto_por_fkey.
+  SELECT u.id INTO v_usuario_id
+    FROM usuarios u WHERE u.auth_user_id = auth.uid() AND u.activo;
+  IF v_usuario_id IS NULL THEN
+    RAISE EXCEPTION 'No autorizado: la cuenta no tiene usuario activo.';
   END IF;
 
   -- ----------------------------------------------------------
@@ -133,7 +142,7 @@ BEGIN
     p_carrera_id, p_spc_id,
     'inscripto',          -- el valor que usa el circuito real; no 'pre_inscripto'
     'portal',             -- estrena la trazabilidad: 0/186 filas la tenían
-    auth.uid(),
+    v_usuario_id,         -- usuarios.id, no auth.uid() — ver arriba
     v_spc.entrenador_id,
     v_spc.caballeriza_id
   )

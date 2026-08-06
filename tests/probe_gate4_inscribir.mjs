@@ -74,13 +74,18 @@ async function ins(tabla, fila, bucket) {
   return data.id;
 }
 
-// Cliente autenticado como usuario de portal.
+// Sesión sin password: Turnstile bloquea grant_type=password, pero
+// /auth/v1/verify no está gateado. Mismo patrón que probe_autoregistro_e2e.
 async function clientePortal(email) {
+  const { data: link, error } = await admin.auth.admin.generateLink({ type: 'magiclink', email });
+  if (error) die(`generateLink ${email}`, error);
   const sb = createClient(SUPABASE_URL, PUBLISHABLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
-  const { error } = await sb.auth.signInWithPassword({ email, password: PASS });
-  if (error) die(`signIn ${email}`, error);
+  const { error: e2 } = await sb.auth.verifyOtp({
+    token_hash: link.properties.hashed_token, type: 'magiclink',
+  });
+  if (e2) die(`verifyOtp ${email}`, e2);
   return sb;
 }
 
@@ -92,7 +97,7 @@ async function crearUsuarioPortal(q, profesionalId) {
   if (error) die(`createUser ${q}`, error);
   fx.authIds.push(data.user.id);
 
-  const { error: e2 } = await admin.from('usuarios').insert({
+  const { data: uRow, error: e2 } = await admin.from('usuarios').insert({
     email,
     nombre_completo: `Probe G4 ${q} ${RUN}`,
     club_id: CLUB_DOLORES,
@@ -103,10 +108,12 @@ async function crearUsuarioPortal(q, profesionalId) {
     auth_user_id: data.user.id,
     entidad_tipo: 'profesional',
     entidad_id: profesionalId,
-  });
+  }).select('id').single();
   if (e2) die(`insert usuarios ${q}`, e2);
   fx.usuarios.push(email);
-  return { email, authId: data.user.id };
+  // inscripciones.inscripto_por es FK a usuarios(id), no a auth.users:
+  // el probe compara contra ESE id, no contra el de auth.
+  return { email, authId: data.user.id, usuarioId: uRow.id };
 }
 
 // Cuántas inscripciones hay de ese SPC en esa carrera, leído con ADMIN.
@@ -219,9 +226,9 @@ async function main() {
     ? (await admin.from('inscripciones').select('*').eq('id', f1[0].id).single()).data
     : null;
 
-  check('G2', row?.canal === 'portal' && row?.inscripto_por === uA.authId && row?.estado === 'inscripto',
-    'la fila nace con canal=portal, inscripto_por=auth.uid() y estado=inscripto',
-    `canal=${row?.canal} inscripto_por=${row?.inscripto_por === uA.authId} estado=${row?.estado}`);
+  check('G2', row?.canal === 'portal' && row?.inscripto_por === uA.usuarioId && row?.estado === 'inscripto',
+    'la fila nace con canal=portal, inscripto_por=usuarios.id del que llamó y estado=inscripto',
+    `canal=${row?.canal} inscripto_por=${row?.inscripto_por === uA.usuarioId} estado=${row?.estado}`);
 
   check('G3', row?.entrenador_id === profA && row?.caballeriza_id === cab,
     'entrenador_id y caballeriza_id copiados del SPC',
@@ -324,25 +331,14 @@ async function main() {
   const { data: staff } = await admin.from('usuarios')
     .select('email').eq('club_id', CLUB_DOLORES).eq('rol', 'secretario_carreras')
     .eq('activo', true).limit(1).maybeSingle();
-  if (staff?.email && process.env.PROBE_STAFF_PASSWORD) {
-    const sbS = createClient(SUPABASE_URL, PUBLISHABLE_KEY, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-    const { error: eS } = await sbS.auth.signInWithPassword({
-      email: staff.email, password: process.env.PROBE_STAFF_PASSWORD,
-    });
-    if (eS) {
-      check('G15', false, 'staff llamando rpc_inscribir: rechazado', `no pude loguear staff: ${eS.message}`);
-    } else {
-      const r15 = await inscribir(sbS, spcA1, cAbierta);
-      check('G15', !r15.ok && (await filasEn(cAbierta, spcA1)).length === 1,
-        'un usuario STAFF llamando rpc_inscribir: rechazado', r15.msg);
-    }
+  if (staff?.email) {
+    const sbS = await clientePortal(staff.email);   // magic link, no crea nada
+    const r15 = await inscribir(sbS, spcA1, cAbierta);
+    check('G15', !r15.ok && (await filasEn(cAbierta, spcA1)).length === 1,
+      'un usuario STAFF llamando rpc_inscribir: rechazado', r15.msg);
   } else {
-    check('G15', true,
-      'staff llamando rpc_inscribir: rechazado (SALTEADO — exportá PROBE_STAFF_PASSWORD para correrlo)',
-      'salteado');
-    info('G15 se saltea sin PROBE_STAFF_PASSWORD. No se inventa un usuario staff nuevo.');
+    check('G15', false, 'staff llamando rpc_inscribir: rechazado',
+      'no encontré un usuario secretario_carreras activo en Dolores');
   }
 }
 
@@ -367,6 +363,14 @@ async function teardown() {
   await borrar('spcs', fx.spcs);
   await borrar('caballerizas', fx.caballerizas);
   await borrar('profesionales', fx.profesionales);
+
+  // `auditoria.usuario_id` es FK a usuarios: si el probe generó filas de
+  // auditoría (las genera en cuanto inscribe), el DELETE de usuarios falla y
+  // quedan cuentas huérfanas en producción. Se borran primero las de estos
+  // usuarios fixture — y sólo las de ellos.
+  const { data: usrRows } = await admin.from('usuarios').select('id').in('email', fx.usuarios);
+  const usrIds = (usrRows ?? []).map((r) => r.id);
+  await borrar('auditoria', usrIds, 'usuario_id');
   await borrar('usuarios', fx.usuarios, 'email');
   for (const id of fx.authIds) {
     const { error } = await admin.auth.admin.deleteUser(id);
