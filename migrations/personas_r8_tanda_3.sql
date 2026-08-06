@@ -1,7 +1,10 @@
 -- ============================================================
 -- personas_r8_tanda_3.sql — alta de jockeys faltantes (R8, tanda 3)
 -- ============================================================
--- PROPUESTA. NO EJECUTADO. Requiere OK explícito de Leo.
+-- ✅ APLICADO el 06/08/2026 por MCP apply_migration, migración `personas_r8_tanda_3`
+--    2 altas (LOPEZ ALEXIS, MARCHANT JUAN — jockeys). profesionales 177 -> 179.
+--    Verificado: 0 con club_id NULL, 0 duplicados de (apellido, nombre),
+--    las 2 con documento_nro / documento_tipo / hipodromo_patente NULL.
 --
 -- Misma regla que la tanda 2 (autorizada por Leo el 05/08): esta tanda SÍ
 -- crea personas, con nombre completo y documento_nro NULL donde no haya DNI.

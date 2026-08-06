@@ -1,7 +1,11 @@
 -- ============================================================
 -- spcs_r8_tanda_3.sql — alta incremental de SPCs para R8
 -- ============================================================
--- PROPUESTA. NO EJECUTADO. Requiere OK explícito de Leo.
+-- ✅ APLICADO el 06/08/2026 por MCP apply_migration, migración `spcs_r8_tanda_3`
+--    4 altas (ESPLENDID CRAF excluido, ver abajo). spcs 163 -> 167.
+--    Verificado: 4 filas con los sb_id de la tanda, 0 studbook_id duplicados,
+--    0 filas con nombre 'ESPLENDID CRAF', 0 con club_id/caballeriza_id/
+--    registro_stud_book no nulos. data/spcs_snapshot.json actualizado a 167.
 --
 -- Origen: www.studbook.org.ar, match EXACTO por nombre normalizado.
 -- Evidencia: data/spcs_r8_tanda_3_scrape.json

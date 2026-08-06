@@ -99,6 +99,17 @@
   "estado": "activo"
  },
  {
+  "id": "b6f83915-93c7-495f-9792-311c6551158b",
+  "nombre": "BAHIA ROMANA",
+  "fecha_nacimiento": "2022-08-10",
+  "sexo": "hembra",
+  "color": "Alazan",
+  "padrillo_nombre": "Roman Joy",
+  "madre_nombre": "Oh Bahia",
+  "studbook_id": "435330",
+  "estado": "activo"
+ },
+ {
   "id": "00672983-e5e1-471f-8d54-59f924dce9a5",
   "nombre": "BAM BAM HITS",
   "fecha_nacimiento": "2022-09-24",
@@ -294,6 +305,17 @@
   "padrillo_nombre": "Emmanuel",
   "madre_nombre": "Milonga Burrera",
   "studbook_id": null,
+  "estado": "activo"
+ },
+ {
+  "id": "6a3e219c-ab9a-49dc-9301-aa8e8ec924be",
+  "nombre": "CONI ROSE",
+  "fecha_nacimiento": "2021-10-15",
+  "sexo": "hembra",
+  "color": "Tordillo",
+  "padrillo_nombre": "Marconi (USA)",
+  "madre_nombre": "Rose City",
+  "studbook_id": "430718",
   "estado": "activo"
  },
  {
@@ -547,6 +569,17 @@
   "padrillo_nombre": "Master Of Hounds (USA)",
   "madre_nombre": "Ando Mateando",
   "studbook_id": null,
+  "estado": "activo"
+ },
+ {
+  "id": "b205c33d-395e-4b7e-a3fd-95a1db148a85",
+  "nombre": "ES SABALERO",
+  "fecha_nacimiento": "2021-10-20",
+  "sexo": "macho",
+  "color": "Tordillo",
+  "padrillo_nombre": "Pure Miron",
+  "madre_nombre": "Ori Champ",
+  "studbook_id": "432333",
   "estado": "activo"
  },
  {
@@ -844,6 +877,17 @@
   "padrillo_nombre": "Engelhard",
   "madre_nombre": "Itzel Chica",
   "studbook_id": "431374",
+  "estado": "activo"
+ },
+ {
+  "id": "9c337a8c-3f61-42ca-9da0-62b964a85042",
+  "nombre": "INDIO GOLDEN",
+  "fecha_nacimiento": "2022-10-30",
+  "sexo": "macho",
+  "color": "Zaino",
+  "padrillo_nombre": "Golden Cigars",
+  "madre_nombre": "India Candela's",
+  "studbook_id": "439349",
   "estado": "activo"
  },
  {

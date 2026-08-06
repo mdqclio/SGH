@@ -111,20 +111,23 @@ SQL en `migrations/spcs_r8_tanda_3.sql`, evidencia cruda en
 `data/spcs_r8_tanda_3_scrape.json`, reporte del script en
 `data/spcs_r8_tanda_3_reporte.md`.
 
-### 🚦 GATE 1 — SPCs · ⏳ ESPERA OK DE LEO
+### 🚦 GATE 1 — SPCs · ✅ APLICADO (06/08)
 
-Aplicar los **4** INSERT por MCP `apply_migration`, migración `spcs_r8_tanda_3` (mismos
-valores que el `.sql`, sin `BEGIN/COMMIT` ni los SELECT: `apply_migration` ya envuelve todo
-en una transacción).
+OK de Leo. Los 4 INSERT se aplicaron por MCP `apply_migration`, migración `spcs_r8_tanda_3`
+(mismos valores que el `.sql`, sin `BEGIN/COMMIT` ni los SELECT: `apply_migration` ya
+envuelve todo en una transacción).
 
-| chequeo | esperado |
-|---|---|
-| `SELECT count(*) FROM spcs` | 167 (163 + 4) |
-| filas con los 4 `studbook_id` | 4 |
-| `studbook_id` duplicados en toda la tabla | 0 |
-| `club_id` / `caballeriza_id` / `registro_stud_book` | NULL |
-| `pais_origen` / `estado` | Argentina / activo |
-| filas con nombre `ESPLENDID CRAF` | 0 |
+| chequeo | esperado | obtenido | |
+|---|---|---|---|
+| `SELECT count(*) FROM spcs` | 167 (163 + 4) | **167** | ✅ |
+| filas con los 4 `studbook_id` | 4 | **4** | ✅ |
+| `studbook_id` duplicados en toda la tabla | 0 | **0** | ✅ |
+| `club_id` / `caballeriza_id` / `registro_stud_book` | NULL | NULL | ✅ |
+| `pais_origen` / `estado` | Argentina / activo | ídem | ✅ |
+| filas con nombre `ESPLENDID CRAF` | 0 | **0** | ✅ |
+
+Nombre, fecha, sexo, color, padre y madre coinciden fila por fila con
+`data/spcs_r8_tanda_3_scrape.json`. `data/spcs_snapshot.json` actualizado a **167**.
 
 ---
 
@@ -160,10 +163,16 @@ el criterio conservador igual: **no insertar**, y que Yesi confirme.
 
 El INSERT quedó comentado en `migrations/caballerizas_r8_tanda_3.sql`.
 
-### 🚦 GATE 2 — caballerizas · ✅ SIN ACCIÓN
+### 🚦 GATE 2 — caballerizas · ✅ SIN ACCIÓN (verificado 06/08)
 
-**No hay nada que aplicar.** El `.sql` es sólo constancia del cruce y de los SELECT de
-verificación. Los conteos tienen que seguir en 285 / 281.
+**No hubo nada que aplicar.** El `.sql` es sólo constancia del cruce. Verificado después de
+los otros dos gates:
+
+| chequeo | esperado | obtenido | |
+|---|---|---|---|
+| caballerizas totales | 285 | **285** | ✅ |
+| caballerizas de Dolores | 281 | **281** | ✅ |
+| filas con nombre `HS EL ORIGEN` | 0 | **0** | ✅ |
 
 ---
 
@@ -212,17 +221,18 @@ duplicados. **Ninguno se tocó.**
 Mismo caso con los CANTO: `HORACIO` (entrenador), `TOMAS` (entrenador) y `TOBIAS` (jockey)
 son tres personas distintas.
 
-### 🚦 GATE 3 — personas · ⏳ ESPERA OK DE LEO
+### 🚦 GATE 3 — personas · ✅ APLICADO (06/08)
 
-Aplicar las **2** altas por MCP `apply_migration`, migración `personas_r8_tanda_3`.
+OK de Leo. Migración `personas_r8_tanda_3` por MCP `apply_migration`.
 
-| chequeo | esperado |
-|---|---|
-| `SELECT count(*) FROM profesionales` | 179 (177 + 2) |
-| filas con `club_id IS NULL` | 0 |
-| las 2 altas: `documento_nro` / `hipodromo_patente` | NULL / NULL |
-| las 2 altas: `tipo` | jockey |
-| duplicados de (apellido, nombre) en toda la tabla | 0 |
+| chequeo | esperado | obtenido | |
+|---|---|---|---|
+| `SELECT count(*) FROM profesionales` | 179 (177 + 2) | **179** | ✅ |
+| filas con `club_id IS NULL` | 0 | **0** | ✅ |
+| las 2 altas: `documento_nro` / `documento_tipo` / `hipodromo_patente` | NULL | NULL | ✅ |
+| las 2 altas: `tipo` | jockey | jockey | ✅ |
+| las 2 altas: `club_id` | Dolores | Dolores | ✅ |
+| duplicados de (apellido, nombre) en toda la tabla | 0 | **0** | ✅ |
 
 ---
 
@@ -234,7 +244,22 @@ Aplicar las **2** altas por MCP `apply_migration`, migración `personas_r8_tanda
 3. **`DON NITO`** — sigue abierto de la tanda 2 (`TANDA_2_R8.md` §4.3). Si Yesi está
    contestando estas dos, conviene arrastrar esta también antes del congelamiento.
 
-## 5. Pendientes que no van por esta vía
+## 5. Estado — aplicado 06/08
+
+| tabla | antes | después | migración |
+|---|---|---|---|
+| `spcs` | 163 | **167** | `spcs_r8_tanda_3` |
+| `profesionales` | 177 | **179** | `personas_r8_tanda_3` |
+| `caballerizas` (Dolores) | 281 | **281** | — (0 altas) |
+| `caballerizas` (total) | 285 | **285** | — |
+
+Sin UPDATEs: el de `Esplendido Craf` **no se aplicó** (no estaba en el pedido; queda
+comentado esperando a Yesi).
+
+Las dos migraciones son idempotentes (`WHERE NOT EXISTS`) — correrlas de nuevo no duplica.
+Los `.sql` en `migrations/` quedan como fuente de verdad, con la cabecera de APLICADO.
+
+## 6. Pendientes que no van por esta vía
 
 - **DNI de las 2 personas nuevas** — llegan por auto-registro (Gate 3), como en la tanda 2.
 - **`responsable` de las caballerizas con patente NULL** (`RD NECOCHEA`,
