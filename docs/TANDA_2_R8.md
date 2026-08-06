@@ -18,7 +18,7 @@ tandas previas: [`TANDA_1_R8.md`](TANDA_1_R8.md) · [`TANDA_1B_R8.md`](TANDA_1B_
 
 Estado: **los tres gates fueron aprobados por Leo y aplicados el 05/08**. El detalle de
 verificación de cada uno está en su sección. Lo único que quedó sin aplicar es el bloque de
-`DON NITO` (§2), que sigue comentado esperando a Yesi.
+`DON NITO` (§2), que quedó diferido. **Se aplicó después, el 06/08** — ver §2 y §4.3.
 
 ---
 
@@ -116,14 +116,25 @@ Cruce contra las **272** caballerizas de Dolores (276 en total).
 | ABUELO FLORO | tanda 2 | `FLOR Y AGUS` — no es lo mismo |
 | EL CHINGA | tanda 2 | — |
 
-### ⚠ DON NITO — bloque comentado, no se inserta
+### DON NITO — diferido el 05/08, ✅ aplicado el 06/08
 
 En la base ya está **`DON NINO` (DOL)**. `DON NITO` vs `DON NINO` es **una sola letra** y no
 está en la lista de typos que Leo mandó normalizar. Si se inserta y era typo, quedan dos
 caballerizas para el mismo dueño y los caballos se reparten mal entre las dos.
 
-El INSERT está en `migrations/caballerizas_r8_tanda_2.sql` **comentado**. Se descomenta
-sólo con confirmación de Yesi de que `DON NITO` existe y es distinto de `DON NINO`.
+Por eso el 05/08 el INSERT quedó comentado en `migrations/caballerizas_r8_tanda_2.sql`.
+
+**Desbloqueado el 06/08 por Leo**, sin respuesta de Yesi todavía. El razonamiento que lo
+destraba: la duda era de **unificación**, no de **existencia**, y son dos problemas
+distintos. Para la existencia la evidencia alcanza — la planilla la usa, el Stud Book la
+tiene registrada como stud, y Yesi la chequeó. Y la caballeriza tiene que existir para que
+Yesi pueda inscribir a `TIENE RITMO` en el cierre.
+
+Aplicado por migración `caballerizas_r8_tanda_2_don_nito`: Dolores 281 → **282**.
+`DON NITO` = `49ed956b-9678-480b-8421-d3326c077f40`, DOL, activo, responsable NULL.
+`DON NINO` intacto (`b50cec95-…`, responsable HOURCADE ABEL PEDRO).
+
+La **unificación sigue abierta** — ver §4.3.
 
 ### Convención de alta
 
@@ -140,7 +151,9 @@ el chequeo final de duplicados está acotado a los nombres de esta tanda.
 ### 🚦 GATE 2 — caballerizas · ✅ APLICADO (05/08)
 
 OK de Leo. Las 9 altas se aplicaron por MCP `apply_migration`, migración
-`caballerizas_r8_tanda_2`. **DON NITO no se aplicó** — sigue comentado.
+`caballerizas_r8_tanda_2`. **DON NITO no entró en este gate** — se difirió, y se aplicó
+aparte el 06/08 (ver arriba). La tabla de abajo es la foto del 05/08, con `DON NITO` todavía
+en 0.
 
 | chequeo | esperado | obtenido | |
 |---|---|---|---|
@@ -254,11 +267,22 @@ Es **PAGANO JUAN MAURICIO**, cuidador (de REINA ATREVIDA en la cat. 8, TIENE RIT
 ESPECIAL, IDALIA MARO en la 11 y la 12). El `PAGANDO` de la hoja 12 es typo. Dado de alta
 como `entrenador` en el gate 3.
 
-### 4.3 ⏳ `DON NITO` vs `DON NINO` — sigue abierto
+### 4.3 ⏳ `DON NITO` vs `DON NINO` — la unificación sigue abierta
 
-Único pendiente de la tanda. Ver §2: el INSERT quedó comentado en
-`migrations/caballerizas_r8_tanda_2.sql`. Se descomenta sólo con confirmación de Yesi de
-que `DON NITO` existe y es distinto del `DON NINO` que ya está en la base.
+**Existencia: cerrada.** `DON NITO` se aplicó el 06/08 (ver §2). Las dos filas conviven:
+
+| | id | patente | responsable |
+|---|---|---|---|
+| `DON NINO` | `b50cec95-6637-4193-abb3-123d63026cdb` | DOL | HOURCADE ABEL PEDRO (propietario) |
+| `DON NITO` | `49ed956b-9678-480b-8421-d3326c077f40` | DOL | NULL |
+
+**Unificación: abierta.** Preguntado a Yesi/Silvio, sin respuesta. No bloquea la R8 — con
+las dos filas vivas, Yesi puede inscribir contra la que corresponda.
+
+Si alguna vez contesta "es la misma", el merge es post-hito y consiste en: repuntar los
+`spcs.caballeriza_id` e `inscripciones.caballeriza_id` de la sobrante a la que queda, y
+desactivar la sobrante (`activo = false`). Al 06/08 `DON NITO` no tiene nada apuntándole,
+así que el merge sería de costo cero mientras siga así.
 
 ## 5. Hallazgo lateral — aislamiento por tenant en `profesionales.html` (ISSUE-049, ya resuelto)
 
@@ -302,6 +326,7 @@ APLICADO y los SELECT de verificación que se corrieron.
 
 ### Pendiente
 
-- **`DON NITO`** — bloque comentado, esperando a Yesi (§4.3).
+- ~~**`DON NITO`** — bloque comentado~~ → aplicado el 06/08. Queda abierta sólo la
+  **unificación** con `DON NINO` (§4.3), que no bloquea la R8.
 - **DNI de las 10 personas nuevas** — llegan por auto-registro (Gate 3), no por esta vía.
 - **`responsable` de las 9 caballerizas nuevas** — lo completa Yesi por pantalla.

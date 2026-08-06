@@ -205,6 +205,9 @@ los otros dos gates:
 | caballerizas de Dolores | 281 | **281** | ✅ |
 | filas con nombre `HS EL ORIGEN` | 0 | **0** | ✅ |
 
+Esos conteos son la foto del momento del gate. Más tarde ese mismo día subieron a
+**286 / 282** por el alta de `DON NITO`, que es de la tanda 2 y no de ésta (§4).
+
 ---
 
 ## 3. Personas — 11 cruzadas, 2 altas
@@ -275,11 +278,16 @@ respuesta:
 1. ~~**`ESPLENDID CRAF`**~~ — resuelto: se corrigió la grafía de la fila existente (§1).
 2. ~~**`HS EL ORIGEN`**~~ — resuelto: unificada con `HARAS EL ORIGEN`, sin escritura (§2).
 
-Queda uno solo, heredado:
+Queda uno solo, heredado, y también se movió el 06/08:
 
-3. **`DON NITO`** — abierto desde la tanda 2 (`TANDA_2_R8.md` §4.3). ¿Es distinto del
-   `DON NINO` que ya está en la base? El INSERT sigue comentado en
-   `migrations/caballerizas_r8_tanda_2.sql`. Conviene cerrarlo antes del congelamiento.
+3. **`DON NITO`** — abierto desde la tanda 2 (`TANDA_2_R8.md` §4.3). Se partió en dos:
+   - **existencia** → cerrada. Leo mandó descomentar y aplicar el INSERT diferido de la
+     tanda 2 (migración `caballerizas_r8_tanda_2_don_nito`), porque la caballeriza tiene
+     que existir para que Yesi pueda inscribir a `TIENE RITMO` en el cierre. Dolores
+     281 → **282**.
+   - **unificación con `DON NINO`** → sigue abierta, preguntada a Yesi/Silvio. No bloquea
+     la R8: con las dos filas vivas, Yesi inscribe contra la que corresponda. Si alguna vez
+     contesta que son la misma, es un merge de datos post-hito.
 
 Si Yesi contradice alguna de las dos decisiones cerradas, las dos son reversibles: el
 INSERT de `HS EL ORIGEN` está comentado y listo, y el UPDATE de `ESPLENDID CRAF` se
@@ -292,8 +300,12 @@ deshace volviendo el `nombre` a `Esplendido Craf` y el `studbook_id` a NULL sobr
 |---|---|---|---|
 | `spcs` | 163 | **167** | `spcs_r8_tanda_3` |
 | `profesionales` | 177 | **179** | `personas_r8_tanda_3` |
-| `caballerizas` (Dolores) | 281 | **281** | — (0 altas) |
-| `caballerizas` (total) | 285 | **285** | — |
+| `caballerizas` (Dolores) | 281 | **282** | — (0 altas de la tanda 3; +1 por `DON NITO`) |
+| `caballerizas` (total) | 285 | **286** | ídem |
+
+La tanda 3 no dio de alta ninguna caballeriza. El +1 es `DON NITO`, el bloque diferido de
+la **tanda 2** que Leo mandó aplicar el 06/08 (migración `caballerizas_r8_tanda_2_don_nito`,
+detalle en `TANDA_2_R8.md` §2 y §4.3).
 
 Más 1 UPDATE (migración `spcs_r8_tanda_3_esplendid_craf_grafia`): `Esplendido Craf` pasó a
 `ESPLENDID CRAF` con `studbook_id` 421807 y pedigree del SB. No mueve el conteo.
