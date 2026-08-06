@@ -164,8 +164,8 @@
     </div>
     <div class="sidebar-section">
       <div class="sidebar-section-title">Mi portal</div>
-      <button class="nav-link active" id="nav-spcs" onclick="showSection('spcs')"><span class="nav-icon">🐎</span>Mis SPC</button>
-      <button class="nav-link" id="nav-carta" onclick="showSection('carta')"><span class="nav-icon">📋</span>Carta de llamados</button>
+      <button class="nav-link active" id="nav-spcs" onclick="showSection('spcs')"><span class="nav-icon">🐎</span>Mis caballos</button>
+      <button class="nav-link" id="nav-carta" onclick="showSection('carta')"><span class="nav-icon">📋</span>Llamado abierto</button>
       <button class="nav-link" id="nav-inscripciones" onclick="showSection('inscripciones')"><span class="nav-icon">✅</span>Mis inscripciones</button>
     </div>
   </aside>
@@ -184,21 +184,22 @@
     </div>
 
     <div class="content">
-      <!-- SECCIÓN MIS SPC -->
+      <!-- SECCIÓN MIS CABALLOS -->
+      <!-- Sólo lectura. El alta de SPC es acto de secretaría: el Stud Book es
+           global y darlo de alta desde acá afectaría a todos los hipódromos. -->
       <div class="section active" id="section-spcs">
         <div class="section-header">
-          <h2>🐎 Mis SPC</h2>
-          <button class="btn-primary" onclick="openModalSpc()">+ Nuevo SPC</button>
+          <h2>🐎 Mis caballos</h2>
         </div>
         <div id="spcs-container"><div class="loading-state"><div class="spinner"></div> Cargando…</div></div>
       </div>
 
-      <!-- SECCIÓN CARTA DE LLAMADOS -->
+      <!-- SECCIÓN LLAMADO ABIERTO -->
       <div class="section" id="section-carta">
         <div class="section-header">
-          <h2>📋 Carta de llamados</h2>
+          <h2>📋 Llamado abierto</h2>
         </div>
-        <div id="carta-container"><div class="loading-state"><div class="spinner"></div> Cargando reuniones…</div></div>
+        <div id="carta-container"><div class="loading-state"><div class="spinner"></div> Cargando turnos…</div></div>
       </div>
 
       <!-- SECCIÓN MIS INSCRIPCIONES -->
@@ -212,97 +213,41 @@
   </main>
 </div>
 
-<!-- MODAL SPC -->
-<div class="modal-overlay" id="modal-spc">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 id="mspc-title">Nuevo SPC</h2>
-      <button class="btn-close" onclick="closeModalSpc()">✕</button>
-    </div>
-    <div class="modal-body">
-      <form id="form-spc" onsubmit="saveSpc(event)">
-        <input type="hidden" id="mspc-id">
-        <div class="form-grid">
-          <div class="form-group full">
-            <label>Nombre del SPC *</label>
-            <input type="text" id="mspc-nombre" required placeholder="En mayúsculas">
-          </div>
-          <div class="form-group">
-            <label>N° Registro Stud Book</label>
-            <input type="text" id="mspc-registro" placeholder="SB-XXXX">
-          </div>
-          <div class="form-group">
-            <label>Fecha nacimiento</label>
-            <input type="date" id="mspc-nacimiento">
-          </div>
-          <div class="form-group">
-            <label>Sexo *</label>
-            <select id="mspc-sexo" required>
-              <option value="macho">Macho</option>
-              <option value="hembra">Hembra</option>
-              <option value="castrado">Castrado</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Color</label>
-            <input type="text" id="mspc-color" placeholder="Ej: Alazán tostado">
-          </div>
-          <div class="section-lbl">Pedigree</div>
-          <div class="form-group">
-            <label>Padrillo (padre)</label>
-            <input type="text" id="mspc-padrillo">
-          </div>
-          <div class="form-group">
-            <label>Madre</label>
-            <input type="text" id="mspc-madre">
-          </div>
-          <div class="form-group full">
-            <label>Abuela materna</label>
-            <input type="text" id="mspc-abuela">
-          </div>
-        </div>
-      </form>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-secondary" onclick="closeModalSpc()">Cancelar</button>
-      <button class="btn-primary" onclick="document.getElementById('form-spc').requestSubmit()" id="mspc-btn">Guardar</button>
-    </div>
-  </div>
-</div>
-
 <!-- MODAL INSCRIBIR -->
 <div class="modal-overlay" id="modal-inscribir">
   <div class="modal">
     <div class="modal-header">
-      <h2 id="minsc-title">Inscribir SPC</h2>
+      <h2 id="minsc-title">Anotar en el turno</h2>
       <button class="btn-close" onclick="closeModalInscribir()">✕</button>
     </div>
     <div class="modal-body">
       <div id="minsc-carrera-info" style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;color:var(--muted);"></div>
-      <div class="form-grid">
-        <div class="form-group full">
-          <label>Seleccionar SPC *</label>
-          <div class="spc-search-wrap">
-            <input type="text" id="minsc-spc-search" placeholder="Escribir nombre del SPC…" oninput="searchMiSpc()" autocomplete="off">
-            <input type="hidden" id="minsc-spc-id">
-            <div class="spc-dropdown" id="minsc-spc-dropdown"></div>
-          </div>
-        </div>
-      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Elegí cuál de tus caballos anotás en este turno:</div>
+      <div id="minsc-lista"></div>
       <div id="validation-msg" class="validation-msg"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn-secondary" onclick="closeModalInscribir()">Cancelar</button>
-      <button class="btn-primary" id="minsc-btn" onclick="confirmarInscripcion()">Inscribir</button>
+      <button class="btn-secondary" onclick="closeModalInscribir()">Cerrar</button>
     </div>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-let sb, currentUser, propietarioId, profesionalId;
+let sb, currentUser, miUsuarioId = null, esEntrenador = false;
+let misCaballos = [], misInscripciones = [];
 const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK';
+
+const TEL = 'la secretaría del hipódromo';
+
+// ISSUE-018: todo lo que viene de la DB pasa por acá antes de ir a innerHTML.
+function esc(v) {
+  if (v === null || v === undefined) return '';
+  return String(v).replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
 
 // Pantalla para una cuenta sin fila en `usuarios`. Sólo estado — ni programa,
 // ni datos del club. Se dibuja sobre el overlay de auth, así que el portal
@@ -312,7 +257,6 @@ async function pantallaSolicitud(session) {
     .select('estado, motivo_rechazo, documento_nro, created_at')
     .eq('auth_user_id', session.user.id).maybeSingle();
 
-  const TEL = 'la secretaría del hipódromo';
   let titulo, cuerpo;
 
   if (!sol) {
@@ -322,7 +266,7 @@ async function pantallaSolicitud(session) {
   } else if (sol.estado === 'pendiente') {
     const f = new Date(sol.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
     titulo = 'Tu solicitud está en revisión';
-    cuerpo = `Enviada el ${f} · DNI ${sol.documento_nro}<br><br>
+    cuerpo = `Enviada el ${esc(f)} · DNI ${esc(sol.documento_nro)}<br><br>
       La secretaría valida los datos y te avisa cuando tu acceso esté habilitado.
       <br>Cualquier consulta, en ${TEL}.`;
   } else if (sol.estado === 'aprobada') {
@@ -332,7 +276,7 @@ async function pantallaSolicitud(session) {
     // rechazada y descartada muestran lo mismo: mensaje neutro, sin detalle
     // de por qué el sistema las distingue.
     titulo = 'Tu solicitud no fue aprobada';
-    cuerpo = (sol.motivo_rechazo ? `Motivo: ${sol.motivo_rechazo}<br><br>` : '')
+    cuerpo = (sol.motivo_rechazo ? `Motivo: ${esc(sol.motivo_rechazo)}<br><br>` : '')
       + `Si creés que es un error, consultá en ${TEL}.`;
   }
 
@@ -354,7 +298,8 @@ async function initAuth() {
   sb = createClient(SUPABASE_URL, SUPABASE_KEY);
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.replace('login.html'); return false; }
-  const { data: usr } = await sb.from('usuarios').select('club_id,nombre_completo,rol,estado').eq('email', session.user.email).maybeSingle();
+  const { data: usr } = await sb.from('usuarios')
+    .select('id,club_id,nombre_completo,rol,estado').eq('email', session.user.email).maybeSingle();
 
   // Sin fila en `usuarios` = auto-registrado todavía sin aprobar (Gate 2).
   // Se le muestra el estado de su solicitud y NADA del club: no tiene acceso a
@@ -366,334 +311,410 @@ async function initAuth() {
     return false;
   }
   currentUser = { ...session.user, nombre_completo: usr.nombre_completo, rol: usr.rol };
+  miUsuarioId = usr.id;
   document.getElementById('user-name').textContent = usr.nombre_completo || session.user.email;
   document.getElementById('auth-overlay').style.display = 'none';
 
-  // Obtener ID de propietario o profesional vinculado
-  if (usr.rol === 'propietario') {
-    const { data: prop } = await sb.from('propietarios').select('id').eq('email', session.user.email).single();
-    propietarioId = prop?.id || null;
-  } else {
-    const { data: prof } = await sb.from('profesionales').select('id').eq('email', session.user.email).eq('tipo', 'entrenador').single();
-    profesionalId = prof?.id || null;
-  }
+  // El vínculo usuario↔entidad sale de fn_mis_entidades(), la misma función
+  // que usan las policies y los RPC. NO se busca por email: eso daba un
+  // vínculo distinto del que la base considera válido.
+  const { data: ents } = await sb.rpc('fn_mis_entidades');
+  esEntrenador = (ents || []).some(e => e.entidad_tipo === 'profesional');
   return true;
 }
 
 function logout() { sb.auth.signOut().then(() => window.location.replace('login.html')); }
 
-function formatMonto(num) {
+// Convención del repo: nunca toLocaleString/toFixed directo — el locale por
+// defecto del browser suele ser en-US y da el formato de miles al revés.
+function formatARS(num) {
   if (num === null || num === undefined || isNaN(num)) return '$0,00';
   const n = parseFloat(num);
   const signo = n < 0 ? '-' : '';
   const [entero, dec] = Math.abs(n).toFixed(2).split('.');
-  const enteroFmt = entero.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  return signo + '$' + enteroFmt + ',' + dec;
+  return signo + '$' + entero.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + dec;
+}
+function fechaCorta(iso) {
+  if (!iso) return '—';
+  return new Date(iso + 'T12:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+function fechaHora(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
+    + ' ' + d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) + ' hs';
 }
 function toast(msg, type = 'success') {
   const t = document.createElement('div');
   t.className = `toast toast-${type}`; t.textContent = msg;
   document.getElementById('toast-container').appendChild(t);
-  setTimeout(() => t.remove(), 3500);
+  setTimeout(() => t.remove(), 4500);
 }
 
 /* ========== NAVEGACIÓN ========== */
-let cartaLoaded = false, inscLoaded = false;
-
 function showSection(name) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
   document.getElementById(`section-${name}`).classList.add('active');
   document.getElementById(`nav-${name}`).classList.add('active');
-  if (name === 'spcs') loadSpcs();
-  if (name === 'carta' && !cartaLoaded) { cartaLoaded = true; loadCarta(); }
+  if (name === 'spcs') renderCaballos();
+  if (name === 'carta') loadLlamado();
   if (name === 'inscripciones') loadMisInscripciones();
 }
 
-/* ========== MIS SPC ========== */
-let misSPCs = [];
-
-async function loadSpcs() {
-  const cont = document.getElementById('spcs-container');
-  cont.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando…</div>';
-  let query = sb.from('spcs').select('*').order('nombre');
-  if (currentUser.rol === 'propietario' && propietarioId) {
-    const { data: links } = await sb.from('spc_propietarios').select('spc_id').eq('propietario_id', propietarioId).eq('activo', true);
-    const ids = (links || []).map(l => l.spc_id);
-    if (!ids.length) { misSPCs = []; renderSpcs(); return; }
-    query = query.in('id', ids);
-  } else if (currentUser.rol === 'profesional' && profesionalId) {
-    query = query.eq('entrenador_id', profesionalId);
-  } else {
-    misSPCs = []; renderSpcs(); return;
-  }
-  const { data, error } = await query;
-  if (error) { toast(error.message, 'error'); return; }
-  misSPCs = data || [];
-  renderSpcs();
+/* ========== MIS CABALLOS — sólo lectura ========== */
+// La tenencia sale de fn_mis_spc_ids(), que lee spcs.entrenador_id. Ese campo
+// lo puebla el gate 4.1 y lo corrige la secretaría en el ABM. Acá no se
+// deriva nada ni se busca por email.
+async function loadCaballos() {
+  const { data: ids, error: eIds } = await sb.rpc('fn_mis_spc_ids');
+  if (eIds) { console.error('[fn_mis_spc_ids]', eIds); toast(eIds.message, 'error'); throw eIds; }
+  const lista = (ids || []).map(r => r.spc_id);
+  if (!lista.length) { misCaballos = []; return; }
+  const { data, error } = await sb.from('spcs')
+    .select('id,nombre,registro_stud_book,studbook_id,fecha_nacimiento,sexo,color,padrillo_nombre,madre_nombre,estado')
+    .in('id', lista).order('nombre');
+  if (error) { console.error('[spcs]', error); toast(error.message, 'error'); throw error; }
+  misCaballos = data || [];
 }
 
-function renderSpcs() {
+function renderCaballos() {
   const cont = document.getElementById('spcs-container');
-  if (!misSPCs.length) {
-    cont.innerHTML = `<div class="empty-state"><div class="icon">🐎</div><h3>Sin SPC registrados</h3><p>Agregá tu primer SPC con el botón "Nuevo SPC".</p></div>`;
+  if (!misCaballos.length) {
+    // Estado vacío CON explicación: es lo que va a ver el entrenador cuyos
+    // caballos todavía no tienen la tenencia cargada. Tiene que entender que
+    // no es un error de la app y qué hacer al respecto.
+    cont.innerHTML = `<div class="empty-state">
+      <div class="icon">🐎</div>
+      <h3>Todavía no hay caballos asociados a tu ficha</h3>
+      <p style="line-height:1.7;">
+        Esto no quiere decir que no tengas caballos: quiere decir que en el sistema
+        todavía no figuran a tu nombre.<br><br>
+        <strong>Qué hacer:</strong> pedile a ${TEL} que vincule tus caballos a tu ficha.
+        Es un minuto de trabajo de su lado y después aparecen acá solos.<br><br>
+        Mientras tanto, tus inscripciones las sigue cargando la secretaría, como siempre.
+      </p>
+    </div>`;
     return;
   }
   const sexoBadge = { macho: 'badge-macho', hembra: 'badge-hembra', castrado: 'badge-castrado' };
-  cont.innerHTML = `<div class="grid">${misSPCs.map(r => `
+  cont.innerHTML = `<div class="grid">${misCaballos.map(r => `
     <div class="card">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;">
-        <div class="card-name">${r.nombre}</div>
-        <span class="badge ${sexoBadge[r.sexo]||''}">${r.sexo||'—'}</span>
+        <div class="card-name">${esc(r.nombre)}</div>
+        <span class="badge ${sexoBadge[r.sexo] || ''}">${esc(r.sexo || '—')}</span>
       </div>
       <div class="card-detail">
-        ${r.registro_stud_book ? `<div>📖 <span>${r.registro_stud_book}</span></div>` : ''}
-        ${r.fecha_nacimiento ? `<div>🎂 <span>${new Date(r.fecha_nacimiento).toLocaleDateString('es-AR')}</span></div>` : ''}
-        ${r.color ? `<div>🎨 <span>${r.color}</span></div>` : ''}
-        ${r.padrillo_nombre ? `<div>♂ <span>${r.padrillo_nombre} × ${r.madre_nombre||'—'}</span></div>` : ''}
-      </div>
-      <div class="card-actions">
-        <button class="btn-sm btn-edit" onclick='openModalSpc(${JSON.stringify(r)})'>✏️ Editar</button>
+        ${r.studbook_id ? `<div>📖 <span>Stud Book ${esc(r.studbook_id)}</span></div>` : ''}
+        ${r.registro_stud_book ? `<div>🗂 <span>${esc(r.registro_stud_book)}</span></div>` : ''}
+        ${r.fecha_nacimiento ? `<div>🎂 <span>${esc(fechaCorta(r.fecha_nacimiento))}</span></div>` : ''}
+        ${r.color ? `<div>🎨 <span>${esc(r.color)}</span></div>` : ''}
+        ${r.padrillo_nombre ? `<div>♂ <span>${esc(r.padrillo_nombre)} × ${esc(r.madre_nombre || '—')}</span></div>` : ''}
       </div>
     </div>`).join('')}</div>`;
 }
 
-function openModalSpc(rec = null) {
-  document.getElementById('mspc-title').textContent = rec ? `Editar: ${rec.nombre}` : 'Nuevo SPC';
-  document.getElementById('mspc-id').value = rec?.id || '';
-  document.getElementById('mspc-nombre').value = rec?.nombre || '';
-  document.getElementById('mspc-registro').value = rec?.registro_stud_book || '';
-  document.getElementById('mspc-nacimiento').value = rec?.fecha_nacimiento || '';
-  document.getElementById('mspc-sexo').value = rec?.sexo || 'macho';
-  document.getElementById('mspc-color').value = rec?.color || '';
-  document.getElementById('mspc-padrillo').value = rec?.padrillo_nombre || '';
-  document.getElementById('mspc-madre').value = rec?.madre_nombre || '';
-  document.getElementById('mspc-abuela').value = rec?.abuela_materna || '';
-  document.getElementById('modal-spc').classList.add('open');
+/* ========== LLAMADO ABIERTO ========== */
+// Ventana de inscripción, criterio único y fail-closed (AUTOREGISTRO_GATE_4 §B):
+//   reunión publicada + carrera no anulada + apertura/cierre cargados y vigentes.
+// Si falta cualquiera de las dos fechas, el turno NO está abierto.
+//
+// carreras.estado NO sirve como señal: carta-llamados.html escribe 'abierta'
+// en toda carrera que guarda. Sólo se usa para excluir 'anulada'.
+//
+// El estado de la reunión se filtra con 'publicada' a secas. El código viejo
+// pedía .in('estado', ['publicada','abierta']) y 'abierta' no existe en el
+// ENUM estado_reunion → 22P02 y la sección no cargaba nunca.
+let turnosAbiertos = [];
+
+// `carreras` no tiene una columna `condicion_edad` — el portal viejo la pedía
+// y por eso la query fallaba con 42703. El dato son dos enteros.
+function textoEdad(c) {
+  const min = c.edad_minima_anos, max = c.edad_maxima_anos;
+  if (min == null && max == null) return '';
+  if (min != null && max != null) return min === max ? `${min} años` : `${min} a ${max} años`;
+  return min != null ? `desde ${min} años` : `hasta ${max} años`;
 }
 
-function closeModalSpc() { document.getElementById('modal-spc').classList.remove('open'); }
-
-async function saveSpc(e) {
-  e.preventDefault();
-  const btn = document.getElementById('mspc-btn');
-  btn.disabled = true; btn.textContent = 'Guardando…';
-  const id = document.getElementById('mspc-id').value;
-  const payload = {
-    nombre: document.getElementById('mspc-nombre').value.trim().toUpperCase(),
-    registro_stud_book: document.getElementById('mspc-registro').value.trim() || null,
-    fecha_nacimiento: document.getElementById('mspc-nacimiento').value || null,
-    sexo: document.getElementById('mspc-sexo').value,
-    color: document.getElementById('mspc-color').value.trim() || null,
-    padrillo_nombre: document.getElementById('mspc-padrillo').value.trim() || null,
-    madre_nombre: document.getElementById('mspc-madre').value.trim() || null,
-    abuela_materna: document.getElementById('mspc-abuela').value.trim() || null,
-    estado: 'activo',
-  };
-  let spcId = id;
-  if (id) {
-    const { error } = await sb.from('spcs').update(payload).eq('id', id);
-    if (error) { toast(error.message, 'error'); btn.disabled = false; btn.textContent = 'Guardar'; return; }
-  } else {
-    const { data, error } = await sb.from('spcs').insert(payload).select().single();
-    if (error) { toast(error.message, 'error'); btn.disabled = false; btn.textContent = 'Guardar'; return; }
-    spcId = data.id;
-    // Vincular con propietario
-    if (currentUser.rol === 'propietario' && propietarioId) {
-      await sb.from('spc_propietarios').insert({ spc_id: spcId, propietario_id: propietarioId, porcentaje: 100, fecha_desde: new Date().toISOString().slice(0,10), activo: true });
-    }
-  }
-  btn.disabled = false; btn.textContent = 'Guardar';
-  toast(id ? 'SPC actualizado' : 'SPC creado');
-  closeModalSpc();
-  loadSpcs();
+function ventanaAbierta(c, reunionEstado) {
+  if (reunionEstado !== 'publicada') return false;
+  if (c.estado === 'anulada') return false;
+  if (!c.apertura_inscripcion || !c.cierre_inscripcion) return false;
+  const ahora = Date.now();
+  return ahora >= Date.parse(c.apertura_inscripcion) && ahora <= Date.parse(c.cierre_inscripcion);
 }
 
-/* ========== CARTA DE LLAMADOS ========== */
-let reunionesAbiertas = [], carrerasMap = {};
-let carreraSeleccionada = null;
-
-async function loadCarta() {
+async function loadLlamado() {
   const cont = document.getElementById('carta-container');
-  cont.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando reuniones…</div>';
+  cont.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando turnos…</div>';
+
   const { data: reuns, error } = await sb.from('reuniones')
-    .select('id,numero,fecha,estado,hipodromos(nombre),carreras(id,numero_turno,nombre,distancia_metros,condicion_sexo,condicion_edad,bolsa_total,cupo_maximo,tipo_pista)')
-    .in('estado', ['publicada', 'abierta'])
+    .select('id,numero,fecha,estado,hipodromos(nombre),carreras(id,numero_turno,nombre,distancia_metros,condicion_sexo,edad_minima_anos,edad_maxima_anos,condicion_handicap,condicion_adicional,bolsa_total,cupo_maximo,tipo_pista,estado,apertura_inscripcion,cierre_inscripcion)')
+    .eq('estado', 'publicada')
     .order('fecha', { ascending: true });
-  if (error) { toast(error.message, 'error'); return; }
-  reunionesAbiertas = reuns || [];
-  if (!reunionesAbiertas.length) {
-    cont.innerHTML = `<div class="empty-state"><div class="icon">📋</div><h3>Sin reuniones abiertas</h3><p>No hay reuniones con inscripción abierta en este momento.</p></div>`;
+  if (error) { console.error('[reuniones]', error); toast(error.message, 'error'); return; }
+
+  await cargarInscripcionesCrudas();
+
+  turnosAbiertos = (reuns || []).map(r => ({
+    ...r,
+    carreras: (r.carreras || [])
+      .filter(c => ventanaAbierta(c, r.estado))
+      .sort((a, b) => a.numero_turno - b.numero_turno),
+  })).filter(r => r.carreras.length);
+
+  if (!turnosAbiertos.length) {
+    cont.innerHTML = `<div class="empty-state">
+      <div class="icon">📋</div>
+      <h3>No hay inscripciones abiertas en este momento</h3>
+      <p style="line-height:1.7;">
+        Cuando la secretaría abra el llamado para la próxima reunión, los turnos
+        aparecen acá con la fecha límite para anotarse.<br><br>
+        Si sabés que el llamado ya salió y no lo ves, consultá en ${TEL}.
+      </p>
+    </div>`;
     return;
   }
-  const html = reunionesAbiertas.map(r => {
-    const fecha = new Date(r.fecha + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
-    const carreras = (r.carreras || []).sort((a, b) => a.numero_turno - b.numero_turno);
-    const carrerasHtml = carreras.map(c => `
+
+  cont.innerHTML = turnosAbiertos.map(r => {
+    const fecha = new Date(r.fecha + 'T12:00:00')
+      .toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const filas = r.carreras.map(c => {
+      const yaAnotados = misInscripciones.filter(i => i.carrera_id === c.id).length;
+      return `
       <div class="carrera-row">
-        <div class="carrera-num">${c.numero_turno}</div>
+        <div class="carrera-num">${esc(c.numero_turno)}</div>
         <div class="carrera-info">
-          <div class="carrera-name">${c.nombre || `Carrera ${c.numero_turno}`}</div>
+          <div class="carrera-name">${esc(c.nombre || 'Turno ' + c.numero_turno)}</div>
           <div class="carrera-chips">
-            <span class="chip">${c.distancia_metros}m</span>
-            ${c.tipo_pista ? `<span class="chip">${c.tipo_pista}</span>` : ''}
-            ${c.condicion_sexo ? `<span class="chip">${c.condicion_sexo}</span>` : ''}
-            ${c.condicion_edad ? `<span class="chip">${c.condicion_edad}</span>` : ''}
-            ${c.bolsa_total ? `<span class="chip">💰 ${formatMonto(c.bolsa_total)}</span>` : ''}
-            ${c.cupo_maximo ? `<span class="chip">Cupo ${c.cupo_maximo}</span>` : ''}
+            <span class="chip">${esc(c.distancia_metros)}m</span>
+            ${c.tipo_pista ? `<span class="chip">${esc(c.tipo_pista)}</span>` : ''}
+            ${c.condicion_sexo ? `<span class="chip">${esc(c.condicion_sexo)}</span>` : ''}
+            ${textoEdad(c) ? `<span class="chip">${esc(textoEdad(c))}</span>` : ''}
+            ${c.bolsa_total ? `<span class="chip">💰 ${esc(formatARS(c.bolsa_total))}</span>` : ''}
+            ${c.cupo_maximo ? `<span class="chip">Cupo ${esc(c.cupo_maximo)}</span>` : ''}
+            <span class="chip">⏳ cierra ${esc(fechaHora(c.cierre_inscripcion))}</span>
+            ${yaAnotados ? `<span class="chip" style="color:var(--success);border-color:rgba(76,175,130,0.35);">✓ ${yaAnotados} anotado${yaAnotados > 1 ? 's' : ''}</span>` : ''}
           </div>
         </div>
-        <button class="btn-inscribir" onclick="abrirInscripcion('${c.id}','${r.hipodromos?.nombre||''}',${c.numero_turno},'${(c.nombre||'Carrera '+c.numero_turno).replace(/'/g,"\\'")}')">Inscribir</button>
-      </div>`).join('');
+        ${esEntrenador
+          ? `<button class="btn-inscribir" onclick="abrirInscripcion('${esc(c.id)}','${esc(r.id)}')">Anotar</button>`
+          : ''}
+      </div>`;
+    }).join('');
     return `<div class="reunion-block">
       <div class="reunion-header">
-        <h3>Reunión ${r.numero||''} — ${r.hipodromos?.nombre||'—'}</h3>
-        <span class="reunion-fecha">${fecha}</span>
+        <h3>Reunión ${esc(r.numero || '')} — ${esc(r.hipodromos?.nombre || '—')}</h3>
+        <span class="reunion-fecha">${esc(fecha)}</span>
       </div>
-      ${carrerasHtml}
+      ${filas}
     </div>`;
   }).join('');
-  cont.innerHTML = html;
+
+  if (!esEntrenador) {
+    cont.insertAdjacentHTML('afterbegin', `
+      <div style="background:rgba(201,168,76,0.08);border:1px solid var(--border);border-radius:10px;
+                  padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--muted);line-height:1.6;">
+        Podés ver el llamado, pero anotar caballos lo hace el entrenador.
+        Si tenés que anotar uno, hablá con tu entrenador o con ${TEL}.
+      </div>`);
+  }
 }
 
-function abrirInscripcion(carreraId, hipNombre, num, nombreCarrera) {
-  carreraSeleccionada = { id: carreraId };
-  document.getElementById('minsc-title').textContent = `Inscribir en Carrera ${num}`;
-  document.getElementById('minsc-carrera-info').innerHTML = `<strong style="color:var(--text)">${nombreCarrera}</strong> — ${hipNombre}`;
-  document.getElementById('minsc-spc-search').value = '';
-  document.getElementById('minsc-spc-id').value = '';
-  document.getElementById('minsc-spc-dropdown').style.display = 'none';
+/* ========== ANOTAR ========== */
+let carreraSeleccionada = null;
+
+// Inscripciones crudas del usuario. La policy de SELECT ya las limita a los
+// caballos propios, así que no hace falta filtrar por spc_id acá.
+async function cargarInscripcionesCrudas() {
+  const { data, error } = await sb.from('inscripciones')
+    .select('id,estado,canal,inscripto_por,spc_id,carrera_id,created_at,'
+          + 'carreras(numero_turno,nombre,estado,apertura_inscripcion,cierre_inscripcion,'
+          + 'reuniones(id,numero,fecha,estado,hipodromos(nombre)))')
+    .order('created_at', { ascending: false });
+  if (error) { console.error('[inscripciones]', error); toast(error.message, 'error'); throw error; }
+  misInscripciones = data || [];
+}
+
+function abrirInscripcion(carreraId, reunionId) {
+  const reunion = turnosAbiertos.find(r => r.id === reunionId);
+  const carrera = reunion?.carreras.find(c => c.id === carreraId);
+  if (!carrera) return;
+  carreraSeleccionada = { id: carreraId, reunionId, numero_turno: carrera.numero_turno };
+
+  document.getElementById('minsc-title').textContent = `Anotar en el turno ${carrera.numero_turno}`;
+  document.getElementById('minsc-carrera-info').innerHTML =
+    `<strong style="color:var(--text)">${esc(carrera.nombre || 'Turno ' + carrera.numero_turno)}</strong>`
+    + ` — Reunión ${esc(reunion.numero || '')}, ${esc(fechaCorta(reunion.fecha))}`
+    + `<br>Cierra ${esc(fechaHora(carrera.cierre_inscripcion))}`;
+
   const vm = document.getElementById('validation-msg');
   vm.style.display = 'none'; vm.className = 'validation-msg';
-  document.getElementById('minsc-btn').disabled = false;
+
+  renderListaCaballosModal();
   document.getElementById('modal-inscribir').classList.add('open');
 }
 
-function closeModalInscribir() { document.getElementById('modal-inscribir').classList.remove('open'); carreraSeleccionada = null; }
+// Un caballo puede estar anotado en VARIOS turnos de la misma reunión: es el
+// proceso real (GOTCHAS #69), la secretaría resuelve el lunes previo. Acá se
+// avisa, nunca se bloquea. Lo único que se bloquea es repetir el MISMO turno.
+function renderListaCaballosModal() {
+  const cont = document.getElementById('minsc-lista');
+  if (!misCaballos.length) {
+    cont.innerHTML = `<div style="font-size:13px;color:var(--muted);line-height:1.7;padding:8px 0;">
+      No tenés caballos asociados a tu ficha, así que no hay nada para anotar.<br>
+      Pedile a ${TEL} que los vincule.
+    </div>`;
+    return;
+  }
+  const reunion = turnosAbiertos.find(r => r.id === carreraSeleccionada.reunionId);
+  const idsDeLaReunion = new Set((reunion?.carreras || []).map(c => c.id));
 
-let spcTimer;
-function searchMiSpc() {
-  clearTimeout(spcTimer);
-  const q = document.getElementById('minsc-spc-search').value.toLowerCase();
-  const dd = document.getElementById('minsc-spc-dropdown');
-  if (!q) { dd.style.display = 'none'; return; }
-  spcTimer = setTimeout(() => {
-    const matches = misSPCs.filter(s => s.nombre.toLowerCase().includes(q) && s.estado === 'activo').slice(0, 8);
-    if (!matches.length) { dd.style.display = 'none'; return; }
-    dd.innerHTML = matches.map(s => `<div class="spc-option" onclick="selectInscSpc('${s.id}','${s.nombre.replace(/'/g,"\\'")}')"> ${s.nombre}</div>`).join('');
-    dd.style.display = 'block';
-  }, 200);
+  cont.innerHTML = misCaballos.map(c => {
+    const enEsteTurno = misInscripciones.find(
+      i => i.spc_id === c.id && i.carrera_id === carreraSeleccionada.id);
+    const enOtrosTurnos = misInscripciones.filter(
+      i => i.spc_id === c.id && i.carrera_id !== carreraSeleccionada.id
+        && idsDeLaReunion.has(i.carrera_id));
+
+    const aviso = enEsteTurno
+      ? `<span class="chip" style="color:var(--success);border-color:rgba(76,175,130,0.35);">ya anotado en este turno</span>`
+      : enOtrosTurnos.length
+        ? `<span class="chip">también anotado en el turno ${enOtrosTurnos
+            .map(i => esc(i.carreras?.numero_turno)).join(', ')} — está bien, la secretaría define después</span>`
+        : '';
+
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+      <div style="flex:1;min-width:150px;">
+        <div style="font-family:'Playfair Display',serif;color:var(--accent);font-size:15px;">${esc(c.nombre)}</div>
+        <div class="carrera-chips" style="margin-top:4px;">
+          <span class="chip">${esc(c.sexo || '—')}</span>
+          ${aviso}
+        </div>
+      </div>
+      ${enEsteTurno
+        ? `<button class="btn-sm" style="opacity:.45;cursor:not-allowed;background:none;border:1px solid var(--border);color:var(--muted);" disabled>Anotado</button>`
+        : `<button class="btn-sm btn-success" onclick="anotar('${esc(c.id)}')">Anotar</button>`}
+    </div>`;
+  }).join('');
 }
 
-function selectInscSpc(id, nombre) {
-  document.getElementById('minsc-spc-id').value = id;
-  document.getElementById('minsc-spc-search').value = nombre;
-  document.getElementById('minsc-spc-dropdown').style.display = 'none';
+function closeModalInscribir() {
+  document.getElementById('modal-inscribir').classList.remove('open');
+  carreraSeleccionada = null;
 }
 
-async function confirmarInscripcion() {
-  const spcId = document.getElementById('minsc-spc-id').value;
-  if (!spcId) { toast('Seleccioná un SPC', 'error'); return; }
+// Toda la escritura pasa por rpc_inscribir. El portal NO tiene INSERT sobre
+// `inscripciones` — la policy lo excluye explícitamente.
+async function anotar(spcId) {
   if (!carreraSeleccionada) return;
-  const btn = document.getElementById('minsc-btn');
-  btn.disabled = true;
   const vm = document.getElementById('validation-msg');
   vm.style.display = 'none';
 
-  // Llamar a validar_inscripcion si existe, o insertar directamente
-  const { data: carrera } = await sb.from('carreras').select('*').eq('id', carreraSeleccionada.id).single();
-  if (!carrera) { toast('No se pudo obtener la carrera', 'error'); btn.disabled = false; return; }
+  const { error } = await sb.rpc('rpc_inscribir', {
+    p_spc_id: spcId, p_carrera_id: carreraSeleccionada.id,
+  });
 
-  // Intentar RPC de validación
-  const { data: valResult } = await sb.rpc('validar_inscripcion', { p_spc_id: spcId, p_carrera_id: carreraSeleccionada.id }).maybeSingle();
-  if (valResult && valResult.valido === false) {
-    vm.textContent = '❌ ' + (valResult.motivo || 'El SPC no cumple las condiciones de esta carrera.');
+  if (error) {
+    // Los mensajes del RPC están escritos para que los lea una persona.
+    vm.textContent = '❌ ' + error.message.replace(/^.*?:\s*/, '');
     vm.className = 'validation-msg validation-err';
     vm.style.display = 'block';
-    btn.disabled = false;
     return;
   }
 
-  // Insertar inscripción
-  const payload = {
-    carrera_id: carreraSeleccionada.id,
-    spc_id: spcId,
-    estado: 'inscripto',
-    canal: 'web',
-  };
-  if (currentUser.rol === 'propietario' && propietarioId) payload.propietario_id = propietarioId;
-  if (currentUser.rol === 'profesional' && profesionalId) payload.entrenador_id = profesionalId;
-
-  const { error } = await sb.from('inscripciones').insert(payload);
-  btn.disabled = false;
-  if (error) { toast(error.message, 'error'); return; }
-  toast('SPC inscripto correctamente');
-  closeModalInscribir();
-  cartaLoaded = false;
-  inscLoaded = false;
+  toast('Caballo anotado');
+  await cargarInscripcionesCrudas();
+  renderListaCaballosModal();
+  loadLlamado();
 }
 
 /* ========== MIS INSCRIPCIONES ========== */
+// Se puede retirar SÓLO una fila propia, cargada desde el portal, sin
+// ratificar y con la ventana todavía abierta. El RPC revalida las cuatro
+// condiciones: acá se decide únicamente si se muestra el botón.
+function puedeRetirar(i) {
+  return i.canal === 'portal'
+    && i.inscripto_por === miUsuarioId
+    && i.estado === 'inscripto'
+    && ventanaAbierta(i.carreras || {}, i.carreras?.reuniones?.estado);
+}
+
 async function loadMisInscripciones() {
   const cont = document.getElementById('inscripciones-container');
   cont.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando…</div>';
-  const spcIds = misSPCs.map(s => s.id);
-  if (!spcIds.length) {
-    cont.innerHTML = `<div class="empty-state"><div class="icon">✅</div><h3>Sin inscripciones</h3><p>Aún no tenés SPC inscriptos.</p></div>`;
+  try { await cargarInscripcionesCrudas(); } catch { return; }
+
+  if (!misInscripciones.length) {
+    cont.innerHTML = `<div class="empty-state">
+      <div class="icon">✅</div>
+      <h3>No tenés inscripciones registradas</h3>
+      <p style="line-height:1.7;">
+        Acá vas a ver los caballos que anotes desde el portal
+        <strong>y también los que cargue la secretaría por vos</strong>.<br><br>
+        ${misCaballos.length
+          ? 'Para anotar uno, entrá a <strong>Llamado abierto</strong>.'
+          : `Todavía no tenés caballos asociados a tu ficha — pedile a ${TEL} que los vincule.`}
+      </p>
+    </div>`;
     return;
   }
-  const { data, error } = await sb.from('inscripciones')
-    .select('id,estado,spc_id,carrera_id,carreras(numero_turno,nombre,distancia_metros,reunion_id,reuniones(numero,fecha,hipodromos(nombre)))')
-    .in('spc_id', spcIds)
-    .in('estado', ['inscripto','ratificado','forfait'])
-    .order('created_at', { ascending: false });
-  if (error) { toast(error.message, 'error'); return; }
-  const lista = data || [];
-  if (!lista.length) {
-    cont.innerHTML = `<div class="empty-state"><div class="icon">✅</div><h3>Sin inscripciones activas</h3><p>Inscribí tus SPC desde la Carta de llamados.</p></div>`;
-    return;
-  }
-  const spcMap = {};
-  misSPCs.forEach(s => spcMap[s.id] = s);
+
+  const nombrePorSpc = {};
+  misCaballos.forEach(c => { nombrePorSpc[c.id] = c.nombre; });
   const estadoBadge = { inscripto: 'badge-inscripto', ratificado: 'badge-ratificado', forfait: 'badge-forfait' };
-  const rows = lista.map(i => {
-    const spc = spcMap[i.spc_id];
-    const car = i.carreras;
-    const reun = car?.reuniones;
-    const fecha = reun?.fecha ? new Date(reun.fecha + 'T12:00:00').toLocaleDateString('es-AR') : '—';
+
+  const filas = misInscripciones.map(i => {
+    const car = i.carreras, reun = car?.reuniones;
+    const origen = i.canal === 'portal' ? 'Portal' : 'Secretaría';
     return `<tr>
-      <td style="font-weight:600;color:var(--accent);font-family:'Playfair Display',serif;">${spc?.nombre || i.spc_id}</td>
-      <td>${reun?.hipodromos?.nombre || '—'}</td>
-      <td>Reunión ${reun?.numero || ''} — ${fecha}</td>
-      <td>Carrera ${car?.numero_turno || '—'}</td>
-      <td><span class="badge ${estadoBadge[i.estado] || ''}">${i.estado?.replace('_', ' ') || '—'}</span></td>
-      <td>${i.estado !== 'forfait' && i.estado !== 'ratificado' ? `<button class="btn-sm btn-danger" onclick="darForfait('${i.id}')">Forfait</button>` : '—'}</td>
+      <td style="font-weight:600;color:var(--accent);font-family:'Playfair Display',serif;">${esc(nombrePorSpc[i.spc_id] || '—')}</td>
+      <td>${esc(reun?.hipodromos?.nombre || '—')}</td>
+      <td>Reunión ${esc(reun?.numero || '')} — ${esc(fechaCorta(reun?.fecha))}</td>
+      <td>Turno ${esc(car?.numero_turno ?? '—')}</td>
+      <td><span class="badge ${estadoBadge[i.estado] || ''}">${esc((i.estado || '—').replace('_', ' '))}</span></td>
+      <td style="font-size:12px;color:var(--muted);">${esc(origen)}</td>
+      <td>${puedeRetirar(i)
+        ? `<button class="btn-sm btn-danger" onclick="retirar('${esc(i.id)}')">Retirar</button>`
+        : '<span style="color:var(--muted);font-size:12px;">—</span>'}</td>
     </tr>`;
   }).join('');
+
   cont.innerHTML = `<div class="table-wrap"><table>
-    <thead><tr><th>SPC</th><th>Hipódromo</th><th>Reunión</th><th>Carrera</th><th>Estado</th><th>Acción</th></tr></thead>
-    <tbody>${rows}</tbody>
-  </table></div>`;
+    <thead><tr><th>Caballo</th><th>Hipódromo</th><th>Reunión</th><th>Turno</th><th>Estado</th><th>Cargada por</th><th></th></tr></thead>
+    <tbody>${filas}</tbody>
+  </table></div>
+  <p style="font-size:12px;color:var(--muted);margin-top:12px;line-height:1.6;">
+    Sólo se pueden retirar las inscripciones que cargaste vos desde el portal y mientras
+    el turno siga abierto. Las que cargó la secretaría, o las que ya cerraron, se dan de
+    baja hablando con ${TEL}.
+  </p>`;
 }
 
-async function darForfait(inscId) {
-  if (!confirm('¿Confirmar forfait para este SPC?')) return;
-  const { error } = await sb.from('inscripciones').update({ estado: 'forfait', motivo_estado: 'Forfait solicitado por el propietario/entrenador' }).eq('id', inscId);
-  if (error) { toast(error.message, 'error'); return; }
-  toast('Forfait registrado');
+async function retirar(inscId) {
+  const i = misInscripciones.find(x => x.id === inscId);
+  const nombre = misCaballos.find(c => c.id === i?.spc_id)?.nombre || 'este caballo';
+  if (!confirm(`¿Retirar a ${nombre} del turno ${i?.carreras?.numero_turno ?? ''}?`)) return;
+
+  const { error } = await sb.rpc('rpc_baja_inscripcion', { p_inscripcion_id: inscId });
+  if (error) {
+    console.error('[rpc_baja_inscripcion]', error);
+    toast(error.message.replace(/^.*?:\s*/, ''), 'error');
+    return;
+  }
+  toast('Inscripción retirada');
   loadMisInscripciones();
 }
 
 /* ========== INIT ========== */
-document.getElementById('modal-spc').addEventListener('click', e => { if (e.target === e.currentTarget) closeModalSpc(); });
-document.getElementById('modal-inscribir').addEventListener('click', e => { if (e.target === e.currentTarget) closeModalInscribir(); });
-document.addEventListener('click', e => {
-  if (!e.target.closest('.spc-search-wrap')) document.getElementById('minsc-spc-dropdown').style.display = 'none';
+document.getElementById('modal-inscribir').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModalInscribir();
 });
 
 (async () => {
   if (await initAuth()) {
-    await loadSpcs();
+    try { await loadCaballos(); } catch { /* ya se avisó por toast */ }
+    renderCaballos();
   }
 })();
 </script>

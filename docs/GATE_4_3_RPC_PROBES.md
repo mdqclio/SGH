@@ -171,7 +171,7 @@ El valor `'portal'` del ENUM **no se puede quitar** (Postgres no lo permite sin 
 | 4.1 backfill de tenencia | ✅ aplicado y verificado |
 | **4.2 ventana editable con la reunión publicada** | ⏸ **esperando la respuesta de Yesi** |
 | 4.3 RPC + policy + probes | ✅ aplicado, 30/30 verde |
-| 4.4 UI `portal.html` | ⏳ pendiente |
+| 4.4 UI `portal.html` | ✅ hecho, 14/14 — ver `docs/GATE_4_4_UI_PORTAL.md` |
 
 **El 4.2 es bloqueante para usar esto de verdad**: hoy la secretaría no puede abrir la ventana en una reunión ya publicada, y sin ventana cargada el RPC rechaza todo (fail-closed, que es el lado correcto para fallar). Los probes se las arreglan porque crean sus propias carreras con ventana.
 
