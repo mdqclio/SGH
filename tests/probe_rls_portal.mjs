@@ -602,18 +602,40 @@ try {
   // =========================================================================
   console.log('\n── Asserts del RPC (11-12) ──');
   // =========================================================================
-  const { error: eRpc } = await sbA.rpc('portal_inscribir', { p_spc_id: spcB, p_carrera_id: carrFix });
+  // El RPC se llama `rpc_inscribir` (Gate 4). El nombre `portal_inscribir` de
+  // PORTAL_V2_PLAN §C.2 quedó sin usar: un solo nombre, sin alias.
+  const { error: eRpc } = await sbA.rpc('rpc_inscribir', { p_spc_id: spcB, p_carrera_id: carrFix });
   if (eRpc && /does not exist|Could not find/i.test(eRpc.message)) {
-    pending(11, 'portal_inscribir rechaza un SPC ajeno', 'RPC no existe todavía (FASE 4 del PORTAL_V2_PLAN)');
-    pending(12, 'portal_inscribir rechaza fuera de ventana', 'RPC no existe todavía (FASE 4 del PORTAL_V2_PLAN)');
+    pending(11, 'rpc_inscribir rechaza un SPC ajeno', 'RPC no existe todavía (Gate 4.3)');
+    pending(12, 'rpc_inscribir rechaza fuera de ventana', 'RPC no existe todavía (Gate 4.3)');
   } else {
     const { data: colada } = await admin.from('inscripciones')
       .select('id').eq('spc_id', spcB).eq('carrera_id', carrFix).neq('id', inscB);
-    check(11, (colada?.length ?? 0) === 0,
-      'portal_inscribir rechaza un SPC ajeno', `inscripciones coladas=${colada?.length}`);
-    pending(12, 'portal_inscribir rechaza fuera de ventana',
-      'requiere carrera con ventana cargada — implementar junto al RPC');
+    check(11, !!eRpc && (colada?.length ?? 0) === 0,
+      'rpc_inscribir rechaza un SPC ajeno', `error=${!!eRpc} coladas=${colada?.length}`);
+
+    // `carrFix` no tiene apertura/cierre cargados: es el caso fail-closed.
+    // A es un usuario PROPIETARIO, así que el RPC lo frena en la validación 1
+    // antes de mirar la ventana — el assert vale como "no se coló nada", y la
+    // ventana en sí la cubre probe_gate4_inscribir (G7/G8) con un entrenador.
+    const { data: carrSinVentana } = await admin.from('carreras')
+      .select('apertura_inscripcion, cierre_inscripcion').eq('id', carrFix).single();
+    const sinVentana = !carrSinVentana?.apertura_inscripcion && !carrSinVentana?.cierre_inscripcion;
+    check(12, !!eRpc && sinVentana && (colada?.length ?? 0) === 0,
+      'rpc_inscribir rechaza fuera de ventana (carrera sin apertura/cierre → fail-closed)',
+      `error=${!!eRpc} sinVentana=${sinVentana}`);
   }
+
+  // =========================================================================
+  console.log('\n── Assert 14: el portal NO ve inscripciones ajenas ──');
+  // =========================================================================
+  // Complemento NEGATIVO del assert 10, que sólo mira que A vea lo propio.
+  // Antes de migrations/inscripciones_select_portal.sql esto FALLA: la policy
+  // era club-wide y no excluía al portal, así que A veía las 186 filas del
+  // club. Ver docs/AUTOREGISTRO_GATE_4.md §1.4 y §C.6.
+  const { data: ajena } = await sbA.from('inscripciones').select('id').eq('id', inscB);
+  check(14, (ajena?.length ?? 0) === 0,
+    'A NO ve la inscripción de B', `filas visibles=${ajena?.length}`);
 
 } catch (err) {
   console.error(`\n💥 ERROR: ${err.message}`);
