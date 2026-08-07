@@ -11,6 +11,17 @@
   "estado": "activo"
  },
  {
+  "id": "6350d628-9949-4e79-a321-0ca116f8f4ee",
+  "nombre": "ACAPULCO",
+  "fecha_nacimiento": "2022-07-22",
+  "sexo": "macho",
+  "color": "Zaino",
+  "padrillo_nombre": "Angiolo",
+  "madre_nombre": "Intermar",
+  "studbook_id": "434487",
+  "estado": "activo"
+ },
+ {
   "id": "acd956c5-4464-4e49-8c58-9b42bab741e9",
   "nombre": "AFRICUM",
   "fecha_nacimiento": "2020-09-27",

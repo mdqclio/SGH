@@ -6,8 +6,10 @@
     "escribe_en_db": false,
     "nombres_pedidos": 11,
     "altas_propuestas": 10,
-    "casos_no_resueltos": 1,
-    "snapshot_spcs": 167
+    "casos_no_resueltos": 0,
+    "snapshot_spcs": 167,
+    "altas_aplicadas": 11,
+    "nota": "ACAPULCO quedo en NO_RESUELTOS por el scrape (MATCH_AMBIGUO) y se resolvio despues a mano: ver su campo 'resolucion'."
   },
   "ALTAS": [
     {
@@ -240,7 +242,16 @@
           "padre": "Sin Asignar",
           "madre": "Sin Asignar"
         }
-      ]
+      ],
+      "resolucion": {
+        "estado": "RESUELTO_APLICADO",
+        "sb_id_elegido": "434487",
+        "fecha": "2026-08-07",
+        "autoriza": "Leo (sin esperar a Yesi)",
+        "criterio": "desambiguacion estructural por edad: los otros dos homonimos nacieron en 1983 y 1961 y no pueden correr en 2026; 434487 es ademas el unico con adn/pasaporte/microchip/revisado. Mismo criterio que SOY RICARDO (tanda 1/1b).",
+        "migracion": "spcs_r8_tanda_4_acapulco",
+        "spcs_id": "6350d628-9949-4e79-a321-0ca116f8f4ee"
+      }
     }
   ]
 }

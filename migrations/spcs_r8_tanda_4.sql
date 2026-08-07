@@ -1,11 +1,13 @@
 -- ============================================================
 -- spcs_r8_tanda_4.sql — alta incremental de SPCs para R8 (tanda 4, llenado final)
 -- ============================================================
--- ✅ APLICADO el 07/08/2026 por MCP apply_migration, migración `spcs_r8_tanda_4`
---    10 altas. spcs 167 -> 177.
---    Verificado: 10 filas con los sb_id de la tanda, 0 studbook_id duplicados,
---    0 filas con club_id no nulo, 0 filas 'ACAPULCO' (queda a Yesi, §3).
---    data/spcs_snapshot.json actualizado a 177.
+-- ✅ APLICADO el 07/08/2026 en DOS migraciones:
+--    `spcs_r8_tanda_4`          10 altas de planilla. spcs 167 -> 177.
+--    `spcs_r8_tanda_4_acapulco`  1 alta fuera de planilla. spcs 177 -> 178.
+--    Total 11 altas. Verificado: 10 filas con los sb_id de la tanda + 1 con
+--    sb 434487, 0 studbook_id duplicados, 0 filas con club_id no nulo, 0 filas
+--    con los sb de los homónimos viejos de ACAPULCO (85188, 378421).
+--    data/spcs_snapshot.json actualizado a 178.
 --
 -- Origen: www.studbook.org.ar, endpoint
 --   /ejemplares/autocomplete?tipo=1&muerto=1&term=<nombre>
@@ -152,10 +154,20 @@ WHERE NOT EXISTS (SELECT 1 FROM spcs WHERE studbook_id = '431580');
 -- ------------------------------------------------------------
 
 -- ------------------------------------------------------------
--- 3. ⚠ ACAPULCO — agregado fuera de planilla (Silvio, 07/08). NO SE INSERTA.
---    Va a Yesi por la regla de homónimos.
+-- 3. ✅ ACAPULCO — agregado fuera de planilla (Silvio, 07/08). APLICADO.
 --
---    En spcs: 0 filas con radical ACAPULC → no existe en la base.
+--    ✅ APLICADO el 07/08/2026 por MCP apply_migration, migración
+--       `spcs_r8_tanda_4_acapulco`. spcs 177 -> 178.
+--       Leo autorizó el sb 434487 sin esperar a Yesi: la desambiguación es
+--       estructural, no una preferencia. Mismo criterio que SOY RICARDO en
+--       la tanda 1/1b (sb 434608 de 2022 vs sb 35625 de 1976).
+--       Precondiciones verificadas antes: spcs 177, sb 434487 libre (0 filas),
+--       0 filas con radical ACAPULC, 0 filas con los sb de los otros dos
+--       homónimos. Post: 1 fila 'ACAPULCO' id 6350d628-9949-4e79-a321-0ca116f8f4ee,
+--       club_id/caballeriza_id/entrenador_id/jockey_habitual_id/registro_stud_book
+--       todos NULL, 0 studbook_id duplicados.
+--
+--    Antes de aplicar, en spcs: 0 filas con radical ACAPULC → no existía.
 --    En el Stud Book: el autocomplete devuelve TRES ejemplares con el
 --    nombre exacto 'ACAPULCO' (más ACAPULCO CREST / GOLD / MOON / VUELA,
 --    que son otros nombres y no compiten):
@@ -167,19 +179,28 @@ WHERE NOT EXISTS (SELECT 1 FROM spcs WHERE studbook_id = '431580');
 --      sb 378421 · nac 01/01/1961 · Macho · 'No Consigna' · padre y madre
 --                 'Sin Asignar' · tomo 7012 folio 387
 --
---    RECOMENDACIÓN (no aplicada): sb 434487. Es el único que puede correr
---    R8 — los otros dos nacieron en 1983 y 1961. Además es el único con
---    adn/pasaporte/microchip y marca 'revisado', que es lo que tienen los
---    ejemplares en actividad. Los de 1961/1983 son fichas históricas.
+--    ELEGIDO: sb 434487. Es el único que puede correr R8 — los otros dos
+--    nacieron en 1983 y 1961, o sea que en 2026 tendrían 43 y 65 años.
+--    Además es el único con adn/pasaporte/microchip y marca 'revisado',
+--    que es lo que tienen los ejemplares en actividad; los de 1961/1983
+--    son fichas históricas (el de 1961 ni siquiera tiene padre y madre
+--    asignados, y su tomo 7012 es de los bloques de carga retroactiva).
 --
---    Aun así NO se inserta: la instrucción para esta tanda es que los
---    homónimos del SB van a Yesi. Descomentar sólo con su confirmación.
+--    La primera pasada lo dejó comentado y lo mandó a Yesi por la regla de
+--    homónimos de la tanda. Leo lo destrabó el mismo día: la evidencia es
+--    ESTRUCTURAL, no una preferencia — un caballo de 1961 no corre en 2026,
+--    así que no hay nada que Yesi pueda aportar que cambie la elección.
+--    Mismo criterio que SOY RICARDO (tanda 1/1b): ahí también el homónimo
+--    viejo (sb 35625, 1976) quedaba descartado solo, y la confirmación de
+--    Yesi terminó coincidiendo con el candidato que el reporte ya señalaba.
 --
--- INSERT INTO spcs (nombre, fecha_nacimiento, sexo, color,
---                   padrillo_nombre, madre_nombre, pais_origen, studbook_id, estado)
--- SELECT 'ACAPULCO', '2022-07-22'::date, 'macho'::sexo_spc, 'Zaino',
---        'Angiolo', 'Intermar', 'Argentina', '434487', 'activo'::estado_spc
--- WHERE NOT EXISTS (SELECT 1 FROM spcs WHERE studbook_id = '434487');
+--    El INSERT que se aplicó es exactamente éste:
+--
+INSERT INTO spcs (nombre, fecha_nacimiento, sexo, color,
+                  padrillo_nombre, madre_nombre, pais_origen, studbook_id, estado)
+SELECT 'ACAPULCO', '2022-07-22'::date, 'macho'::sexo_spc, 'Zaino',
+       'Angiolo', 'Intermar', 'Argentina', '434487', 'activo'::estado_spc
+WHERE NOT EXISTS (SELECT 1 FROM spcs WHERE studbook_id = '434487');
 --
 --    La caballeriza que Silvio pasó junto con ACAPULCO —EL DOMADOR— ya
 --    está en la base y no requiere alta: ver §3 de caballerizas_r8_tanda_4.sql.

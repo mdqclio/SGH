@@ -6,6 +6,10 @@
 más un agregado de último momento que pasó Silvio (SPC `ACAPULCO` + caballeriza `EL DOMADOR`).
 Padrón crudo en `data/r8_tanda_4.txt`.
 
+> **Estado: CERRADO.** 20 altas en 4 migraciones. `spcs` 167 → **178**, `caballerizas` 286 →
+> **292**, `profesionales` 181 → **184**. Cero pendientes bloqueantes, y cero pendientes
+> heredados de las tandas 1–3. Detalle en §6.
+
 Mismas reglas que las tandas 2 y 3: se crean personas con nombre completo y `documento_nro`
 NULL donde no hay DNI (el DNI llega después por auto-registro, Gate 3), y los typos conocidos
 se normalizan contra la grafía de la base.
@@ -208,9 +212,9 @@ los resultados de junio. El `EL DONMADOR (TDL)` del programa de mayo **no existe
 (DOL, resp HERRERA ANIBAL JUSTO), que es otra caballeriza. El typo de mayo nunca llegó a la
 base: no hay nada que deduplicar ni que dar de alta.
 
-### ⏳ `ACAPULCO` — NO se insertó, va a Yesi
+### ✅ `ACAPULCO` — aplicado, sb 434487
 
-No está en `spcs` (0 filas con radical `ACAPULC`). En el Stud Book el autocomplete devuelve
+No estaba en `spcs` (0 filas con radical `ACAPULC`). En el Stud Book el autocomplete devuelve
 **tres ejemplares con el nombre exacto `ACAPULCO`**:
 
 | sb_id | nac | sexo | pelo | padre / madre | tomo/folio | adn·pasaporte·mc·revisado |
@@ -222,16 +226,28 @@ No está en `spcs` (0 filas con radical `ACAPULC`). En el Stud Book el autocompl
 (`ACAPULCO CREST` / `GOLD` / `MOON` / `VUELA` también salen en el autocomplete pero son otros
 nombres y no compiten.)
 
-**Recomendación: `sb 434487`.** Es el único que puede correr R8 — los otros dos nacieron en
-1983 y 1961. Y es el único con ADN, pasaporte, microchip y marca `revisado`, que es lo que
-tienen los ejemplares en actividad; los otros dos son fichas históricas.
+**Elegido: `sb 434487`.** Es el único que puede correr R8 — los otros dos nacieron en 1983 y
+1961, o sea que en 2026 tendrían 43 y 65 años. Y es el único con ADN, pasaporte, microchip y
+marca `revisado`, que es lo que tienen los ejemplares en actividad; los otros dos son fichas
+históricas (el de 1961 ni siquiera tiene padre y madre asignados, y su tomo 7012 es de los
+bloques de carga retroactiva).
 
-**Aun así no se aplicó**, porque la instrucción para esta tanda es que los homónimos del SB
-van a Yesi. El INSERT está escrito y comentado en `migrations/spcs_r8_tanda_4.sql` §3 — se
-descomenta y se aplica en un minuto con su confirmación.
+**Aplicado el 07/08**, migración `spcs_r8_tanda_4_acapulco`. `spcs` 177 → **178**.
+`id = 6350d628-9949-4e79-a321-0ca116f8f4ee`.
 
-⚠ **Esto bloquea la inscripción de `ACAPULCO` y el congelamiento es hoy al mediodía.** Es el
-único pendiente de la tanda que bloquea.
+La primera pasada lo dejó comentado y lo mandó a Yesi por la regla de homónimos de la tanda.
+**Leo lo destrabó el mismo día**, con el argumento correcto: la evidencia es **estructural**,
+no una preferencia. Un caballo de 1961 no corre en 2026, así que no hay nada que Yesi pueda
+aportar que cambie la elección — la regla "homónimos → Yesi" está para los empates reales,
+no para los que se resuelven solos.
+
+Es el mismo criterio de **`SOY RICARDO`** (tandas 1 y 1b): ahí también el homónimo viejo
+(`sb 35625`, 1976) quedaba descartado por edad, el reporte ya señalaba `sb 434608` (2022), y
+la confirmación de Yesi terminó coincidiendo con ese candidato. La diferencia es que esta vez
+no se esperó la vuelta.
+
+Precondiciones verificadas antes de escribir (4/4): `spcs` 177, `sb 434487` libre, 0 filas con
+radical `ACAPULC`, 0 filas con los `sb` de los otros dos homónimos.
 
 ---
 
@@ -247,16 +263,20 @@ abiertos.**
 
 ---
 
-## 6. Estado — aplicado 07/08
+## 6. Estado final — aplicado 07/08. Padrón de R8 CERRADO.
 
-| tabla | antes | después | migración |
+| tabla | antes | después | migraciones |
 |---|---|---|---|
-| `spcs` | 167 | **177** | `spcs_r8_tanda_4` |
-| `caballerizas` (total) | 286 | **292** | `caballerizas_r8_tanda_4` |
+| `spcs` | 167 | **178** | `spcs_r8_tanda_4` (+10) · `spcs_r8_tanda_4_acapulco` (+1) |
+| `caballerizas` (total) | 286 | **292** | `caballerizas_r8_tanda_4` (+6) |
 | `caballerizas` (Dolores) | 282 | **288** | ídem |
-| `profesionales` | 181 | **184** | `personas_r8_tanda_4` |
+| `profesionales` | 181 | **184** | `personas_r8_tanda_4` (+3) |
 
-Verificación post-aplicación, 11 checks, todos exactos:
+**20 altas en total.** Cuatro migraciones, las cuatro idempotentes (`WHERE NOT EXISTS`) —
+correrlas de nuevo no duplica. Los `.sql` en `migrations/` quedan como fuente de verdad, con
+la cabecera de APLICADO y los SELECT de verificación.
+
+### Verificación — pasada 1 (las 3 migraciones de planilla), 11 checks
 
 | check | esperado | real |
 |---|---|---|
@@ -270,27 +290,55 @@ Verificación post-aplicación, 11 checks, todos exactos:
 | `profesionales` total | 184 | ✅ |
 | `profesionales` con `club_id` NULL | 0 | ✅ |
 | `profesionales` duplicados (apellido, nombre) | 0 | ✅ |
-| filas `spcs` con nombre `ACAPULCO` | 0 | ✅ |
+| filas `spcs` con nombre `ACAPULCO` | 0 (todavía a resolver) | ✅ |
 
 Más: las 6 caballerizas nuevas verificadas una por una (`estado` activo, `activo` true,
 `DON BENICIO` con patente `SR`), y el scan de duplicados devolviendo sólo los 2 preexistentes.
 
-Las tres migraciones son idempotentes (`WHERE NOT EXISTS`) — correrlas de nuevo no duplica.
-Los `.sql` en `migrations/` quedan como fuente de verdad, con la cabecera de APLICADO y los
-SELECT de verificación.
+### Verificación — pasada 2 (`ACAPULCO`), 10 checks
 
-**No se tocó ningún archivo de frontend.**
+| check | esperado | real |
+|---|---|---|
+| `spcs` total | 178 | ✅ |
+| filas con nombre `ACAPULCO` | 1 | ✅ |
+| filas con los `sb` de los homónimos viejos (85188, 378421) | 0 | ✅ |
+| `spcs` con `club_id` no nulo | 0 | ✅ |
+| `studbook_id` duplicados | 0 | ✅ |
+| `caballerizas` total | 292 | ✅ |
+| `caballerizas` de Dolores | 288 | ✅ |
+| `profesionales` total | 184 | ✅ |
+| `profesionales` con `club_id` NULL | 0 | ✅ |
+| `profesionales` duplicados (apellido, nombre) | 0 | ✅ |
+
+Y la fila de `ACAPULCO` inspeccionada campo por campo: `club_id`, `caballeriza_id`,
+`entrenador_id`, `jockey_habitual_id` y `registro_stud_book` todos NULL, como corresponde
+(los asigna Yesi al inscribir; los SPCs son globales).
+
+**No se tocó ningún archivo de frontend en toda la tanda.**
 
 ---
 
 ## 7. Pendientes que deja la tanda 4
 
-1. ⏳ **`ACAPULCO`** — elegir entre 3 homónimos del SB. Recomendado `sb 434487`. **Bloquea**
-   la inscripción de ese ejemplar y el congelamiento es hoy al mediodía (§4).
+**Ninguno bloquea.** El padrón de R8 quedó cerrado antes del congelamiento.
+
+1. ~~**`ACAPULCO`**~~ — ✅ cerrado el 07/08, `sb 434487` aplicado (§4).
 2. **Duplicados de caballerizas** — `EL LINYE Y RAMI`, `LA NARCISA`, `SANTA BARBARA` (§2).
-   No bloquean: ninguno requiere alta.
+   No bloquean: ninguno requiere alta. Van a Yesi.
 3. **`MALENA GUSTAVO`** — confirmar que no está invertido (§3). No bloquea.
 4. **Deuda de modelado**: 8 caballerizas con la procedencia pegada al nombre en vez de en
    `hipodromo_patente`, y el default `'DOL'` de `caballerizas.html:569` que la sigue
    causando (§2). Post-hito.
 5. **DNI de las 3 personas nuevas** — llegan por auto-registro (Gate 3), no por esta vía.
+
+### Cierre del padrón de R8 — las 4 tandas
+
+| tanda | `spcs` | `caballerizas` (total) | `profesionales` |
+|---|---|---|---|
+| baseline pre-R8 | — | — | — |
+| tanda 3 (cierre) | 167 | 286 | 179 |
+| `fix/montas-r6` (07/08, ajeno a las tandas) | 167 | 286 | **181** |
+| **tanda 4 (cierre final)** | **178** | **292** | **184** |
+
+Pendientes heredados: **cero**. `DON NITO`/`DON NINO` (tanda 2) cerrado el 07/08 (§5);
+`ESPLENDID CRAF` y `HS EL ORIGEN` (tanda 3) cerrados el 06/08.

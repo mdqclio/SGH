@@ -64,5 +64,6 @@ PEREZ GUILLERMO
 PALLET GUIDO
 
 AGREGADO FUERA DE PLANILLA (Silvio, 07/08)
-SPC ACAPULCO              -- 3 homónimos exactos en el SB -> a Yesi, NO se insertó
+SPC ACAPULCO              -- 3 homónimos exactos en el SB -> aplicado sb 434487 (2022);
+                          --   los otros dos son de 1983 y 1961, descartados por edad
 CABALLERIZA EL DOMADOR    -- ya existe con esa grafía; 'EL DONMADOR (TDL)' de mayo no está en la base
