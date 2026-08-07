@@ -1177,6 +1177,17 @@
   "estado": "activo"
  },
  {
+  "id": "fa61f989-ede8-436f-a5fa-1475d442dd58",
+  "nombre": "LE CHAT MIMOUS",
+  "fecha_nacimiento": "2020-09-18",
+  "sexo": "hembra",
+  "color": "Zaino",
+  "padrillo_nombre": "Bodemeister (USA)",
+  "madre_nombre": "Le Chat Assassin",
+  "studbook_id": "421129",
+  "estado": "activo"
+ },
+ {
   "id": "eb630d5b-b5e7-4783-ba68-85884c05eae4",
   "nombre": "LINDA MAIPUENSE",
   "fecha_nacimiento": "2022-09-30",
@@ -1870,7 +1881,7 @@
   "estado": "activo"
  },
  {
-  "id": "5ebc5e48-2caf-4c44-be6a-ad75f2716850",
+  "id": "f277af1c-a4ac-4a98-87d7-b41871718c8d",
   "nombre": "Wave Rimout",
   "fecha_nacimiento": "2017-08-08",
   "sexo": "macho",
@@ -1881,7 +1892,7 @@
   "estado": "activo"
  },
  {
-  "id": "f277af1c-a4ac-4a98-87d7-b41871718c8d",
+  "id": "5ebc5e48-2caf-4c44-be6a-ad75f2716850",
   "nombre": "Wave Rimout",
   "fecha_nacimiento": "2017-08-08",
   "sexo": "macho",

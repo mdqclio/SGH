@@ -315,3 +315,13 @@ Consecuencias:
 - **No** agregar un unique por `(reunion_id, spc_id)`, ni una validación de "ya está anotado en esta reunión" que **bloquee**. Como mucho, un aviso informativo.
 - Todo conteo **por caballo y por reunión** (incentivos de montas, resúmenes, cupos) tiene que decidir explícitamente si cuenta inscripciones o ejemplares distintos — contar filas de `inscripciones` sobrecuenta a estos 13.
 - Después de la ratificación el problema desaparece solo: el que no corre queda `forfait` / `mal_inscrito`, y `renumerarChapas` ya filtra por `estado === 'ratificado'`.
+
+## 70. El autocomplete del Stud Book matchea por PREFIJO, no por substring (2026-08-07)
+`GET /ejemplares/autocomplete?tipo=1&muerto=1&term=<t>` devuelve los ejemplares cuyo nombre **empieza** con `t`. Buscar por el final o por el medio del nombre da **0 hits por construcción**, no porque el caballo no exista: con `LE CHAT MIMOUS` en la base del SB, `term=MIMOUS`, `term=MIMOU` y `term=CHAT MIMO` devuelven los tres **0 filas**, mientras que `term=LE CHAT` lo trae junto a sus 8 parientes.
+
+Consecuencia para el circuito de altas (`docs/CIRCUITO_ALTA_SPCS_R8.md`): cuando una grafía dudosa no da match exacto, **no** concluir "no está en el SB" sondeando variantes del sufijo. Hay que atacar por el **prefijo** — el primer token del nombre — y leer la lista completa. Herramienta: `tools/studbook_probe_terms.mjs <out.json> "TERMINO" …`, que vuelca los hits crudos sin clasificar.
+
+Bonus del prefijo: los criaderos nombran por serie (`LE CHAT BOTTE` / `NOIR` / `SIAMOIS` / `VIOLET` / `MALEVOLO` / `MIMOUS`, todos de la línea `Le Chateau (USA)`), así que la lista del prefijo da **evidencia estructural** de que una grafía rara es la correcta, en vez de un juicio por parecido de letras.
+
+## 71. `unaccent()` NO está instalada en la base (2026-08-07)
+`SELECT unaccent(nombre) …` por MCP falla con `42883: function unaccent(character varying) does not exist`. Los scans acento-insensibles que describe `CIRCUITO_ALTA_SPCS_R8.md` hay que hacerlos con `~*` plano (que ya es case-insensitive) o con `translate()`. Los radicales de búsqueda conviene elegirlos sin acentos igual (`PORTEN` en vez de `PORTEÑ`).

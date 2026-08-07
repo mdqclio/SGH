@@ -5,8 +5,8 @@
 Un solo nombre: **`LE CHAT MIMOUS`**. Circuito exprés de siempre — cruce contra `spcs`,
 scrape del Stud Book, gate, alta. Padrón crudo en `data/r8_tanda_4b.txt`.
 
-> **Estado: propuesta.** 1 alta. `spcs` 178 → 179. Cero casos no resueltos, cero alertas
-> del scrape, 5/5 guards limpios.
+> **Estado: APLICADO.** 1 alta. `spcs` 178 → **179**. Cero casos no resueltos, cero alertas
+> del scrape, 5/5 guards limpios, 5/5 checks de verificación. Detalle en §4.
 
 ---
 
@@ -112,16 +112,37 @@ distinto y con `studbook_id` NULL. Por eso el scan por radical va aparte.
 
 ---
 
-## 4. Migración
+## 4. Migración — aplicada el 07/08
 
 `migrations/spcs_r8_tanda_4b.sql` — 1 INSERT idempotente (`WHERE NOT EXISTS` sobre
 `studbook_id`), envuelto en `BEGIN; … COMMIT;` con tres SELECT de verificación antes del
-`COMMIT`.
+`COMMIT`. Aplicada por MCP como `spcs_r8_tanda_4b`.
 
 `caballeriza_id`, `entrenador_id`, `jockey_habitual_id`, `club_id` y `registro_stud_book`
 quedan NULL, como en todas las tandas: los dos primeros los asigna Yesi al inscribir, los
 SPCs son globales, y `registro_stud_book` en la base es seed legacy (`SB-D001…`) — el
 identificador real del SB va en `studbook_id`.
+
+`id = fa61f989-ede8-436f-a5fa-1475d442dd58`.
+
+### Verificación post-ejecución — 5/5
+
+| check | esperado | real |
+|---|---|---|
+| `spcs` total | 179 | ✅ |
+| filas con `studbook_id = '421129'` | 1 | ✅ |
+| filas con `nombre = 'LE CHAT MIMOUS'` | 1 | ✅ |
+| `spcs` con `club_id` no nulo | 0 | ✅ |
+| `studbook_id` duplicados | 0 | ✅ |
+
+Fila inspeccionada campo por campo: `club_id`, `caballeriza_id`, `entrenador_id`,
+`jockey_habitual_id` y `registro_stud_book` todos NULL; `certificado_correr` en `false`
+(su default). `data/spcs_snapshot.json` regenerado a 179 filas.
+
+> El diff del snapshot trae, además de la fila nueva, un **swap de orden del par duplicado
+> histórico `Wave Rimout`** — dos filas con el mismo `nombre`, y el `ORDER BY nombre` no
+> tiene desempate. No es cambio de datos. Es el duplicado que ya documenta
+> `CIRCUITO_ALTA_SPCS_R8.md` §2 (`spcs` no tiene unique en `nombre`).
 
 ---
 

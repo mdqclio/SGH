@@ -1,6 +1,14 @@
 -- ============================================================
 -- spcs_r8_tanda_4b.sql — alta de un SPC de último momento para R8 (tanda 4b)
 -- ============================================================
+-- ✅ APLICADO el 07/08/2026 como migración `spcs_r8_tanda_4b`. spcs 178 -> 179.
+--    id = fa61f989-ede8-436f-a5fa-1475d442dd58
+--    Verificado (5/5): spcs 179, 1 fila con sb 421129, 1 fila con nombre
+--    'LE CHAT MIMOUS', 0 filas con club_id no nulo, 0 studbook_id duplicados.
+--    Fila inspeccionada campo por campo: club_id / caballeriza_id /
+--    entrenador_id / jockey_habitual_id / registro_stud_book todos NULL,
+--    certificado_correr false. data/spcs_snapshot.json actualizado a 179.
+--
 -- Pedido de Yesi el 07/08/2026, después del cierre de la tanda 4.
 -- Padrón de la tanda: 1 nombre — LE CHAT MIMOUS. 1 alta, 0 casos no resueltos.
 --
