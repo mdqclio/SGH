@@ -1,0 +1,35 @@
+{
+  "_meta": {
+    "fuente": "www.studbook.org.ar",
+    "endpoint": "/ejemplares/autocomplete?tipo=1&muerto=1&term=",
+    "tanda": "4b",
+    "escribe_en_db": false,
+    "nombres_pedidos": 1,
+    "altas_propuestas": 1,
+    "casos_no_resueltos": 0,
+    "snapshot_spcs": 178
+  },
+  "ALTAS": [
+    {
+      "nombre_pedido": "LE CHAT MIMOUS",
+      "nombre_sb": "LE CHAT MIMOUS",
+      "sb_id": "421129",
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/421129/le-chat-mimous",
+      "fecha_nacimiento": "2020-09-18",
+      "sexo_sb": "Hembra",
+      "sexo": "hembra",
+      "color": "Zaino",
+      "padrillo_nombre": "Bodemeister (USA)",
+      "madre_nombre": "Le Chat Assassin",
+      "abuelo_materno": "Exchange Rate (USA)",
+      "leyenda": "(2020 H SP)",
+      "tomo": 1232,
+      "folio": 637,
+      "pais_origen": "Argentina",
+      "icon": "/img/banderas/10.png",
+      "raza": 4,
+      "alertas": []
+    }
+  ],
+  "NO_RESUELTOS": []
+}

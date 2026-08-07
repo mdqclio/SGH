@@ -1,0 +1,15 @@
+# R8 — TANDA 4b (agregado de último momento, 07/08/2026)
+# Pedido por Yesi, fuera de la planilla del cierre de la tanda 4.
+#
+# A diferencia de data/r8_tanda_N.txt de las tandas anteriores, este archivo se
+# consume directo: tools/studbook_scrape_tanda.mjs lo lee y sólo toma las líneas
+# que no arrancan con '#'.
+#
+# SPCs (1)
+LE CHAT MIMOUS
+# ^ grafía francesa. Si el SB no la devuelve exacta, probar variantes cercanas
+#   (MIMOUS / MIMOSA / MIMOU) con tools/studbook_probe_terms.mjs y REPORTAR los
+#   candidatos sin elegir, salvo que haya evidencia estructural.
+#
+# CABALLERIZAS: ninguna.
+# PERSONAS: ninguna.
