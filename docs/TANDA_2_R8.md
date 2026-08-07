@@ -267,22 +267,26 @@ Es **PAGANO JUAN MAURICIO**, cuidador (de REINA ATREVIDA en la cat. 8, TIENE RIT
 ESPECIAL, IDALIA MARO en la 11 y la 12). El `PAGANDO` de la hoja 12 es typo. Dado de alta
 como `entrenador` en el gate 3.
 
-### 4.3 ⏳ `DON NITO` vs `DON NINO` — la unificación sigue abierta
+### 4.3 ✅ `DON NITO` vs `DON NINO` — CERRADO: son distintas (Yesi, 07/08)
 
-**Existencia: cerrada.** `DON NITO` se aplicó el 06/08 (ver §2). Las dos filas conviven:
+**Existencia: cerrada** el 06/08. `DON NITO` se aplicó (ver §2). Las dos filas conviven:
 
 | | id | patente | responsable |
 |---|---|---|---|
 | `DON NINO` | `b50cec95-6637-4193-abb3-123d63026cdb` | DOL | HOURCADE ABEL PEDRO (propietario) |
 | `DON NITO` | `49ed956b-9678-480b-8421-d3326c077f40` | DOL | NULL |
 
-**Unificación: abierta.** Preguntado a Yesi/Silvio, sin respuesta. No bloquea la R8 — con
-las dos filas vivas, Yesi puede inscribir contra la que corresponda.
+**Unificación: cerrada** el 07/08. Yesi confirmó que **`DON NITO` y `DON NINO` son dos
+caballerizas distintas**. No hay nada que unificar: el merge descripto abajo no se hace,
+las dos filas quedan vivas y separadas, y la única letra de diferencia no es un typo.
 
-Si alguna vez contesta "es la misma", el merge es post-hito y consiste en: repuntar los
-`spcs.caballeriza_id` e `inscripciones.caballeriza_id` de la sobrante a la que queda, y
-desactivar la sobrante (`activo = false`). Al 06/08 `DON NITO` no tiene nada apuntándole,
-así que el merge sería de costo cero mientras siga así.
+Con esto queda cerrado el último pendiente abierto de la tanda 2. No requirió ninguna
+escritura — la respuesta confirmó el estado que ya tenía la base.
+
+> Plan de merge que **queda descartado** (se conserva sólo como registro de lo que se
+> había previsto): repuntar los `spcs.caballeriza_id` e `inscripciones.caballeriza_id` de
+> la sobrante a la que queda, y desactivar la sobrante (`activo = false`). Al 06/08
+> `DON NITO` no tenía nada apuntándole, así que habría sido de costo cero.
 
 ## 5. Hallazgo lateral — aislamiento por tenant en `profesionales.html` (ISSUE-049, ya resuelto)
 
@@ -326,7 +330,9 @@ APLICADO y los SELECT de verificación que se corrieron.
 
 ### Pendiente
 
-- ~~**`DON NITO`** — bloque comentado~~ → aplicado el 06/08. Queda abierta sólo la
-  **unificación** con `DON NINO` (§4.3), que no bloquea la R8.
+- ~~**`DON NITO`** — bloque comentado~~ → aplicado el 06/08. ~~Queda abierta sólo la
+  **unificación** con `DON NINO` (§4.3)~~ → **cerrada el 07/08**: Yesi confirmó que son
+  dos caballerizas distintas, no hay nada que unificar (§4.3). **La tanda 2 no deja
+  pendientes de caballerizas.**
 - **DNI de las 10 personas nuevas** — llegan por auto-registro (Gate 3), no por esta vía.
 - **`responsable` de las 9 caballerizas nuevas** — lo completa Yesi por pantalla.
