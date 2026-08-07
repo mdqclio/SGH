@@ -134,6 +134,8 @@
       .pi-bolsa-inline { font-size: 9pt; font-weight: 900; }
       .pi-condiciones { font-size: 7pt; color: #222; margin-top: 1px; line-height: 1.25; }
       .pi-cesped-inline { font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; }
+      .pi-especial { font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; }
+      .pi-oficial { font-size: 6.5pt; font-weight: 900; letter-spacing: 0.4px; text-transform: uppercase; margin-top: 1px; }
       /* Bandas de estado */
       .pi-banda-reabierta { background: #000 !important; color: #fff !important; text-align: center; font-size: 8pt; font-weight: 900; padding: 3px 0; text-transform: uppercase; letter-spacing: 1px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .pi-banda-anulada { background: #ddd; color: #333; text-align: center; font-size: 8pt; font-weight: 700; padding: 3px 0; text-transform: uppercase; letter-spacing: 1px; font-style: italic; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -696,7 +698,7 @@ async function printInscriptos() {
 
   const [{ data: carsData }, { data: clubData }, { data: reunionFullData }] = await Promise.all([
     sb.from('carreras')
-      .select('id,numero_turno,nombre,bolsa_total,distribucion_premios,distancia_metros,tipo_pista,edad_minima_anos,edad_maxima_anos,condicion_sexo,condicion_handicap,estado')
+      .select('id,numero_turno,nombre,bolsa_total,distribucion_premios,distancia_metros,tipo_pista,edad_minima_anos,edad_maxima_anos,condicion_sexo,condicion_handicap,estado,categoria_id,categorias_carrera(nombre,es_oficial,es_computable)')
       .eq('reunion_id', reunionId)
       .order('numero_turno'),
     sb.from('clubs').select('logo_url, localidad').eq('id', CLUB_ID).single(),
@@ -722,39 +724,35 @@ async function printInscriptos() {
       .sort((a, b) => (a.spcs?.nombre || '').localeCompare(b.spcs?.nombre || '')));
   });
 
-  function buildCondAbr(car) {
-    const sexoMap = { machos: 'Cab', hembras: 'Yeg', machos_castrados: 'Cas', ambos: 'Todo caballo' };
-    const sexoAbr = sexoMap[car.condicion_sexo] || '';
-    const usaEspacios = sexoAbr.includes(' '); // "Todo caballo" usa espacios; el resto, puntos (estilo Palermo)
-    const sep = usaEspacios ? ' ' : '.';
+  // Texto de sexo derivado de condicion_sexo, y regex para detectar si el texto libre
+  // de condicion_handicap ya lo trae (evita duplicar "Todo caballo Todo caballo de...")
+  const SEXO_TXT = { machos: 'Cab', hembras: 'Yeg', machos_castrados: 'Cas', ambos: 'Todo caballo' };
+  // El texto libre suele abrir nombrando el sexo (puede no coincidir con condicion_sexo:
+  // R8 T12 es 'ambos' pero dice "Yeguas..."). Si ya lo trae, no anteponer el prefijo derivado.
+  const SEXO_EN_TEXTO_RE = /^(todos?\s+(los\s+)?caballos?|caballos?|yeguas?|castrados?|machos?|hembras?|potr[oa]s?|productos?)\b/i;
+
+  function buildCond(car) {
+    const sexoTxt = SEXO_TXT[car.condicion_sexo] || '';
+    let hc = (car.condicion_handicap || '').trim().replace(/\s*\.\s*$/, '');
+
+    // Condición especial: "Especial" se saca al frente como etiqueta, el resto queda como condición
+    let especial = false;
+    const mEsp = hc.match(/^especial(?:es)?\s*[:,-]?\s*/i);
+    if (mEsp) { especial = true; hc = hc.slice(mEsp[0].length).trim(); }
+
     const parts = [];
-    if (sexoAbr) parts.push(sexoAbr);
+    if (sexoTxt && !(hc && SEXO_EN_TEXTO_RE.test(hc))) parts.push(sexoTxt);
+    // Edad estructurada: solo si el texto libre no la trae ya
     const emin = car.edad_minima_anos, emax = car.edad_maxima_anos;
-    if (emin && emax) {
-      parts.push(emin === emax
-        ? (usaEspacios ? `${emin} a` : `${emin}a`)
-        : (usaEspacios ? `${emin} - ${emax} a` : `${emin}-${emax}a`));
-    } else if (emin) {
-      parts.push(`${emin} y más a`);
+    if (!/\d\s*(a\b|años?\b)/i.test(hc)) {
+      if (emin && emax) parts.push(emin === emax ? `${emin} años` : `${emin} - ${emax} años`);
+      else if (emin) parts.push(`${emin} años y más`);
     }
-    let hc = (car.condicion_handicap || '').trim();
-    // Si el prefijo ya es "Todo caballo", remover redundancia del handicap libre
-    if (usaEspacios && hc) {
-      hc = hc.replace(/^todo\s+caballo\s+(de\s+)?/i, '').trim();
-      // También remover edad duplicada si arranca con "N años y" o "N a"
-      hc = hc.replace(/^\d+\s*(a|años?)\s*(y\s*\d+\s*(a|años?)?)?\s*/i, '').trim();
-    }
-    if (hc) {
-      const hcLow = hc.toLowerCase();
-      const condAbr = /\bperdedor(es)?\b/.test(hcLow) ? 'perd'
-        : /\bganadores? de 1 carrera\b/.test(hcLow) ? 'g.1c'
-        : /\bganadores? de 2 carreras\b/.test(hcLow) ? 'g.2c'
-        : hc.length > 18 ? hc.slice(0, 18) + '…' : hc;
-      parts.push(condAbr);
-    }
-    let result = parts.join(sep);
-    if (car.distancia_metros) result += (result ? ' ' : '') + `${car.distancia_metros} mts`;
-    return result;
+    if (hc) parts.push(hc); // texto completo: sin abreviar ni truncar
+
+    let texto = parts.join(' ');
+    if (car.distancia_metros) texto += (texto ? ' ' : '') + `${car.distancia_metros} mts`;
+    return { texto, especial };
   }
 
   function formatBolsa(num) {
@@ -773,7 +771,13 @@ async function printInscriptos() {
     const esMixta = car.condicion_sexo === 'ambos';
     const { total: bolsaNominal } = repartoDisplay(car.bolsa_total, car.distribucion_premios);
     const bolsaStr = formatBolsa(bolsaNominal);
-    const condStr = buildCondAbr(car);
+    const { texto: condStr, especial } = buildCond(car);
+    const cat = car.categorias_carrera;
+    const oficialLabel = cat
+      ? (cat.es_oficial
+          ? (cat.es_computable ? 'OFICIAL COMPUTABLE' : 'OFICIAL NO COMPUTABLE')
+          : (cat.nombre || '').toUpperCase())
+      : '';
     const esCesped = (car.tipo_pista || '').toLowerCase() === 'cesped';
     const turnoBand = car.nombre
       ? `TURNO ${car.numero_turno} — ${car.nombre.toUpperCase()}`
@@ -793,12 +797,14 @@ async function printInscriptos() {
     const tituloHtml = bolsaStr
       ? `<div class="pi-titulo"><span class="pi-bolsa-inline">${bolsaStr}</span> · ${turnoBand}</div>`
       : `<div class="pi-titulo">${turnoBand}</div>`;
-    const condHtml = (condStr || esCesped)
-      ? `<div class="pi-condiciones">${condStr || ''}${esCesped ? `${condStr ? ' · ' : ''}<span class="pi-cesped-inline">CESPED</span>` : ''}</div>`
+    const especialHtml = especial ? '<span class="pi-especial">ESPECIAL</span> ' : '';
+    const condHtml = (condStr || esCesped || especial)
+      ? `<div class="pi-condiciones">${especialHtml}${condStr || ''}${esCesped ? `${condStr ? ' · ' : ''}<span class="pi-cesped-inline">CESPED</span>` : ''}</div>`
       : '';
+    const oficialHtml = oficialLabel ? `<div class="pi-oficial">${oficialLabel}</div>` : '';
     return `<div class="pi-wrapper">
       <div class="pi-bloque">
-        <div class="pi-car-head">${tituloHtml}${condHtml}</div>
+        <div class="pi-car-head">${tituloHtml}${condHtml}${oficialHtml}</div>
         ${bandaHtml}
         <div class="pi-lista">${listaHtml}</div>
         <div class="pi-car-foot">${inscsCar.length}</div>
