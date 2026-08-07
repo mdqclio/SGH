@@ -280,14 +280,17 @@ respuesta:
 
 Queda uno solo, heredado, y también se movió el 06/08:
 
-3. **`DON NITO`** — abierto desde la tanda 2 (`TANDA_2_R8.md` §4.3). Se partió en dos:
-   - **existencia** → cerrada. Leo mandó descomentar y aplicar el INSERT diferido de la
-     tanda 2 (migración `caballerizas_r8_tanda_2_don_nito`), porque la caballeriza tiene
-     que existir para que Yesi pueda inscribir a `TIENE RITMO` en el cierre. Dolores
+3. ~~**`DON NITO`**~~ — **CERRADO el 07/08**. Venía abierto desde la tanda 2
+   (`TANDA_2_R8.md` §4.3) y estaba partido en dos:
+   - **existencia** → cerrada el 06/08. Leo mandó descomentar y aplicar el INSERT diferido
+     de la tanda 2 (migración `caballerizas_r8_tanda_2_don_nito`), porque la caballeriza
+     tiene que existir para que Yesi pueda inscribir a `TIENE RITMO` en el cierre. Dolores
      281 → **282**.
-   - **unificación con `DON NINO`** → sigue abierta, preguntada a Yesi/Silvio. No bloquea
-     la R8: con las dos filas vivas, Yesi inscribe contra la que corresponda. Si alguna vez
-     contesta que son la misma, es un merge de datos post-hito.
+   - **unificación con `DON NINO`** → cerrada el 07/08: **Yesi confirmó que son distintas**.
+     No hay merge que hacer. Las dos filas quedan vivas y separadas. Cero escrituras — la
+     respuesta confirmó el estado que ya tenía la base.
+
+   Con esto **la tanda 3 no deja ningún pendiente abierto**.
 
 Si Yesi contradice alguna de las dos decisiones cerradas, las dos son reversibles: el
 INSERT de `HS EL ORIGEN` está comentado y listo, y el UPDATE de `ESPLENDID CRAF` se

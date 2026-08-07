@@ -1,5 +1,16 @@
 [
  {
+  "id": "454f1de3-a39b-431b-8821-49ecfa1c30d4",
+  "nombre": "ABELITO MIMOSO",
+  "fecha_nacimiento": "2022-11-10",
+  "sexo": "macho",
+  "color": "Zaino",
+  "padrillo_nombre": "Magic Stripes",
+  "madre_nombre": "Fairy Mosa",
+  "studbook_id": "439663",
+  "estado": "activo"
+ },
+ {
   "id": "acd956c5-4464-4e49-8c58-9b42bab741e9",
   "nombre": "AFRICUM",
   "fecha_nacimiento": "2020-09-27",
@@ -349,6 +360,17 @@
   "padrillo_nombre": "Fortify (USA)",
   "madre_nombre": "La Mas Posh",
   "studbook_id": null,
+  "estado": "activo"
+ },
+ {
+  "id": "8afce1a4-924c-495d-a726-d1b1f57bec55",
+  "nombre": "DE BELLOSO",
+  "fecha_nacimiento": "2021-09-01",
+  "sexo": "hembra",
+  "color": "Zaino Doradillo",
+  "padrillo_nombre": "Defuniak",
+  "madre_nombre": "Mad Conda",
+  "studbook_id": "432979",
   "estado": "activo"
  },
  {
@@ -770,6 +792,17 @@
   "estado": "activo"
  },
  {
+  "id": "59dcdc67-aebd-4107-be8e-369992b3e3a9",
+  "nombre": "GAUCHA PRECIOSA",
+  "fecha_nacimiento": "2022-09-01",
+  "sexo": "hembra",
+  "color": "Alazan",
+  "padrillo_nombre": "Sea Dog",
+  "madre_nombre": "Hola Nena",
+  "studbook_id": "435676",
+  "estado": "activo"
+ },
+ {
   "id": "72896c7d-6265-4dcd-82ca-bd37f7146b2b",
   "nombre": "Gaucho Bravo",
   "fecha_nacimiento": "2019-06-20",
@@ -899,6 +932,17 @@
   "padrillo_nombre": "South Valido",
   "madre_nombre": "Buda Lai",
   "studbook_id": null,
+  "estado": "activo"
+ },
+ {
+  "id": "ba091251-9e8b-47df-aad0-e820bf8d45b2",
+  "nombre": "INFILTRADO SLEW",
+  "fecha_nacimiento": "2020-07-27",
+  "sexo": "macho",
+  "color": "Zaino",
+  "padrillo_nombre": "Magic Stripes",
+  "madre_nombre": "Compadrona Slew",
+  "studbook_id": "420517",
   "estado": "activo"
  },
  {
@@ -1100,6 +1144,17 @@
   "estado": "activo"
  },
  {
+  "id": "98d5b7b1-11af-405e-94a7-0199eb21130e",
+  "nombre": "LE BATEAU",
+  "fecha_nacimiento": "2020-10-20",
+  "sexo": "macho",
+  "color": "Zaino",
+  "padrillo_nombre": "Interaction",
+  "madre_nombre": "Le Yaca (CHI)",
+  "studbook_id": "422126",
+  "estado": "activo"
+ },
+ {
   "id": "e956c550-3235-4c71-972e-d29d378cb75b",
   "nombre": "LE BIRD",
   "fecha_nacimiento": "2021-10-04",
@@ -1119,6 +1174,17 @@
   "padrillo_nombre": "Lucky Island",
   "madre_nombre": "Mirror Plus",
   "studbook_id": "438809",
+  "estado": "activo"
+ },
+ {
+  "id": "ab14ee82-a68a-4eb9-bea9-26d11683eaa9",
+  "nombre": "LIVIA DRUSA",
+  "fecha_nacimiento": "2020-09-16",
+  "sexo": "hembra",
+  "color": "Zaino",
+  "padrillo_nombre": "Santillano",
+  "madre_nombre": "Wilkenia",
+  "studbook_id": "426999",
   "estado": "activo"
  },
  {
@@ -1262,6 +1328,17 @@
   "padrillo_nombre": "Gouverneur Morris (USA)",
   "madre_nombre": "Doña Nota",
   "studbook_id": null,
+  "estado": "activo"
+ },
+ {
+  "id": "f23beae3-af36-4b89-be03-f6c66edbc11c",
+  "nombre": "NELIDA RIM",
+  "fecha_nacimiento": "2022-11-02",
+  "sexo": "hembra",
+  "color": "Zaino",
+  "padrillo_nombre": "Remote (GB)",
+  "madre_nombre": "Vedette's Day",
+  "studbook_id": "439480",
   "estado": "activo"
  },
  {
@@ -1427,6 +1504,17 @@
   "padrillo_nombre": "Detonator",
   "madre_nombre": "Atrevida Sola",
   "studbook_id": "418581",
+  "estado": "activo"
+ },
+ {
+  "id": "f02c7f94-57aa-4c5e-ab4f-f1cab6296a14",
+  "nombre": "REINA EDITION",
+  "fecha_nacimiento": "2021-10-24",
+  "sexo": "hembra",
+  "color": "Alazan",
+  "padrillo_nombre": "Equal Edition",
+  "madre_nombre": "Reina Gloriosa",
+  "studbook_id": "432407",
   "estado": "activo"
  },
  {
@@ -1628,6 +1716,17 @@
   "estado": "activo"
  },
  {
+  "id": "47a6c344-dd22-46f2-926f-9df5b0c8eae9",
+  "nombre": "TERRIBLE KING",
+  "fecha_nacimiento": "2019-08-23",
+  "sexo": "macho",
+  "color": "Tordillo",
+  "padrillo_nombre": "Charles King",
+  "madre_nombre": "Bien Terrible",
+  "studbook_id": "414959",
+  "estado": "activo"
+ },
+ {
   "id": "c4d8456e-8d62-4d97-b689-3455301b4fac",
   "nombre": "THE SULTAN",
   "fecha_nacimiento": "2022-10-25",
@@ -1812,6 +1911,17 @@
   "padrillo_nombre": "Golden Cigars",
   "madre_nombre": "Bet Game",
   "studbook_id": null,
+  "estado": "activo"
+ },
+ {
+  "id": "1b8771fb-13b5-48f7-a638-abfbe63abcad",
+  "nombre": "YOOKY",
+  "fecha_nacimiento": "2020-08-15",
+  "sexo": "hembra",
+  "color": "Tordillo",
+  "padrillo_nombre": "Cima De Triomphe (IRE)",
+  "madre_nombre": "Solicitada",
+  "studbook_id": "431580",
   "estado": "activo"
  },
  {
