@@ -1,0 +1,52 @@
+{
+  "_meta": {
+    "descripcion": "Snapshot de jockey_titular_id previo a la corrección de montas de R6 desde la planilla oficial de Yesi. Sirve de rollback y de auditoría.",
+    "reunion_id": "b02ca761-6f44-4720-86aa-a3c3099019ea",
+    "reunion": "R6 — 20/06/2026 — Hipódromo de Dolores",
+    "capturado": "2026-08-07",
+    "migracion": "migrations/montas_r6_correccion.sql",
+    "filas": 32,
+    "alcance": "SOLO inscripciones ratificadas que aparecen en la planilla oficial con jockey. Las 10 marcadas XX (sin jockey en el oficial) no se tocaron: ya tenían jockey_titular_id NULL. Turnos 4, 7 y 10 no corrieron (numero_carrera_programa NULL) y quedan fuera del alcance."
+  },
+  "filas": [
+    {"prog": 1, "turno": 1, "ejemplar": "ARMOÑOZO",            "insc_id": "66820fe1-3968-4939-a7dc-3bcd988ca7c3", "jockey_prev_id": null,                                   "jockey_prev": null,                "updated_at_prev": "2026-07-22T17:56:42.460514+00:00"},
+    {"prog": 1, "turno": 1, "ejemplar": "DOCTORA APASIONADA",  "insc_id": "01a41f66-8932-4d43-8fac-92ced690a91f", "jockey_prev_id": "654dc3ea-5c90-46cd-a579-eb0efa3bd1c0", "jockey_prev": "DIESTRA PEDRO",     "updated_at_prev": "2026-07-22T17:56:41.619712+00:00"},
+    {"prog": 1, "turno": 1, "ejemplar": "GREAT ORPEN",         "insc_id": "e7d7e085-286a-4f7a-8623-2b5237b2be4f", "jockey_prev_id": "654dc3ea-5c90-46cd-a579-eb0efa3bd1c0", "jockey_prev": "DIESTRA PEDRO",     "updated_at_prev": "2026-07-22T17:56:42.35446+00:00"},
+    {"prog": 1, "turno": 1, "ejemplar": "MONADESEDA",          "insc_id": "35aaf81f-ce6e-4a84-b371-cf2e1502cc76", "jockey_prev_id": "8abe11d7-12df-4b2a-b12d-3db255e939f2", "jockey_prev": "ZAPICO DIEGO",      "updated_at_prev": "2026-06-20T15:20:20.392996+00:00"},
+    {"prog": 1, "turno": 1, "ejemplar": "MOSQUITA GARDEN",     "insc_id": "34c977b7-c5ab-4737-a016-0d99a4018f2e", "jockey_prev_id": null,                                   "jockey_prev": null,                "updated_at_prev": "2026-07-22T17:56:41.787698+00:00"},
+
+    {"prog": 2, "turno": 2, "ejemplar": "ASTUTO NOTES",        "insc_id": "23ce0134-3db7-4549-a39f-a710e473acb4", "jockey_prev_id": null,                                   "jockey_prev": null,                "updated_at_prev": "2026-07-22T18:01:06.445971+00:00"},
+    {"prog": 2, "turno": 2, "ejemplar": "BAM BAM HITS",        "insc_id": "bfabef7d-2fb2-4213-bc6b-07f807fc7452", "jockey_prev_id": null,                                   "jockey_prev": null,                "updated_at_prev": "2026-07-22T18:01:05.833707+00:00"},
+    {"prog": 2, "turno": 2, "ejemplar": "CALAVERIANDO",        "insc_id": "addc3bd4-67c9-4935-8afe-f402bf1d4afd", "jockey_prev_id": "654dc3ea-5c90-46cd-a579-eb0efa3bd1c0", "jockey_prev": "DIESTRA PEDRO",     "updated_at_prev": "2026-07-22T18:01:06.555317+00:00"},
+    {"prog": 2, "turno": 2, "ejemplar": "EL MEJOR DUQUE",      "insc_id": "785d802d-7e5c-4bd0-8bf6-455da36370b3", "jockey_prev_id": null,                                   "jockey_prev": null,                "updated_at_prev": "2026-07-22T18:01:06.145779+00:00"},
+
+    {"prog": 3, "turno": 3, "ejemplar": "LOCA DUBAI",          "insc_id": "eccae519-b127-4270-8213-214f8b75057a", "jockey_prev_id": "c8894b64-5521-460a-a50b-a7c57ec3f59a", "jockey_prev": "DA SILVA RUBEN",    "updated_at_prev": "2026-07-22T18:04:32.989266+00:00"},
+    {"prog": 3, "turno": 3, "ejemplar": "SANTA LISA",          "insc_id": "b15c9cae-6d58-41a4-82f5-7642b95f9ffa", "jockey_prev_id": null,                                   "jockey_prev": null,                "updated_at_prev": "2026-07-22T18:04:33.109665+00:00"},
+    {"prog": 3, "turno": 3, "ejemplar": "SIEMPREHAYESPERANZA", "insc_id": "f12095ad-c52f-480c-8eaf-aedb3f30653b", "jockey_prev_id": "654dc3ea-5c90-46cd-a579-eb0efa3bd1c0", "jockey_prev": "DIESTRA PEDRO",     "updated_at_prev": "2026-07-22T18:04:32.618542+00:00"},
+
+    {"prog": 4, "turno": 8, "ejemplar": "CRAZY RABID",         "insc_id": "c253de99-fef7-413f-bfd1-7449e6b919cb", "jockey_prev_id": null,                                   "jockey_prev": null,                "updated_at_prev": "2026-07-22T18:12:59.356485+00:00"},
+    {"prog": 4, "turno": 8, "ejemplar": "FLORENTINA IN YOU",   "insc_id": "1cdac0b9-e71f-4f45-b4c9-81ae155bd3be", "jockey_prev_id": "4bebf74b-b607-430f-92dc-342cec22d0e7", "jockey_prev": "OSUNA JOSE",        "updated_at_prev": "2026-07-22T18:12:59.03327+00:00"},
+    {"prog": 4, "turno": 8, "ejemplar": "LOCO FUN",            "insc_id": "d7b909c5-2b92-4985-b3f3-1610a715223d", "jockey_prev_id": "005caa02-fc91-45b3-9ae6-6f55d989fa2e", "jockey_prev": "CANTO TOBIAS",      "updated_at_prev": "2026-07-22T18:12:58.756362+00:00"},
+    {"prog": 4, "turno": 8, "ejemplar": "MI ILUSION",          "insc_id": "cafc4989-c618-4fa9-bad2-d3343c75ce65", "jockey_prev_id": null,                                   "jockey_prev": null,                "updated_at_prev": "2026-07-22T18:12:59.579708+00:00"},
+
+    {"prog": 5, "turno": 11, "ejemplar": "CHINITA SALTEÑA",    "insc_id": "53cddf30-0123-457b-b698-387b646cfa4f", "jockey_prev_id": null,                                   "jockey_prev": null,                "updated_at_prev": "2026-07-22T18:20:48.249259+00:00"},
+    {"prog": 5, "turno": 11, "ejemplar": "SIGO VIAJE",         "insc_id": "dd0a126e-12d4-4d5c-988e-c1ac79b36d59", "jockey_prev_id": null,                                   "jockey_prev": null,                "updated_at_prev": "2026-07-22T18:20:48.05434+00:00"},
+    {"prog": 5, "turno": 11, "ejemplar": "YUKINA",             "insc_id": "95949960-5b77-4168-b9ed-5e25ab8f7f01", "jockey_prev_id": null,                                   "jockey_prev": null,                "updated_at_prev": "2026-07-22T18:20:47.715688+00:00"},
+
+    {"prog": 6, "turno": 6, "ejemplar": "CLAIRE CHUCK",        "insc_id": "a08dead5-2fd3-4ff1-9a08-d9fb2b346404", "jockey_prev_id": null,                                   "jockey_prev": null,                "updated_at_prev": "2026-07-22T18:57:42.85538+00:00"},
+    {"prog": 6, "turno": 6, "ejemplar": "KUCCINI",             "insc_id": "a370bfc3-329f-4c4d-b6af-bddb0760d881", "jockey_prev_id": null,                                   "jockey_prev": null,                "updated_at_prev": "2026-07-22T18:57:43.671974+00:00"},
+    {"prog": 6, "turno": 6, "ejemplar": "LUMIN",               "insc_id": "ea96ff0f-3002-4540-9c9e-1f521a484214", "jockey_prev_id": "484361c0-abb5-41af-b20e-3090535cb075", "jockey_prev": "ROMAY ABEL I",      "updated_at_prev": "2026-07-22T18:57:43.066434+00:00"},
+    {"prog": 6, "turno": 6, "ejemplar": "PORTEÑO Y BAILARIN",  "insc_id": "d21f589c-2ef1-45eb-b3b8-8b180680e861", "jockey_prev_id": "654dc3ea-5c90-46cd-a579-eb0efa3bd1c0", "jockey_prev": "DIESTRA PEDRO",     "updated_at_prev": "2026-07-22T18:57:42.047154+00:00"},
+    {"prog": 6, "turno": 6, "ejemplar": "TATA FOOT",           "insc_id": "9c618243-c86e-41ec-a849-6e6dd00e9a1f", "jockey_prev_id": "a249ea0d-0b5c-4fbb-ad14-f4e9e1f6bb01", "jockey_prev": "AVENDAÑO MIGUEL A", "updated_at_prev": "2026-07-22T18:57:43.544857+00:00"},
+    {"prog": 6, "turno": 6, "ejemplar": "TIMBERA IN YOU",      "insc_id": "cda7b037-4721-4033-99f2-591e7e19669e", "jockey_prev_id": "4bebf74b-b607-430f-92dc-342cec22d0e7", "jockey_prev": "OSUNA JOSE",        "updated_at_prev": "2026-07-22T18:57:52.41671+00:00"},
+
+    {"prog": 7, "turno": 9, "ejemplar": "AFRICUM",             "insc_id": "6632e8d1-20da-41a6-b745-7a6ee6066c93", "jockey_prev_id": "654dc3ea-5c90-46cd-a579-eb0efa3bd1c0", "jockey_prev": "DIESTRA PEDRO",     "updated_at_prev": "2026-07-22T18:29:45.868262+00:00"},
+    {"prog": 7, "turno": 9, "ejemplar": "BUEN DURAZNO",        "insc_id": "6cda9b4a-fb9a-4877-a222-834712cbeada", "jockey_prev_id": null,                                   "jockey_prev": null,                "updated_at_prev": "2026-07-22T18:29:46.454887+00:00"},
+    {"prog": 7, "turno": 9, "ejemplar": "FURIA ENCANTADA",     "insc_id": "3c91aad4-50a6-4b44-88d2-d96470b88330", "jockey_prev_id": null,                                   "jockey_prev": null,                "updated_at_prev": "2026-07-22T18:29:46.083589+00:00"},
+    {"prog": 7, "turno": 9, "ejemplar": "SEMBRADOR CHUCK",     "insc_id": "24cae834-69c6-4b1d-9c6d-d1f5cad50af8", "jockey_prev_id": "674157cf-9393-419e-bf50-0881802b785e", "jockey_prev": "ZUBIRIA SANTIAGO",  "updated_at_prev": "2026-07-22T18:29:46.879675+00:00"},
+    {"prog": 7, "turno": 9, "ejemplar": "SEÑOR MONCHI",        "insc_id": "9c4fa3c2-12d3-4131-aab8-4fac28f0f7cb", "jockey_prev_id": "7dcddbdb-52dc-4f56-8010-0fc8a5de9dcb", "jockey_prev": "ARREGUY FRANCISCO", "updated_at_prev": "2026-07-22T18:29:46.776092+00:00"},
+
+    {"prog": 8, "turno": 5, "ejemplar": "HEART OF GOLD",       "insc_id": "766f1538-0ca2-4f64-8b68-8dfd77f04e7d", "jockey_prev_id": null,                                   "jockey_prev": null,                "updated_at_prev": "2026-07-22T18:55:52.482637+00:00"},
+    {"prog": 8, "turno": 5, "ejemplar": "MAESTRO DE ARMAS",    "insc_id": "6d1b78bb-c549-4d10-b8b9-70f4edb5b71c", "jockey_prev_id": null,                                   "jockey_prev": null,                "updated_at_prev": "2026-07-22T18:55:52.694615+00:00"}
+  ]
+}
