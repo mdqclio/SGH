@@ -1,13 +1,25 @@
-// Scrape studbook.org.ar autocomplete para la tanda 4 de R8.
+// Scrape studbook.org.ar autocomplete para una tanda de altas de SPCs.
 // No escribe en la DB. Emite JSON de evidencia.
-import { writeFileSync } from 'node:fs';
+//
+//   node tools/studbook_scrape_tanda.mjs <out.json> [nombres.txt] [tanda] [snapshot_spcs]
+//
+// Sin nombres.txt usa la lista de la tanda 4 (queda reproducible su evidencia).
+// El archivo de nombres es un nombre por línea; se ignoran vacías y las que
+// arrancan con '#'.
+import { readFileSync, writeFileSync } from 'node:fs';
 
-const PEDIDOS = [
+const TANDA_4 = [
   'ABELITO MIMOSO', 'DE BELLOSO', 'GAUCHA PRECIOSA', 'INFILTRADO SLEW', 'LE BATEAU',
   'LIVIA DRUSA', 'NELIDA RIM', 'REINA EDITION', 'TERRIBLE KING', 'YOOKY',
   // agregado fuera de planilla (Silvio, 07/08) — cae en MATCH_AMBIGUO, ver reporte
   'ACAPULCO',
 ];
+
+const [, , OUT, NOMBRES_FILE, TANDA = '4', SNAPSHOT_SPCS = '167'] = process.argv;
+const PEDIDOS = NOMBRES_FILE
+  ? readFileSync(NOMBRES_FILE, 'utf8').split('\n')
+      .map(l => l.trim()).filter(l => l && !l.startsWith('#'))
+  : TANDA_4;
 
 const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '')
   .toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -96,18 +108,18 @@ const out = {
   _meta: {
     fuente: 'www.studbook.org.ar',
     endpoint: '/ejemplares/autocomplete?tipo=1&muerto=1&term=',
-    tanda: '4',
+    tanda: TANDA,
     escribe_en_db: false,
     nombres_pedidos: PEDIDOS.length,
     altas_propuestas: altas.length,
     casos_no_resueltos: noResueltos.length,
-    snapshot_spcs: 167,
+    snapshot_spcs: Number(SNAPSHOT_SPCS),
   },
   ALTAS: altas,
   NO_RESUELTOS: noResueltos,
 };
 
-writeFileSync(process.argv[2], JSON.stringify(out, null, 2));
+writeFileSync(OUT, JSON.stringify(out, null, 2));
 console.log(JSON.stringify(out._meta, null, 2));
 for (const a of altas) console.log(`OK   ${a.nombre_pedido} -> ${a.nombre_sb} sb=${a.sb_id} ${a.fecha_nacimiento} ${a.sexo} ${a.color} | ${a.padrillo_nombre} / ${a.madre_nombre} ${a.alertas.length ? '⚠ ' + a.alertas.join('; ') : ''}`);
 for (const n of noResueltos) console.log(`FALTA ${n.nombre_pedido} [${n.motivo}] ${JSON.stringify(n.candidatos ?? n.detalle)}`);
