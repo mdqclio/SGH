@@ -123,30 +123,37 @@
       .pi-title { font-family: 'Playfair Display', Georgia, serif; font-size: 14pt; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
       .pi-sub { font-size: 9pt; font-weight: 700; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
       /* Contenedor general: CSS columns (evita huecos verticales del flex-wrap) */
-      .pi-cols { column-count: 5; column-gap: 10pt; column-fill: balance; }
+      /* column-width además de column-count: si el motor de impresión ignora el
+         "landscape" del @page (iOS Safari siempre; Chrome/Brave según el diálogo),
+         la página sale angosta y con column-count solo quedarían 5 columnas de
+         ~38mm, donde los nombres de los caballos (white-space: nowrap) desbordan.
+         Con column-width el ancho manda y reflowea a 3 columnas legibles. */
+      .pi-cols { column-width: 52mm; column-count: 5; column-gap: 10pt; column-fill: balance; }
       /* Wrapper: block para que CSS columns lo trate como bloque atómico */
-      .pi-wrapper { display: block; width: 100%; break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid; margin-bottom: 8pt; }
+      .pi-wrapper { display: block; width: 100%; break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid; margin-bottom: 5pt; }
       /* Bloque de carrera: se ajusta al contenido más ancho (nombre de caballo más largo) */
-      .pi-bloque { display: flex; flex-direction: column; width: fit-content; max-width: 100%; }
+      .pi-bloque { display: flex; flex-direction: column; width: -webkit-fit-content; width: fit-content; max-width: 100%; }
       /* Header del bloque: enmarcado y centrado */
       .pi-car-head { background: #e8e8e8; padding: 3px 7px; border: 1px solid #000; text-align: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .pi-titulo { font-size: 8pt; font-weight: 900; text-transform: uppercase; line-height: 1.2; }
       .pi-bolsa-inline { font-size: 9pt; font-weight: 900; }
-      .pi-condiciones { font-size: 7pt; color: #222; margin-top: 1px; line-height: 1.25; }
+      /* La condición es texto secundario: va 2pt menor que los caballos (8pt) */
+      .pi-condiciones { font-size: 6pt; color: #222; margin-top: 1px; line-height: 1.25; }
       .pi-cesped-inline { font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; }
       .pi-especial { font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; }
-      .pi-oficial { font-size: 6.5pt; font-weight: 900; letter-spacing: 0.4px; text-transform: uppercase; margin-top: 1px; }
+      .pi-oficial { font-size: 6pt; font-weight: 900; letter-spacing: 0.4px; text-transform: uppercase; margin-top: 1px; }
       /* Bandas de estado */
-      .pi-banda-reabierta { background: #000 !important; color: #fff !important; text-align: center; font-size: 8pt; font-weight: 900; padding: 3px 0; text-transform: uppercase; letter-spacing: 1px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .pi-banda-anulada { background: #ddd; color: #333; text-align: center; font-size: 8pt; font-weight: 700; padding: 3px 0; text-transform: uppercase; letter-spacing: 1px; font-style: italic; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .pi-banda-reabierta { background: #000 !important; color: #fff !important; text-align: center; font-size: 7pt; font-weight: 900; padding: 1px 0; text-transform: uppercase; letter-spacing: 1px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .pi-banda-anulada { background: #ddd; color: #333; text-align: center; font-size: 7pt; font-weight: 700; padding: 1px 0; text-transform: uppercase; letter-spacing: 1px; font-style: italic; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       /* Lista de inscriptos */
-      .pi-row { display: flex; align-items: baseline; padding: 1px 4px; border-bottom: 1px solid #eee; line-height: 1.4; }
+      /* Filas densas: el cuerpo del caballo sigue a 8pt, se ajusta solo el interlineado */
+      .pi-row { display: flex; align-items: baseline; padding: 0 4px; border-bottom: 1px solid #eee; line-height: 1.25; }
       .pi-row:last-child { border-bottom: none; }
       .pi-spc-name { font-size: 8pt; font-weight: 700; text-transform: uppercase; flex: 1; min-width: 0; white-space: nowrap; }
       .pi-h-sfx { font-size: 7pt; font-weight: 400; }
       .pi-nocert { font-size: 8pt; font-weight: 900; margin-left: 3px; flex-shrink: 0; }
       /* Total del turno */
-      .pi-car-foot { border-top: 1px solid #000; padding: 2px 4px; font-size: 10pt; font-weight: 900; text-align: center; }
+      .pi-car-foot { border-top: 1px solid #000; padding: 1px 4px; font-size: 8pt; font-weight: 900; text-align: center; }
       /* Matriz consolidada de orden de largada */
       .pi-matriz-wrap { margin-top: 10pt; margin-bottom: 4pt; break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid; }
       .pi-matriz-titulo { font-size: 7pt; font-weight: 900; text-align: center; margin-bottom: 3pt; text-transform: uppercase; letter-spacing: 1px; }
@@ -155,8 +162,15 @@
       .pi-matriz-tbl td { border: 1px solid #000; padding: 2pt; text-align: center; }
       /* Footer del documento */
       .pi-footer { margin-top: 8px; border-top: 2px solid #000; padding-top: 4px; font-size: 7pt; display: flex; justify-content: space-between; align-items: flex-end; }
-      .pi-footer-left { display: flex; flex-direction: column; gap: 2px; }
-      .pi-footer-right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+      /* Las dos patas del footer apilan con block + margin, no con flex gap.
+         El gap de flexbox recién existe en WebKit 14.1+ y el motor de impresión
+         del móvil es el eslabón más viejo. Con block la caída es a texto apilado
+         igual, sin depender de nada moderno. */
+      .pi-footer-left, .pi-footer-right { display: block; }
+      .pi-footer-right { text-align: right; }
+      .pi-footer-left > span, .pi-footer-right > span { display: block; }
+      .pi-footer-left > * + *, .pi-footer-right > * + * { margin-top: 2px; }
+      .pi-footer-right > img { display: block; margin-left: auto; }
       .pi-footer-logo { max-height: 35px; max-width: 70px; object-fit: contain; }
       @page { size: A4 landscape; margin-top: 5mm; margin-bottom: 6mm; margin-left: 8mm; margin-right: 8mm; }
     }
@@ -750,9 +764,41 @@ async function printInscriptos() {
     }
     if (hc) parts.push(hc); // texto completo: sin abreviar ni truncar
 
+    const distancia = car.distancia_metros ? `${car.distancia_metros} mts` : '';
     let texto = parts.join(' ');
-    if (car.distancia_metros) texto += (texto ? ' ' : '') + `${car.distancia_metros} mts`;
-    return { texto, especial };
+    if (distancia) texto += (texto ? ' ' : '') + distancia;
+    return { texto, cond: parts.join(' '), distancia, especial };
+  }
+
+  // Recorte de la condición a 2 líneas. Va en JS y no con -webkit-line-clamp
+  // porque line-clamp corta a mitad de palabra y depende de -webkit-box, que no
+  // es confiable en el motor de impresión de los móviles. Acá el corte cae
+  // siempre en límite de palabra, la elipsis va después de una palabra entera, y
+  // la distancia se preserva sí o sí (es dato esencial y vive al final del texto).
+  // Presupuesto: columna de ~141pt (A4 apaisada − márgenes, 5 columnas, gap 10pt,
+  // menos el padding del header) con la condición a 6pt en DM Sans (~0.53em/caracter).
+  const COND_CHARS_LINEA = 44;
+  const COND_MAX_LINEAS  = 2;
+
+  function lineasDeCond(texto, charsIniciales) {
+    let lineas = 1, len = charsIniciales;
+    for (const w of String(texto).split(/\s+/).filter(Boolean)) {
+      const add = len === 0 ? w.length : w.length + 1;
+      if (len + add > COND_CHARS_LINEA) { lineas++; len = w.length; } else { len += add; }
+    }
+    return lineas;
+  }
+
+  // charsIniciales: ancho ya consumido en la primera línea (la etiqueta ESPECIAL)
+  function clampCond(cond, distancia, charsIniciales) {
+    const palabras = String(cond).split(/\s+/).filter(Boolean);
+    for (let n = palabras.length; n >= 0; n--) {
+      const recorte = palabras.slice(0, n).join(' ');
+      const texto = [recorte && recorte + (n < palabras.length ? '…' : ''), distancia]
+        .filter(Boolean).join(' ');
+      if (lineasDeCond(texto, charsIniciales) <= COND_MAX_LINEAS) return texto;
+    }
+    return distancia;
   }
 
   function formatBolsa(num) {
@@ -771,7 +817,8 @@ async function printInscriptos() {
     const esMixta = car.condicion_sexo === 'ambos';
     const { total: bolsaNominal } = repartoDisplay(car.bolsa_total, car.distribucion_premios);
     const bolsaStr = formatBolsa(bolsaNominal);
-    const { texto: condStr, especial } = buildCond(car);
+    const { cond, distancia, especial } = buildCond(car);
+    const condStr = clampCond(cond, distancia, especial ? 'ESPECIAL '.length : 0);
     const cat = car.categorias_carrera;
     const oficialLabel = cat
       ? (cat.es_oficial
