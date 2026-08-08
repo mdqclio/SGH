@@ -1,6 +1,8 @@
 {
   "_nota": "Snapshot de carreras de R8 (Dolores) traído por MCP el 2026-08-07. Fallback del probe cuando no hay SUPABASE_SECRET_KEY para pasar RLS.",
   "reunion": { "numero": 8, "fecha": "2026-08-16" },
+  "_carga": "Inscriptos por turno (estado inscripto/ratificado/mal_inscrito) al 2026-08-07: 100 en total. Ningún numero_partidor asignado => sin matriz de orden de largada.",
+  "inscriptos_por_turno": {"1":3,"2":12,"3":8,"4":12,"5":10,"6":2,"7":7,"8":7,"9":4,"10":11,"11":15,"12":9},
   "carreras": [
     {"numero_turno":1,"nombre":null,"distancia_metros":1000,"tipo_pista":"tierra","edad_minima_anos":null,"edad_maxima_anos":null,"condicion_sexo":"ambos","condicion_handicap":"Todo Caballos de 3 años perdedores","estado":"reabierta","categoria_id":"35cf2228-b5fd-4f69-bb89-e16e6a5d4953","categorias_carrera":{"nombre":"Oficial No Computable","es_oficial":true,"es_computable":false}},
     {"numero_turno":2,"nombre":null,"distancia_metros":800,"tipo_pista":"tierra","edad_minima_anos":null,"edad_maxima_anos":null,"condicion_sexo":"ambos","condicion_handicap":"Todo caballo de 4 años perdedores","estado":"reabierta","categoria_id":"35cf2228-b5fd-4f69-bb89-e16e6a5d4953","categorias_carrera":{"nombre":"Oficial No Computable","es_oficial":true,"es_computable":false}},
