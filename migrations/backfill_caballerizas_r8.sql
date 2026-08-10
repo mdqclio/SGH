@@ -11,13 +11,15 @@
 -- Donde la base ya tiene caballeriza y difiere -> CONFLICTO, no se toca.
 --
 -- Resultado del cruce (83 pares):
---   35 BACKFILL      -> los de este UPDATE
+--   37 BACKFILL      -> los de este UPDATE (35 + los 2 de HARAS EL ORIGEN)
 --   44 ya coinciden  -> nada que hacer
 --    2 CONFLICTO real-> KUCCINI, DOCTOR SKY (ver abajo, NO se tocan)
 --    2 CONFLICTO falso-> LA DIVERTENTE, LUMIN (caballeriza duplicada, ver abajo)
---    2 HUECO         -> CHAMPION GOLDEN e INDIO GOLDEN: la caballeriza
---                       'HS EL ORIGEN' NO existe en la base. Requiere alta
---                       previa; quedan fuera de este backfill.
+--    0 HUECO         -> 'HS EL ORIGEN' (CHAMPION GOLDEN, INDIO GOLDEN) se
+--                       mapea a HARAS EL ORIGEN e664ce7c: HS = Haras, la
+--                       unificación decidida en la tanda 3. NO se crea
+--                       caballeriza nueva. Verificado: una sola fila con
+--                       'ORIGEN' en la tabla, ya con 2 SPCs.
 --   0 SPC faltantes  -> los 83 ejemplares de la planilla están en la base.
 --
 -- ⚠ CONFLICTOS REALES (base != planilla, NO se tocan — decide Yesi):
@@ -77,12 +79,18 @@ FROM (VALUES
  ('6ecc516a-3440-428d-9bc4-351a4693924c','49ed956b-9678-480b-8421-d3326c077f40'), -- TIENE RITMO     -> DON NITO
  ('4b7dd532-b140-4a3e-99f4-12bbc4990a6d','a05aed22-7858-4d48-be47-06e4e8012a20'), -- TOUCH OF BLUE   -> NUEVO MUNDO
  ('82351c05-4d69-4f9a-82cb-392785e06457','bcfb348a-859e-48bd-9919-8b75d4863c9f'), -- WILSON SECURITY -> SANTOS VEGA
- ('1b8771fb-13b5-48f7-a638-abfbe63abcad','e9907e8b-1bcc-484b-9920-c16cd9268669')  -- YOOKY           -> MELINA A
+ ('1b8771fb-13b5-48f7-a638-abfbe63abcad','e9907e8b-1bcc-484b-9920-c16cd9268669'), -- YOOKY           -> MELINA A
+ -- 'HS EL ORIGEN' de la planilla = HARAS EL ORIGEN (HS = Haras), unificación
+ -- decidida en la tanda 3. NO se crea caballeriza nueva. Verificado el 10/08:
+ -- caballerizas ~* 'ORIGEN' devuelve UNA sola fila, e664ce7c, que ya tiene
+ -- 2 SPCs colgando. Sin evidencia de que sean dos studs distintos.
+ ('de7886a7-f71a-4421-a299-6a1cde46edfc','e664ce7c-78dd-4d1d-904b-c25cf0f92b96'), -- CHAMPION GOLDEN -> HARAS EL ORIGEN
+ ('9c337a8c-3f61-42ca-9da0-62b964a85042','e664ce7c-78dd-4d1d-904b-c25cf0f92b96')  -- INDIO GOLDEN    -> HARAS EL ORIGEN
 ) AS v(spc, cab)
 WHERE s.id = v.spc::uuid
   AND s.caballeriza_id IS NULL;   -- guard: nunca pisa un valor existente
 
--- Debe dar 35.
+-- Debe dar 37.
 SELECT count(*) AS backfilleados FROM spcs s
 WHERE s.caballeriza_id IS NOT NULL AND s.id IN (
  '454f1de3-a39b-431b-8821-49ecfa1c30d4','6350d628-9949-4e79-a321-0ca116f8f4ee',
@@ -102,6 +110,7 @@ WHERE s.caballeriza_id IS NOT NULL AND s.id IN (
  'f02c7f94-57aa-4c5e-ab4f-f1cab6296a14','d8e133ea-f39d-40cd-b682-3a089150243c',
  '47a6c344-dd22-46f2-926f-9df5b0c8eae9','6ecc516a-3440-428d-9bc4-351a4693924c',
  '4b7dd532-b140-4a3e-99f4-12bbc4990a6d','82351c05-4d69-4f9a-82cb-392785e06457',
- '1b8771fb-13b5-48f7-a638-abfbe63abcad');
+ '1b8771fb-13b5-48f7-a638-abfbe63abcad',
+ 'de7886a7-f71a-4421-a299-6a1cde46edfc','9c337a8c-3f61-42ca-9da0-62b964a85042');
 
 COMMIT;
