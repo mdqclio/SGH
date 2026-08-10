@@ -374,7 +374,7 @@ async function initAuth() {
     const { data: prop } = await sb.from('propietarios').select('id').eq('email', session.user.email).single();
     propietarioId = prop?.id || null;
   } else {
-    const { data: prof } = await sb.from('profesionales').select('id').eq('email', session.user.email).eq('tipo', 'entrenador').single();
+    const { data: prof } = await sb.from('profesionales').select('id').eq('email', session.user.email).in('tipo', ['entrenador', 'ambos']).single();
     profesionalId = prof?.id || null;
   }
   return true;

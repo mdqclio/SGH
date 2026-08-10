@@ -270,7 +270,7 @@ async function load() {
   }
   document.getElementById('list-container').innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando entrenadores…</div>';
   const filtro = document.getElementById('filter-estado').value;
-  let query = sb.from('profesionales').select('*').eq('club_id', CLUB_ID).eq('tipo', 'entrenador').order('apellido').order('nombre');
+  let query = sb.from('profesionales').select('*').eq('club_id', CLUB_ID).in('tipo', ['entrenador', 'ambos']).order('apellido').order('nombre');
   if (filtro === 'activos')  query = query.eq('estado', 'activo');
   else if (filtro === 'visibles') query = query.in('estado', ['activo', 'inactivo']);
   const { data, error } = await query;
@@ -390,9 +390,12 @@ async function saveRecord(e) {
       btn.disabled = false; btn.textContent = 'Guardar'; return;
     }
   }
+  // Un 'ambos' ahora aparece en esta lista: al editarlo NO hay que degradarlo
+  // a 'entrenador' — perdería la mitad de jockey.
+  const prev = id ? (allData || []).find(r => r.id === id) : null;
   const payload = {
     club_id: CLUB_ID,
-    tipo: 'entrenador',
+    tipo: prev?.tipo === 'ambos' ? 'ambos' : 'entrenador',
     nombre: document.getElementById('f-nombre').value.trim(),
     apellido: document.getElementById('f-apellido').value.trim(),
     documento_tipo: document.getElementById('f-doc-tipo').value,
