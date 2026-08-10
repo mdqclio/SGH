@@ -1,7 +1,12 @@
 -- ============================================================
 -- backfill_caballerizas_r8.sql — spcs.caballeriza_id desde la planilla oficial
 -- ============================================================
--- ⏳ PROPUESTA — NO EJECUTADA. Espera gate de Leo.
+-- ✅ APLICADO el 10/08/2026 por MCP apply_migration, migración
+--    `backfill_caballerizas_r8`. Verificado: 37/37 con caballeriza_id,
+--    KUCCINI sigue en DON VALENTINO y DOCTOR SKY en LA NARCISA (los 2
+--    conflictos quedaron intactos, como corresponde),
+--    caballerizas ~* 'ORIGEN' = 1 fila (HARAS EL ORIGEN, no se creó nada),
+--    spcs sin caballeriza 64 -> 31.
 --
 -- Fuente: mapa SPC|caballeriza de la planilla oficial de Yesi (83 pares),
 -- pasado el 10/08/2026. Typos ya normalizados en origen (WISKA = WISLA KEN;
