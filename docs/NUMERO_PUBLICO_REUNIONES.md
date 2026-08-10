@@ -44,6 +44,18 @@ La del 16/08 da **7**. Coincide con lo que pidió Yesi.
 
 Constraint existente sobre la tabla: `UNIQUE (club_id, hipodromo_id, numero, fecha)`. El número interno no se toca en ningún gate de este trabajo.
 
+### Alcance real del backfill
+
+`reuniones` tiene tres grupos `(club, año)`, no uno:
+
+| club | año | filas | efecto del backfill |
+|---|---:|---:|---|
+| Dolores | 2026 | 12 | la secuencia del pedido — 16/08 → 7 |
+| **Mi Club Hípico** (`a6da7e40-…`) | 2026 | 1 | única reunión (17/05, borrador) → `numero_publico = 1` |
+| Dolores | 2099 | 1 | reunión de prueba 9999, `cancelada` → `NULL` |
+
+El backfill se escribe **general** (todos los clubes, todos los años) porque la regla es universal y particularizarla a Dolores/2026 dejaría al resto sin numerar y con la columna en NULL. El impacto fuera de Dolores es una sola fila de un club de prueba.
+
 ---
 
 ## 2. Modelo
@@ -70,7 +82,7 @@ CREATE UNIQUE INDEX reuniones_numero_publico_uniq
     AND estado NOT IN ('cancelada','suspendida');
 ```
 
-*A verificar en gate 2*: que Postgres acepte `EXTRACT(YEAR FROM fecha)::int` como expresión IMMUTABLE en un índice. `date_part(text, date)` lo es; si el cast por `EXTRACT` diera problema, el plan B es una columna generada `anio int GENERATED ALWAYS AS (EXTRACT(YEAR FROM fecha)::int) STORED` e indexar sobre ella.
+✅ *Verificado en gate 2*: la instancia corre **PostgreSQL 17.6**, donde `extract(text, date)` es IMMUTABLE (`provolatile = 'i'`) y `reuniones.fecha` es `date`. La expresión es indexable tal cual. El plan B (columna generada `anio`) queda descartado.
 
 El índice es la defensa real. La pantalla valida antes para dar un mensaje lindo, pero la garantía vive en DB.
 
@@ -175,12 +187,14 @@ Salidas de cara al público. Todas pasan a `numero_publico`, con fallback `numer
 
 | Gate | Contenido | Estado |
 |---|---|---|
-| 1 | Diseño (este documento) | ✅ listo, espera OK |
-| 2 | Migración: columna + índice único parcial + función `siguiente_numero_publico` + backfill del año 2026 | pendiente |
+| 1 | Diseño (este documento) | ✅ listo |
+| 2 | Migración: columna + backfill + índice único parcial + función `siguiente_numero_publico` | ✅ **escrita** en `migrations/numero_publico_reuniones.sql` — **NO aplicada**, espera aviso a Yesi + OK |
 | 3 | Fase 1 de pantallas/PDF + campo editable en `reuniones.html` | pendiente |
 | 4 | `reunion-json` (edge fn + `.mjs`) — **aparte**, con aviso previo a Diego | pendiente |
 | 5 | Fase 2 del barrido | pendiente |
 
 **La aplicación del backfill se coordina con Yesi.** Leo le avisa antes. Nada se ejecuta contra producción sin ese aviso más el OK explícito.
 
-El backfill se escribe como archivo versionado en `migrations/numero_publico_reuniones.sql`, idempotente, con verificación posterior que confirme que el 16/08 quedó en 7.
+El backfill vive en `migrations/numero_publico_reuniones.sql` — idempotente, envuelto en `BEGIN/COMMIT`, con cinco verificaciones posteriores (V1–V5) y un bloque de rollback comentado. V1 es la que importa: confirma que el 16/08 quedó en 7.
+
+Orden dentro de la migración: columna → backfill → índice → función. El índice va **después** del backfill a propósito, para que el UPDATE masivo no choque contra la unicidad en un estado intermedio.
