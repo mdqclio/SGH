@@ -148,6 +148,8 @@
       .pi-forfaits { margin-top: 3pt; padding: 2pt 4pt; border-top: 1px dashed #999; }
       .pi-forfaits-h { font-size: 6.5pt; font-weight: 700; color: #000; text-transform: uppercase; letter-spacing: 0.5pt; margin-bottom: 1pt; }
       .pi-forfait-row { font-size: 7.5pt; font-style: italic; color: #555; text-transform: uppercase; line-height: 1.3; }
+      .pi-borrado-tag { font-size: 6pt; font-style: normal; font-weight: 700; color: #777; letter-spacing: 0.3pt; margin-left: 3pt; }
+      .pi-especial { font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; }
       .pi-spc-name { font-size: 8pt; font-weight: 700; text-transform: uppercase; flex: 1; min-width: 0; white-space: nowrap; }
       .pi-h-sfx { font-size: 7pt; font-weight: 400; }
       .pi-nocert { font-size: 8pt; font-weight: 900; margin-left: 3px; flex-shrink: 0; }
@@ -299,37 +301,39 @@ async function printRatificados() {
       }));
   });
 
-  function buildCondAbr(car) {
-    const sexoMap = { machos: 'Cab', hembras: 'Yeg', machos_castrados: 'Cas', ambos: 'Todo caballo' };
-    const sexoAbr = sexoMap[car.condicion_sexo] || '';
-    const usaEspacios = sexoAbr.includes(' ');
-    const sep = usaEspacios ? ' ' : '.';
+  // Mismo criterio que printInscriptos en inscripciones.html (fix f1afd9b):
+  // el texto de condición se imprime completo, sin abreviar ni truncar.
+  const SEXO_TXT = { machos: 'Cab', hembras: 'Yeg', machos_castrados: 'Cas', ambos: 'Todo caballo' };
+  // El texto libre suele abrir nombrando el sexo, y puede no coincidir con
+  // condicion_sexo (R8 T12 es 'ambos' pero dice "Yeguas..."). Si ya lo trae,
+  // no se antepone el prefijo derivado.
+  const SEXO_EN_TEXTO_RE = /^(todos?\s+(los\s+)?caballos?|caballos?|yeguas?|castrados?|machos?|hembras?|potr[oa]s?|productos?)\b/i;
+
+  function buildCond(car) {
+    const sexoTxt = SEXO_TXT[car.condicion_sexo] || '';
+    let hc = (car.condicion_handicap || '').trim().replace(/\s*\.\s*$/, '');
+
+    // "Especial" se saca al frente como etiqueta; el resto queda como condición
+    let especial = false;
+    const mEsp = hc.match(/^especial(?:es)?\s*[:,-]?\s*/i);
+    if (mEsp) { especial = true; hc = hc.slice(mEsp[0].length).trim(); }
+
     const parts = [];
-    if (sexoAbr) parts.push(sexoAbr);
+    if (sexoTxt && !(hc && SEXO_EN_TEXTO_RE.test(hc))) parts.push(sexoTxt);
+    // Edad estructurada: sólo si el texto libre no la trae ya. En R8
+    // edad_minima_anos/edad_maxima_anos están todas en NULL, así que la edad
+    // sale del texto libre — por eso no se puede stripear.
     const emin = car.edad_minima_anos, emax = car.edad_maxima_anos;
-    if (emin && emax) {
-      parts.push(emin === emax
-        ? (usaEspacios ? `${emin} a` : `${emin}a`)
-        : (usaEspacios ? `${emin} - ${emax} a` : `${emin}-${emax}a`));
-    } else if (emin) {
-      parts.push(`${emin} y más a`);
+    if (!/\d\s*(a\b|años?\b)/i.test(hc)) {
+      if (emin && emax) parts.push(emin === emax ? `${emin} años` : `${emin} - ${emax} años`);
+      else if (emin) parts.push(`${emin} años y más`);
     }
-    let hc = (car.condicion_handicap || '').trim();
-    if (usaEspacios && hc) {
-      hc = hc.replace(/^todo\s+caballo\s+(de\s+)?/i, '').trim();
-      hc = hc.replace(/^\d+\s*(a|años?)\s*(y\s*\d+\s*(a|años?)?)?\s*/i, '').trim();
-    }
-    if (hc) {
-      const hcLow = hc.toLowerCase();
-      const condAbr = /\bperdedor(es)?\b/.test(hcLow) ? 'perd'
-        : /\bganadores? de 1 carrera\b/.test(hcLow) ? 'g.1c'
-        : /\bganadores? de 2 carreras\b/.test(hcLow) ? 'g.2c'
-        : hc.length > 18 ? hc.slice(0, 18) + '…' : hc;
-      parts.push(condAbr);
-    }
-    let result = parts.join(sep);
-    if (car.distancia_metros) result += (result ? ' ' : '') + `${car.distancia_metros} mts`;
-    return result;
+    if (hc) parts.push(hc); // texto completo: sin abreviar ni truncar
+
+    const distancia = car.distancia_metros ? `${car.distancia_metros} mts` : '';
+    let texto = parts.join(' ');
+    if (distancia) texto += (texto ? ' ' : '') + distancia;
+    return { texto, cond: parts.join(' '), distancia, especial };
   }
 
   function formatBolsa(num) {
@@ -344,12 +348,13 @@ async function printRatificados() {
     const esMixta = car.condicion_sexo === 'ambos';
     const { total: bolsaNominal } = repartoDisplay(car.bolsa_total, car.distribucion_premios);
     const bolsaStr = formatBolsa(bolsaNominal);
-    const condStr = buildCondAbr(car);
+    const { texto: condStr, especial } = buildCond(car);
+    const especialHtml = especial ? '<span class="pi-especial">ESPECIAL</span> ' : '';
     const esCesped = (car.tipo_pista || '').toLowerCase() === 'cesped';
     const numCarrera = car.numero_carrera_programa != null ? car.numero_carrera_programa : car.numero_turno;
     const horaHHMM = (car.hora_estimada || '').slice(0, 5);
-    const condContent = (condStr || esCesped)
-      ? `${condStr || ''}${esCesped ? `${condStr ? ' · ' : ''}<span class="pi-cesped-inline">CESPED</span>` : ''}`
+    const condContent = (condStr || especial || esCesped)
+      ? `${especialHtml}${condStr || ''}${esCesped ? `${condStr ? ' · ' : ''}<span class="pi-cesped-inline">CESPED</span>` : ''}`
       : '';
     const listaHtml = items.map(i => {
       const nombre = (i.spcs?.nombre || '—').toUpperCase();
@@ -383,10 +388,15 @@ async function printRatificados() {
     const footHtml = isAnulada
       ? ''
       : `<div class="pi-car-foot">${items.length}</div>`;
+    // Borrados = forfaits + mal inscriptos. Antes sólo se listaban los forfaits
+    // y los mal_inscrito desaparecían del PDF; ahora figuran en la misma
+    // sección, cada uno con su etiqueta.
+    const BORRADO_TAG = { forfait: 'FORFAIT', mal_inscrito: 'MAL INSCRIPTO' };
     const forfaitsHtml = (forfaits.length)
-      ? `<div class="pi-forfaits"><div class="pi-forfaits-h">FORFAITS</div>${forfaits.map(i => {
+      ? `<div class="pi-forfaits"><div class="pi-forfaits-h">BORRADOS</div>${forfaits.map(i => {
           const nombre = (i.spcs?.nombre || '—').toUpperCase();
-          return `<div class="pi-forfait-row">${nombre}</div>`;
+          const tag = BORRADO_TAG[i.estado] || (i.estado || '').toUpperCase().replace(/_/g, ' ');
+          return `<div class="pi-forfait-row">${nombre}<span class="pi-borrado-tag">${tag}</span></div>`;
         }).join('')}</div>`
       : '';
     return `<div class="pi-wrapper">
@@ -405,7 +415,13 @@ async function printRatificados() {
     const inscsCar = inscsByCarrera.get(car.id) || [];
     const esAnulada = car.estado === 'anulada' || car.estado === 'reabierta';
     const ratificados = inscsCar.filter(i => i.estado === 'ratificado');
-    const forfaits    = inscsCar.filter(i => i.estado === 'forfait');
+    // Borrados: forfait + mal_inscrito. El select ya los traía a ambos, pero
+    // el render sólo usaba los forfait — los mal inscriptos no salían en el PDF.
+    const ORDEN_BORRADO = { forfait: 0, mal_inscrito: 1 };
+    const forfaits    = inscsCar
+      .filter(i => i.estado === 'forfait' || i.estado === 'mal_inscrito')
+      .sort((a, b) => (ORDEN_BORRADO[a.estado] - ORDEN_BORRADO[b.estado])
+        || (a.spcs?.nombre || '').localeCompare(b.spcs?.nombre || '', 'es'));
     if (esAnulada) {
       const anotados = inscsCar.filter(i => i.estado === 'ratificado' || i.estado === 'inscripto');
       if (!anotados.length && !forfaits.length) return '';
