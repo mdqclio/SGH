@@ -37,7 +37,13 @@ BEGIN;
 -- ------------------------------------------------------------
 INSERT INTO caballerizas (club_id, nombre, hipodromo_patente, estado, activo)
 SELECT '0649e9c5-9e87-4aad-842f-101458e6b33c'::uuid, v.nombre, v.patente, 'activo', true
-FROM (VALUES ('LA CALIFORNIA', 'DOL')) AS v(nombre, patente)
+FROM (VALUES
+  ('LA CALIFORNIA', 'DOL'),
+  -- 5 ESTRELLAS: stud de CURIOSA GO ON, GRAND FITO y LA DE ETIQUETA.
+  -- Se escapó del cruce original porque arranca con número y las sondas
+  -- por texto no lo levantaron. Verificado: caballerizas ~* 'ESTRELLA' -> 0 filas.
+  ('5 ESTRELLAS',   'DOL')
+) AS v(nombre, patente)
 WHERE NOT EXISTS (
   SELECT 1 FROM caballerizas c
   WHERE regexp_replace(upper(translate(c.nombre,'ÁÉÍÓÚÑÜáéíóúñü','AEIOUNUAEIOUNU')),'[^A-Z0-9]','','g')
