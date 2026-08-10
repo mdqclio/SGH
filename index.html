@@ -232,8 +232,8 @@ async function loadDashboard() {
       const [reuns, entrenadores, jockeys, cabs, sancs] = await Promise.all([
         sb.from('reuniones').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID)
           .gte('fecha', `${currentYear}-01-01`).lt('fecha', `${currentYear + 1}-01-01`),
-        sb.from('profesionales').select('id', { count: 'exact', head: true }).eq('tipo', 'entrenador').eq('activo', true),
-        sb.from('profesionales').select('id', { count: 'exact', head: true }).eq('tipo', 'jockey').eq('activo', true),
+        sb.from('profesionales').select('id', { count: 'exact', head: true }).in('tipo', ['entrenador', 'ambos']).eq('activo', true),
+        sb.from('profesionales').select('id', { count: 'exact', head: true }).in('tipo', ['jockey', 'ambos']).eq('activo', true),
         sb.from('caballerizas').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('activo', true),
         sb.from('sanciones').select('id', { count: 'exact', head: true }).eq('club_id', CLUB_ID).eq('estado', 'activa'),
       ]);

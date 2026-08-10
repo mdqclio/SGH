@@ -253,10 +253,10 @@ async function load() {
   document.getElementById('list-container').innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando sanciones…</div>';
   const [{ data: sancs }, { data: jocks }, { data: spcs }, { data: cabs }, { data: profs }] = await Promise.all([
     sb.from('sanciones').select('*').order('fecha_inicio', {ascending: false}),
-    sb.from('profesionales').select('id,nombre,apellido').eq('club_id', CLUB_ID).eq('tipo','jockey').order('apellido'),
+    sb.from('profesionales').select('id,nombre,apellido').eq('club_id', CLUB_ID).in('tipo', ['jockey', 'ambos']).order('apellido'),
     sb.from('spcs').select('id,nombre').order('nombre'),
     sb.from('caballerizas').select('id,nombre').eq('club_id', CLUB_ID).order('nombre'),
-    sb.from('profesionales').select('id,nombre,apellido').eq('club_id', CLUB_ID).eq('tipo','entrenador').order('apellido'),
+    sb.from('profesionales').select('id,nombre,apellido').eq('club_id', CLUB_ID).in('tipo', ['entrenador', 'ambos']).order('apellido'),
   ]);
   allData = sancs||[];
   entityCache.jockey = (jocks||[]).map(p=>({id:p.id,nombre:`${p.apellido}, ${p.nombre}`}));

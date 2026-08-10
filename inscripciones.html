@@ -340,13 +340,15 @@ function toast(msg, type='success') {
 async function loadAll() {
   const [{ data: reuns }, { data: jocksData }, { data: entrData }, { data: sprcs }, { data: cabs }] = await Promise.all([
     sb.from('reuniones').select('id,numero,fecha,estado,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
-    sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID).eq('tipo', 'jockey').eq('activo', true).order('apellido'),
-    sb.from('profesionales').select('id,nombre,apellido,tipo').eq('tipo', 'entrenador').eq('activo', true).order('apellido'),
+    sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID).in('tipo', ['jockey', 'ambos']).eq('activo', true).order('apellido'),
+    sb.from('profesionales').select('id,nombre,apellido,tipo').in('tipo', ['entrenador', 'ambos']).eq('activo', true).order('apellido'),
     sb.from('spcs').select('id,nombre,caballeriza_id,entrenador_id,sexo,estado').eq('estado', 'activo').order('nombre'),
     sb.from('caballerizas').select('id,nombre,responsable,hipodromo_patente').eq('club_id', CLUB_ID).eq('activo', true).order('nombre'),
   ]);
   reuniones = reuns||[];
-  profesionales = [...(jocksData||[]), ...(entrData||[])];
+  // Un tipo 'ambos' viene en las dos queries: deduplicar por id para no
+  // repetir la misma persona en los selects.
+  profesionales = [...new Map([...(jocksData||[]), ...(entrData||[])].map(p => [p.id, p])).values()];
   spcs = sprcs||[];
   caballerizas = cabs||[];
 

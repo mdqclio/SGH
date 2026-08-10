@@ -804,7 +804,7 @@ function recalcJockeyColisiones(carreraId) {
 }
 
 function buildJockeySelect(i, carCerrada) {
-  const jockeys = profesionales.filter(p => p.tipo === 'jockey');
+  const jockeys = profesionales.filter(p => p.tipo === 'jockey' || p.tipo === 'ambos');
   const supl = i.jockey_suplente_id ? profesionales.find(p => p.id === i.jockey_suplente_id) : null;
   let opts = '';
   if (supl) {

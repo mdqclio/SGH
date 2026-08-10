@@ -312,9 +312,9 @@ async function load() {
   const [{ data: spcs, error }, { data: cabs }, { data: jocksData }, { data: props }, { data: entrData }] = await Promise.all([
     sb.from('spcs').select('*').order('nombre'),
     sb.from('caballerizas').select('id,nombre').eq('club_id', CLUB_ID).eq('activo', true).order('nombre'),
-    sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID).eq('tipo', 'jockey').eq('activo', true).order('apellido'),
+    sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID).in('tipo', ['jockey', 'ambos']).eq('activo', true).order('apellido'),
     sb.from('propietarios').select('id,nombre,tipo').eq('activo', true).order('nombre'),
-    sb.from('profesionales').select('id,nombre,apellido,tipo').eq('tipo', 'entrenador').eq('activo', true).order('apellido'),
+    sb.from('profesionales').select('id,nombre,apellido,tipo').in('tipo', ['entrenador', 'ambos']).eq('activo', true).order('apellido'),
   ]);
   if (error) { toast(error.message, 'error'); return; }
   allData = spcs || [];
