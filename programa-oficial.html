@@ -72,6 +72,12 @@
     table.inscriptos { font-size: 8.5px; }
     table.inscriptos thead th { font-size: 8.5px; letter-spacing: 0.2px; }
     table.inscriptos tbody td { padding: 2px 3px; }
+    /* PADRE — MADRE es la columna más ancha y la que sigue envolviendo con jockey y
+       entrenador ya entrando: nombres como "LA DAMA ALADA", "SUNNY MAD", "GRAND ARMEE"
+       o "MATRERA SKY" partían en dos. Va 1pt por debajo del resto de la tabla
+       (8.5px → 7.5px). Es el dato menos crítico del programa, así que tolera el cuerpo
+       menor, y libera ancho para las columnas que sí tienen que entrar enteras. */
+    table.inscriptos .col-pedigree { font-size: 7.5px; }
   }
   .banner-proxima { background:#000; color:#fff; text-align:center; padding:14px; font-size:18px; font-weight:700; margin:24px 0 16px; letter-spacing:1px; page-break-inside:avoid; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   .sponsors-band { border-top:2px solid #000; border-bottom:2px solid #000; padding:14px 0; margin:20px 0; page-break-inside:avoid; }
