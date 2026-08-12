@@ -350,7 +350,7 @@ function toast(msg, type='success') {
 
 async function loadAll() {
   const [{ data: reuns }, { data: jocksData }, { data: entrData }, { data: sprcs }, { data: cabs }] = await Promise.all([
-    sb.from('reuniones').select('id,numero,fecha,estado,sorteo_partidores,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
+    sb.from('reuniones').select('id,numero,numero_publico,fecha,estado,sorteo_partidores,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
     sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID).in('tipo', ['jockey', 'ambos']).eq('activo', true).order('apellido'),
     sb.from('profesionales').select('id,nombre,apellido,tipo').in('tipo', ['entrenador', 'ambos']).eq('activo', true).order('apellido'),
     sb.from('spcs').select('id,nombre,caballeriza_id,entrenador_id,sexo,estado').eq('estado', 'activo').order('nombre'),
@@ -917,7 +917,7 @@ async function printInscriptos() {
   document.getElementById('print-only').innerHTML = `
     <div class="pi-header">
       <div class="pi-title">INSCRIPTOS</div>
-      <div class="pi-sub">HIPÓDROMO DE ${hipNombre} — REUNIÓN N° ${reunion?.numero || '—'} DEL DÍA ${fechaStr}</div>
+      <div class="pi-sub">HIPÓDROMO DE ${hipNombre} — REUNIÓN N° ${reunion?.numero_publico ?? reunion?.numero ?? '—'} DEL DÍA ${fechaStr}</div>
     </div>
     <div class="pi-cols">${bloquesHtml}</div>
     ${matrizHtml}

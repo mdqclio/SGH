@@ -88,7 +88,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // 3) Reunión Dolores en esa fecha → 404 limpio si no hay.
     const { data: reunion, error: eR } = await db
       .from('reuniones')
-      .select('id, fecha, hipodromo_id, numero, estado')
+      // Contrato ADITIVO: numero_publico se suma, numero NO se saca. La
+      // integracion de Diego sigue andando sin tocar nada; cuando quiera
+      // migrar al numero publico, el campo ya esta.
+      .select('id, fecha, hipodromo_id, numero, numero_publico, estado')
       .eq('club_id', CLUB_ID_DOLORES)
       .eq('fecha', fecha)
       .maybeSingle();

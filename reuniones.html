@@ -184,8 +184,13 @@
           <input type="date" id="f-fecha" required>
         </div>
         <div class="form-group">
-          <label>Número</label>
+          <label>Número interno</label>
           <input type="number" id="f-numero" min="1" placeholder="Nro de reunión">
+        </div>
+        <div class="form-group">
+          <label>Número público</label>
+          <input type="number" id="f-numero-publico" min="1" placeholder="Se propone solo">
+          <span style="display:block;margin-top:4px;font-size:12px;color:var(--muted);">El que sale en programas, PDFs y portal. El sistema propone el siguiente; podés pisarlo. Las suspendidas y canceladas no llevan número: dejalo vacío.</span>
         </div>
         <div class="form-group">
           <label>Hora cierre ratificación</label>
@@ -328,7 +333,16 @@ function renderList(data) {
       <div class="divider"></div>
       <div class="reunion-info">
         <div class="reunion-title">
-          ${r.numero ? `Reunión N° ${r.numero} — ` : ''}${hip?.nombre || 'Hipódromo desconocido'}
+          ${(() => {
+            // Manda el número público; el interno queda al lado, chico, sólo si
+            // difiere — la secretaría necesita seguir ubicando la fila por su
+            // identidad técnica sin que el listado contradiga al programa impreso.
+            const pub = r.numero_publico ?? r.numero;
+            if (!pub) return '';
+            const int = (r.numero != null && r.numero !== pub)
+              ? `<span style="font-weight:400;color:var(--muted);font-size:12px;"> (int. ${r.numero})</span>` : '';
+            return `Reunión N° ${pub}${int} — `;
+          })()}${hip?.nombre || 'Hipódromo desconocido'}
           ${isActive ? '<span class="badge-activa">ACTIVA</span>' : ''}
         </div>
         <div class="reunion-sub">${hip?.sigla ? `(${hip.sigla})` : ''} ${r.tiempo_clima ? `• ${r.tiempo_clima}` : ''}</div>
@@ -379,9 +393,24 @@ function openModal(rec=null) {
   document.getElementById('f-fechas-forfaits').value      = rec?.fechas_forfaits || '';
   document.getElementById('f-fechas-compromiso').value    = rec?.fechas_compromiso_montas || '';
   document.getElementById('f-sorteo-partidores').value    = rec?.sorteo_partidores || '';
+  document.getElementById('f-numero-publico').value       = rec?.numero_publico ?? '';
+  if (!rec?.id) proponerNumeroPublico();
   document.getElementById('modal').classList.add('open');
 }
 
+
+// El default del número público vive en una sola definición: la función SQL
+// siguiente_numero_publico. La pantalla sólo PROPONE — nunca pisa un valor ya
+// cargado, y el usuario puede sobrescribir lo propuesto antes de guardar.
+async function proponerNumeroPublico() {
+  const inp = document.getElementById('f-numero-publico');
+  const fecha = document.getElementById('f-fecha').value;
+  if (!fecha || inp.value) return;
+  const { data, error } = await sb.rpc('siguiente_numero_publico', { p_club_id: CLUB_ID, p_fecha: fecha });
+  if (error) { console.error('[siguiente_numero_publico]', error); return; }
+  if (data != null) inp.value = data;
+}
+document.getElementById('f-fecha').addEventListener('change', proponerNumeroPublico);
 
 function closeModal() { document.getElementById('modal').classList.remove('open'); }
 
@@ -397,6 +426,7 @@ async function saveRecord() {
     hipodromo_id: hipId,
     fecha,
     numero: document.getElementById('f-numero').value ? parseInt(document.getElementById('f-numero').value) : null,
+    numero_publico: document.getElementById('f-numero-publico').value ? parseInt(document.getElementById('f-numero-publico').value) : null,
     tipo: document.getElementById('f-tipo-r').value,
     hora_cierre_ratificacion: document.getElementById('f-hora-cierre-rat').value || null,
     tiempo_clima: document.getElementById('f-clima').value.trim() || null,
@@ -413,7 +443,15 @@ async function saveRecord() {
     ? await sb.from('reuniones').update(payload).eq('id',id)
     : await sb.from('reuniones').insert(payload);
   btn.disabled=false; btn.textContent='Guardar';
-  if (error) { toast(error.message,'error'); return; }
+  if (error) {
+    // El índice único parcial es la garantía real de que no haya dos reuniones
+    // con el mismo número público en el mismo club y año. La pantalla sólo
+    // traduce el 23505 a algo legible.
+    const msg = error.code === '23505' && /numero_publico/.test(error.message || '')
+      ? 'Ya hay otra reunión de este año con ese número público. Elegí otro.'
+      : error.message;
+    toast(msg,'error'); return;
+  }
   toast(id ? 'Reunión actualizada' : 'Reunión creada');
   closeModal();
   load();

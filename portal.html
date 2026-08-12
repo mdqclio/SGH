@@ -517,7 +517,7 @@ async function loadCarta() {
   const cont = document.getElementById('carta-container');
   cont.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando reuniones…</div>';
   const { data: reuns, error } = await sb.from('reuniones')
-    .select('id,numero,fecha,estado,hipodromos(nombre),carreras(id,numero_turno,nombre,distancia_metros,condicion_sexo,condicion_edad,bolsa_total,cupo_maximo,tipo_pista)')
+    .select('id,numero,numero_publico,fecha,estado,hipodromos(nombre),carreras(id,numero_turno,nombre,distancia_metros,condicion_sexo,condicion_edad,bolsa_total,cupo_maximo,tipo_pista)')
     .in('estado', ['publicada', 'abierta'])
     .order('fecha', { ascending: true });
   if (error) { toast(error.message, 'error'); return; }
@@ -547,7 +547,7 @@ async function loadCarta() {
       </div>`).join('');
     return `<div class="reunion-block">
       <div class="reunion-header">
-        <h3>Reunión ${r.numero||''} — ${r.hipodromos?.nombre||'—'}</h3>
+        <h3>Reunión ${r.numero_publico ?? r.numero ?? ''} — ${r.hipodromos?.nombre||'—'}</h3>
         <span class="reunion-fecha">${fecha}</span>
       </div>
       ${carrerasHtml}
@@ -643,7 +643,7 @@ async function loadMisInscripciones() {
     return;
   }
   const { data, error } = await sb.from('inscripciones')
-    .select('id,estado,spc_id,carrera_id,carreras(numero_turno,nombre,distancia_metros,reunion_id,reuniones(numero,fecha,hipodromos(nombre)))')
+    .select('id,estado,spc_id,carrera_id,carreras(numero_turno,nombre,distancia_metros,reunion_id,reuniones(numero,numero_publico,fecha,hipodromos(nombre)))')
     .in('spc_id', spcIds)
     .in('estado', ['inscripto','ratificado','forfait'])
     .order('created_at', { ascending: false });
@@ -664,7 +664,7 @@ async function loadMisInscripciones() {
     return `<tr>
       <td style="font-weight:600;color:var(--accent);font-family:'Playfair Display',serif;">${spc?.nombre || i.spc_id}</td>
       <td>${reun?.hipodromos?.nombre || '—'}</td>
-      <td>Reunión ${reun?.numero || ''} — ${fecha}</td>
+      <td>Reunión ${reun?.numero_publico ?? reun?.numero ?? ''} — ${fecha}</td>
       <td>Carrera ${car?.numero_turno || '—'}</td>
       <td><span class="badge ${estadoBadge[i.estado] || ''}">${i.estado?.replace('_', ' ') || '—'}</span></td>
       <td>${i.estado !== 'forfait' && i.estado !== 'ratificado' ? `<button class="btn-sm btn-danger" onclick="darForfait('${i.id}')">Forfait</button>` : '—'}</td>

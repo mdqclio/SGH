@@ -3,7 +3,15 @@
 **Branch**: `feat/numero-publico-reuniones`
 **Fecha**: 2026-08-10
 **Pedido**: Yesi — el programa del domingo 16/08 debe decir "Reunión N° 7", no 8. La reunión del 19/07 no se corrió y no debe consumir número público.
-**Estado**: DISEÑO — nada aplicado a DB ni a prod.
+**Estado**: gate 2 ✅ aplicado · gate 3 ✅ desplegado · gates 4 y 5 pendientes.
+
+> **Revalidación del 12/08** (pasaron performances, sorteo de partidores y los backfills de caballerizas):
+> el dry-run del backfill dio **idéntico** a la tabla de §1 — 14 reuniones, mismos estados, **16/08 → 7**.
+> `spcs` = 183 (179 + las 4 altas de la tanda 5 punto 5). La migración seguía válida sin cambios.
+>
+> **Post-aplicación**: 12 reuniones con número público, 2 en NULL (la cancelada del 19/07 y la de prueba 9999),
+> 0 duplicados, los 14 números internos intactos. `siguiente_numero_publico` devuelve 7 para el 16/08/2026
+> y 1 para una fecha de 2027 (la secuencia reinicia por año, como se diseñó).
 
 ---
 
@@ -188,10 +196,32 @@ Salidas de cara al público. Todas pasan a `numero_publico`, con fallback `numer
 | Gate | Contenido | Estado |
 |---|---|---|
 | 1 | Diseño (este documento) | ✅ listo |
-| 2 | Migración: columna + backfill + índice único parcial + función `siguiente_numero_publico` | ✅ **escrita** en `migrations/numero_publico_reuniones.sql` — **NO aplicada**, espera aviso a Yesi + OK |
-| 3 | Fase 1 de pantallas/PDF + campo editable en `reuniones.html` | pendiente |
-| 4 | `reunion-json` (edge fn + `.mjs`) — **aparte**, con aviso previo a Diego | pendiente |
-| 5 | Fase 2 del barrido | pendiente |
+| 2 | Migración: columna + backfill + índice único parcial + función `siguiente_numero_publico` | ✅ **aplicada** el 12/08 |
+| 3 | Fase 1 de pantallas/PDF + campo editable en `reuniones.html` + portal | ✅ **desplegada** el 12/08 |
+| 4 | `reunion-json` (edge fn + `.mjs`) — **aparte**, con aviso previo a Diego | **escrito, sin deploy** — espera el mail a Diego |
+| 5 | Fase 2 del barrido (`programa.html`, `calendario.html`, selectores de secretaría, resoluciones) | pendiente |
+
+### Qué entró en el gate 3
+
+Todo con fallback `numero_publico ?? numero`, así que ninguna reunión vieja queda sin número.
+
+| Archivo | Qué cambió |
+|---|---|
+| `inscripciones.html` | sub-header del PDF + `numero_publico` en el select (tenía lista explícita de columnas) |
+| `ratificacion.html` | ídem |
+| `programa-oficial.html` | título de reunión + nombre del archivo |
+| `programa-oficial-color.html` | bandera de tapa + nombre del archivo |
+| `carta-llamados.html` | nombre del archivo, topbar y encabezado del documento |
+| `portal.html` | header de reunión en la carta + tabla de inscripciones (2 selects ampliados) |
+| `reuniones.html` | campo **Número público** editable, propuesta por RPC, listado y traducción del 23505 |
+
+**Listado de reuniones**: manda el público; el interno aparece al lado en gris chico (`Reunión N° 7 (int. 8)`) **sólo cuando difieren**. Es la propuesta conservadora de §6 — la secretaría sigue ubicando la fila por su identidad técnica sin que la pantalla contradiga al programa impreso.
+
+**La propuesta del default** se hace por RPC a `siguiente_numero_publico` cuando cambia la fecha o se abre el alta, y **sólo si el campo está vacío**: nunca pisa lo que ya está cargado, y lo propuesto se puede sobrescribir antes de guardar. Una sola definición de la regla, como se decidió en §3.
+
+**El 23505 del índice único** se traduce a *"Ya hay otra reunión de este año con ese número público. Elegí otro."* La garantía sigue viviendo en la base; la pantalla sólo lo hace legible.
+
+`proxRe` (banner de próxima reunión, en los dos programas oficiales) trae `numero` pero **no lo renderiza** — sólo muestra la fecha. No hizo falta tocarlo.
 
 **La aplicación del backfill se coordina con Yesi.** Leo le avisa antes. Nada se ejecuta contra producción sin ese aviso más el OK explícito.
 

@@ -4,7 +4,19 @@
 -- Branch: feat/numero-publico-reuniones
 -- Diseño: docs/NUMERO_PUBLICO_REUNIONES.md
 --
--- NO APLICADA. Requiere aviso previo a Yesi + OK de Leo.
+-- ✅ APLICADA el 12/08/2026 por MCP, en el mismo orden que el archivo
+--    (columna -> backfill -> índice -> función). Revalidada antes de aplicar:
+--    el dry-run del backfill dio idéntico al diseño pese a los cambios de los
+--    últimos días (performances, sorteo de partidores, backfill de caballerizas).
+--
+--    Verificación post-aplicación:
+--      reunión del 16/08 -> numero_publico = 7          ✅ (V1, la que importa)
+--      reuniones con número público .............. 12
+--      reuniones en NULL .......................... 2   (cancelada 19/07 + prueba 9999)
+--      duplicados (club, año, numero_publico) ..... 0
+--      números internos intactos ................. 14
+--      siguiente_numero_publico(DOL, 2026-08-16) .. 7
+--      siguiente_numero_publico(DOL, 2027-01-10) .. 1   (reinicia por año)
 --
 -- Idempotente: se puede correr más de una vez sin efectos extra.
 -- Verificado contra PostgreSQL 17.6 (Supabase).

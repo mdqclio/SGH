@@ -57,7 +57,9 @@ async function main() {
   // 1) Reunión + hipódromo
   const { data: reunion, error: eR } = await db
     .from('reuniones')
-    .select('id, fecha, hipodromo_id, numero, estado')
+    // Contrato ADITIVO: numero_publico se suma, numero NO se saca. Espejo
+    // exacto del select de supabase/functions/reunion-json/index.ts.
+    .select('id, fecha, hipodromo_id, numero, numero_publico, estado')
     .eq('id', reunionId)
     .single();
   if (eR) die('reunion', eR);

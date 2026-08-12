@@ -427,7 +427,7 @@ function render(reunion, club, carreras, insByCarrera, maps, proximaReunion) {
         <div class="tapa-bandera-anio">${anio}</div>
         <div class="tapa-bandera-dow">${diaNom}</div>
         <div class="tapa-bandera-fecha">${fechaCorta}</div>
-        <div class="tapa-bandera-reun">Reunión N°${reunion.numero || ''}</div>
+        <div class="tapa-bandera-reun">Reunión N°${reunion.numero_publico ?? reunion.numero ?? ''}</div>
       </div>
     </div>
 
@@ -528,7 +528,7 @@ function render(reunion, club, carreras, insByCarrera, maps, proximaReunion) {
 
   document.getElementById('programa-page').innerHTML =
     tapaHtml + `<section>` + carrerasHtml + proximaHtml + sponsorsHtml + sdHtml + finalHtml + flyerHtml + `</section>`;
-  document.title = `Programa-Oficial-Color-Reunion-${reunion.numero || ''}-${reunion.fecha || ''}`;
+  document.title = `Programa-Oficial-Color-Reunion-${reunion.numero_publico ?? reunion.numero ?? ''}-${reunion.fecha || ''}`;
 }
 
 function formatApuestasText(c) {
