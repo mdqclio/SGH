@@ -161,6 +161,12 @@
       .pi-matriz-tbl th { border: 1px solid #000; padding: 2pt; text-align: center; font-weight: 900; background: #e8e8e8; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .pi-matriz-tbl td { border: 1px solid #000; padding: 2pt; text-align: center; }
       /* Footer del documento */
+      /* Caja de sorteo: una sola linea, la minima altura posible. Estos PDFs
+         entran justos en una pagina, asi que si hay que ganar espacio se
+         achica esto antes que cualquier otra cosa del documento. */
+      .pi-sorteo { margin-top: 6pt; padding: 2.5pt 4pt; border: 1px solid #000; break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid; }
+      .pi-sorteo-h { font-size: 6pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8pt; margin-bottom: 1pt; }
+      .pi-sorteo-body { font-size: 6.5pt; line-height: 1.25; white-space: pre-wrap; font-variant-numeric: tabular-nums; }
       .pi-footer { margin-top: 8px; border-top: 2px solid #000; padding-top: 4px; font-size: 7pt; display: flex; justify-content: space-between; align-items: flex-end; }
       /* Las dos patas del footer apilan con block + margin, no con flex gap.
          El gap de flexbox recién existe en WebKit 14.1+ y el motor de impresión
@@ -277,6 +283,11 @@
             <label for="f-certificado">Certificado de correr ✓</label>
           </div>
         </div>
+        <div class="section-lbl">Programa</div>
+        <div class="form-group full">
+          <label>4 últimas performances</label>
+          <input type="text" id="f-performance" placeholder="Ej: 9S0L0S — o DEBUTA si no corrió nunca">
+        </div>
         <div class="section-lbl">Estado</div>
         <div class="form-group full">
           <label>Estado de inscripción</label>
@@ -339,7 +350,7 @@ function toast(msg, type='success') {
 
 async function loadAll() {
   const [{ data: reuns }, { data: jocksData }, { data: entrData }, { data: sprcs }, { data: cabs }] = await Promise.all([
-    sb.from('reuniones').select('id,numero,fecha,estado,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
+    sb.from('reuniones').select('id,numero,fecha,estado,sorteo_partidores,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
     sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID).in('tipo', ['jockey', 'ambos']).eq('activo', true).order('apellido'),
     sb.from('profesionales').select('id,nombre,apellido,tipo').in('tipo', ['entrenador', 'ambos']).eq('activo', true).order('apellido'),
     sb.from('spcs').select('id,nombre,caballeriza_id,entrenador_id,sexo,estado').eq('estado', 'activo').order('nombre'),
@@ -632,6 +643,7 @@ function openModal(rec=null) {
     document.getElementById('f-capataz').value = rec.capataz||'';
     document.getElementById('f-sereno').value = rec.sereno||'';
     document.getElementById('f-certificado').checked = !!rec.certificado_correr;
+    document.getElementById('f-performance').value = rec.performance||'';
     document.getElementById('f-estado').value = rec.estado||'inscripto';
     document.getElementById('f-motivo-forfait').value = rec.motivo_estado||'';
     document.getElementById('f-info').value = rec.info_adicional||'';
@@ -648,6 +660,7 @@ function openModal(rec=null) {
     document.getElementById('f-capataz').value='';
     document.getElementById('f-sereno').value='';
     document.getElementById('f-certificado').checked=false;
+    document.getElementById('f-performance').value='';
     document.getElementById('f-estado').value='inscripto';
     document.getElementById('f-motivo-forfait').value='';
     document.getElementById('f-info').value='';
@@ -678,6 +691,9 @@ async function saveRecord() {
     capataz: document.getElementById('f-capataz').value.trim() || null,
     sereno: document.getElementById('f-sereno').value.trim() || null,
     certificado_correr: document.getElementById('f-certificado').checked,
+    // Se guarda en mayúsculas: el programa lo imprime tal cual, y "DEBUTA"
+    // es un valor válido que tiene que salir uniforme con los códigos.
+    performance: document.getElementById('f-performance').value.trim().toUpperCase() || null,
     estado: document.getElementById('f-estado').value,
     motivo_estado: document.getElementById('f-motivo-forfait').value.trim() || null,
     info_adicional: document.getElementById('f-info').value.trim() || null,
@@ -889,6 +905,15 @@ async function printInscriptos() {
   const logoHtml = clubData?.logo_url
     ? `<img src="${clubData.logo_url}" class="pi-footer-logo" alt="">` : '';
 
+  // Sorteo y orden de partidores: texto libre de la reunion, se imprime tal
+  // cual. Vacio -> no se dibuja la caja (nada de cajas huerfanas).
+  const sorteoTxt = (reunion?.sorteo_partidores || '').trim();
+  const sorteoHtml = sorteoTxt
+    ? `<div class="pi-sorteo">
+      <div class="pi-sorteo-h">Sorteo y orden de partidores</div>
+      <div class="pi-sorteo-body">${sorteoTxt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+    </div>` : '';
+
   document.getElementById('print-only').innerHTML = `
     <div class="pi-header">
       <div class="pi-title">INSCRIPTOS</div>
@@ -896,6 +921,7 @@ async function printInscriptos() {
     </div>
     <div class="pi-cols">${bloquesHtml}</div>
     ${matrizHtml}
+    ${sorteoHtml}
     <div class="pi-footer">
       <div class="pi-footer-left">
         <span><strong>H</strong> = Hembra (en carrera mixta)</span>
