@@ -117,10 +117,12 @@ console.log(`R8 — ${carreras.length} carreras en el programa, ${cards.length} 
 
 console.log('T1 — las 3 especiales que cargó Fede, con numeración pública');
 const esperado = [
-  // Fede las cargó en los turnos 12 / 10 / 3, que renumerados son 2 / 5 / 7
-  { num: '2', tipo: 'Triplo Incial', desde: 'Carreras 2 · 3 · 4',     pozo: 'POZO ASEGURADO $45.000', base: 'Base $200' },
-  { num: '5', tipo: 'Cuaterna',      desde: 'Carreras 5 · 6 · 7 · 8', pozo: 'POZO ASEGURADO $75.000', base: 'Base $200' },
-  { num: '7', tipo: 'Doble final',   desde: 'Carreras 7 · 8',         pozo: 'POZO ASEGURADO $25.000', base: 'Base $200' },
+  // Fede las cargó en los turnos 12 / 10 / 3, que renumerados son 2 / 5 / 7.
+  // Los nombres se corrigieron en migrations/r8_apuestas_nombres.sql: el typo del Triplo
+  // y la Cuaterna, que estaba sin nombre e imprimía sólo "Cuaterna".
+  { num: '2', tipo: 'Triplo Inicial', desde: 'Carreras 2 · 3 · 4',     pozo: 'POZO ASEGURADO $45.000', base: 'Base $200' },
+  { num: '5', tipo: 'Cuaterna Final', desde: 'Carreras 5 · 6 · 7 · 8', pozo: 'POZO ASEGURADO $75.000', base: 'Base $200' },
+  { num: '7', tipo: 'Doble final',    desde: 'Carreras 7 · 8',         pozo: 'POZO ASEGURADO $25.000', base: 'Base $200' },
 ];
 eq(cards.length, 3, 'cantidad de tarjetas');
 esperado.forEach((e, i) => {
