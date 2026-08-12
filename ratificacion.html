@@ -456,7 +456,7 @@ async function printRatificados() {
   document.getElementById('print-only').innerHTML = `
     <div class="pi-header">
       <div class="pi-title">RATIFICADOS</div>
-      <div class="pi-sub">HIPÓDROMO DE ${hipNombre} — REUNIÓN N° ${reunion?.numero || '—'} DEL DÍA ${fechaStr}</div>
+      <div class="pi-sub">HIPÓDROMO DE ${hipNombre} — REUNIÓN N° ${reunion?.numero_publico ?? reunion?.numero ?? '—'} DEL DÍA ${fechaStr}</div>
     </div>
     <div class="pi-cols">${bloquesHtml}</div>
     ${reunion?.observaciones ? `<div class="pi-observaciones">${(reunion.observaciones+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>` : ''}
@@ -509,7 +509,7 @@ async function updatePeso(inscId, value) {
 
 async function init() {
   const [{ data: reuns }, { data: profs }, { data: sprcs }, { data: cabs }, { data: cats }] = await Promise.all([
-    sb.from('reuniones').select('id,numero,fecha,estado,hora_cierre_ratificacion,observaciones,sorteo_partidores,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
+    sb.from('reuniones').select('id,numero,numero_publico,fecha,estado,hora_cierre_ratificacion,observaciones,sorteo_partidores,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
     sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID).eq('activo', true).order('apellido'),
     sb.from('spcs').select('id,nombre').order('nombre'),
     sb.from('caballerizas').select('id,nombre').eq('club_id', CLUB_ID).eq('activo', true).order('nombre'),

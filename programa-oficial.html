@@ -227,7 +227,7 @@ function render(reunion, club, carreras, insByCarrera, maps, proximaReunion) {
         <div class="nombre-hipodromo">${reunion.hipodromos?.nombre || club?.nombre || ''}</div>
       </div>
     </div>
-    <div class="programa-reunion-titulo">Reunión N° ${reunion.numero || ''} — ${fechaStr}</div>
+    <div class="programa-reunion-titulo">Reunión N° ${reunion.numero_publico ?? reunion.numero ?? ''} — ${fechaStr}</div>
 
     ${carreras.map(c => renderCarrera(c, insByCarrera[c.id] || [], spcMap, profMap, propMap, cabMap, catMap)).join('')}
 
@@ -295,7 +295,7 @@ function render(reunion, club, carreras, insByCarrera, maps, proximaReunion) {
     </div>
   `;
   document.getElementById('programa-page').innerHTML = html;
-  document.title = `Programa-Oficial-Reunion-${reunion.numero || ''}-${reunion.fecha || ''}`;
+  document.title = `Programa-Oficial-Reunion-${reunion.numero_publico ?? reunion.numero ?? ''}-${reunion.fecha || ''}`;
 }
 
 function formatApuestasText(c) {

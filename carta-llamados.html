@@ -430,7 +430,7 @@ function _prepararTituloCarta() {
     const dia = f.getDate();
     const mes = MESES[f.getMonth()];
     const anio = f.getFullYear();
-    const num = reunion.numero || '';
+    const num = reunion.numero_publico ?? reunion.numero ?? '';
     document.title = `Carta-de-Llamado${num?'-Reunion-'+num:''}-${dia}-${mes}-${anio}`;
   }
   window.addEventListener('afterprint', () => { document.title = _origTitle; }, { once: true });
@@ -592,7 +592,7 @@ async function load() {
 function renderHeader() {
   if (!reunion) return;
   const hip = reunion.hipodromos;
-  document.getElementById('topbar-title').textContent = `Carta de Llamados — Reunión ${reunion.numero||''}`;
+  document.getElementById('topbar-title').textContent = `Carta de Llamados — Reunión ${reunion.numero_publico ?? reunion.numero ?? ''}`;
   document.title = `Carta de Llamados — SGH`;
   document.getElementById('reunion-info').innerHTML = `
     <div class="info-item"><div class="info-label">Fecha</div><div class="info-val">${fmtDate(reunion.fecha)}</div></div>
@@ -756,7 +756,7 @@ function renderPrint() {
     ${logoHtml}
     <div class="p-doc-title">
       <h1>Carta de Llamado</h1>
-      <p>Reunión N° ${reunion.numero||'—'} &mdash; ${hip?.nombre||'—'}${hip?.sigla?` (${hip.sigla})`:''}${hip?.localidad?` &mdash; ${hip.localidad}`:''}${condPista?` &mdash; Pista: ${condPista}`:''}</p>
+      <p>Reunión N° ${reunion.numero_publico ?? reunion.numero ?? '—'} &mdash; ${hip?.nombre||'—'}${hip?.sigla?` (${hip.sigla})`:''}${hip?.localidad?` &mdash; ${hip.localidad}`:''}${condPista?` &mdash; Pista: ${condPista}`:''}</p>
     </div>
     <div class="p-doc-fecha">
       <div class="p-fecha-dow">${DIAS[f.getDay()]}</div>
