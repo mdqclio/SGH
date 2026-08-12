@@ -1,0 +1,97 @@
+-- ============================================================
+-- personas_r8_tanda_5.sql — ALDECOA (R8, tanda 5)
+-- ============================================================
+-- 🛑 BLOQUEADO — NADA EJECUTADO, y NADA EJECUTABLE COMO ESTÁ.
+--    Ni la versión vieja (completar nombre a IVAN LUCIANO) ni la corrección
+--    de Yesi del 10/08 (revertir a Matías + alta de Iván) aplican a la base
+--    real. Los datos duros dicen otra cosa. Ver docs/TANDA_5_R8.md §4.
+--
+-- ------------------------------------------------------------
+-- LO QUE HAY EN LA BASE (leído el 10/08/2026, sin tocar nada)
+-- ------------------------------------------------------------
+-- Los DOS hermanos YA existen, cada uno con su fila y su DNI, desde el
+-- seed del 11/05/2026. No hay una sola fila ALDECOA: hay dos.
+--
+--   id 17ea2904-ce23-4ba1-94be-202b1f62eb50
+--     ALDECOA, 'IVAN'          · DNI 39491188 · nac 1996-07-15 · CASTELLI
+--     tipo 'ambos' · DOL · activo · created 2026-05-11 · updated 2026-08-05 (tanda 2)
+--
+--   id f6cdb63a-30b8-4221-812f-0527b5b9c433
+--     ALDECOA, 'MATIAS IGNACIO' · DNI 41386735 · nac 1999-02-03 · CASTELLI
+--     tipo 'entrenador' · DOL · activo · created 2026-05-11 · updated 2026-05-11
+--
+-- ------------------------------------------------------------
+-- (a) ¿Qué le cambió la tanda 2 a Matías?  ->  NADA.
+-- ------------------------------------------------------------
+-- El UPDATE de personas_r8_tanda_2.sql (bloque 3, líneas 87-91) fue:
+--
+--     UPDATE profesionales SET tipo='ambos'
+--     WHERE upper(btrim(apellido))='ALDECOA'
+--       AND upper(btrim(nombre))='IVAN'          <-- filtra por NOMBRE
+--       AND tipo='entrenador';
+--
+-- El filtro `nombre = 'IVAN'` NO matchea 'MATIAS IGNACIO'. Prueba dura:
+-- `updated_at` de Matías sigue siendo 2026-05-11 04:27:54 — nunca fue tocado
+-- después del seed. La fila que cambió de 'entrenador' a 'ambos' es la de
+-- IVAN (updated_at 2026-08-05 20:59:08).
+--
+-- => No hay nada que revertirle a Matías. Su fila está intacta.
+--
+-- ------------------------------------------------------------
+-- (b) ALTA de ALDECOA IVAN LUCIANO  ->  DUPLICARÍA.
+-- ------------------------------------------------------------
+-- Ya existe 'ALDECOA, IVAN' con DNI propio (39491188, distinto del de
+-- Matías), misma localidad CASTELLI, nacido 1996. Es, con toda la pinta,
+-- el mismo Iván. Dar de alta una persona nueva crearía un tercer ALDECOA
+-- y partiría sus referencias en dos.
+--
+-- Si Yesi confirma que el DNI 39491188 es el de Iván Luciano, lo único
+-- que corresponde es completar el nombre (UPDATE de un campo):
+--
+--   UPDATE profesionales SET nombre='IVAN LUCIANO', updated_at=now()
+--   WHERE id='17ea2904-ce23-4ba1-94be-202b1f62eb50' AND nombre='IVAN';
+--
+-- Si en cambio confirma que 39491188 NO es de Iván, ahí sí es alta — pero
+-- entonces hay que decidir de quién es esa fila y a dónde se reapuntan sus
+-- 7 referencias, y eso no se resuelve sin ella.
+--
+-- ------------------------------------------------------------
+-- (c) La monta de PAULINA KEY (R6, 6ª)  ->  YA APUNTA A IVAN.
+-- ------------------------------------------------------------
+-- La inscripción de PAULINA KEY (R6 20/06 turno 6, ratificado,
+-- id ac5a8b2d-9de0-4076-bcbb-9b7287d09579) tiene
+-- jockey_titular_id = 17ea2904 = 'IVAN' (y entrenador_id igual).
+-- Coincide con el oficial ("ALDECOA IVAN"). No hay nada que reapuntar.
+--
+-- Ninguna inscripción ni SPC apunta a Matías (f6cdb63a): 0 referencias.
+--
+-- ------------------------------------------------------------
+-- LO QUE SÍ QUEDA ABIERTO PARA YESI (sólo reporte, no se toca)
+-- ------------------------------------------------------------
+-- Si Iván es SÓLO jockey y el cuidador de la caballeriza es Matías,
+-- entonces el error de la tanda 2 no fue de identidad sino de rol, y hay
+-- 7 referencias de ENTRENADOR colgando del hermano equivocado:
+--
+--   spcs.entrenador_id -> IVAN:  ALIADO SCAT (sb 414038) · PAULINA KEY · QUE TAL OREJA
+--   inscripciones.entrenador_id -> IVAN:
+--     R6 20/06 turno 6 PAULINA KEY (ratificado)
+--     R6 20/06 turno 8 ALIADO SCAT (ratificado)
+--     R6 20/06 turno 8 QUE TAL OREJA (ratificado)
+--     R8 16/08 turno 4 ALIADO SCAT (inscripto)   <-- la única viva
+--
+-- Reapuntarlas sería esto (NO ejecutar sin decisión explícita de Yesi):
+--
+--   UPDATE spcs SET entrenador_id='f6cdb63a-30b8-4221-812f-0527b5b9c433'
+--   WHERE entrenador_id='17ea2904-ce23-4ba1-94be-202b1f62eb50';
+--
+--   UPDATE inscripciones SET entrenador_id='f6cdb63a-30b8-4221-812f-0527b5b9c433'
+--   WHERE entrenador_id='17ea2904-ce23-4ba1-94be-202b1f62eb50';
+--
+--   UPDATE profesionales SET tipo='jockey'::tipo_profesional, updated_at=now()
+--   WHERE id='17ea2904-ce23-4ba1-94be-202b1f62eb50';   -- revierte el 'ambos' de la tanda 2
+--
+-- Tocar R6 mueve resultados ya oficializados y liquidaciones — por eso va
+-- con decisión explícita, no por default.
+-- ============================================================
+
+-- Sin sentencias activas. A propósito.

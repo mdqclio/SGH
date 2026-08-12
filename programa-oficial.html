@@ -386,7 +386,7 @@ function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
       const caballeriza = (cab?.nombre || prop?.nombre || '').toUpperCase();
       return `<tr>
         <td>${caballeriza}</td>
-        <td>${spc.ult_performances || ''}</td>
+        <td>${i.performance || spc.ult_performances || ''}</td>
         <td class="col-numero">${idx + 1}</td>
         <td><strong>${(spc.nombre || '').toUpperCase()}</strong></td>
         <td>${jock ? `${jock.apellido || ''} ${jock.nombre || ''}`.trim().toUpperCase() : 'XX'}</td>

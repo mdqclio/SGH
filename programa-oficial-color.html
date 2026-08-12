@@ -625,7 +625,7 @@ function renderCarreraColor(c, ins, maps, idx) {
       const entrStr     = entr ? `${entr.apellido || ''} ${entr.nombre || ''}`.trim().toUpperCase() : '';
       return `<tr>
         <td>${caballeriza}</td>
-        <td>${spc.ult_performances || ''}</td>
+        <td>${i.performance || spc.ult_performances || ''}</td>
         <td class="col-num">${partidorChipHTML(fi + 1)}</td>
         <td class="col-spc">${(spc.nombre || '').toUpperCase()}</td>
         <td class="col-kesp">${kesp}</td>
