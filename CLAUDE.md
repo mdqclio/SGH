@@ -249,6 +249,7 @@ Nunca usar `.catch(()=>{})` silencioso. Siempre:
 - Commits descriptivos en español o inglés (lo que ya se usa en el repo)
 - No pedir confirmación intermedia para cambios chicos; mostrar diff antes de aplicar refactors grandes
 - Si una decisión es de producto (no técnica), elegir la opción más conservadora y dejarla anotada en el resumen final
+- **Antes de escribir sobre un archivo que ya existe, leerlo — aunque esté untracked.** Untracked significa "sin red", no "sin valor": si se sobrescribe, git no lo puede recuperar. Vale en particular para archivos que aparecen como `??` en `git status` al arrancar la sesión — pueden ser trabajo en curso de otra sesión
 - Antes de dar por terminado: verificar con `grep` o `curl` que los cambios llegaron a prod
 - Push frecuente — la sesión SSH al VPS Hetzner se puede cortar. Relevo por `.md` (el asesor lee de raw.githubusercontent.com); ver `docs/SERVER.md`
 
