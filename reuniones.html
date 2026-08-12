@@ -220,6 +220,11 @@
           <label>Fechas de compromiso de montas</label>
           <textarea id="f-fechas-compromiso" rows="2" placeholder="Ej: LUNES 11/05 HASTA LAS 12:00 h"></textarea>
         </div>
+        <div class="form-group full">
+          <label>Sorteo y orden de partidores</label>
+          <textarea id="f-sorteo-partidores" rows="2" placeholder="Ej: 1→7 · 2→16 · 3→8 · 4→9 · 5→14 · 6→11"></textarea>
+          <span style="display:block;margin-top:4px;font-size:12px;color:var(--muted);">Se muestra al pie de los PDFs de inscriptos y ratificados. Texto libre: se imprime tal cual. Si lo dejás vacío, la caja no aparece.</span>
+        </div>
       </div>
 
     </div>
@@ -373,6 +378,7 @@ function openModal(rec=null) {
   document.getElementById('f-fechas-inscripciones').value = rec?.fechas_inscripciones || '';
   document.getElementById('f-fechas-forfaits').value      = rec?.fechas_forfaits || '';
   document.getElementById('f-fechas-compromiso').value    = rec?.fechas_compromiso_montas || '';
+  document.getElementById('f-sorteo-partidores').value    = rec?.sorteo_partidores || '';
   document.getElementById('modal').classList.add('open');
 }
 
@@ -398,6 +404,7 @@ async function saveRecord() {
     fechas_inscripciones:    document.getElementById('f-fechas-inscripciones').value.trim() || null,
     fechas_forfaits:         document.getElementById('f-fechas-forfaits').value.trim() || null,
     fechas_compromiso_montas:document.getElementById('f-fechas-compromiso').value.trim() || null,
+    sorteo_partidores:       document.getElementById('f-sorteo-partidores').value.trim() || null,
     estado: id ? undefined : 'borrador',
   };
   if (!id) payload.estado = 'borrador';
