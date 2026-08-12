@@ -81,8 +81,31 @@ node tests/probe_incentivos_montas.mjs   # Incentivos Bloque C: jockey 50k/reuni
 node tests/probe_recibos_emision.mjs     # Fase 4 v1: RPC emitir_recibo + buscador pagable (real-code, fixtures propias)
 node tests/probe_cobros_v11.mjs          # Fase 4 v1.1: liberar_linea + búsqueda nombre/apellido/DNI + filtro carrera (real-code)
 node tests/probe_pedigree_programa.mjs   # Columna PADRE-MADRE en los 3 programas: vacío sin placeholder, separador no colgado (real-code, 9998 + teardown)
+node tests/probe_apuestas_especiales.mjs # Caja de especiales de la tapa derivada de carrera_apuestas (real-code, sólo lectura)
+node tests/probe_reordenar_turnos.mjs    # RPC reordenar_turnos: permutación + 4 validaciones (→ R9, snapshot→restore)
+node tests/probe_orden_ui.mjs            # Lógica ▲▼ de carta-llamados: payload a la RPC y confirmación (real-code, sin DB)
+node tests/probe_alineado_programa.mjs   # Ancho de columnas del programa vs R6 (cota sin browser, sólo lectura)
 node tests/smoke_t9_t16.mjs              # Bug 3b + optimistic lock concurrencia (→ prod)
 ```
+
+#### `probe_alineado_browser.mjs` — pendiente de una máquina con browser
+
+Es el único probe del repo que **no corre en el VPS**: cuenta con layout real cuántas filas
+del programa ocupan más de una línea, que es el criterio de aceptación del alineado. Chromium
+no está soportado en Ubuntu 26.04 (ver arriba y `docs/SERVER.md`), así que queda escrito para
+correrlo desde una máquina con browser. Mientras tanto la cota es `probe_alineado_programa.mjs`,
+que compara anchos de celda contra R6 sin renderizar.
+
+```bash
+npx playwright install chromium          # una sola vez, donde esté soportado
+export SGH_EMAIL=dolores@sgh.com
+export SGH_PASSWORD=...                  # nunca commitear la password
+node tests/probe_alineado_browser.mjs [reunion_id] [--color|--bn] [--url <base>]
+```
+
+Sale 0 si no hay filas envueltas, 1 si hay alguna, 2 si no pudo medir (sin credenciales, sin
+playwright, o chromium que no arranca). Necesita sesión: las páginas del programa leen por RLS
+y sin login Supabase devuelve 0 carreras — el conteo daría 0 por vacío, no por estar bien.
 Los probes real-code de liquidaciones (`probe_fase_c`, `probe_incentivos_montas`, `probe_recibos_emision`, `probe_cobros_v11`) extraen el cuerpo real de la función / llaman las RPCs reales con `SUPABASE_SECRET_KEY` (de `.env`), snapshot→run→assert→restore. Sin browser (chromium no corre en ubuntu26.04).
 
 Duración: ~20-90 segundos por probe.
