@@ -141,10 +141,18 @@
     text-transform: uppercase; min-height: 24px;
   }
   .carrera-color-info {
-    padding: 6px 12px 6px 96px; font-size: 10px; line-height: 1.4; position: relative;
+    padding: 6px 12px 6px 96px; font-size: 10px; line-height: 1.4;
+    overflow: hidden;   /* contiene el float del bono: sin esto el badge se sale del bloque */
   }
+  /* El badge estaba en position:absolute y el texto de la condición y de la bolsa le corría
+     por debajo. En desktop no se notaba porque el texto no llegaba tan a la derecha; en el
+     visor de iOS, con el bloque más angosto, lo tapaba. Con float:right el badge RESERVA su
+     caja y las líneas de texto se acomodan al lado: por construcción no puede haber texto
+     debajo. Es el mismo patrón que ya usa .bono-float del programa B&N, que nunca tuvo el bug.
+     El badge va ANTES del texto en el markup, que es lo que el float necesita para afectar
+     a las líneas siguientes. */
   .carrera-color-info .bono-lateral {
-    position: absolute; top: 6px; right: 12px;
+    float: right; margin: 0 0 4px 10px;
     background: var(--naranja-bono); color: #fff;
     padding: 4px 10px; font-weight: 900; font-size: 10px; text-align: center;
     clip-path: polygon(4% 0%, 100% 0%, 96% 100%, 0% 100%); line-height: 1.3;

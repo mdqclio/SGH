@@ -85,10 +85,11 @@ node tests/probe_apuestas_especiales.mjs # Caja de especiales de la tapa derivad
 node tests/probe_reordenar_turnos.mjs    # RPC reordenar_turnos: permutación + 4 validaciones (→ R9, snapshot→restore)
 node tests/probe_orden_ui.mjs            # Lógica ▲▼ de carta-llamados: payload a la RPC y confirmación (real-code, sin DB)
 node tests/probe_alineado_programa.mjs   # Ancho de columnas del programa vs R6 (cota sin browser, sólo lectura)
+node tests/probe_badge_overlap.mjs       # Badge del bono en flujo, no puede tapar texto (estructural, sin DB)
 node tests/smoke_t9_t16.mjs              # Bug 3b + optimistic lock concurrencia (→ prod)
 ```
 
-#### `probe_alineado_browser.mjs` — pendiente de una máquina con browser
+#### Probes de browser — pendientes de una máquina con chromium
 
 Es el único probe del repo que **no corre en el VPS**: cuenta con layout real cuántas filas
 del programa ocupan más de una línea, que es el criterio de aceptación del alineado. Chromium
@@ -106,6 +107,16 @@ node tests/probe_alineado_browser.mjs [reunion_id] [--color|--bn] [--url <base>]
 Sale 0 si no hay filas envueltas, 1 si hay alguna, 2 si no pudo medir (sin credenciales, sin
 playwright, o chromium que no arranca). Necesita sesión: las páginas del programa leen por RLS
 y sin login Supabase devuelve 0 carreras — el conteo daría 0 por vacío, no por estar bien.
+
+```bash
+node tests/probe_badge_overlap_browser.mjs [reunion_id] [--url <base>] [--pdf]
+```
+
+Chequeo geométrico del badge del bono: que su rect no intersecte el rect de ningún nodo de
+texto. Mide a 390 / 375 / 768 / 1280 px y en `media: print`, porque el bug aparecía en el
+visor de iOS y no en desktop — a un solo ancho no se detecta. Con `--pdf` además emite el
+PDF a `/tmp`. Mismos códigos de salida. La contraparte estructural que sí corre en el VPS es
+`probe_badge_overlap.mjs`.
 Los probes real-code de liquidaciones (`probe_fase_c`, `probe_incentivos_montas`, `probe_recibos_emision`, `probe_cobros_v11`) extraen el cuerpo real de la función / llaman las RPCs reales con `SUPABASE_SECRET_KEY` (de `.env`), snapshot→run→assert→restore. Sin browser (chromium no corre en ubuntu26.04).
 
 Duración: ~20-90 segundos por probe.
