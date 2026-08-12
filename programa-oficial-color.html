@@ -244,6 +244,12 @@
     .flyer-pie { page-break-before: avoid; page-break-after: auto; break-inside: avoid; }
     .flyer-pie img { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; max-height: 40mm; object-fit: contain; }
     .btn-imprimir { display: none !important; }
+    /* PADRE — MADRE es la columna más ancha y la que más envuelve: nombres como
+       "LA DAMA ALADA", "GRAND ARMEE" o "MATRERA SKY" partían en dos. Va 1pt por debajo
+       del resto de la tabla (9.5px → 8.5px), sólo al imprimir. Es el dato menos crítico
+       del programa, así que tolera el cuerpo menor, y el ancho que libera se lo quedan
+       las columnas que sí tienen que entrar enteras. */
+    table.inscriptos-color .col-pedigree { font-size: 8.5px; }
   }
 </style>
 </head>
@@ -675,7 +681,7 @@ function renderCarreraColor(c, ins, maps, idx) {
         <td class="col-spc">${(spc.nombre || '').toUpperCase()}</td>
         <td class="col-kesp">${kesp}</td>
         <td>${jockeyStr}</td>
-        <td>${padreMadre}</td>
+        <td class="col-pedigree">${padreMadre}</td>
         <td>${entrStr}</td>
       </tr>`;
     }).join('');
@@ -702,7 +708,7 @@ function renderCarreraColor(c, ins, maps, idx) {
     </div>
     <table class="inscriptos-color">
       <thead><tr>
-        <th>CABALLERIZA</th><th>4 ÚLT.</th><th>N°</th><th>S.P.C.</th><th>K E S P</th><th>JOCKEY</th><th>PADRE — MADRE</th><th>ENTRENADOR</th>
+        <th>CABALLERIZA</th><th>4 ÚLT.</th><th>N°</th><th>S.P.C.</th><th>K E S P</th><th>JOCKEY</th><th class="col-pedigree">PADRE — MADRE</th><th>ENTRENADOR</th>
       </tr></thead>
       <tbody>${filas || '<tr><td colspan="8" style="text-align:center;font-style:italic;padding:6px;">Sin inscriptos</td></tr>'}</tbody>
     </table>

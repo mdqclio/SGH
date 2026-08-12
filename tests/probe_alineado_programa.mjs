@@ -217,12 +217,43 @@ const bnSinComentarios = htmlBN.replace(/\/\*[\s\S]*?\*\//g, '');
 ok(!/table-layout:\s*fixed/.test(bnSinComentarios),
    'sin table-layout:fixed — el contenido sigue influyendo, nada se trunca');
 
-// el color ya estaba bien: este paso no puede haberlo tocado
-console.log('\nEl programa color queda intacto');
+// el color conserva su ancho y su tipografía de tabla: el único cambio que recibió es
+// el cuerpo menor de PADRE — MADRE al imprimir
+console.log('\nEl programa color conserva ancho y tipografía de tabla');
 ok(/@page \{ size: A4; margin: 10mm 8mm; \}/.test(htmlColor), 'color conserva su @page 10mm 8mm');
 ok(/table\.inscriptos-color \{[^}]*font-size: 9\.5px/.test(htmlColor), 'color conserva font-size 9.5px en la tabla');
 ok(!/table\.inscriptos-color \{ font-size/.test(htmlColor.slice(htmlColor.indexOf('@media print'))),
-   'color no recibió override de tipografía en print');
+   'color no recibió override de tipografía para toda la tabla en print');
+
+/* ---------- PADRE — MADRE 1pt por debajo del resto, sólo en print ---------- */
+// Con jockey y entrenador ya entrando en una línea (confirmado por Yesi), el que sigue
+// envolviendo es el pedigrí. Es el dato menos crítico del programa: tolera cuerpo menor.
+console.log('\nPADRE — MADRE reducido 1pt en impresión, en los dos programas');
+
+const printDe = html => html.slice(html.indexOf('@media print'));
+const fsTablaPrint = { // tamaño con el que imprime el RESTO de la tabla en cada archivo
+  color: 9.5,   // el color no baja la tabla en print: usa el de pantalla
+  bn: +(printDe(htmlBN).match(/table\.inscriptos \{ font-size: ([\d.]+)px/)?.[1] || 0),
+};
+
+for (const [nom, html, sel, base] of [
+  ['color', htmlColor, 'table\\.inscriptos-color', fsTablaPrint.color],
+  ['B&N',   htmlBN,    'table\\.inscriptos',       fsTablaPrint.bn],
+]) {
+  const re  = new RegExp(`${sel} \\.col-pedigree \\{ font-size: ([\\d.]+)px`);
+  const fs  = +(printDe(html).match(re)?.[1] || 0);
+  ok(fs > 0, `${nom}: hay regla de tamaño para .col-pedigree en @media print`);
+  ok(fs > 0 && base - fs >= 1 && base - fs <= 1.5,
+     `${nom}: el pedigrí va 1pt por debajo del resto (${base}px → ${fs}px)`);
+  // la regla tiene que vivir SÓLO en print: en pantalla no se toca nada
+  const antesDePrint = html.slice(0, html.indexOf('@media print'));
+  ok(!new RegExp(`\\.col-pedigree \\{ font-size`).test(antesDePrint),
+     `${nom}: no cambia el tamaño del pedigrí en pantalla`);
+  ok(new RegExp(`class="col-pedigree"`).test(html), `${nom}: la clase está aplicada en el markup`);
+}
+// la clase tiene que estar en el <td>, no sólo en el <th>: si no, la regla no toca el dato
+ok((htmlColor.match(/class="col-pedigree"/g) || []).length >= 2, 'color: col-pedigree en th y td');
+ok((htmlBN.match(/class="col-pedigree"/g) || []).length >= 2, 'B&N: col-pedigree en th y td');
 
 console.log(`\n=== ${fallos === 0 ? 'OK — todos los asserts pasaron' : `${fallos} ASSERT(S) FALLARON`} ===\n`);
 process.exit(fallos === 0 ? 0 : 1);
