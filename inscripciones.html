@@ -277,6 +277,11 @@
             <label for="f-certificado">Certificado de correr ✓</label>
           </div>
         </div>
+        <div class="section-lbl">Programa</div>
+        <div class="form-group full">
+          <label>4 últimas performances</label>
+          <input type="text" id="f-performance" placeholder="Ej: 9S0L0S — o DEBUTA si no corrió nunca">
+        </div>
         <div class="section-lbl">Estado</div>
         <div class="form-group full">
           <label>Estado de inscripción</label>
@@ -632,6 +637,7 @@ function openModal(rec=null) {
     document.getElementById('f-capataz').value = rec.capataz||'';
     document.getElementById('f-sereno').value = rec.sereno||'';
     document.getElementById('f-certificado').checked = !!rec.certificado_correr;
+    document.getElementById('f-performance').value = rec.performance||'';
     document.getElementById('f-estado').value = rec.estado||'inscripto';
     document.getElementById('f-motivo-forfait').value = rec.motivo_estado||'';
     document.getElementById('f-info').value = rec.info_adicional||'';
@@ -648,6 +654,7 @@ function openModal(rec=null) {
     document.getElementById('f-capataz').value='';
     document.getElementById('f-sereno').value='';
     document.getElementById('f-certificado').checked=false;
+    document.getElementById('f-performance').value='';
     document.getElementById('f-estado').value='inscripto';
     document.getElementById('f-motivo-forfait').value='';
     document.getElementById('f-info').value='';
@@ -678,6 +685,9 @@ async function saveRecord() {
     capataz: document.getElementById('f-capataz').value.trim() || null,
     sereno: document.getElementById('f-sereno').value.trim() || null,
     certificado_correr: document.getElementById('f-certificado').checked,
+    // Se guarda en mayúsculas: el programa lo imprime tal cual, y "DEBUTA"
+    // es un valor válido que tiene que salir uniforme con los códigos.
+    performance: document.getElementById('f-performance').value.trim().toUpperCase() || null,
     estado: document.getElementById('f-estado').value,
     motivo_estado: document.getElementById('f-motivo-forfait').value.trim() || null,
     info_adicional: document.getElementById('f-info').value.trim() || null,
