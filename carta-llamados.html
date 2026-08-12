@@ -59,6 +59,23 @@
     .btn-sm { padding: 5px 11px; border-radius: 7px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; white-space: nowrap; }
     .btn-edit { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
     .btn-delete { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+
+    /* Reordenamiento manual de llamados (docs/CARTA_LLAMADOS_ORDEN.md §4) */
+    .btn-mover {
+      background: rgba(201,168,76,0.1); color: var(--accent); border: 1px solid rgba(201,168,76,0.3);
+      border-radius: 7px; cursor: pointer; font-size: 13px; line-height: 1;
+      min-width: 44px; min-height: 44px;   /* área táctil: la secretaría no siempre está en compu */
+    }
+    .btn-mover:disabled { opacity: 0.25; cursor: default; }
+    .carrera-turno-cambio { font-size: 11px; color: var(--accent); font-weight: 600; white-space: nowrap; }
+    .orden-bar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+      background: var(--card); border-top: 1px solid var(--accent);
+      padding: 12px 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      box-shadow: 0 -4px 16px rgba(0,0,0,0.35);
+    }
+    .orden-bar-msg { flex: 1; font-size: 13px; color: var(--text); font-weight: 600; min-width: 200px; }
+    @media print { .orden-bar { display: none !important; } }
     /* Nueva cabecera de carrera — una sola línea */
     .carrera-head-line { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; flex: 1; min-width: 0; }
     .carrera-head-num  { font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 700; color: var(--accent); white-space: nowrap; }
@@ -268,6 +285,7 @@
     <span id="carreras-count" style="font-size:13px;color:var(--muted);">—</span>
   </div>
   <div id="list-container"></div>
+  <div class="orden-bar" id="orden-bar" style="display:none;"></div>
 
   <div class="section-header" style="margin-top:24px;">
     <h2>Observaciones para la carta</h2>
@@ -290,8 +308,10 @@
       <input type="hidden" id="f-id">
       <div class="form-grid">
         <div class="form-group half">
-          <label>N° Turno *</label>
-          <input type="number" id="f-turno" min="1" required>
+          <label>N° Turno</label>
+          <input type="number" id="f-turno" min="1" readonly tabindex="-1"
+                 style="opacity:0.6;cursor:default;">
+          <span style="font-size:11px;color:var(--muted);">Se acomoda con las flechas ▲▼ de la lista</span>
         </div>
         <div class="form-group two">
           <label>Nombre de la carrera</label>
@@ -457,6 +477,116 @@ const params = new URLSearchParams(location.search);
 let reunionId = params.get('reunion_id') || ActiveReunion.get();
 if (reunionId) { ActiveReunion.set(reunionId); }
 let reunion=null, carreras=[], categorias=[], hipodromos=[], clubData=null, condPista=null;
+
+// ---- Reordenamiento manual de llamados (docs/CARTA_LLAMADOS_ORDEN.md) ----
+// Los botones ▲▼ reordenan SOLO en memoria; nada se persiste hasta "Guardar orden".
+// Así hay una sola confirmación y una sola escritura atómica (RPC reordenar_turnos),
+// y "Descartar" sale gratis. `carreras` siempre viene de la DB ordenada por numero_turno.
+let ordenPropuesto = null;   // array de ids en el orden propuesto, o null si no se tocó nada
+
+function carrerasEnOrden() {
+  if (!ordenPropuesto) return carreras;
+  const byId = new Map(carreras.map(c => [c.id, c]));
+  return ordenPropuesto.map(id => byId.get(id)).filter(Boolean);
+}
+// Un llamado "cambia de turno" si la posición que ocupa en la lista no es el numero_turno
+// que tiene persistido. Cubre los dos casos: el reordenamiento con las flechas, y los huecos
+// que dejó un borrado (turnos 1,2,4 → la lista ya muestra 1,2,3 y guardar los renumera).
+function llamadosMovidos() {
+  return carrerasEnOrden().filter((c, i) => i + 1 !== c.numero_turno).length;
+}
+const ordenSucio = () => llamadosMovidos() > 0;
+
+function moverTurno(id, delta) {
+  const lista = carrerasEnOrden().map(c => c.id);
+  const i = lista.indexOf(id), j = i + delta;
+  if (i < 0 || j < 0 || j >= lista.length) return;
+  [lista[i], lista[j]] = [lista[j], lista[i]];
+  ordenPropuesto = lista;
+  renderCarreras();
+}
+
+function descartarOrden() {
+  ordenPropuesto = null;
+  renderCarreras();
+}
+
+function renderOrdenBar() {
+  const bar = document.getElementById('orden-bar');
+  const n = llamadosMovidos();
+  if (!n) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+  bar.style.display = '';
+  bar.innerHTML = `
+    <span class="orden-bar-msg">Orden modificado — ${n} llamado${n!==1?'s':''} movido${n!==1?'s':''}</span>
+    <button class="btn-outline" onclick="descartarOrden()">Descartar</button>
+    <button class="btn-primary" id="btn-guardar-orden" onclick="guardarOrden()">Guardar orden</button>`;
+}
+
+async function guardarOrden() {
+  if (!ordenSucio()) return;
+  const btn = document.getElementById('btn-guardar-orden');
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando…'; }
+  const restaurarBtn = () => { if (btn) { btn.disabled = false; btn.textContent = 'Guardar orden'; } };
+
+  const orden = carrerasEnOrden().map((c, i) => ({ id: c.id, turno: i + 1 }));
+
+  // 1) dry run: valida contra la DB y devuelve el daño concreto, sin escribir
+  const { data: previo, error: errPrevio } = await sb.rpc('reordenar_turnos', {
+    p_reunion_id: reunionId, p_orden: orden, p_dry_run: true,
+  });
+  if (errPrevio) {
+    console.error('[guardarOrden/dry_run]', errPrevio);
+    toast(errPrevio.message, 'error');
+    restaurarBtn();
+    return;
+  }
+
+  // 2) si hay gente anotada, confirmación mostrando cuántas inscripciones se mueven
+  if (previo.inscripciones_afectadas > 0) {
+    const filas = previo.detalle
+      .filter(d => d.turno_anterior !== d.turno_nuevo && d.inscriptos > 0)
+      .map(d => `  TURNO ${d.turno_anterior} → ${d.turno_nuevo}   ${d.nombre || '(sin nombre)'}   ${d.inscriptos} inscripto${d.inscriptos!==1?'s':''}`)
+      .join('\n');
+    const quietos = previo.turnos - previo.carreras_movidas;
+    const msg =
+      `Reordenar cambia el turno de llamados con gente anotada:\n\n${filas}\n\n` +
+      `${previo.inscripciones_afectadas} inscripciones en total cambian de turno.\n` +
+      (quietos > 0 ? `Los otros ${quietos} llamados no se mueven.\n` : '') +
+      `\nQuien se anotó "en el turno ${previo.detalle.find(d => d.turno_anterior !== d.turno_nuevo && d.inscriptos > 0)?.turno_anterior}" pasa a otro turno.\n\n` +
+      `¿Reordenar igual?`;
+    if (!confirm(msg)) { restaurarBtn(); return; }
+  }
+
+  // 3) escritura real
+  const { data, error } = await sb.rpc('reordenar_turnos', {
+    p_reunion_id: reunionId, p_orden: orden, p_dry_run: false,
+  });
+  if (error) {
+    console.error('[guardarOrden]', error);
+    toast(error.message, 'error');
+    restaurarBtn();
+    return;
+  }
+
+  toast(`Orden actualizado — ${data.carreras_movidas} llamado${data.carreras_movidas!==1?'s':''} movido${data.carreras_movidas!==1?'s':''}`);
+  ordenPropuesto = null;
+  await recargarCarreras();
+}
+
+async function recargarCarreras() {
+  const { data, error } = await sb.from('carreras')
+    .select('*').eq('reunion_id', reunionId).order('numero_turno');
+  if (error) { console.error('[recargarCarreras]', error); throw error; }
+  carreras = data || [];
+  ordenPropuesto = null;   // los ids pueden haber cambiado: descartar cualquier propuesta vieja
+  renderCarreras();
+}
+
+// Sólo avisa si la persona movió algo en esta sesión. Un hueco preexistente marca la barra
+// como sucia pero no es un cambio sin guardar: no corresponde bloquear la navegación.
+window.addEventListener('beforeunload', e => {
+  if (ordenPropuesto) { e.preventDefault(); e.returnValue = ''; }
+});
 
 function toast(msg, type='success') {
   const t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
@@ -628,9 +758,11 @@ function renderCarreras() {
 
   if (!carreras.length) {
     document.getElementById('list-container').innerHTML = lockedBanner + `<div class="empty-state"><div class="icon">📋</div><h3>Sin turnos</h3><p>Esta reunión no tiene carreras cargadas aún. Agregá el primer turno con el botón +</p></div>`;
+    renderOrdenBar();
     return;
   }
-  document.getElementById('list-container').innerHTML = lockedBanner + `<div class="carrera-list">${carreras.map(c => {
+  const lista = carrerasEnOrden();
+  document.getElementById('list-container').innerHTML = lockedBanner + `<div class="carrera-list">${lista.map((c, idx) => {
     const cat = categorias.find(x=>x.id===c.categoria_id);
     const dist = c.distribucion_premios || {"1":60,"2":20,"3":10,"4":6,"5":4};
     const bolsa = c.bolsa_total || 0;
@@ -704,13 +836,21 @@ function renderCarreras() {
     }
 
     // Título del encabezado: "TURNO N — Condición: xxx — Categoría — 800 mts"
+    // El turno que se muestra es la POSICIÓN en la lista, que es lo que va a quedar
+    // persistido al guardar. Si difiere del que está en la DB, se avisa al lado.
+    const turnoVista = idx + 1;
     const tituloPartes = [
-      `TURNO ${c.numero_turno}`,
+      `TURNO ${turnoVista}`,
       condMain ? `Condición: ${condMain}` : null,
       cat?.nombre || null,
       `${c.distancia_metros} mts`,
     ].filter(Boolean);
     const tituloHeader = tituloPartes.join(' — ');
+    const cambioTag = turnoVista !== c.numero_turno
+      ? `<span class="carrera-turno-cambio">antes ${c.numero_turno}</span>` : '';
+    const moverBtns = canEdit ? `
+          <button class="btn-mover" title="Subir" onclick="moverTurno('${c.id}',-1)" ${idx===0?'disabled':''}>▲</button>
+          <button class="btn-mover" title="Bajar" onclick="moverTurno('${c.id}',1)" ${idx===lista.length-1?'disabled':''}>▼</button>` : '';
 
     // Bonos visibles en el cuerpo
     const bonoItems = [];
@@ -723,9 +863,11 @@ function renderCarreras() {
       <div class="carrera-card-header">
         <div class="carrera-title">${tituloHeader}</div>
         <div class="carrera-chips">
+          ${cambioTag}
           ${c.hora_estimada?`<span class="chip">🕐 ${c.hora_estimada}</span>`:''}
         </div>
         <div class="carrera-actions">
+          ${moverBtns}
           ${canEdit ? `
           <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(c)})'>✏️</button>
           <button class="btn-sm btn-delete" onclick="deleteCarrera('${c.id}')">🗑️</button>` : ''}
@@ -736,6 +878,7 @@ function renderCarreras() {
       ${desgloseHtml}
     </div>`;
   }).join('')}</div>`;
+  renderOrdenBar();
   renderPrint();
 }
 
@@ -951,9 +1094,7 @@ async function saveRecord() {
   if (error) { toast(error.message,'error'); return; }
   toast(id ? 'Turno actualizado' : 'Turno creado');
   closeModal();
-  const { data } = await sb.from('carreras').select('*').eq('reunion_id', reunionId).order('numero_turno');
-  carreras = data || [];
-  renderCarreras();
+  await recargarCarreras();
 }
 
 async function deleteCarrera(id) {
@@ -961,8 +1102,9 @@ async function deleteCarrera(id) {
   const { error } = await sb.from('carreras').delete().eq('id',id);
   if (error) { toast(error.message,'error'); return; }
   toast('Turno eliminado');
-  carreras = carreras.filter(c=>c.id!==id);
-  renderCarreras();
+  // Deja el hueco a propósito (docs/CARTA_LLAMADOS_ORDEN.md §2.3): renumerar de prepo
+  // cambiaría el turno de terceros sin avisar. Se cierra con las flechas + Guardar orden.
+  await recargarCarreras();
 }
 
 async function publicarCarta() {
