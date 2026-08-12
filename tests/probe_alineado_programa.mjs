@@ -255,5 +255,11 @@ for (const [nom, html, sel, base] of [
 ok((htmlColor.match(/class="col-pedigree"/g) || []).length >= 2, 'color: col-pedigree en th y td');
 ok((htmlBN.match(/class="col-pedigree"/g) || []).length >= 2, 'B&N: col-pedigree en th y td');
 
+// Alineación vertical: con `top`, una fila que envuelve deja el resto de las celdas
+// pegadas arriba y el sobrante abajo como hueco. Los dos programas van en `middle`.
+const valign = (html, sel) => html.match(new RegExp(`${sel} tbody td \\{[^}]*vertical-align: (\\w+)`))?.[1];
+ok(valign(htmlBN, 'table\\.inscriptos') === 'middle', 'B&N: celdas con vertical-align middle');
+ok(valign(htmlColor, 'table\\.inscriptos-color') === 'middle', 'color: celdas con vertical-align middle');
+
 console.log(`\n=== ${fallos === 0 ? 'OK — todos los asserts pasaron' : `${fallos} ASSERT(S) FALLARON`} ===\n`);
 process.exit(fallos === 0 ? 0 : 1);
