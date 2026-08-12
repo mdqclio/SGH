@@ -98,6 +98,17 @@ function formatMonto(n) {
   if (n == null || isNaN(n)) return '$0';
   return '$' + Math.round(parseFloat(n)).toLocaleString('es-AR').replace(/,/g, '.');
 }
+// Apellido + PRIMER nombre, para las columnas JOCKEY y ENTRENADOR.
+// Las tandas del padrón oficial completaron los nombres de pila (DIESTRA PEDRO →
+// DIESTRA PEDRO EMANUEL, DIESTRA CLAUDIO MAXIMILIANO) y las celdas envolvían a 2-3
+// líneas, rompiendo el alineado de una línea por caballo. Es PRESENTACIÓN: la base
+// conserva el nombre completo intacto, y el resto de los módulos lo siguen mostrando.
+function nombreCorto(p) {
+  if (!p) return '';
+  const primer = String(p.nombre || '').trim().split(/\s+/)[0] || '';
+  return `${p.apellido || ''} ${primer}`.trim().toUpperCase();
+}
+
 function calcEdad(fecha) {
   if (!fecha) return '';
   const hoy = new Date(), f = new Date(fecha);
@@ -389,10 +400,10 @@ function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
         <td>${i.performance || spc.ult_performances || ''}</td>
         <td class="col-numero">${idx + 1}</td>
         <td><strong>${(spc.nombre || '').toUpperCase()}</strong></td>
-        <td>${jock ? `${jock.apellido || ''} ${jock.nombre || ''}`.trim().toUpperCase() : 'XX'}</td>
+        <td>${jock ? nombreCorto(jock) : 'XX'}</td>
         <td class="col-kesp">${kesp}</td>
         <td>${padreMadre}</td>
-        <td>${entr ? `${entr.apellido || ''} ${entr.nombre || ''}`.trim().toUpperCase() : ''}</td>
+        <td>${nombreCorto(entr)}</td>
       </tr>`;
     }).join('');
 
