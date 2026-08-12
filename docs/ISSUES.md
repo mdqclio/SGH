@@ -334,3 +334,31 @@ Fix: `profesionales.html` — `.eq('club_id', CLUB_ID)` en `load()` + `club_id: 
 Nota: con el fix, un `super_admin` sin club seleccionado (`CLUB_ID` null) no ve entrenadores, igual que hoy no ve jockeys. Es el comportamiento de `jockeys.html`; se unifica, no se empeora.
 
 Módulo: `profesionales.html`. Estado: ✅ Resuelto (05/08/2026). Prioridad: era Alta (aislamiento por tenant).
+
+### ISSUE-050: Caja "APUESTAS ESPECIALES" de la tapa estaba hardcodeada — ✅ RESUELTO (2026-08-12)
+Descripción: la caja de la tapa de `programa-oficial-color.html` (número grande + "Carreras 2 · 3 · 4" + pozo) era un string literal con datos de una reunión anterior de 9 carreras — tenía un `TODO` que decía que las combinadas multi-carrera "no están en DB aún", cuando sí lo están (`carrera_apuestas.nombre` / `asegurado` / `incremento`). Reportado por Yesi: las especiales del programa no coincidían con lo que había cargado Fede para R8 (16/08/2026).
+
+Diagnóstico fila por fila en R8 — Fede cargó bien, todo era presentación:
+
+| Fede cargó (turno → prog) | Tapa mostraba | Diferencia |
+|---|---|---|
+| prog 2, X3 `Triplo Incial`, $45.000 | `2` · Triplo Inicial · Carreras 2·3·4 · $50.000 | monto |
+| prog 5, X4 (sin nombre), $75.000 | `5` · Cuaterna Final · Carreras 6·7·8·9 · $75.000 | rango (va 5·6·7·8; la carrera 9 no existe) |
+| prog 7, X2 `Doble final`, $25.000 | `8` · Doble Final · Carreras 8·9 · $25.000 | número y rango (va 7 y 7·8) |
+
+La sospecha inicial de desfase turno↔carrera quedó **descartada**: la caja no consultaba la DB, así que no podía desfasarse. Las líneas de apuestas *dentro* de cada carrera sí leían `carrera_apuestas` y salían correctas — de ahí la contradicción tapa vs cuerpo en el mismo PDF.
+
+Fix: `buildApuestasEspeciales(carreras)` deriva las tarjetas de `carrera_apuestas`. Numera con `idx + 1` sobre el mismo array ordenado que recibe `render()` (filtrado por `estado != 'anulada'`, ordenado por `numero_carrera_programa ?? numero_turno`), idéntico al `num = idx + 1` de `renderCarreraColor` — tapa y cuerpo comparten el índice y no pueden desfasarse. Rango por cantidad de patas (`X2`/`X2P` 2, `X3` 3, `X4` 4, `X5` 5; `CAD` hasta el final), con el fin clampeado a la última carrera. `X3`/`X4`/`X5`/`CAD` siempre entran; `X2`/`X2P` sólo con nombre, pozo o incremento — si no, los Dobles simples de $200 que van cargados en casi toda carrera generarían tarjetas basura. Sin combinadas especiales devuelve `''` y no se dibuja ni el grid ni el título.
+
+Módulo: `programa-oficial-color.html` (la versión B&N no tiene esta caja).
+Estado: ✅ RESUELTO — branch `fix/apuestas-especiales-tapa`. Probe `tests/probe_apuestas_especiales.mjs` (corre la función real extraída del HTML contra datos de prod; requiere `SUPABASE_SECRET_KEY`, con la publishable RLS devuelve 0 carreras). Prioridad: era Alta (R8 se imprime el 16/08).
+
+Pendiente del lado del dato (no bloquea): typo `Triplo Incial` y la Cuaterna de R8 sin `nombre` (imprime "Cuaterna", no "Cuaterna Final"). R6 (borrador) tiene 5 especiales sucias cargadas en pruebas — `"Triplo Inicial ."`, `"DOBLE FINAL BASE $500"` con el precio dentro del nombre, y un Triplo y un Doble pisándose en la carrera 4; limpiar antes de imprimir R6.
+
+### ISSUE-051: Drift CLAUDE.md — R1–R5 sin filas en `carreras`
+Descripción: detectado de paso al barrer todas las reuniones de Dolores con la caja de especiales nueva (ISSUE-050). Las reuniones 1 a 5 tienen **0 filas** en `carreras` (`count(c.id) = 0`, no son anuladas: no existen). CLAUDE.md documenta la reunión 5 (17/05/2026) como reunión de prueba con "11 turnos, ~81 inscripciones" y la propone para fijar como reunión activa en testing. Hoy esa reunión imprimiría un programa vacío.
+
+No se investigó si las carreras se borraron, si se migraron a otra reunión, o si el UUID de la R5 cambió y CLAUDE.md quedó apuntando a otro lado. Tampoco se tocó nada.
+
+Módulo: datos (`carreras`) + `CLAUDE.md` §"Reunión activa para testing".
+Estado: ⏳ Abierto — a revisar después del domingo 16/08. Prioridad: Baja (R1–R5 son reuniones viejas, ninguna se imprime esta semana; no afecta a R8).
