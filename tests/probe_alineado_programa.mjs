@@ -188,5 +188,41 @@ ok(/nombreCorto\(jock\)/.test(htmlBN) && /nombreCorto\(entr\)/.test(htmlBN),
 ok(!/\$\{jock\.apellido \|\| ''\} \$\{jock\.nombre/.test(htmlColor + htmlBN),
    'no quedó ninguna concatenación de nombre completo en las tablas');
 
+/* ---------- paso 2, sólo en el B&N ---------- */
+// El B&N imprimía con 14mm menos de ancho útil que el color (1.5cm vs 8mm de margen
+// lateral) y con una tipografía serif más ancha por carácter. En pantalla entraba, al
+// imprimir envolvía. Estas reglas viven en @media print: la vista de pantalla no cambia.
+console.log('\nPaso 2 — ancho y tipografía de impresión del B&N');
+const printBN = htmlBN.slice(htmlBN.indexOf('@media print'), htmlBN.indexOf('@media print') + 1400);
+
+const pageBN = printBN.match(/@page \{ size: A4; margin: ([^;]+);/)?.[1] || '';
+ok(/\b8mm\b/.test(pageBN), `márgenes laterales del B&N igualados al color: "${pageBN.trim()}"`);
+ok(!/1\.5cm 1\.5cm/.test(pageBN), 'ya no usa 1.5cm a los costados');
+
+const fsPrint = +(printBN.match(/table\.inscriptos \{ font-size: ([\d.]+)px/)?.[1] || 0);
+const fsPant  = +(htmlBN.match(/table\.inscriptos \{ width: 100%; border-collapse: collapse; font-size: ([\d.]+)px/)?.[1] || 0);
+ok(fsPrint > 0 && fsPrint < fsPant, `tipografía de impresión menor que la de pantalla: ${fsPant}px → ${fsPrint}px`);
+ok(fsPant - fsPrint <= 2, `la reducción es de 1-1.5pt, no más (${(fsPant - fsPrint).toFixed(1)}px)`);
+
+for (const c of ['col-jockey', 'col-entrenador', 'col-pedigree']) {
+  ok(new RegExp(`table\\.inscriptos \\.${c}\\s*\\{[^}]*width:`).test(htmlBN), `hay reparto de ancho para .${c}`);
+  ok(new RegExp(`class="${c}"`).test(htmlBN), `.${c} está aplicada en el markup`);
+}
+const anchoJock = +(htmlBN.match(/\.col-jockey\s*\{ width: (\d+)%/)?.[1] || 0);
+const anchoPed  = +(htmlBN.match(/\.col-pedigree\s*\{ width: (\d+)%/)?.[1] || 0);
+ok(anchoJock > 0 && anchoPed > anchoJock,
+   `PADRE — MADRE cede ancho pero sigue siendo la más ancha (${anchoPed}% vs ${anchoJock}%)`);
+// sin los comentarios CSS: el propio comentario que explica la decisión menciona la regla
+const bnSinComentarios = htmlBN.replace(/\/\*[\s\S]*?\*\//g, '');
+ok(!/table-layout:\s*fixed/.test(bnSinComentarios),
+   'sin table-layout:fixed — el contenido sigue influyendo, nada se trunca');
+
+// el color ya estaba bien: este paso no puede haberlo tocado
+console.log('\nEl programa color queda intacto');
+ok(/@page \{ size: A4; margin: 10mm 8mm; \}/.test(htmlColor), 'color conserva su @page 10mm 8mm');
+ok(/table\.inscriptos-color \{[^}]*font-size: 9\.5px/.test(htmlColor), 'color conserva font-size 9.5px en la tabla');
+ok(!/table\.inscriptos-color \{ font-size/.test(htmlColor.slice(htmlColor.indexOf('@media print'))),
+   'color no recibió override de tipografía en print');
+
 console.log(`\n=== ${fallos === 0 ? 'OK — todos los asserts pasaron' : `${fallos} ASSERT(S) FALLARON`} ===\n`);
 process.exit(fallos === 0 ? 0 : 1);

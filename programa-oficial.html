@@ -42,6 +42,13 @@
   table.inscriptos tbody tr { border-bottom: none; }
   table.inscriptos .col-numero { text-align: center; font-weight: 700; width: 24px; }
   table.inscriptos .col-kesp { white-space: nowrap; }
+  /* Reparto de anchos: JOCKEY y ENTRENADOR necesitan su línea completa; PADRE — MADRE es
+     el que más da y el que mejor tolera ceder (promedio 26-27 caracteres, y si aprieta
+     envuelve sin perder sentido). Son sugerencias para el algoritmo auto de la tabla, no
+     table-layout:fixed: el contenido sigue influyendo y nada se trunca. */
+  table.inscriptos .col-jockey     { width: 15%; }
+  table.inscriptos .col-entrenador { width: 15%; }
+  table.inscriptos .col-pedigree   { width: 20%; }
 
   .pagina-final { padding-top: 20px; page-break-inside: avoid; }
   .disclaimer { font-size: 10px; text-align: justify; line-height: 1.5; margin-bottom: 20px; }
@@ -54,7 +61,17 @@
     body { padding: 0; }
     .programa-page { max-width: none; }
     .no-print { display: none !important; }
-    @page { size: A4; margin: 1.5cm 1.5cm 2cm 1.5cm; @bottom-center { content: "Página " counter(page) " de " counter(pages); font-family: 'Inter', sans-serif; font-size: 9px; color: #666; } }
+    /* Márgenes laterales igualados a los del programa color (8mm), que entra en una línea
+       por caballo. El B&N venía con 1.5cm y perdía 14mm de ancho útil: 180mm contra 194mm.
+       Vertical se mantiene — el 2cm de abajo lo necesita el contador de página. */
+    @page { size: A4; margin: 1.5cm 8mm 2cm 8mm; @bottom-center { content: "Página " counter(page) " de " counter(pages); font-family: 'Inter', sans-serif; font-size: 9px; color: #666; } }
+    /* En pantalla la tabla entra; al imprimir envuelve. Además del ancho, pesa la
+       tipografía: el color usa Roboto (sans, angosta) y el B&N EB Garamond, que si el
+       webfont no llega al pipeline de impresión cae a Georgia, bastante más ancha. 1pt
+       menos sólo en print, sin tocar la vista de pantalla. */
+    table.inscriptos { font-size: 8.5px; }
+    table.inscriptos thead th { font-size: 8.5px; letter-spacing: 0.2px; }
+    table.inscriptos tbody td { padding: 2px 3px; }
   }
   .banner-proxima { background:#000; color:#fff; text-align:center; padding:14px; font-size:18px; font-weight:700; margin:24px 0 16px; letter-spacing:1px; page-break-inside:avoid; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   .sponsors-band { border-top:2px solid #000; border-bottom:2px solid #000; padding:14px 0; margin:20px 0; page-break-inside:avoid; }
@@ -400,10 +417,10 @@ function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
         <td>${i.performance || spc.ult_performances || ''}</td>
         <td class="col-numero">${idx + 1}</td>
         <td><strong>${(spc.nombre || '').toUpperCase()}</strong></td>
-        <td>${jock ? nombreCorto(jock) : 'XX'}</td>
+        <td class="col-jockey">${jock ? nombreCorto(jock) : 'XX'}</td>
         <td class="col-kesp">${kesp}</td>
-        <td>${padreMadre}</td>
-        <td>${nombreCorto(entr)}</td>
+        <td class="col-pedigree">${padreMadre}</td>
+        <td class="col-entrenador">${nombreCorto(entr)}</td>
       </tr>`;
     }).join('');
 
@@ -427,7 +444,7 @@ function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
     </div>
     <table class="inscriptos">
       <thead><tr>
-        <th>CABALLERIZA</th><th>4 ULT. PERF.</th><th>N°</th><th>S.P.C.</th><th>JOCKEY</th><th>K E S P</th><th>PADRE — MADRE</th><th>ENTRENADOR</th>
+        <th>CABALLERIZA</th><th>4 ULT. PERF.</th><th>N°</th><th>S.P.C.</th><th class="col-jockey">JOCKEY</th><th>K E S P</th><th class="col-pedigree">PADRE — MADRE</th><th class="col-entrenador">ENTRENADOR</th>
       </tr></thead>
       <tbody>${filas || '<tr><td colspan="8" style="text-align:center;font-style:italic;">Sin inscriptos</td></tr>'}</tbody>
     </table>
