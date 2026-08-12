@@ -1,7 +1,19 @@
 -- ============================================================
 -- performance_inscripciones.sql — 4 últimas performances por inscripción
 -- ============================================================
--- ⏳ PROPUESTA — NO EJECUTADA. Espera gate de Leo.
+-- ✅ APLICADA el 12/08/2026 por MCP (DDL por apply_migration, backfill por
+--    execute_sql). Verificación post-aplicación, todo según lo previsto:
+--      filas con performance en R8 ............ 88   (previsto 88)
+--      SPCs distintos ......................... 67   (previsto 67)
+--      carreras ............................... 11
+--      DEBUTA ................................. 6 SPCs
+--      inscripciones con performance (global) . 88   (no se tocó nada fuera de R8)
+--    Y el dato que importa para el papel del domingo:
+--      ratificados en R8 ...................... 67
+--      ratificados SIN performance ............ 0    -> 0 celdas en blanco
+--    Las 18 filas que quedaron en NULL son forfait (12), inscripto (5) y
+--    mal_inscrito (1) — no salen en el programa, que filtra por ratificado.
+--    El mapa de Yesi coincide exactamente con el conjunto de ratificados.
 --
 -- Pedido de Yesi (12/08/2026): que el programa del 16 imprima las
 -- "4 ULT. PERF." que ella arma en sus Excel por carrera.

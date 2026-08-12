@@ -3,7 +3,12 @@
 **Branch**: `feat/performances`
 **Fecha**: 2026-08-12
 **Pedido**: Yesi — que el programa imprima las 4 últimas performances que ella arma en sus Excel por carrera.
-**Estado**: PROPUESTA — nada aplicado a la base. Código de pantalla/PDF escrito y commiteado en la rama, sin deploy.
+**Estado**: ✅ APLICADO (gate 2) y desplegado (gate 3) el 12/08/2026.
+
+> **Post-aplicación**: 88 filas / 67 SPCs / 11 carreras, 6 DEBUTA — exactamente lo previsto.
+> **67 ratificados en R8, 0 sin performance**: el mapa de Yesi coincide exactamente con el
+> conjunto de ratificados, así que la columna del programa sale completa, 0 celdas en blanco.
+> Las 18 filas en NULL son forfait/inscripto/mal_inscrito y no entran al programa.
 
 ---
 
@@ -57,13 +62,18 @@ Las 88 filas contra 67 SPCs: varios ejemplares están inscriptos en más de un t
 
 **Duplicados**: WAVE RIMOUT tiene dos filas en `spcs`. El UPDATE matchea *dentro de la reunión del 16/08*, no globalmente, así que sólo toca la fila que está efectivamente inscripta (`5ebc5e48`). Ningún duplicado puede desviarlo.
 
-### Los 13 de R8 que el mapa no trae
-
-Quedan en NULL y su celda sale vacía. No es un error del cruce — el mapa tiene 67 y la reunión tiene 80:
+### Los 13 de R8 que el mapa no trae — resuelto, no hay que preguntar nada
 
 TIRSO · TIENE RITMO · INDIO VALIDO · AMOROUS · INDIO GOLDEN · GAUCHA PRECIOSA · GINIYA GOOD · MOSQUITA GARDEN · KUCCINI · CHAMPION GOLDEN · ACAPULCO · SI TIN · LUMIN
 
-Vale preguntarle a Yesi si faltan en sus Excel o si son de carreras que ella todavía no armó.
+**Ninguno está ratificado.** Son forfait, inscripto o mal_inscrito, y el programa filtra por `estado === 'ratificado'`. El mapa de Yesi tiene 67 pares y R8 tiene exactamente 67 ratificados: el padrón está completo, la diferencia contra los 80 SPCs son los borrados.
+
+| estado en R8 | filas | con performance |
+|---|---|---|
+| ratificado | 67 | **67** |
+| forfait | 29 | 17 |
+| inscripto | 7 | 2 |
+| mal_inscrito | 3 | 2 |
 
 ## 5. Render (punto 4)
 
