@@ -356,6 +356,57 @@ async function load() {
   render(reunion, club, carreras || [], insByCarrera, { spcMap, profMap, propMap, cabMap, catMap }, proximaReunion);
 }
 
+// Apuestas especiales de la tapa (Triplo / Cuaterna / Doble Final, etc.).
+// Se derivan de carrera_apuestas: nada hardcodeado. `carreras` debe venir YA
+// ordenada por numero_carrera_programa, porque el numero que se imprime es la
+// posicion en esa lista (idx+1) — la misma numeracion publica que usa
+// renderCarreraColor abajo. Asi la tapa y el cuerpo del programa coinciden
+// aunque la reunion tenga turnos anulados.
+function buildApuestasEspeciales(carreras) {
+  const NOMBRE = { X2:'Doble', X2P:'Doble a Place', X3:'Triplo', X4:'Cuaterna', X5:'Quíntuplo', CAD:'Cadena' };
+  // Cuantas carreras abarca cada tipo. CAD es variable: corre hasta el final.
+  const LEGS   = { X2:2, X2P:2, X3:3, X4:4, X5:5 };
+  // El Doble simple ($200, sin nombre ni pozo) va cargado en casi todas las
+  // carreras y no es una apuesta especial: solo entra si Fede le puso nombre,
+  // pozo asegurado o incremento. X3/X4/X5/CAD siempre son especiales.
+  const esEspecial = a =>
+    (a.tipo === 'X2' || a.tipo === 'X2P')
+      ? !!(a.nombre || a.asegurado > 0 || a.incremento > 0)
+      : Object.prototype.hasOwnProperty.call(NOMBRE, a.tipo);
+
+  const fmtN = n => Number(n).toLocaleString('es-AR');
+  const esc  = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+  const total = carreras.length;
+
+  const cards = [];
+  carreras.forEach((c, idx) => {
+    const desde = idx + 1;
+    (c._apuestas || [])
+      .filter(a => a.precio > 0 && esEspecial(a))
+      .forEach(a => {
+        const legs   = a.tipo === 'CAD' ? (total - desde + 1) : LEGS[a.tipo];
+        const hasta  = Math.min(desde + legs - 1, total);
+        if (hasta <= desde) return; // no queda margen para las patas: no es especial
+        const nums   = [];
+        for (let n = desde; n <= hasta; n++) nums.push(n);
+        cards.push({ desde, html: `
+    <div class="apuesta-card">
+      <div class="ac-num">${desde}</div>
+      <div class="ac-body">
+        <div class="ac-tipo">${esc(a.nombre || NOMBRE[a.tipo])}</div>
+        <div class="ac-desde">Carreras ${nums.join(' · ')}</div>
+        ${a.asegurado > 0  ? `<div class="ac-pozo">POZO ASEGURADO $${fmtN(a.asegurado)}</div>` : ''}
+        ${a.incremento > 0 ? `<div class="ac-pozo">INCREMENTO ASEGURADO $${fmtN(a.incremento)}</div>` : ''}
+        <div class="ac-base">Base $${fmtN(a.precio)}</div>
+      </div>
+    </div>` });
+      });
+  });
+
+  cards.sort((a, b) => a.desde - b.desde);
+  return cards.map(c => c.html).join('');
+}
+
 function render(reunion, club, carreras, insByCarrera, maps, proximaReunion) {
   const { spcMap, profMap, propMap, cabMap, catMap } = maps;
 
@@ -387,36 +438,11 @@ function render(reunion, club, carreras, insByCarrera, maps, proximaReunion) {
   const comisionHtml    = comision.map(m => `<div class="item"><span class="rol">${m.cargo}:</span> ${m.nombre}</div>`).join('') || '<div class="item">—</div>';
   const comisariatoHtml = comisariato.map(m => `<div class="item"><span class="rol">${m.cargo}:</span> ${m.nombre}</div>`).join('') || '<div class="item">—</div>';
 
-  // TODO: apuestas especiales multi-carrera (TRIPLO/CUATERNA/DOBLE) no están en DB aún.
-  // Hardcodeadas como placeholder para Dolores. Reemplazar cuando exista el campo en reuniones.
-  const apuestasEspHtml = `
-    <div class="apuesta-card">
-      <div class="ac-num">2</div>
-      <div class="ac-body">
-        <div class="ac-tipo">Triplo Inicial</div>
-        <div class="ac-desde">Carreras 2 · 3 · 4</div>
-        <div class="ac-pozo">POZO ASEGURADO $50.000</div>
-        <div class="ac-base">Base $500</div>
-      </div>
-    </div>
-    <div class="apuesta-card">
-      <div class="ac-num">5</div>
-      <div class="ac-body">
-        <div class="ac-tipo">Cuaterna Final</div>
-        <div class="ac-desde">Carreras 6 · 7 · 8 · 9</div>
-        <div class="ac-pozo">POZO ASEGURADO $75.000</div>
-        <div class="ac-base">Base $500</div>
-      </div>
-    </div>
-    <div class="apuesta-card">
-      <div class="ac-num">8</div>
-      <div class="ac-body">
-        <div class="ac-tipo">Doble Final</div>
-        <div class="ac-desde">Carreras 8 · 9</div>
-        <div class="ac-pozo">POZO ASEGURADO $25.000</div>
-        <div class="ac-base">Base $500</div>
-      </div>
-    </div>`;
+  // Derivadas de carrera_apuestas sobre las carreras ya renumeradas (ver
+  // buildApuestasEspeciales). Si la reunión no tiene combinadas cargadas, la
+  // caja entera —título incluido— no se dibuja.
+  const apuestasEspHtml = buildApuestasEspeciales(carreras);
+  const hayApuestasEsp  = apuestasEspHtml.length > 0;
 
   const tapaHtml = `
   <div class="tapa">
@@ -440,7 +466,7 @@ function render(reunion, club, carreras, insByCarrera, maps, proximaReunion) {
       </div>
       <div class="tapa-info-logo">
         ${logoHtml}
-        <div class="tapa-apuestas-titulo">APUESTAS<br>ESPECIALES</div>
+        ${hayApuestasEsp ? `<div class="tapa-apuestas-titulo">APUESTAS<br>ESPECIALES</div>` : ''}
       </div>
       <div class="tapa-info-col" style="text-align:right;">
         <h3>Comisariato</h3>
@@ -448,9 +474,9 @@ function render(reunion, club, carreras, insByCarrera, maps, proximaReunion) {
       </div>
     </div>
 
-    <div class="tapa-apuestas-grid">
+    ${hayApuestasEsp ? `<div class="tapa-apuestas-grid">
       ${apuestasEspHtml}
-    </div>
+    </div>` : ''}
   </div>`;
 
   // ---- CARRERAS ----
