@@ -101,17 +101,58 @@
   .secretaria-bloque strong { font-weight:700; }
   .toolbar { background: #eee; padding: 10px; text-align: center; margin-bottom: 20px; }
   .toolbar button { background: #000; color: #fff; border: none; padding: 8px 16px; font-size: 13px; cursor: pointer; }
+  .toolbar button.secundario { background: #fff; color: #000; border: 1px solid #000; margin-left: 8px; }
+  .toolbar button.secundario.activo { background: #000; color: #fff; }
+
+  /* Hoja final en blanco, para pegarle el flyer. Se imprime doble faz y el total tiene que
+     quedar par, pero no hay forma de detectar la paridad: Chrome no implementa
+     `break-before: recto`, que es lo que la especificacion define justo para esto, y medir el
+     alto por JS no reproduce el layout paginado. Por eso es un toggle manual: se mira el
+     preview y se agrega si hace falta. En pantalla no ocupa nada; solo existe al imprimir. */
+  .pagina-blanco { display: none; }
+  @media print {
+    /* El &nbsp; que lleva adentro es lo que garantiza que Chrome emita la hoja: un bloque
+       sin contenido lo colapsa y no se genera la pagina. Va en transparente, asi que en el
+       papel la hoja sale efectivamente vacia. */
+    .pagina-blanco.activa { display: block; break-before: page; page-break-before: always; color: transparent; }
+    /* Pagina con nombre: le saca el pie "Pagina X de Y" a la hoja en blanco, para que no
+       quede una hoja vacia con numeracion al pie. Chrome hoy ignora los margin boxes de
+       @page (asi que tampoco imprime el pie en el resto del documento), pero la regla deja
+       el documento correcto para un paginador que si los soporte (PrinceXML, Paged.js).
+       Ojo: la hoja SI entra en el total de counter(pages) — el "de Y" sube en uno. */
+    .pagina-blanco.activa { page: blank; }
+    @page blank { @bottom-center { content: ""; } }
+  }
 </style>
 </head><body>
 
 <div class="toolbar no-print">
   <button onclick="window.print()">🖨️ Imprimir Programa Oficial</button>
+  <button id="btn-hoja-blanco" class="secundario" onclick="toggleHojaBlanco()">+ Hoja en blanco al final</button>
 </div>
 
 <div class="programa-page" id="programa-page">
   <div style="text-align:center;padding:40px;">Cargando programa…</div>
 </div>
 
+<!-- Fuera de #programa-page a proposito: load() reescribe ese innerHTML completo y se
+     llevaria puesta la hoja si estuviera adentro. El &nbsp; es necesario para que Chrome
+     emita la pagina; en print va en transparente, asi que la hoja sale vacia. -->
+<div class="pagina-blanco" id="pagina-blanco">&nbsp;</div>
+
+<script>
+// Hoja final en blanco para pegar el flyer: toggle manual, porque la paridad del total de
+// paginas no se puede detectar (ver el comentario de .pagina-blanco en el CSS). No toca el
+// render de las carreras: solo prende o apaga una clase en un div que vive fuera de
+// #programa-page.
+function toggleHojaBlanco() {
+  const hoja = document.getElementById('pagina-blanco');
+  const btn  = document.getElementById('btn-hoja-blanco');
+  const activa = hoja.classList.toggle('activa');
+  btn.classList.toggle('activo', activa);
+  btn.textContent = activa ? '− Sacar hoja en blanco' : '+ Hoja en blanco al final';
+}
+</script>
 <script src="premios-utils.js"></script>
 <script src="edad-spc.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
