@@ -292,10 +292,10 @@ async function loadPrograma() {
   renderPrograma(reunion, currentCarreras, currentInscripciones);
 }
 
+// Edad reglamentaria (1° de julio) referida a la fecha de la reunion. Ver edad-spc.js.
 function calcEdad(fecha) {
-  if (!fecha) return '';
-  const anos = Math.floor((new Date()-new Date(fecha))/(365.25*24*3600*1000));
-  return `, ${anos} años`;
+  const t = edadSPCTexto(fecha, currentReunion?.fecha);
+  return t ? `, ${t}` : '';
 }
 
 function renderPerfs(spcId) {

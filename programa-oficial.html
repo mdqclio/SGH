@@ -113,6 +113,7 @@
 </div>
 
 <script src="premios-utils.js"></script>
+<script src="edad-spc.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const sb = supabase.createClient('https://unlhcuanfrtpatoipwve.supabase.co','sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
@@ -135,13 +136,6 @@ function nombreCorto(p) {
   return `${p.apellido || ''} ${primer}`.trim().toUpperCase();
 }
 
-function calcEdad(fecha) {
-  if (!fecha) return '';
-  const hoy = new Date(), f = new Date(fecha);
-  let edad = hoy.getFullYear() - f.getFullYear();
-  if (hoy.getMonth() < f.getMonth() || (hoy.getMonth() === f.getMonth() && hoy.getDate() < f.getDate())) edad--;
-  return edad;
-}
 function pelajeCodigo(color) {
   if (!color) return '';
   const c = color.toLowerCase();
@@ -274,7 +268,7 @@ function render(reunion, club, carreras, insByCarrera, maps, proximaReunion) {
     </div>
     <div class="programa-reunion-titulo">Reunión N° ${reunion.numero_publico ?? reunion.numero ?? ''} — ${fechaStr}</div>
 
-    ${carreras.map(c => renderCarrera(c, insByCarrera[c.id] || [], spcMap, profMap, propMap, cabMap, catMap)).join('')}
+    ${carreras.map(c => renderCarrera(c, insByCarrera[c.id] || [], spcMap, profMap, propMap, cabMap, catMap, reunion.fecha)).join('')}
 
     ${proximaReunion ? `
       <div class="banner-proxima">
@@ -399,7 +393,7 @@ function formatApuestasText(c) {
   return '';
 }
 
-function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
+function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap, fechaReunion) {
   const num  = c.numero_carrera_programa != null ? c.numero_carrera_programa : c.numero_turno;
   const hora = c.hora_estimada ? String(c.hora_estimada).slice(0, 5) : '';
   const cat  = catMap[c.categoria_id];
@@ -428,7 +422,9 @@ function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
       const entr = profMap[i.entrenador_id];
       const prop = propMap[i.propietario_id];
       const cab  = cabMap[i.caballeriza_id];
-      const edad = calcEdad(spc.fecha_nacimiento);
+      // Edad reglamentaria (1° de julio), referida a la fecha de la reunion: un programa
+      // reimpreso muestra las mismas edades que el original. Ver edad-spc.js.
+      const edad = edadSPC(spc.fecha_nacimiento, fechaReunion);
       const kesp = kespTexto(i.peso_declarado, edad, spc.sexo, spc.color);
       // PADRE — MADRE: si falta un lado el separador no queda colgado (antes, sin
       // padrillo pero con madre, salia " — MADRE"). Dato ausente = vacio, sin placeholder.

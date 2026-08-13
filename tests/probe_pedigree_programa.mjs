@@ -131,8 +131,16 @@ const root = join(dir, '..');
     // ════ CÓDIGO REAL — programa.html ═══════════════════════════════════════
     phase = 'programa.html';
     const htmlProg = readFileSync(join(root, 'programa.html'), 'utf8');
-    // calcEdad real de programa.html (no stub): entra en la misma línea que se asserta
-    const calcEdad = new Function('fecha', extractFnBody(htmlProg, 'function calcEdad(fecha)'));
+    // calcEdad real de programa.html (no stub): entra en la misma línea que se asserta.
+    // Delega en edadSPCTexto() de edad-spc.js y lee currentReunion, asi que se inyectan
+    // el helper real y una reunion de referencia en vez de stubbearlos.
+    const edadSpcJs = readFileSync(join(root, 'edad-spc.js'), 'utf8')
+      .replace("typeof window !== 'undefined' ? window : globalThis", 'globalThis');
+    const calcEdad = new Function('fecha', `
+      ${edadSpcJs}
+      const currentReunion = { fecha: '2026-08-16' };
+      ${extractFnBody(htmlProg, 'function calcEdad(fecha)')}
+    `);
     const snipProg = extractSnippet(
       htmlProg, 'const pedigree = spc ?', ".filter(Boolean).join(' | ') : '';", 'programa.html');
     const runProg = new Function('spc', 'calcEdad', snipProg + '\n return { pedigree, spcSub };');

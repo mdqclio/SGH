@@ -66,12 +66,16 @@ const maps = {
   catMap: Object.fromEntries(cats.map(c => [c.id, c])),
 };
 const inscDe = cid => inscs.filter(i => i.carrera_id === cid);
+const { data: _reu } = await sb.from('reuniones').select('fecha').eq('id', R8).single();
+const FECHA_REUNION = _reu.fecha;   // la edad se calcula contra la fecha de la reunion
 
 const premiosUtils = readFileSync(new URL('../premios-utils.js', import.meta.url), 'utf8')
   .replace(/\(function \(global\) \{/, '').replace(/\}\)\(window\);\s*$/, '')
   .replace(/global\.\w+ = \w+;/g, '');
 // El COLOR usa partidorChipHTML(), que vive en partidor-colors.js (cargado por <script src>).
 const partidorColors = readFileSync(new URL('../partidor-colors.js', import.meta.url), 'utf8');
+// Los dos programas calculan la edad con edadSPC() de edad-spc.js (<script src>).
+const edadSpcJs = readFileSync(new URL('../edad-spc.js', import.meta.url), 'utf8');
 
 /**
  * Renderiza una carrera con el codigo real del archivo indicado.
@@ -80,16 +84,17 @@ const partidorColors = readFileSync(new URL('../partidor-colors.js', import.meta
  */
 function render(src, { sig, args }, carrera) {
   const body = extractFn(src, sig);
-  const deps = helpers(src, ['calcEdad','pelajeCodigo','sexoCodigo','pesoKesp','kespTexto',
+  const deps = helpers(src, ['calcEdad','pelajeCodigo','sexoCodigo','kespTexto',
                              'formatMonto','nombreCorto','formatApuestasText','partidorChipHTML']);
   const code = `
     ${premiosUtils}
     ${partidorColors}
+    ${edadSpcJs.replace('typeof window !== \'undefined\' ? window : globalThis','globalThis')}
     ${deps}
     function _render(${args.join(',')}) {${body}}
     return _render(${args.join(',')});`;
   const vals = args.map(a => ({
-    c: carrera, ins: inscDe(carrera.id), idx: 0, maps,
+    c: carrera, ins: inscDe(carrera.id), idx: 0, maps, fechaReunion: FECHA_REUNION,
     spcMap: maps.spcMap, profMap: maps.profMap, propMap: maps.propMap,
     cabMap: maps.cabMap, catMap: maps.catMap,
   }[a]));
@@ -99,10 +104,10 @@ function render(src, { sig, args }, carrera) {
 const FILES = [
   { f: 'programa-oficial.html',       label: 'B&N',
     sig: 'function renderCarrera(',
-    args: ['c','ins','spcMap','profMap','propMap','cabMap','catMap'] },
+    args: ['c','ins','spcMap','profMap','propMap','cabMap','catMap','fechaReunion'] },
   { f: 'programa-oficial-color.html', label: 'COLOR',
     sig: 'function renderCarreraColor(',
-    args: ['c','ins','maps','idx'] },
+    args: ['c','ins','maps','idx','fechaReunion'] },
 ];
 
 console.log('\n=== probe_programa_r8_imprenta — R8 (16/08/2026) ===');

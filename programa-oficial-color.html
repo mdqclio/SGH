@@ -265,6 +265,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="premios-utils.js"></script>
+<script src="edad-spc.js"></script>
 <script src="partidor-colors.js"></script>
 <script>
 const sb = supabase.createClient('https://unlhcuanfrtpatoipwve.supabase.co','sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
@@ -287,13 +288,6 @@ function nombreCorto(p) {
   return `${p.apellido || ''} ${primer}`.trim().toUpperCase();
 }
 
-function calcEdad(fecha) {
-  if (!fecha) return '';
-  const hoy = new Date(), f = new Date(fecha);
-  let e = hoy.getFullYear() - f.getFullYear();
-  if (hoy.getMonth() < f.getMonth() || (hoy.getMonth() === f.getMonth() && hoy.getDate() < f.getDate())) e--;
-  return e;
-}
 function pelajeCodigo(color) {
   if (!color) return '';
   const c = color.toLowerCase();
@@ -514,7 +508,7 @@ function render(reunion, club, carreras, insByCarrera, maps, proximaReunion) {
 
   // ---- CARRERAS ----
   const carrerasHtml = carreras.map((c, idx) =>
-    renderCarreraColor(c, insByCarrera[c.id] || [], maps, idx)
+    renderCarreraColor(c, insByCarrera[c.id] || [], maps, idx, reunion.fecha)
   ).join('');
 
   // ---- PRÓXIMA REUNIÓN ----
@@ -646,7 +640,7 @@ function formatApuestasText(c) {
   return '';
 }
 
-function renderCarreraColor(c, ins, maps, idx) {
+function renderCarreraColor(c, ins, maps, idx, fechaReunion) {
   const { spcMap, profMap, propMap, cabMap, catMap } = maps;
   const num     = idx + 1;
   const hora    = c.hora_estimada ? String(c.hora_estimada).slice(0, 5) : '';
@@ -679,7 +673,9 @@ function renderCarreraColor(c, ins, maps, idx) {
       const entr = profMap[i.entrenador_id];
       const prop = propMap[i.propietario_id];
       const cab  = cabMap[i.caballeriza_id];
-      const edad = calcEdad(spc.fecha_nacimiento);
+      // Edad reglamentaria (1° de julio), referida a la fecha de la reunion: un programa
+      // reimpreso muestra las mismas edades que el original. Ver edad-spc.js.
+      const edad = edadSPC(spc.fecha_nacimiento, fechaReunion);
       const kesp = kespTexto(i.peso_declarado, edad, spc.sexo, spc.color);
       const caballeriza = (cab?.nombre || prop?.nombre || '').toUpperCase();
       // PADRE — MADRE: si falta un lado el separador no queda colgado (antes, sin
