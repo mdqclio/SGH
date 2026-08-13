@@ -1,0 +1,257 @@
+# Programa R8 — cambios para imprenta del 16/08
+
+**Fecha**: 2026-08-13 · **Pedido**: Yesi (secretaría)
+**Branch**: `fix/programa-r8-imprenta` (desde `main` @ `42f9942`)
+**Gate**: `tests/probe_programa_r8_imprenta.mjs` → **26/26** · regresión previa
+`probe_alineado_programa.mjs` → OK
+
+**GUARD**: `pwd` = `/home/clio/dev/SGH` ✅ · ref `unlhcuanfrtpatoipwve` ✅ ·
+`spcs` = **183** ✅ · `main` = `42f9942` ✅ · cero DDL, cero DML.
+
+---
+
+## PARTE 1 — Cambios aplicados
+
+### 1. Separación K E S P
+
+**Estado previo.** La celda salía distinta en cada documento, y ninguna de las dos era
+legible. El motivo de fondo no era solo la falta de separadores: `peso_declarado` es
+`numeric` en Postgres y llega al render como **`"55.00"`**, con los dos decimales.
+
+| | código anterior | lo que imprimía |
+|---|---|---|
+| B&N (418) | `` `${i.peso_declarado \|\| ''} ${edad}${sexoCodigo(spc.sexo)} ${pelajeCodigo(spc.color)}` `` | `55.00 3H Z` |
+| COLOR (669) | `` `${i.peso_declarado \|\| ''}${edad}${sexoCodigo(spc.sexo)}${pelajeCodigo(spc.color)}` `` | `55.003HZ` |
+
+En el COLOR los cuatro valores iban literalmente pegados; el `55.00` hacía que el kilaje y
+la edad se leyeran como un solo número.
+
+**CSS de la columna** (sin cambios): `table.inscriptos .col-kesp { white-space: nowrap; }` —
+no tiene `width` propio, así que el ancho lo negocia el algoritmo `auto` de la tabla contra
+las columnas que sí lo declaran (`col-jockey` 15%, `col-entrenador` 15%, `col-pedigree` 20%).
+
+**Aplicado** (decisión de Yesi: espacios simples; pelaje faltante queda vacío como hoy):
+
+```js
+// El peso viene de Postgres como numeric ("55.00"): los decimales pegaban el kilaje a la
+// edad y volvian ilegible la columna K E S P. parseFloat descarta los ceros a la derecha
+// y conserva los medios kilos reales (55.5).
+function pesoKesp(peso) {
+  if (peso === null || peso === undefined || peso === '') return '';
+  const n = parseFloat(peso);
+  return Number.isFinite(n) ? String(n) : '';
+}
+// K E S P = Kilos Edad Sexo Pelaje, separados por espacio. Se arma por partes y se filtran
+// las vacias para que un dato faltante (p.ej. pelaje sin cargar) no deje separadores colgando.
+function kespTexto(peso, edad, sexo, color) {
+  return [pesoKesp(peso), edad, sexoCodigo(sexo), pelajeCodigo(color)]
+    .filter(v => v !== '' && v !== null && v !== undefined).join(' ');
+}
+```
+
+Los dos documentos pasan a llamar `kespTexto(i.peso_declarado, edad, spc.sexo, spc.color)`.
+Antes/después medido sobre R8:
+
+```
+B&N    antes:   55 3H Z | 57 3M Z | 57 3M Z | 55 3H Z
+COLOR  antes:   553HZ   | 573MZ   | 573MZ   | 553HZ
+ambos  después: 55 3 H Z | 57 3 M Z | 57 3 M Z | 55 3 H Z
+```
+
+**Sobre el ancho y la línea única.** El string del B&N pasa de 9 a 8 caracteres (`55.00 3H Z`
+→ `55 3 H Z`): **la columna no crece, se achica**. En el COLOR pasa de 6 a 8, +2 caracteres
+sobre la columna más angosta de la tabla. El gate verifica que las 8 carreras siguen con
+**una fila `<tr>` por caballo ratificado** (67 filas, 67 celdas K E S P) — no se rompió el
+"una línea por caballo". No se tocó ninguna regla de ancho ni el `nowrap`.
+
+### 2. Fuera la ganancia mínima de la línea BOLSA
+
+Eliminado el fragmento `— GAN. MÍN. $X/puesto` en los tres documentos:
+
+```diff
+-${dist.ganancia_minima ? ` — GAN. MÍN. ${formatMonto(dist.ganancia_minima)}/puesto` : ''}
+```
+(`programa-oficial.html:446` y `programa-oficial-color.html:707`)
+
+```diff
+-      if (dist.ganancia_minima)   bolsaLine += ` &mdash; GAN. MÍN. ${formatMonto(dist.ganancia_minima)}/puesto`;
+```
+(`carta-llamados.html:943`)
+
+**El cálculo no se tocó.** `repartoDisplay()` de `premios-utils.js` sigue aplicando el piso
+`ganancia_minima` exactamente igual: el gate compara el total de BOLSA de las 8 carreras
+contra el que produce `main` y da **idéntico en las 8**. Ejemplo (carrera 1): `$1.125.167`
+antes y después, con 4° y 5° elevados al piso de $100.000.
+
+### 3. Bono por posición en los dos programas
+
+Agregado en reemplazo, con el patrón textual de `carta-llamados.html:944` y leyendo los tres
+campos del JSONB — **sin hardcodear 6, 8 ni 100.000**:
+
+```js
+const bonoPosD   = dist.bono_posicion_desde || 6;
+const bonoPosH   = dist.bono_posicion_hasta || 0;
+const bonoPosMon = dist.bono_posicion_monto || 0;
+…
+${bonoPosH && bonoPosMon ? ` — BONO ${bonoPosD}°-${bonoPosH}° ${formatMonto(bonoPosMon)}/puesto` : ''}
+```
+
+El `|| 6` de `bonoPosD` es el mismo default que ya usa `carta-llamados.html:917`, y solo
+entra en juego si `hasta` y `monto` existen pero `desde` no. En R8 los tres están cargados en
+las 12 carreras, así que sale del dato real. La guarda `bonoPosH && bonoPosMon` hace que una
+carrera sin bono no imprima nada.
+
+Resultado en la línea BOLSA (carrera 1, idéntico en B&N y COLOR):
+
+```
+antes:   BOLSA: $1.125.167 — 1° $610.000 — 2° $193.167 — 3° $122.000 — 4° $100.000 — 5° $100.000 — GAN. MÍN. $100.000/puesto
+después: BOLSA: $1.125.167 — 1° $610.000 — 2° $193.167 — 3° $122.000 — 4° $100.000 — 5° $100.000 — BONO 6°-8° $100.000/puesto
+```
+
+---
+
+## Verificaciones pedidas
+
+Harness de código real (`tests/README.md`): se extrae del HTML la función que renderiza cada
+carrera (`renderCarrera` / `renderCarreraColor`) y se ejecuta con datos reales de R8 y con
+`premios-utils.js` + `partidor-colors.js` reales. El "antes" sale de
+`git show main:<archivo>`. Sin browser (chromium no corre en Ubuntu 26.04), así que se
+inspecciona el HTML que el print consume, no un screenshot.
+
+| verificación | B&N | COLOR |
+|---|:--:|:--:|
+| las 8 carreras SIN "GAN. MÍN." | 8/8 ✅ | 8/8 ✅ |
+| las 8 carreras CON "BONO 6°-8° $100.000/puesto" | 8/8 ✅ | 8/8 ✅ |
+| total de BOLSA idéntico al de `main` (el piso sigue aplicando) | 8/8 ✅ | 8/8 ✅ |
+| una fila por caballo ratificado | 8/8 ✅ | 8/8 ✅ |
+| 67 celdas K E S P (una por ratificado) | ✅ | ✅ |
+| ningún peso con decimales tipo "55.00" | ✅ | ✅ |
+| el documento entero no menciona GAN. MÍN. | ✅ | ✅ |
+
+`carta-llamados.html`: la línea BOLSA ya no arma "GAN. MÍN." ✅ · conserva el BONO desde el
+JSONB ✅ · sigue calculando con `repartoDisplay` ✅.
+Sin hardcodeos: los dos programas leen `bono_posicion_desde/hasta/monto` ✅.
+
+**Gate: 26/26.** Regresión previa `probe_alineado_programa.mjs`: OK (pedigrí, vertical-align
+y anchos intactos).
+
+---
+
+## PARTE 2 — Diagnósticos (read-only, sin corregir)
+
+### 4. Pelajes faltantes en R8
+
+**Son exactamente 2, y el campo está NULL en la base. No es pérdida del render.**
+
+| carrera | SPC | `spcs.color` | sexo | causa |
+|---:|:--|:--|:--|:--|
+| 5 | **Wave Rimout** | `NULL` | macho | dato ausente en la base |
+| 5 | **Icy Tom** | `NULL` | macho | dato ausente en la base |
+
+Prueba de que el render no pierde nada: los 65 ratificados restantes tienen `color` cargado y
+los 65 imprimen su letra. `pelajeCodigo()` solo devuelve `''` cuando recibe un valor falsy —
+para cualquier string devuelve al menos la inicial en mayúscula. Los dos casos coinciden uno a
+uno con los dos NULL de la base.
+
+Se arregla cargando el pelaje en el Stud Book de esos dos ejemplares. **No se tocó** — es
+carga de datos, no código.
+
+**Observación colateral** (no es lo preguntado, pero afecta al papel): `pelajeCodigo()` colapsa
+las variantes de zaino en una sola letra. En R8 quedan así:
+
+| `spcs.color` | ejemplares | imprime |
+|:--|---:|:--:|
+| Zaino | 39 | `Z` |
+| Zaino Colorado | 4 | `Z` |
+| Zaino Doradillo | 3 | `Z` |
+| Zaino Negro | 1 | `Z` |
+| Alazan | 12 | `A` |
+| Tordillo | 6 | `T` |
+| *(NULL)* | 2 | *(vacío)* |
+
+47 de 67 caballos imprimen `Z`. El dato distinto existe en la base y se pierde en el papel.
+Si Dolores usa códigos propios para colorado/doradillo/negro, hay que confirmarlo con Fede —
+es un cambio de criterio, no un bug. **No se tocó.**
+
+### 5. Paginación del B&N — cuántas páginas A4 da hoy
+
+**No puedo darte el número exacto desde acá, y prefiero decirlo antes que inventarlo.** El
+conteo depende de métricas de fuente y del salto de página real, que solo produce un motor de
+render; en este VPS no hay browser (`npx playwright install chromium` →
+`"Playwright does not support chromium on ubuntu26.04-x64"`, ver `tests/README.md`).
+
+**Estimación estructural** (con la aritmética explícita, para que se pueda contrastar):
+
+- Área útil A4 con `@page { margin: 1.5cm 8mm 2cm 8mm }` → **262 mm** de alto por página.
+- En print: `table.inscriptos { font-size: 8.5px }`, `td { padding: 2px 3px }` → fila ≈ 3,4 mm.
+- Las 8 carreras suman 67 filas + 8 encabezados = **75 filas ≈ 255 mm**.
+- Bloque `.carrera-meta` por carrera (premio, condiciones, BOLSA, apuestas) ≈ 15 mm × 8 ≈ **120 mm**.
+- Cola del documento: header + título + banner próxima + banda de sponsors + sponsor destacado
+  + `.pagina-final` ≈ **200 mm**.
+- Total ≈ **575 mm** ÷ 262 → ~2,2, y como `.carrera-block` tiene `page-break-inside: avoid`
+  los bloques no se parten y empujan: **estimado 3 páginas** (impar → le falta 1 para cerrar par).
+
+El número autoritativo lo da el propio print preview de Chrome (indica el total de hojas).
+⚠️ Ojo con una trampa: el `@bottom-center { content: "Página " counter(page) " de " counter(pages) }`
+de la línea 70 **no lo renderiza Chrome** — no soporta margin boxes de `@page`. Ese pie no
+sale impreso; conviene verificarlo en el preview antes de contar con él.
+
+**Propuesta (no aplicada).**
+
+*Lo condicional automático no se puede hacer solo con CSS en Chrome.* No existe selector de
+paridad del total de páginas. Lo que la especificación sí define para esto es
+`break-before: recto | verso` (inserta una hoja en blanco si hace falta para caer en página
+derecha), pero **Chrome no lo implementa** — solo procesadores como PrinceXML o Paged.js.
+Medirlo por JS tampoco es confiable: `scrollHeight` en pantalla no coincide con el layout
+paginado del print.
+
+Por eso la opción recomendada es **manual pero determinista**: un botón de la barra (que no se
+imprime) que agrega o saca una hoja en blanco al final, para que Yesi la active después de ver
+el preview.
+
+```html
+<!-- en la barra de acciones, junto a Imprimir -->
+<button class="no-print" onclick="togglePaginaBlanco()">+ Hoja en blanco al final</button>
+```
+```css
+.pagina-blanco { page-break-before: always; height: 0; }
+```
+```js
+function togglePaginaBlanco() {
+  const p = document.getElementById('programa-page');
+  const ya = p.querySelector('.pagina-blanco');
+  if (ya) ya.remove();
+  else p.insertAdjacentHTML('beforeend', '<div class="pagina-blanco"></div>');
+}
+```
+
+Ventajas: no depende de adivinar el conteo, funciona igual si mañana R9 da par, y Yesi
+controla el resultado mirando el preview. Son ~10 líneas y no tocan nada del render.
+
+*Alternativa si se quiere automático de verdad*: incorporar Paged.js (permite leer
+`counter(pages)` y decidir por paridad). Es una dependencia nueva y un cambio de motor de
+paginación — no para hoy, con la imprenta esperando.
+
+---
+
+## Alcance
+
+```
+carta-llamados.html               |  4 +-
+programa-oficial.html             | 22 ++++++--
+programa-oficial-color.html       | 22 ++++++--
+tests/probe_programa_r8_imprenta.mjs  | (nuevo)
+docs/diagnosticos/2026-08-13_programa-r8-imprenta.md | (este archivo)
+```
+
+**No tocado, a propósito:**
+
+- El desglose **en pantalla** de `carta-llamados.html` (línea ~824) sigue mostrando la fila
+  "· Ganancia mínima por puesto". Es la pantalla interna de trabajo, no el documento impreso;
+  el pedido era sobre la línea BOLSA del impreso. Si Yesi también la quiere fuera de la
+  pantalla, es un cambio de una línea.
+- Los pelajes NULL de Wave Rimout e Icy Tom (carga de datos).
+- El colapso de variantes de zaino en `pelajeCodigo()` (necesita criterio de Fede).
+- La hoja en blanco (propuesta arriba, sin aplicar).
+
+Cero `INSERT` / `UPDATE` / `DELETE` / DDL contra prod. Sin merge a `main`.

@@ -153,6 +153,20 @@ function pelajeCodigo(color) {
   if (c.startsWith('moro') || c.startsWith('mulato')) return 'M';
   return color.charAt(0).toUpperCase();
 }
+// El peso viene de Postgres como numeric ("55.00"): los decimales pegaban el kilaje a la
+// edad y volvian ilegible la columna K E S P. parseFloat descarta los ceros a la derecha
+// y conserva los medios kilos reales (55.5).
+function pesoKesp(peso) {
+  if (peso === null || peso === undefined || peso === '') return '';
+  const n = parseFloat(peso);
+  return Number.isFinite(n) ? String(n) : '';
+}
+// K E S P = Kilos Edad Sexo Pelaje, separados por espacio. Se arma por partes y se filtran
+// las vacias para que un dato faltante (p.ej. pelaje sin cargar) no deje separadores colgando.
+function kespTexto(peso, edad, sexo, color) {
+  return [pesoKesp(peso), edad, sexoCodigo(sexo), pelajeCodigo(color)]
+    .filter(v => v !== '' && v !== null && v !== undefined).join(' ');
+}
 function sexoCodigo(sexo) {
   if (!sexo) return '';
   const s = sexo.toLowerCase();
@@ -397,6 +411,12 @@ function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
   const cat  = catMap[c.categoria_id];
   const dist = c.distribucion_premios || {};
   const bonoGanador  = dist.bono_ganador || 0;
+  // Bono por posicion: se lee del JSONB, sin valores hardcodeados. Mismo patron que
+  // carta-llamados.html. El piso ganancia_minima sigue aplicandose en repartoDisplay()
+  // (por eso el total de BOLSA no cambia); lo que se saco es solo su leyenda impresa.
+  const bonoPosD   = dist.bono_posicion_desde || 6;
+  const bonoPosH   = dist.bono_posicion_hasta || 0;
+  const bonoPosMon = dist.bono_posicion_monto || 0;
   const apuestasText = formatApuestasText(c);
   const bolsa = parseFloat(c.bolsa_total) || 0;
   const { puestos: puestosEfectivos, total: bolsaNominal } = repartoDisplay(bolsa, dist);
@@ -415,7 +435,7 @@ function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
       const prop = propMap[i.propietario_id];
       const cab  = cabMap[i.caballeriza_id];
       const edad = calcEdad(spc.fecha_nacimiento);
-      const kesp = `${i.peso_declarado || ''} ${edad}${sexoCodigo(spc.sexo)} ${pelajeCodigo(spc.color)}`.trim();
+      const kesp = kespTexto(i.peso_declarado, edad, spc.sexo, spc.color);
       // PADRE — MADRE: si falta un lado el separador no queda colgado (antes, sin
       // padrillo pero con madre, salia " — MADRE"). Dato ausente = vacio, sin placeholder.
       const padreMadre = [spc.padrillo_nombre, spc.madre_nombre]
@@ -443,7 +463,7 @@ function renderCarrera(c, ins, spcMap, profMap, propMap, cabMap, catMap) {
         ${bonoGanador ? `<div class="bono-float"><div class="bono">BONO ${formatMonto(bonoGanador)}<br>AL GANADOR</div></div>` : ''}
         ${c.nombre ? `<div class="premio">PREMIO: ${c.nombre}</div>` : ''}
         ${(c.condicion_adicional || c.condicion_handicap) ? `<div>${[c.condicion_handicap, c.condicion_adicional].filter(Boolean).join(' — ')}</div>` : ''}
-        <div class="bolsa">BOLSA: ${formatMonto(bolsaNominal)}${desglose ? ` — ${desglose}` : ''}${dist.ganancia_minima ? ` — GAN. MÍN. ${formatMonto(dist.ganancia_minima)}/puesto` : ''}</div>
+        <div class="bolsa">BOLSA: ${formatMonto(bolsaNominal)}${desglose ? ` — ${desglose}` : ''}${bonoPosH && bonoPosMon ? ` — BONO ${bonoPosD}°-${bonoPosH}° ${formatMonto(bonoPosMon)}/puesto` : ''}</div>
         ${apuestasText ? `<div><strong>APUESTAS:</strong> ${apuestasText}</div>` : ''}
       </div>
       <div class="carrera-right">
