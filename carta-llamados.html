@@ -939,7 +939,8 @@ function renderPrint() {
         .map(([pos]) => `${ORDINAL[parseInt(pos)-1]||pos+'°'} ${formatMonto(Math.round(puestosEfectivos[pos]||0))}`);
       bolsaLine = `BOLSA: ${formatMonto(bolsaNominal)}`;
       if (puestos.length)         bolsaLine += ' &mdash; ' + puestos.join(' &mdash; ');
-      if (dist.ganancia_minima)   bolsaLine += ` &mdash; GAN. MÍN. ${formatMonto(dist.ganancia_minima)}/puesto`;
+      // La leyenda del piso por puesto se saco del impreso a pedido de secretaria. El piso
+      // sigue aplicandose en repartoDisplay(): bolsaNominal y los montos por puesto no cambian.
       if (bonoPosH && bonoPosMon) bolsaLine += ` &mdash; BONO ${bonoPosD}°-${bonoPosH}° ${formatMonto(bonoPosMon)}/puesto`;
     }
 

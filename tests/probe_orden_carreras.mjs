@@ -11,7 +11,7 @@
  * renderLista() del HTML que sirve prod y se ejecuta via AsyncFunction con cliente Supabase
  * real + stubs de DOM. No hay reimplementacion: corre el mismo texto que el browser.
  *
- * Compara HEAD contra `git show main:resultados.html` para probar el antes/despues.
+ * Compara HEAD contra el baseline 9dbc55a (commit previo al merge del fix) para el antes/despues.
  * READ-ONLY: solo SELECTs. No escribe nada.
  *
  *   node tests/probe_orden_carreras.mjs
@@ -89,7 +89,10 @@ function badgeDenom(html) {
 }
 
 const headHtml = readFileSync(new URL('../resultados.html', import.meta.url), 'utf8');
-const mainHtml = execSync('git show main:resultados.html', { encoding: 'utf8', maxBuffer: 32e6 });
+// Baseline fijado al commit ANTERIOR al merge del fix (9dbc55a), no a `main`: una vez
+// mergeado, `main` ya trae el fix y el contraste antes/despues se pierde solo.
+const BASELINE = '9dbc55a';
+const mainHtml = execSync(`git show ${BASELINE}:resultados.html`, { encoding: 'utf8', maxBuffer: 32e6 });
 
 console.log('\n=== probe_orden_carreras — fix/resultados-numero-carrera ===');
 console.log('Ref: unlhcuanfrtpatoipwve · READ-ONLY (solo SELECT)\n');
@@ -99,7 +102,7 @@ console.log('[0] Codigo bajo prueba');
 asrt(headHtml.includes("estado.is.null,estado.neq.anulada"), 'HEAD tiene el filtro NULL-safe de anuladas');
 asrt(/a\.numero_carrera_programa \?\? a\.numero_turno/.test(headHtml), 'HEAD ordena con nullish coalescing');
 asrt(!/\+\s*10000/.test(headHtml), 'HEAD no usa offset +10000');
-asrt(!mainHtml.includes("estado.neq.anulada"), 'main (antes) no tenia el filtro');
+asrt(!mainHtml.includes("estado.neq.anulada"), `el baseline ${BASELINE} no tenia el filtro`);
 
 // ── VERIFICACION 1: R8 muestra 1..8 sin repetidos ni huecos ──────────────────
 console.log('\n[1] R8 (16/08/2026) — tarjetas visibles y su numero');
@@ -122,7 +125,7 @@ const d8 = badgeDenom(r8.html);
 console.log(`      badge: "${(r8.html.match(/Reuni[oó]n (?:oficial|provisional)[^<]*/) || ['—'])[0]}"`);
 asrt(d8 === 8, `denominador = 8 (obtenido: ${d8})`);
 const d8old = badgeDenom((await runReal(mainHtml, R8)).html);
-asrt(d8old === 12, `antes del fix era 12 (obtenido: ${d8old}) — el badge era inalcanzable`);
+asrt(d8old === 12, `en ${BASELINE} era 12 (obtenido: ${d8old}) — el badge era inalcanzable`);
 
 // ── VERIFICACION 3: reuniones de control ─────────────────────────────────────
 async function control(nombre, rid) {
@@ -143,7 +146,7 @@ asrt(c9.after.carreras.length === 11 && c9.after.carreras.every(c => c.numero_ca
      'R9 ejercita el fallback (las 11 sin numero de programa)');
 
 const c6 = await control('R6 (20/06/2026) — 11 carreras, 3 anuladas', R6);
-asrt(c6.before.carreras.length === 11, `R6 antes listaba 11 (obtenido: ${c6.before.carreras.length})`);
+asrt(c6.before.carreras.length === 11, `R6 en ${BASELINE} listaba 11 (obtenido: ${c6.before.carreras.length})`);
 asrt(c6.after.carreras.length === 8,  `R6 ahora lista 8 (obtenido: ${c6.after.carreras.length})`);
 asrt(nonEmpty(c6.after.carreras, a => !a.some(c => c.estado === 'anulada')), 'R6: se fueron las 3 anuladas');
 asrt(JSON.stringify(c6.an) === JSON.stringify(['1','2','3','4','5','6','7','8']),

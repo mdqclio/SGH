@@ -292,11 +292,10 @@ function toast(msg, type='success') {
   document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),3500);
 }
 
+// Edad reglamentaria (1° de julio). Es el ABM del Stud Book y no cuelga de ninguna
+// reunion, asi que la referencia es la fecha actual. Ver edad-spc.js.
 function calcEdad(fecha) {
-  if (!fecha) return '—';
-  const hoy = new Date(), nac = new Date(fecha);
-  const anos = Math.floor((hoy - nac) / (365.25 * 24 * 3600 * 1000));
-  return `${anos} a.`;
+  return edadSPCTexto(fecha, null, true) || '—';
 }
 
 function switchTab(name) {

@@ -265,6 +265,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="premios-utils.js"></script>
+<script src="edad-spc.js"></script>
 <script src="partidor-colors.js"></script>
 <script>
 const sb = supabase.createClient('https://unlhcuanfrtpatoipwve.supabase.co','sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');
@@ -287,13 +288,6 @@ function nombreCorto(p) {
   return `${p.apellido || ''} ${primer}`.trim().toUpperCase();
 }
 
-function calcEdad(fecha) {
-  if (!fecha) return '';
-  const hoy = new Date(), f = new Date(fecha);
-  let e = hoy.getFullYear() - f.getFullYear();
-  if (hoy.getMonth() < f.getMonth() || (hoy.getMonth() === f.getMonth() && hoy.getDate() < f.getDate())) e--;
-  return e;
-}
 function pelajeCodigo(color) {
   if (!color) return '';
   const c = color.toLowerCase();
@@ -304,6 +298,14 @@ function pelajeCodigo(color) {
   if (c.startsWith('negro')) return 'N';
   if (c.startsWith('moro') || c.startsWith('mulato')) return 'M';
   return color.charAt(0).toUpperCase();
+}
+// K E S P = Kilos Edad Sexo Pelaje: cuatro tokens separados por un espacio simple, sin
+// ningun caracter separador. Antes en este documento los cuatro valores iban pegados
+// ("553HZ"). Se arma por partes y se filtran las vacias para que un dato faltante
+// (p.ej. pelaje sin cargar) no deje un espacio colgando al final.
+function kespTexto(peso, edad, sexo, color) {
+  return [peso, edad, sexoCodigo(sexo), pelajeCodigo(color)]
+    .filter(v => v !== '' && v !== null && v !== undefined).join(' ');
 }
 function sexoCodigo(sexo) {
   if (!sexo) return '';
@@ -506,7 +508,7 @@ function render(reunion, club, carreras, insByCarrera, maps, proximaReunion) {
 
   // ---- CARRERAS ----
   const carrerasHtml = carreras.map((c, idx) =>
-    renderCarreraColor(c, insByCarrera[c.id] || [], maps, idx)
+    renderCarreraColor(c, insByCarrera[c.id] || [], maps, idx, reunion.fecha)
   ).join('');
 
   // ---- PRÓXIMA REUNIÓN ----
@@ -638,7 +640,7 @@ function formatApuestasText(c) {
   return '';
 }
 
-function renderCarreraColor(c, ins, maps, idx) {
+function renderCarreraColor(c, ins, maps, idx, fechaReunion) {
   const { spcMap, profMap, propMap, cabMap, catMap } = maps;
   const num     = idx + 1;
   const hora    = c.hora_estimada ? String(c.hora_estimada).slice(0, 5) : '';
@@ -647,6 +649,12 @@ function renderCarreraColor(c, ins, maps, idx) {
   const bolsa   = parseFloat(c.bolsa_total) || 0;
   const { puestos: puestosEf, total: bolsaNominal } = repartoDisplay(bolsa, dist);
   const bonoGanador  = dist.bono_ganador || 0;
+  // Bono por posicion: se lee del JSONB, sin valores hardcodeados. Mismo patron que
+  // carta-llamados.html. El piso ganancia_minima sigue aplicandose en repartoDisplay()
+  // (por eso el total de BOLSA no cambia); lo que se saco es solo su leyenda impresa.
+  const bonoPosD   = dist.bono_posicion_desde || 6;
+  const bonoPosH   = dist.bono_posicion_hasta || 0;
+  const bonoPosMon = dist.bono_posicion_monto || 0;
   const apuestasText = formatApuestasText(c);
 
   const desglose = [1,2,3,4,5,6].map(p => {
@@ -665,8 +673,10 @@ function renderCarreraColor(c, ins, maps, idx) {
       const entr = profMap[i.entrenador_id];
       const prop = propMap[i.propietario_id];
       const cab  = cabMap[i.caballeriza_id];
-      const edad = calcEdad(spc.fecha_nacimiento);
-      const kesp = `${i.peso_declarado || ''}${edad}${sexoCodigo(spc.sexo)}${pelajeCodigo(spc.color)}`.trim();
+      // Edad reglamentaria (1° de julio), referida a la fecha de la reunion: un programa
+      // reimpreso muestra las mismas edades que el original. Ver edad-spc.js.
+      const edad = edadSPC(spc.fecha_nacimiento, fechaReunion);
+      const kesp = kespTexto(i.peso_declarado, edad, spc.sexo, spc.color);
       const caballeriza = (cab?.nombre || prop?.nombre || '').toUpperCase();
       // PADRE — MADRE: si falta un lado el separador no queda colgado (antes, sin
       // padrillo pero con madre, salia " — MADRE"). Dato ausente = vacio, sin placeholder.
@@ -704,7 +714,7 @@ function renderCarreraColor(c, ins, maps, idx) {
     <div class="carrera-color-info">
       ${bonoGanador ? `<div class="bono-lateral">BONO ${formatMonto(bonoGanador)}<br>AL GANADOR</div>` : ''}
       ${condiciones ? `<div>${condiciones}</div>` : ''}
-      ${bolsa ? `<div class="bolsa-linea">BOLSA: ${formatMonto(bolsaNominal)}${desglose ? ` — ${desglose}` : ''}${dist.ganancia_minima ? ` — GAN. MÍN. ${formatMonto(dist.ganancia_minima)}/puesto` : ''}</div>` : ''}
+      ${bolsa ? `<div class="bolsa-linea">BOLSA: ${formatMonto(bolsaNominal)}${desglose ? ` — ${desglose}` : ''}${bonoPosH && bonoPosMon ? ` — BONO ${bonoPosD}°-${bonoPosH}° ${formatMonto(bonoPosMon)}/puesto` : ''}</div>` : ''}
     </div>
     <table class="inscriptos-color">
       <thead><tr>

@@ -556,10 +556,10 @@ function renderInscripciones() {
 let spcSearchTimer;
 let spcSearchResults = [];
 
+// Edad reglamentaria (1° de julio). Es el buscador de alta, previo a elegir turno,
+// asi que la referencia es la fecha actual. Ver edad-spc.js.
 function calcSpcEdad(fecha) {
-  if (!fecha) return '';
-  const anos = Math.floor((new Date() - new Date(fecha + 'T12:00:00')) / (365.25 * 24 * 3600 * 1000));
-  return `${anos} año${anos !== 1 ? 's' : ''}`;
+  return edadSPCTexto(fecha);
 }
 
 async function searchSpc() {
