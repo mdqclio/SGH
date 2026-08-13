@@ -7,7 +7,7 @@
  * ademas usaba new Date() (hoy) en vez de la fecha de la reunion.
  *
  * Compara, para cada ratificado de R8:
- *   - edad que imprime el codigo de main (`git show main:programa-oficial.html`)
+ *   - edad que imprime el codigo previo al fix (`git show 42f9942:programa-oficial.html`)
  *   - edad que imprime el codigo corregido (HEAD, via edad-spc.js)
  *   - edad publicada por el Stud Book (scrape del perfil, fuente de verdad)
  *
@@ -35,7 +35,12 @@ function extractFnBody(src, sig) {
   for (; i < src.length; i++) { if (src[i] === '{') d++; else if (src[i] === '}' && --d === 0) break; }
   return src.slice(o + 1, i);
 }
-const mainHtml = execSync('git show main:programa-oficial.html', { encoding: 'utf8', maxBuffer: 32e6 });
+// Baseline fijado al commit ANTERIOR al merge del fix (42f9942), no a `main`: una vez
+// mergeado, `main` ya no tiene calcEdad() y el contraste antes/despues se pierde solo.
+const BASELINE = '42f9942';
+const mainHtml = execSync(`git show ${BASELINE}:programa-oficial.html`, { encoding: 'utf8', maxBuffer: 32e6 });
+if (!mainHtml.includes('function calcEdad(fecha)'))
+  throw new Error(`El baseline ${BASELINE} no tiene calcEdad(): revisar la referencia.`);
 const calcEdadViejo = new Function('fecha', extractFnBody(mainHtml, 'function calcEdad(fecha)'));
 
 // ── El helper nuevo, cargado del archivo real ────────────────────────────────
@@ -124,7 +129,7 @@ const noCoinc   = conSB.filter(f => f.fix !== f.sb);
 const viejoOk   = conSB.filter(f => f.hoy === f.sb);
 const cambiaron = filas.filter(f => f.hoy !== f.fix);
 
-console.log(`\n  (*) = la edad cambia respecto de main\n`);
+console.log(`\n  (*) = la edad cambia respecto del baseline\n`);
 console.log(`  resueltos en el Stud Book ...... ${conSB.length}/${filas.length}`);
 console.log(`  FIX coincide con Stud Book ..... ${coinciden.length}/${conSB.length}`);
 console.log(`  main coincidia con Stud Book ... ${viejoOk.length}/${conSB.length}`);
@@ -135,7 +140,7 @@ asrt(filas.length === inscs.length, `una fila por ratificado (${filas.length}/${
 asrt(sinSB.length === 0, `todos resueltos en el Stud Book (sin dato: ${sinSB.length}${sinSB.length ? ' -> ' + sinSB.map(f=>f.nombre).join(', ') : ''})`);
 asrt(noCoinc.length === 0,
      `la edad corregida coincide con el Stud Book en todas (difieren: ${noCoinc.length}${noCoinc.length ? ' -> ' + noCoinc.map(f => `${f.nombre}: fix ${f.fix} vs SB ${f.sb}`).join(', ') : ''})`);
-asrt(viejoOk.length < conSB.length, `main NO coincidia con el Stud Book en al menos una (coincidia en ${viejoOk.length}/${conSB.length})`);
+asrt(viejoOk.length < conSB.length, `el baseline ${BASELINE} NO coincidia con el Stud Book en al menos una (coincidia en ${viejoOk.length}/${conSB.length})`);
 // La fecha de nacimiento de la base coincide con la del Stud Book.
 const nacDistinto = conSB.filter(f => {
   const [d, m, y] = f.sb_nac.split('/');
@@ -196,14 +201,14 @@ for (const c of carreras) {
   console.log(`  C${String(c.numero_carrera_programa).padStart(2)}  ${rango} anios  (${cond.fuente})`);
   console.log(`       edades corregidas: ${[...new Set(suyos.map(f => f.fix))].sort((a,b)=>a-b).join(', ')}` +
               (fN.length ? `   <<< FUERA DE CONDICION: ${fN.map(f => `${f.nombre} (${f.fix})`).join(', ')}` : '   ok'));
-  if (fV.length) console.log(`       con las edades de main habrian figurado fuera: ${fV.map(f => `${f.nombre} (${f.hoy})`).join(', ')}`);
+  if (fV.length) console.log(`       con las edades del baseline habrian figurado fuera: ${fV.map(f => `${f.nombre} (${f.hoy})`).join(', ')}`);
 }
 
 console.log('');
 asrt(noInterpretables === 0, `todas las condiciones de edad interpretadas (no interpretables: ${noInterpretables})`);
 asrt(fueraNuevo === 0,
      `ningun ratificado fuera de la condicion de edad de su carrera (fuera: ${fueraNuevo})`);
-console.log(`     con las edades de main habrian figurado ${fueraViejo} caballos fuera de condicion`);
+console.log(`     con las edades del baseline habrian figurado ${fueraViejo} caballos fuera de condicion`);
 
 console.log(`\n${'─'.repeat(66)}`);
 console.log(fail === 0 ? `\x1b[32mGATE OK\x1b[0m — ${pass}/${pass + fail} asserts`
