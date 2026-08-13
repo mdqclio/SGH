@@ -151,41 +151,106 @@ y anchos intactos).
 
 ---
 
-## PARTE 2 — Diagnósticos (read-only, sin corregir)
+## PARTE 2 — Diagnósticos
 
-### 4. Pelajes faltantes en R8
+### 4. Pelajes faltantes en R8 — RESUELTO el 13/08
 
-**Son exactamente 2, y el campo está NULL en la base. No es pérdida del render.**
+**Diagnostico**: eran exactamente 2, con el campo `spcs.color` en **NULL en la base**. No era
+perdida del render: los otros 65 ratificados tenian el dato y los 65 imprimian su letra.
 
-| carrera | SPC | `spcs.color` | sexo | causa |
-|---:|:--|:--|:--|:--|
-| 5 | **Wave Rimout** | `NULL` | macho | dato ausente en la base |
-| 5 | **Icy Tom** | `NULL` | macho | dato ausente en la base |
+**Resuelto**: se consulto el Stud Book (fuente del dato) y se cargo el valor, con aprobacion
+explicita de secretaria. Unico DML de la sesion.
 
-Prueba de que el render no pierde nada: los 65 ratificados restantes tienen `color` cargado y
-los 65 imprimen su letra. `pelajeCodigo()` solo devuelve `''` cuando recibe un valor falsy —
-para cualquier string devuelve al menos la inicial en mayúscula. Los dos casos coinciden uno a
-uno con los dos NULL de la base.
+Evidencia del scraper (`tools/studbook_scrape_tanda.mjs`, no escribe en DB):
 
-Se arregla cargando el pelaje en el Stud Book de esos dos ejemplares. **No se tocó** — es
-carga de datos, no código.
+| SPC | sb_id | `h.pelo` crudo | nacimiento SB / DB | padre / madre SB / DB |
+|---|---:|:--|:--|:--|
+| WAVE RIMOUT | 397805 | `Zaino` | 08/08/2017 = 2017-08-08 ✅ | Remote (GB) / Holiday Wave ✅ |
+| ICY TOM | 408138 | `Zaino` | 02/09/2018 = 2018-09-02 ✅ | Icy Glory / Normandina ✅ |
 
-**Observación colateral** (no es lo preguntado, pero afecta al papel): `pelajeCodigo()` colapsa
-las variantes de zaino en una sola letra. En R8 quedan así:
+0 casos no resueltos, 0 alertas, match exacto por nombre. Cada uno consultado por separado.
 
-| `spcs.color` | ejemplares | imprime |
-|:--|---:|:--:|
-| Zaino | 39 | `Z` |
-| Zaino Colorado | 4 | `Z` |
-| Zaino Doradillo | 3 | `Z` |
-| Zaino Negro | 1 | `Z` |
-| Alazan | 12 | `A` |
-| Tordillo | 6 | `T` |
-| *(NULL)* | 2 | *(vacío)* |
+**Formato verificado antes de escribir.** La duda era si la base guarda la letra (`Z`) o la
+palabra. Guarda la palabra: **0 filas** de `spcs.color` tienen un solo caracter (`len_min` = 5,
+`len_max` = 15). La letra se deriva en el render con `pelajeCodigo()`, que mapea
+`startsWith('zaino') -> 'Z'`. `Zaino` es ademas el valor exacto de las 84 filas mayoritarias,
+byte por byte (`5a 61 69 6e 6f`).
 
-47 de 67 caballos imprimen `Z`. El dato distinto existe en la base y se pierde en el papel.
-Si Dolores usa códigos propios para colorado/doradillo/negro, hay que confirmarlo con Fede —
-es un cambio de criterio, no un bug. **No se tocó.**
+```sql
+UPDATE spcs SET color = 'Zaino', updated_at = now()
+WHERE id IN ('5ebc5e48-2caf-4c44-be6a-ad75f2716850',   -- Wave Rimout (R8)
+             '8a6aea98-d121-4ad6-90d6-c08e8cfd8c75')   -- Icy Tom
+  AND color IS NULL;
+-- UPDATE 2
+```
+
+El `AND color IS NULL` lo deja idempotente. Verificacion posterior: `Zaino` 84 -> **86**,
+NULL 25 -> **23**, total 183 sin cambios, filas de una sola letra siguen en **0**.
+
+Print preview de la carrera 5 (`DÍA DEL NIÑO`, turno 10) con el `renderCarrera()` real:
+
+```
+   4  WAVE RIMOUT               64 9 M Z
+   6  ICY TOM                   60 7 M Z
+```
+
+Ambos con la `Z`, mismo formato que el resto. Celdas sin pelaje en la carrera: 0 (antes 2).
+
+**Observacion colateral** (no se toco): `pelajeCodigo()` colapsa las variantes de zaino en una
+sola letra — `Zaino`, `Zaino Colorado`, `Zaino Doradillo`, `Zaino Negro` imprimen todas `Z`.
+En R8 son 49 de 67 caballos con `Z`. El dato distinto existe en la base y se pierde en el papel.
+Necesita criterio de Fede: es cambio de criterio, no bug.
+
+La columna arrastra ademas inconsistencias propias de carga: `Alazan`/`Alazán` y
+`Alazan tostado`/`Alazán tostado` conviven con y sin tilde, y hay modificadores en minuscula
+(`Zaino oscuro`, `Zaino claro`) contra otros en mayuscula. No se normalizo.
+
+---
+
+## PENDIENTES PARA EL LUNES (anotados, no tocados hoy)
+
+### P1 — `Wave Rimout` duplicado en `spcs`
+
+Dos filas para el mismo caballo, ambas con `registro_stud_book` y `studbook_id` en NULL:
+
+| id | creado | usado en | color |
+|---|---|---|---|
+| `5ebc5e48-2caf-4c44-be6a-ad75f2716850` | 2026-06-12 | **R8** (programa del domingo) | `Zaino` (cargado hoy) |
+| `f277af1c-a4ac-4a98-87d7-b41871718c8d` | 2026-05-07 | R6 | `NULL` — sin tocar |
+
+**Diagnostico: es ruido, no ensucio las liquidaciones de R6.** Lo unico que le cuelga a la
+fila de R6:
+
+| tabla | filas | detalle |
+|---|---:|---|
+| `inscripciones` | 1 | R6 turno 11 — estado **`forfait`** |
+| `resultado_posiciones` | 0 | |
+| `performances` | 0 | |
+| `liquidacion_detalle` | 0 | |
+| `novedades_reunion` | 0 | |
+| `spc_propietarios` | 0 | |
+| `spc_entrenadores_hist` | 0 | |
+
+El caballo no largo (forfait), asi que no genero posicion ni linea de premio. Contraste que lo
+cierra: R6 turno 11 tiene **15 lineas** de `liquidacion_detalle` y **0** son del duplicado.
+
+Consolidarlo = borrar una fila huerfana de `spcs` y una inscripcion en forfait. **Sin recalculo
+de liquidaciones.** Orden: primero la inscripcion, despues el SPC (GOTCHA #12, FK).
+
+### P2 — `studbook_id` / `registro_stud_book` en NULL
+
+Los tres SPCs mirados hoy los tienen en NULL. El scraper ya devuelve el `sb_id`, asi que el
+dato esta disponible sin trabajo extra:
+
+| SPC | sb_id | tomo/folio |
+|---|---:|---|
+| WAVE RIMOUT | 397805 | 1209/804 |
+| ICY TOM | 408138 | 1219/792 |
+
+Conviene dimensionar cuantos SPCs del padron estan igual antes de decidir un backfill. **No
+entra hoy** — es otro pedido.
+
+---
 
 ### 5. Paginación del B&N — cuántas páginas A4 da hoy
 
