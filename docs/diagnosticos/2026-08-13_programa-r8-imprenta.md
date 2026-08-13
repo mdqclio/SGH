@@ -2,7 +2,7 @@
 
 **Fecha**: 2026-08-13 · **Pedido**: Yesi (secretaría)
 **Branch**: `fix/programa-r8-imprenta` (desde `main` @ `42f9942`)
-**Gate**: `tests/probe_programa_r8_imprenta.mjs` → **26/26** · regresión previa
+**Gate**: `tests/probe_programa_r8_imprenta.mjs` → **34/34** · regresión previa
 `probe_alineado_programa.mjs` → OK
 
 **GUARD**: `pwd` = `/home/clio/dev/SGH` ✅ · ref `unlhcuanfrtpatoipwve` ✅ ·
@@ -14,55 +14,66 @@
 
 ### 1. Separación K E S P
 
-**Estado previo.** La celda salía distinta en cada documento, y ninguna de las dos era
-legible. El motivo de fondo no era solo la falta de separadores: `peso_declarado` es
-`numeric` en Postgres y llega al render como **`"55.00"`**, con los dos decimales.
+**Estado previo.** Lo que estaba pegado era **edad + sexo** (`3H`, `4M`), que se leian como
+un solo dato. En el programa color el problema era peor: no habia ningun separador entre los
+cuatro valores.
 
-| | código anterior | lo que imprimía |
+| | codigo anterior | lo que imprimia |
 |---|---|---|
-| B&N (418) | `` `${i.peso_declarado \|\| ''} ${edad}${sexoCodigo(spc.sexo)} ${pelajeCodigo(spc.color)}` `` | `55.00 3H Z` |
-| COLOR (669) | `` `${i.peso_declarado \|\| ''}${edad}${sexoCodigo(spc.sexo)}${pelajeCodigo(spc.color)}` `` | `55.003HZ` |
+| B&N (418) | `` `${i.peso_declarado \|\| ''} ${edad}${sexoCodigo(spc.sexo)} ${pelajeCodigo(spc.color)}` `` | `55 3H Z` |
+| COLOR (669) | `` `${i.peso_declarado \|\| ''}${edad}${sexoCodigo(spc.sexo)}${pelajeCodigo(spc.color)}` `` | `553HZ` |
 
-En el COLOR los cuatro valores iban literalmente pegados; el `55.00` hacía que el kilaje y
-la edad se leyeran como un solo número.
+> **Correccion a una version previa de este informe.** Habia anotado que `peso_declarado`
+> llegaba al render como `"55.00"` y que los decimales eran parte del problema. Es falso:
+> PostgREST devuelve `numeric` como **numero JS** (`58`, `typeof number`), no como string con
+> decimales. El `"55.00"` que aparecia era el formato del cliente SQL del MCP, no lo que
+> recibe el browser. El peso siempre salio limpio y separado en el B&N. Por eso se elimino la
+> funcion `pesoKesp()` que se habia agregado: no hacia falta.
 
 **CSS de la columna** (sin cambios): `table.inscriptos .col-kesp { white-space: nowrap; }` —
-no tiene `width` propio, así que el ancho lo negocia el algoritmo `auto` de la tabla contra
-las columnas que sí lo declaran (`col-jockey` 15%, `col-entrenador` 15%, `col-pedigree` 20%).
+no tiene `width` propio, asi que el ancho lo negocia el algoritmo `auto` de la tabla contra
+las columnas que si lo declaran (`col-jockey` 15%, `col-entrenador` 15%, `col-pedigree` 20%).
 
-**Aplicado** (decisión de Yesi: espacios simples; pelaje faltante queda vacío como hoy):
+**Aplicado** — espacios simples, sin ningun caracter separador; pelaje faltante queda vacio:
 
 ```js
-// El peso viene de Postgres como numeric ("55.00"): los decimales pegaban el kilaje a la
-// edad y volvian ilegible la columna K E S P. parseFloat descarta los ceros a la derecha
-// y conserva los medios kilos reales (55.5).
-function pesoKesp(peso) {
-  if (peso === null || peso === undefined || peso === '') return '';
-  const n = parseFloat(peso);
-  return Number.isFinite(n) ? String(n) : '';
-}
-// K E S P = Kilos Edad Sexo Pelaje, separados por espacio. Se arma por partes y se filtran
-// las vacias para que un dato faltante (p.ej. pelaje sin cargar) no deje separadores colgando.
+// K E S P = Kilos Edad Sexo Pelaje: cuatro tokens separados por un espacio simple, sin
+// ningun caracter separador. Antes la edad y el sexo iban pegados ("3H") y se leian como
+// un solo dato. Se arma por partes y se filtran las vacias para que un dato faltante
+// (p.ej. pelaje sin cargar) no deje un espacio colgando al final.
 function kespTexto(peso, edad, sexo, color) {
-  return [pesoKesp(peso), edad, sexoCodigo(sexo), pelajeCodigo(color)]
+  return [peso, edad, sexoCodigo(sexo), pelajeCodigo(color)]
     .filter(v => v !== '' && v !== null && v !== undefined).join(' ');
 }
 ```
 
-Los dos documentos pasan a llamar `kespTexto(i.peso_declarado, edad, spc.sexo, spc.color)`.
-Antes/después medido sobre R8:
+Los dos documentos llaman `kespTexto(i.peso_declarado, edad, spc.sexo, spc.color)`.
+Antes/despues medido sobre las 67 celdas de R8:
 
 ```
-B&N    antes:   55 3H Z | 57 3M Z | 57 3M Z | 55 3H Z
-COLOR  antes:   553HZ   | 573MZ   | 573MZ   | 553HZ
-ambos  después: 55 3 H Z | 57 3 M Z | 57 3 M Z | 55 3 H Z
+B&N    antes:   55 3H Z  | 57 3M Z  | 57 3M Z  | 55 3H Z
+COLOR  antes:   553HZ    | 573MZ    | 573MZ    | 553HZ
+ambos  despues: 55 3 H Z | 57 3 M Z | 57 3 M Z | 55 3 H Z
 ```
 
-**Sobre el ancho y la línea única.** El string del B&N pasa de 9 a 8 caracteres (`55.00 3H Z`
-→ `55 3 H Z`): **la columna no crece, se achica**. En el COLOR pasa de 6 a 8, +2 caracteres
-sobre la columna más angosta de la tabla. El gate verifica que las 8 carreras siguen con
-**una fila `<tr>` por caballo ratificado** (67 filas, 67 celdas K E S P) — no se rompió el
-"una línea por caballo". No se tocó ninguna regla de ancho ni el `nowrap`.
+**Ancho de columna y linea unica — medido, no estimado.**
+
+| | mas largo antes | mas largo despues |
+|---|---:|---:|
+| B&N | 7 chars | **8 chars** |
+| COLOR | 5 chars | **8 chars** |
+
+El encabezado `K E S P` ya ocupa **7 caracteres**, y la columna es `auto`: la fija el mayor
+entre encabezado y contenido. Pasa de 7 a 8 — **un caracter**. El gate verifica ademas que
+`.col-kesp` sigue **sin `width` fijo** y conserva **`white-space: nowrap`**, y que las 8
+carreras mantienen **una fila `<tr>` por caballo ratificado** (67 filas, 67 celdas).
+
+**`word-spacing`: no se aplico.** Con +1 caracter sobre el ancho que ya imponia el
+encabezado no hay evidencia de que la columna quede ajustada, y meter `word-spacing` seria
+presion de ancho sin justificacion sobre un layout ya aprobado. Si al ver la prueba de
+imprenta hace falta aire, es una linea:
+`table.inscriptos .col-kesp { word-spacing: 2px; }` (y su equivalente
+`table.inscriptos-color .col-kesp` en el color) — separa mas sin agregar ningun caracter.
 
 ### 2. Fuera la ganancia mínima de la línea BOLSA
 
@@ -125,14 +136,17 @@ inspecciona el HTML que el print consume, no un screenshot.
 | total de BOLSA idéntico al de `main` (el piso sigue aplicando) | 8/8 ✅ | 8/8 ✅ |
 | una fila por caballo ratificado | 8/8 ✅ | 8/8 ✅ |
 | 67 celdas K E S P (una por ratificado) | ✅ | ✅ |
-| ningún peso con decimales tipo "55.00" | ✅ | ✅ |
+| espacio simple, sin caracteres separadores | ✅ | ✅ |
+| edad y sexo separados (antes "3H") | ✅ | ✅ |
+| `.col-kesp` sin `width` fijo y con `nowrap` | ✅ | ✅ |
+| el string más largo entra en 9 chars | 8 ✅ | 8 ✅ |
 | el documento entero no menciona GAN. MÍN. | ✅ | ✅ |
 
 `carta-llamados.html`: la línea BOLSA ya no arma "GAN. MÍN." ✅ · conserva el BONO desde el
 JSONB ✅ · sigue calculando con `repartoDisplay` ✅.
 Sin hardcodeos: los dos programas leen `bono_posicion_desde/hasta/monto` ✅.
 
-**Gate: 26/26.** Regresión previa `probe_alineado_programa.mjs`: OK (pedigrí, vertical-align
+**Gate: 34/34.** Regresión previa `probe_alineado_programa.mjs`: OK (pedigrí, vertical-align
 y anchos intactos).
 
 ---

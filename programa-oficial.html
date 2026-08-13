@@ -153,18 +153,12 @@ function pelajeCodigo(color) {
   if (c.startsWith('moro') || c.startsWith('mulato')) return 'M';
   return color.charAt(0).toUpperCase();
 }
-// El peso viene de Postgres como numeric ("55.00"): los decimales pegaban el kilaje a la
-// edad y volvian ilegible la columna K E S P. parseFloat descarta los ceros a la derecha
-// y conserva los medios kilos reales (55.5).
-function pesoKesp(peso) {
-  if (peso === null || peso === undefined || peso === '') return '';
-  const n = parseFloat(peso);
-  return Number.isFinite(n) ? String(n) : '';
-}
-// K E S P = Kilos Edad Sexo Pelaje, separados por espacio. Se arma por partes y se filtran
-// las vacias para que un dato faltante (p.ej. pelaje sin cargar) no deje separadores colgando.
+// K E S P = Kilos Edad Sexo Pelaje: cuatro tokens separados por un espacio simple, sin
+// ningun caracter separador. Antes la edad y el sexo iban pegados ("3H") y se leian como
+// un solo dato. Se arma por partes y se filtran las vacias para que un dato faltante
+// (p.ej. pelaje sin cargar) no deje un espacio colgando al final.
 function kespTexto(peso, edad, sexo, color) {
-  return [pesoKesp(peso), edad, sexoCodigo(sexo), pelajeCodigo(color)]
+  return [peso, edad, sexoCodigo(sexo), pelajeCodigo(color)]
     .filter(v => v !== '' && v !== null && v !== undefined).join(' ');
 }
 function sexoCodigo(sexo) {

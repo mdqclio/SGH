@@ -3,7 +3,8 @@
  * probe_programa_r8_imprenta.mjs — Gate de fix/programa-r8-imprenta
  *
  * Verifica los tres cambios para la imprenta del 16/08 (R8):
- *   1. K E S P separado y con el peso sin decimales.
+ *   1. K E S P en cuatro tokens con espacio simple, sin caracteres separadores, y sin
+ *      ensanchar la columna (antes la edad y el sexo iban pegados: "3H").
  *   2. La linea BOLSA ya no dice "GAN. MIN." en ninguno de los tres documentos.
  *   3. La linea BOLSA dice "BONO 6°-8° $100.000/puesto", leido del JSONB.
  * Y que NO cambio lo que no debia:
@@ -149,8 +150,18 @@ for (const F of FILES) {
   const todo = carreras.map(c => render(head, F, c)).join('');
   const kesps = [...todo.matchAll(/<td class="col-kesp">(.*?)<\/td>/g)].map(m => m[1].trim());
   asrt(kesps.length === 67, `67 celdas K E S P (una por ratificado) (obtenido: ${kesps.length})`);
-  asrt(!kesps.some(k => /\.\d\d\b/.test(k)), 'ningun peso con decimales tipo "55.00"');
-  asrt(kesps.filter(k => k).every(k => k.split(' ').length >= 3), 'todas las celdas con los campos separados por espacio');
+  // Cuatro tokens con espacio simple y NADA mas: ni puntos medios, ni comas, ni guiones.
+  asrt(kesps.every(k => /^[^\s]+( [^\s]+)*$/.test(k)), 'espacio simple entre tokens, sin espacios dobles ni al borde');
+  asrt(!kesps.some(k => /[·,;\-\/|]/.test(k)), 'ningun caracter separador introducido');
+  asrt(kesps.filter(k => k).every(k => k.split(' ').length >= 3), 'edad y sexo separados (antes iban pegados: "3H")');
+  // Ancho: la columna es auto y la fija el mayor entre encabezado y contenido.
+  const maxLen = Math.max(...kesps.map(k => k.length));
+  const maxOld = Math.max(...carreras.flatMap(c => [...render(main, F, c)
+    .matchAll(/<td class="col-kesp">(.*?)<\/td>/g)].map(m => m[1].trim().length)));
+  console.log(`     ancho K E S P: ${maxOld} -> ${maxLen} chars (encabezado "K E S P" = 7)`);
+  asrt(maxLen <= 9, `el string mas largo entra en 9 chars (obtenido: ${maxLen})`);
+  asrt(!/\.col-kesp\s*\{[^}]*width/.test(head), 'no se le puso width fijo a .col-kesp');
+  asrt(/\.col-kesp\s*\{[^}]*white-space:\s*nowrap/.test(head), '.col-kesp conserva white-space:nowrap (no envuelve)');
   asrt(!/GAN\.\s*M[IÍ]N\./i.test(todo), 'el documento entero no menciona GAN. MÍN.');
   // Las 2 sin pelaje quedan con 3 campos, sin separador colgando.
   const tresCampos = kesps.filter(k => k.split(' ').length === 3);
