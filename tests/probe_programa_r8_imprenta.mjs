@@ -163,10 +163,12 @@ for (const F of FILES) {
   asrt(!/\.col-kesp\s*\{[^}]*width/.test(head), 'no se le puso width fijo a .col-kesp');
   asrt(/\.col-kesp\s*\{[^}]*white-space:\s*nowrap/.test(head), '.col-kesp conserva white-space:nowrap (no envuelve)');
   asrt(!/GAN\.\s*M[IÍ]N\./i.test(todo), 'el documento entero no menciona GAN. MÍN.');
-  // Las 2 sin pelaje quedan con 3 campos, sin separador colgando.
+  // Una celda con un dato faltante queda con 3 tokens y sin separador colgando. La cantidad
+  // depende de como este cargado el Stud Book, asi que se afirma la propiedad, no el numero:
+  // el 13/08 se cargo el pelaje de Wave Rimout e Icy Tom y paso de 2 a 0.
   const tresCampos = kesps.filter(k => k.split(' ').length === 3);
-  asrt(tresCampos.length === 2 && !tresCampos.some(k => /\s$/.test(k)),
-       `2 celdas sin pelaje, sin separador colgando (obtenido: ${tresCampos.length})`);
+  asrt(!tresCampos.some(k => /\s$/.test(k) || /\s\s/.test(k)),
+       `celdas con dato faltante sin separador colgando (hay ${tresCampos.length} con 3 tokens)`);
 }
 
 // ── carta-llamados: solo se saca GAN. MIN.; el bono ya estaba ────────────────
