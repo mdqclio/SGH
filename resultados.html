@@ -482,8 +482,17 @@ async function loadReunion() {
   if (!rid) { mc.innerHTML='<div class="empty-state"><div class="icon">🏁</div><h3>Seleccionar una reunión</h3></div>'; return; }
   mc.innerHTML='<div class="loading-state"><div class="spinner"></div> Cargando…</div>';
 
-  const { data: cars } = await sb.from('carreras').select('*').eq('reunion_id', rid).order('numero_turno');
-  carreras = cars || [];
+  // Las carreras anuladas no entran al sorteo y no se corren: no deben aparecer en la carga
+  // de resultados ni contar para el badge de reunion oficial. NULL-safe porque carreras.estado
+  // es VARCHAR libre y admite NULL (patron de programa-oficial.html:186).
+  const { data: cars } = await sb.from('carreras').select('*').eq('reunion_id', rid)
+    .or('estado.is.null,estado.neq.anulada')
+    .order('numero_turno');
+  // El orden definitivo es numero_carrera_programa (sorteo post-ratificacion). Se ordena en JS
+  // porque PostgREST no acepta una expresion coalesce en .order(). El fallback a numero_turno
+  // cubre la reunion todavia sin sortear; el .order() de arriba lo deja determinista.
+  carreras = (cars || []).sort((a, b) =>
+    (a.numero_carrera_programa ?? a.numero_turno) - (b.numero_carrera_programa ?? b.numero_turno));
   if (!carreras.length) { mc.innerHTML='<div class="empty-state"><div class="icon">📋</div><h3>Sin carreras en esta reunión</h3></div>'; return; }
 
   const carIds = carreras.map(c=>c.id);
@@ -772,7 +781,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
       <!-- Header del panel -->
       <div class="res-panel-header">
         <div>
-          <div class="res-panel-title">Carrera ${carrera.numero_turno}${carrera.nombre?' — '+carrera.nombre:''}</div>
+          <div class="res-panel-title">Carrera ${carrera.numero_carrera_programa ?? carrera.numero_turno}${carrera.nombre?' — '+carrera.nombre:''}</div>
           <div class="res-meta">${carrera.distancia_metros}m</div>
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
@@ -1511,7 +1520,9 @@ async function oficializar(carreraId) {
     if (!insc) return null;
     return { spc_id:insc.spc_id, carrera_id:carreraId, fecha_carrera:reun?.fecha,
       hipodromo_sigla:reun?.hipodromos?.sigla||'', hipodromo_nombre:reun?.hipodromos?.nombre||'',
-      numero_carrera:carrera?.numero_turno, distancia_metros:carrera?.distancia_metros,
+      // Numero definitivo del sorteo: es el que sale impreso y con el que se corre.
+      numero_carrera:carrera?.numero_carrera_programa ?? carrera?.numero_turno,
+      distancia_metros:carrera?.distancia_metros,
       tipo_pista:carrera?.tipo_pista, posicion:pos.posicion, tiempo_ganador:res?.tiempo_ganador,
       diferencia:pos.diferencia, peso_llevado:insc.peso_final||insc.peso_declarado,
       jockey_id:insc.jockey_titular_id, descalificado:pos.descalificado, fuente:'local' };
@@ -1595,7 +1606,7 @@ function renderOficial(carrera, res, pos, apus, insc) {
     <div class="res-panel">
       <div class="res-panel-header">
         <div>
-          <div class="res-panel-title">Carrera ${carrera.numero_turno}${carrera.nombre?' — '+carrera.nombre:''}</div>
+          <div class="res-panel-title">Carrera ${carrera.numero_carrera_programa ?? carrera.numero_turno}${carrera.nombre?' — '+carrera.nombre:''}</div>
           <div class="res-meta">${carrera.distancia_metros}m · Pista: ${res.estado_pista||'—'} · T: ${res.tiempo_ganador||'—'}</div>
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
@@ -1688,7 +1699,7 @@ function openPesoBalanza() {
     .sort((a,b) => (a.numero_partidor||999) - (b.numero_partidor||999));
 
   document.getElementById('pb-title').textContent =
-    `Pesos balanza — Carrera N° ${carrera?.numero_turno ?? '?'}`;
+    `Pesos balanza — Carrera N° ${carrera?.numero_carrera_programa ?? carrera?.numero_turno ?? '?'}`;
 
   pbOriginal = {};
   document.getElementById('pb-tbody').innerHTML = insc.map((i, idx) => {
