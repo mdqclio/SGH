@@ -272,6 +272,9 @@
     .pos-num { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--accent); min-width: 36px; }
     .pos-spc { font-weight: 600; font-size: 14px; }
     .pos-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    /* Ventaja de llegada (cuerpos). El 1° no la tiene y una posición sin dato cargado no
+       emite el nodo — así no queda un guión ni un hueco colgando (mismo criterio que K E S P). */
+    .pos-dif { margin-left: auto; font-size: 13px; color: var(--muted); white-space: nowrap; }
     .pos-div-badge { font-family: 'Playfair Display', serif; color: var(--success); font-weight: 600; font-size: 15px; margin-left: auto; }
 
     /* ── Modal CRUD ── */
@@ -1631,11 +1634,17 @@ function renderOficial(carrera, res, pos, apus, insc) {
               const i = insc.find(x=>x.id===p.inscripcion_id);
               const spc = i ? spcsMap[i.spc_id] : null;
               const mandil = i ? `[${_chapaForInsc[i.id] ?? '?'}]` : '';
+              // Ventaja de llegada: resultado_posiciones.diferencia guarda el código de texto que
+              // emitió chapaGetCodigo() al cargar (ej. "9 cpos", "½ cbz", "s.a."), así que acá se
+              // muestra tal cual. El 1° la tiene NULL por diseño (no tiene contra quién medir) y
+              // una posición sin cargar también: en ambos casos no se emite el nodo, no un guión.
+              const dif = p.diferencia ? `<div class="pos-dif">${p.diferencia}</div>` : '';
               return `<li>
                 <div class="pos-num">${p.posicion}°</div>
                 <div>
                   <div class="pos-spc">${mandil} ${spc?.nombre||'—'}${p.descalificado?' <span style="color:var(--danger);font-size:11px">(DESC)</span>':''}</div>
                 </div>
+                ${dif}
               </li>`;
             }).join('')}
           </ul>
