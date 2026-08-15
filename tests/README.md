@@ -82,6 +82,7 @@ node tests/probe_recibos_emision.mjs     # Fase 4 v1: RPC emitir_recibo + buscad
 node tests/probe_cobros_v11.mjs          # Fase 4 v1.1: liberar_linea + búsqueda nombre/apellido/DNI + filtro carrera (real-code)
 node tests/probe_pedigree_programa.mjs   # Columna PADRE-MADRE en los 3 programas: vacío sin placeholder, separador no colgado (real-code, 9998 + teardown)
 node tests/probe_apuestas_especiales.mjs # Caja de especiales de la tapa derivada de carrera_apuestas (real-code, sólo lectura)
+node tests/probe_cuerpos_oficial.mjs     # Ventaja de llegada en la vista oficial: cotejo de R6 contra la planilla (real-code, sólo lectura)
 node tests/probe_reordenar_turnos.mjs    # RPC reordenar_turnos: permutación + 4 validaciones (→ R9, snapshot→restore)
 node tests/probe_orden_ui.mjs            # Lógica ▲▼ de carta-llamados: payload a la RPC y confirmación (real-code, sin DB)
 node tests/probe_alineado_programa.mjs   # Ancho de columnas del programa vs R6 (cota sin browser, sólo lectura)
