@@ -794,8 +794,9 @@ async function cobrosBuscar(){
   if (error) { toast(error.message,'error'); document.getElementById('cob-beneficiarios').innerHTML=''; return; }
   // caballerizas → propietario titular (para búsqueda por caballeriza)
   if (!cobCaballerizas.length) {
-    const { data: cab } = await sb.from('caballeriza_responsables')
-      .select('propietario_id, caballerizas(nombre)').eq('es_titular', true).not('propietario_id','is',null);
+    const { data: cab, error: eCab } = await sb.from('caballeriza_responsables')
+      .select('propietario_id, caballerizas(nombre)').eq('rol','propietario').eq('activo', true).not('propietario_id','is',null);
+    if (eCab) console.error('[cobrosBuscar/caballerizas]', eCab);
     cobCaballerizas = (cab||[]).map(c=>({nombre:(c.caballerizas?.nombre||'').toLowerCase(), propietario_id:c.propietario_id}));
   }
   const propIdsPorCaballeriza = q ? new Set(cobCaballerizas.filter(c=>c.nombre.includes(q)).map(c=>c.propietario_id)) : new Set();
