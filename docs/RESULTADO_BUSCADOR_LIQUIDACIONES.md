@@ -68,7 +68,7 @@ END $$;
 
 ## Frontend — tab "🧾 Cobros" (`liquidaciones.html`, diff en la rama)
 
-- **Buscador** (`cobrosBuscar`): query de líneas **pagables** (`estado_linea='impago' OR (retenido AND fecha_liberacion<=hoy)`, `recibo_id IS NULL`, `beneficiario_tipo != 'club'`), agrupadas por beneficiario con total. Texto matchea nombre de **propietario**/**profesional**; **caballeriza** se resuelve a su propietario titular vía `caballeriza_responsables(es_titular)`.
+- **Buscador** (`cobrosBuscar`): query de líneas **pagables** (`estado_linea='impago' OR (retenido AND fecha_liberacion<=hoy)`, `recibo_id IS NULL`, `beneficiario_tipo != 'club'`), agrupadas por beneficiario con total. Texto matchea nombre de **propietario**/**profesional**; **caballeriza** se resuelve a su propietario titular vía `caballeriza_responsables` (`rol='propietario'`, `activo=true`).
 - **Detalle pagable** (`cobrosDetalle`): líneas del beneficiario cruzando reuniones, con fecha de reunión, carrera (join `inscripcion_id→carreras`), caballo (`spcs.nombre`), puesto, concepto, monto; checkboxes + total recalculable.
 - **Emitir** (`cobrosEmitir`): valida cobrador+DNI, llama `sb.rpc('emitir_recibo', …)`, imprime.
 - **Imprimir** (`imprimirReciboCobro`): header del hipódromo, N° recibo, beneficiario, cobrador+DNI, líneas (fecha/carrera/caballo/puesto/concepto/monto), totales, neto, y **firma si efectivo / "comprobante adjunto" si transferencia**. Reusa el estilo `.recibo-container`.

@@ -14,7 +14,7 @@ Liberación del doping = **100% MANUAL**. La retención automática 1°/2° (Fas
 | **profesionales** | `nombre`, `apellido`, `documento_nro` (+ `documento_tipo`) |
 | **propietarios** | `nombre`, `documento_nro`, `nombre_stud` — **NO tiene `apellido`** (todo en `nombre`) |
 
-`benefSearch` matchea: profesional → nombre+apellido+documento_nro; propietario → nombre+nombre_stud+documento_nro. Caballeriza sigue resolviendo a su propietario titular (`caballeriza_responsables.es_titular`).
+`benefSearch` matchea: profesional → nombre+apellido+documento_nro; propietario → nombre+nombre_stud+documento_nro. Caballeriza sigue resolviendo a su propietario titular (`caballeriza_responsables`, `rol='propietario'` + `activo=true`).
 
 ## 1. RPC `emitir_recibo` — pagable = SOLO impago (DDL, `migrations/emitir_recibo_v1_1.sql`)
 
