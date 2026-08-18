@@ -921,10 +921,25 @@ async function cobrosEmitir(){
   cobrosBuscar();   // refresca la lista (las líneas pagadas ya no aparecen)
 }
 
+// Rol del beneficiario en cada línea del recibo. El dato ya existía en la base y el recibo
+// no lo traía: para 'premio' viene dentro de `descripcion` ("… — Propietario (bolsa: …)"),
+// y para el resto lo define `concepto_tipo`. Sin esto, el premio del propietario y el del
+// entrenador imprimen el mismo texto (mismo caballo, mismo puesto) y no se distinguen.
+const ROL_POR_BENEFICIARIO = { propietario:'Propietario', profesional:'Profesional', club:'Club' };
+function rolDeLinea(l){
+  if (l.concepto_tipo === 'bono') return 'Propietario';
+  if (l.concepto_tipo === 'incentivo_entrenador') return 'Entrenador';
+  if (l.concepto_tipo === 'incentivo_jockey') return 'Jockey';
+  const m = /—\s*(Propietario|Entrenador|Jockey)\b/.exec(l.descripcion || '');
+  if (m) return m[1];
+  return ROL_POR_BENEFICIARIO[l.beneficiario_tipo] || '';
+}
+
 async function imprimirReciboCobro(recibo, lineaIds){
   // re-leer las líneas marcadas para el print
-  const { data: lns } = await sb.from('liquidacion_detalle')
-    .select('concepto,monto_neto,posicion,reunion_id,inscripcion_id').eq('recibo_id',recibo.id);
+  const { data: lns, error: eLns } = await sb.from('liquidacion_detalle')
+    .select('concepto,descripcion,concepto_tipo,beneficiario_tipo,monto_neto,posicion,reunion_id,inscripcion_id').eq('recibo_id',recibo.id);
+  if (eLns) console.error('[imprimirReciboCobro/lineas]', eLns);
   const reunIds=[...new Set((lns||[]).map(l=>l.reunion_id).filter(Boolean))];
   const inscIds=[...new Set((lns||[]).map(l=>l.inscripcion_id).filter(Boolean))];
   const [{data:reuns},{data:inscs}] = await Promise.all([
@@ -932,11 +947,12 @@ async function imprimirReciboCobro(recibo, lineaIds){
     inscIds.length? sb.from('inscripciones').select('id,spcs(nombre),carreras(numero_turno,numero_carrera_programa)').in('id',inscIds):Promise.resolve({data:[]}),
   ]);
   const reunMap=Object.fromEntries((reuns||[]).map(r=>[r.id,r])); const inscMap=Object.fromEntries((inscs||[]).map(i=>[i.id,i]));
+  const rolesLineas=[...new Set((lns||[]).map(rolDeLinea).filter(Boolean))];
   const rows=(lns||[]).map(l=>{const r=reunMap[l.reunion_id];const ins=inscMap[l.inscripcion_id];
     const fecha=r?new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR'):'—';
     const nroCarr=ins?.carreras?.numero_carrera_programa ?? ins?.carreras?.numero_turno; const carrera=nroCarr?`C${nroCarr}`:'—'; const caballo=ins?.spcs?.nombre||'—';
     const puesto=l.posicion?`${l.posicion}°`:'—';
-    return `<tr><td>${fecha}</td><td>${carrera}</td><td>${caballo}</td><td>${puesto}</td><td>${l.concepto||''}</td><td style="text-align:right">${fmt(l.monto_neto)}</td></tr>`;}).join('');
+    return `<tr><td>${fecha}</td><td>${carrera}</td><td>${caballo}</td><td>${puesto}</td><td>${rolDeLinea(l)||'—'}</td><td>${l.concepto||''}</td><td style="text-align:right">${fmt(l.monto_neto)}</td></tr>`;}).join('');
   // Fetch del club con logo_url (el global `club` puede no tenerlo en el flujo de Pagos).
   const { data: cl } = await sb.from('clubs').select('nombre,domicilio,localidad,provincia,logo_url').eq('id', CLUB_ID).single();
   // Recibo siempre en efectivo (decisión Fede) → siempre bloque de firma.
@@ -958,9 +974,9 @@ async function imprimirReciboCobro(recibo, lineaIds){
       <h3 style="margin-top:10px;">RECIBO DE PAGO N° ${recibo.numero_recibo}</h3>
       <p>Fecha: ${new Date().toLocaleDateString('es-AR')}</p>
     </div>
-    <p><strong>Beneficiario:</strong> ${cobBenef?.nombre||'—'}</p>
+    <p><strong>Beneficiario:</strong> ${cobBenef?.nombre||'—'}${rolesLineas.length?` — <strong>${rolesLineas.join(' / ')}</strong>`:''}</p>
     <table class="recibo-table">
-      <thead><tr><th>Fecha</th><th>Carrera</th><th>Caballo</th><th>Puesto</th><th>Concepto</th><th>Neto</th></tr></thead>
+      <thead><tr><th>Fecha</th><th>Carrera</th><th>Caballo</th><th>Puesto</th><th>Rol</th><th>Concepto</th><th>Neto</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     <div class="recibo-total">
