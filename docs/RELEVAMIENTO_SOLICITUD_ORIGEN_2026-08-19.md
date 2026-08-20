@@ -281,3 +281,96 @@ Son tareas de datos y de seguridad, no de este formulario.
 ## Estado
 
 **PASO 1 terminado. Nada ejecutado, nada modificado.** Esperando decisión de alcance.
+
+---
+
+## Adenda — Modelo A vs Modelo B (recomendación)
+
+Los dos modelos posibles para el campo "hipódromo de origen":
+
+- **Modelo A** — texto libre con `datalist` de sugerencias hardcodeadas en el HTML.
+- **Modelo B** — desplegable poblado desde un catálogo real de hipódromos en la DB.
+
+**Recomendación: Modelo A.** No como atajo, sino porque B no resuelve el problema y
+además termina necesitando A adentro.
+
+### Costo real del Modelo B
+
+**1. La tabla `hipodromos` no se puede reciclar.** Tiene `club_id` y es per-tenant:
+5 de sus 7 filas pertenecen al club demo. Y es load-bearing — dos FK apuntan a ella:
+
+```
+reuniones.hipodromo_id       → hipodromos(id)
+comision_config.hipodromo_id → hipodromos(id)
+```
+
+Sacarle el `club_id` o convertirla en catálogo nacional toca reuniones y comisiones.
+No se hace. B implica **una tabla nueva** (`hipodromos_catalogo` o similar), global,
+sin `club_id`, más su RLS, más su ABM para mantenerla.
+
+**2. Sería la primera tabla de lectura pública del proyecto.** Consulta sobre
+`pg_policies`: **cero policies otorgan el rol `anon` hoy**. Todas son `{authenticated}`.
+El solicitante llena el formulario antes de tener fila en `usuarios`, así que B necesita
+o bien una policy `anon`, o bien una `authenticated` sin condición de club. Cualquiera de
+las dos abre una superficie que hoy no existe. El contenido es inocuo — nombres de
+hipódromos — pero es una decisión de seguridad con su propia discusión, y no es la que
+pediste cuando pediste "agregar campos al formulario".
+
+**3. No hay de dónde sacar los datos.** Es el punto de Diego: no existe padrón nacional.
+El catálogo habría que **curarlo a mano**, y después mantenerlo. Alguien tiene que
+decidir si "Hipodromo Jockey club de Tandil" y "Hipódromo de Tandil" son la misma fila.
+
+**4. Y aun así el catálogo va a estar incompleto.** Hoy ya faltan La Plata y San Isidro
+sobre una lista de cinco que se nombró de memoria. Un desplegable cerrado le bloquea la
+solicitud al que viene de un hipódromo que no está cargado — el peor resultado posible:
+el sistema rechaza justo al usuario que más necesita validación manual. Entonces B
+necesita una opción "Otro → escribilo", que es **el Modelo A metido adentro de B**.
+Terminás manteniendo los dos caminos, el de catálogo y el de texto libre, más la
+ambigüedad de tener el mismo hipódromo escrito de dos formas según por dónde entró.
+
+### Lo que B compraría, y por qué acá no vale
+
+B compra **datos normalizados**: agrupar solicitudes por hipódromo de origen, estadísticas,
+FK. Eso vale cuando el campo alimenta un proceso automático.
+
+Acá no alimenta nada automático. El campo tiene **un solo consumidor: Yesi leyendo la
+tarjeta en `solicitudes.html` para saber a qué hipódromo llamar.** Para eso,
+`"Jockey Club de Azul"` escrito a mano sirve exactamente igual que un UUID con FK.
+El dato no se copia a la ficha al aprobar (`rpc_aprobar_solicitud` no lo toca), no se
+consulta después, y el volumen es de unas pocas solicitudes por mes.
+
+Normalizar un campo que sólo lee un humano, una vez, es pagar la estructura sin cobrar
+el beneficio.
+
+### Coherencia con lo que ya hay
+
+El modelo ya trata la patente como texto libre: `profesionales.hipodromo_patente` y
+`caballerizas.hipodromo_patente` son `varchar` **sin FK a ninguna tabla**
+(84 filas en `'DOL'`, 101 en NULL). El Modelo A es consistente con eso. El Modelo B
+introduciría un criterio nuevo que las tablas vecinas no siguen.
+
+### Si en algún momento se quiere B
+
+A no cierra la puerta. Con las solicitudes ya cargadas en texto libre se ve **qué
+hipódromos aparecen de verdad** — que es justamente el dato que hoy no tenemos para
+curar el catálogo. Migrar después es un `UPDATE` de mapeo sobre unas pocas decenas de
+filas. Empezar por B es adivinar la lista; empezar por A es medirla.
+
+### Costo comparado
+
+| | Modelo A | Modelo B |
+|---|---|---|
+| Tabla nueva | no | sí, + ABM para mantenerla |
+| Cambio de RLS | no | sí — primera lectura pública del proyecto |
+| Curaduría de datos | no | sí, a mano y continua |
+| Camino de texto libre | uno | también, como fallback "Otro" |
+| Riesgo de bloquear al solicitante | no | sí, si falta su hipódromo |
+| Reversible | sí | sí, pero ya pagaste la tabla y la policy |
+
+### La otra decisión abierta (3 vs 4 columnas)
+
+Independiente de A/B y de costo casi nulo en cualquier dirección. Recomiendo **3**
+(`origen_hipodromo` compartida entre roles): el rol ya está en `rol_pedido`, así que el
+significado se deriva sin ambigüedad y la bandeja lo rotula al mostrarlo. 4 columnas sólo
+agregan dos NULL permanentes por fila. Si preferís que la DB sea autoexplicativa sin
+mirar `rol_pedido`, 4 es igual de defendible — es cosmética de schema, no arquitectura.
