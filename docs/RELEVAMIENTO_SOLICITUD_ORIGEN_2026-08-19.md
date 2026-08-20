@@ -465,3 +465,70 @@ acotada y medible" — 80 identificaciones manuales, 43 fusiones, 6 decisiones d
 (cero duplicados) y evita que el problema crezca. No lo incluí en
 `migrations/solicitud_origen.sql` porque es un cambio de otra naturaleza — que quede como
 migración aparte y decidida aparte.
+
+---
+
+## Adenda 3 — Condición que abarata la migración a B
+
+**Decisión tomada: modelo A.** El entrenador de Tandil validado por la secretaría queda como
+`profesionales` de Dolores, fila local, con el origen guardado como dato declarado.
+
+A no cierra la puerta a B, pero **la mantiene abierta sólo mientras se cumpla una condición**,
+y conviene dejarla escrita porque es fácil de perder de vista mientras haya un solo hipódromo:
+
+> **Condición**: `documento_nro` tiene que estar **cargado** y ser **confiable** en
+> `profesionales` y `propietarios`. Es la clave por la que se van a deduplicar las personas
+> el día que exista un modelo compartido. Cada fila que se cree sin documento es una
+> deduplicación que después hay que hacer a mano.
+
+No es una condición abstracta: sin documento no hay forma automática de saber que el
+"MARTINEZ, JUAN" de Dolores y el de Tandil son la misma persona. El nombre no alcanza —
+ya vimos 6 casos donde el mismo DNI tiene el nombre escrito distinto **dentro del mismo club**.
+
+### El pasivo actual — Dolores
+
+| Tabla | Filas en Dolores | Sin documento | % |
+|---|---|---|---|
+| `profesionales` | 174 | **40** | 23,0 % |
+| `propietarios` | 253 | **40** | 15,8 % |
+
+Los 80 sin documento del relevamiento global están **todos en Dolores** — los otros clubs no
+tienen carga real.
+
+Desglose de los profesionales sin documento:
+
+| Tipo | Total | Sin documento |
+|---|---|---|
+| entrenador | 128 | 30 |
+| jockey | 45 | 10 |
+| ambos | 1 | 0 |
+
+### Y no son filas muertas
+
+Es lo que hace que duelan de verdad. Los 80 están **en uso**:
+
+- Los **40 propietarios** sin documento son responsables de una caballeriza — los 40, uno cada uno.
+- Esos mismos **40 propietarios** aparecen referenciados en `inscripciones`
+  (sobre 66 propietarios distintos con inscripciones: 40 no tienen documento).
+- **30 de los profesionales** sin documento aparecen como entrenador en `inscripciones`
+  (sobre 80 entrenadores distintos).
+
+No es data histórica que se pueda archivar: es gente que corre. Cuando entre el segundo
+hipódromo, cada una de esas 80 filas es una identificación manual — hay que llamar, pedir el
+DNI y cargarlo — antes de poder fusionar nada.
+
+### Cómo no empeorarlo
+
+1. **El formulario nuevo ya ayuda**: toda solicitud de acceso exige DNI (`^[0-9]{7,8}$`,
+   validado en el cliente y en la RPC), y `rpc_aprobar_solicitud` puede copiarlo a la ficha
+   con `p_copiar_documento` cuando la ficha no lo tiene. Es decir, cada persona que entre por
+   el autoregistro **nace con documento** y encima le tapa el agujero a una ficha vieja.
+2. **Falta cerrar el ABM**: las altas hechas a mano desde `profesionales.html` y
+   `propietarios.html` siguen pudiendo guardar sin documento. Mientras eso siga así, el
+   pasivo crece por el otro lado.
+3. **Falta el unique en `profesionales`** (ver Adenda 2): `propietarios` ya tiene
+   `ux_propietarios_club_doc`, `profesionales` no tiene nada.
+
+Ninguna de las tres es parte de este cambio. Van anotadas para que la decisión de A no se lea
+como "el tema está cerrado": A es la opción correcta hoy **y** deja una condición que hay que
+sostener activamente para que siga siendo barata mañana.
