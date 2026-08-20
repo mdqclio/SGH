@@ -162,6 +162,28 @@ try {
   check('4. el teléfono vacío se guarda como NULL, no como cadena vacía',
     filaSinTel?.telefono === null, `telefono=${JSON.stringify(filaSinTel?.telefono)}`);
 
+  // Ida y vuelta del origen: que la RPC lo acepte no prueba que lo guarde.
+  // p_origen_patente_nro se manda a propósito en una solicitud de PROPIETARIO
+  // para verificar que la RPC lo descarta en vez de guardar un dato del rol
+  // equivocado.
+  const { data: solOrigen, error: eOrigen } = await (await sesion((await cuenta('origen')).email))
+    .rpc('rpc_solicitar_acceso', {
+      p_nombre: 'Con', p_apellido: `Origen ${RUN}`, p_documento_nro: String(Number(DNI) + 2),
+      p_telefono: '', p_rol_pedido: 'propietario', p_club_id: CLUB_DOLORES,
+      p_origen_hipodromo: '  Tandil  ', p_origen_caballeriza: `Stud Origen ${RUN}`,
+      p_origen_patente_nro: 'NO-CORRESPONDE',
+    });
+  if (solOrigen) fx.solicitudes.push(solOrigen);
+  const { data: filaOrigen } = await admin.from('solicitudes_acceso')
+    .select('origen_hipodromo, origen_caballeriza, origen_patente_nro')
+    .eq('id', solOrigen).maybeSingle();
+  check('4b. el origen se persiste, con btrim y sin el campo del otro rol',
+    !eOrigen
+      && filaOrigen?.origen_hipodromo === 'Tandil'
+      && filaOrigen?.origen_caballeriza === `Stud Origen ${RUN}`
+      && filaOrigen?.origen_patente_nro === null,
+    eOrigen?.message ?? JSON.stringify(filaOrigen));
+
   // === 3 · La bandeja =====================================================
   console.log('\n── 3. La bandeja del staff ──');
   const { data: bandeja } = await sbStaff.from('solicitudes_acceso')
