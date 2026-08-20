@@ -374,3 +374,94 @@ Independiente de A/B y de costo casi nulo en cualquier dirección. Recomiendo **
 significado se deriva sin ambigüedad y la bandeja lo rotula al mostrarlo. 4 columnas sólo
 agregan dos NULL permanentes por fila. Si preferís que la DB sea autoexplicativa sin
 mirar `rol_pedido`, 4 es igual de defendible — es cosmética de schema, no arquitectura.
+
+---
+
+## Adenda 2 — Estado del DNI como clave de persona (condición para migrar a B)
+
+**Corrección a la adenda anterior**: ahí dije que el DNI ya funciona "como clave compartida
+de hecho". Eso estaba afirmado sin medirlo. Medido ahora. El resultado es bueno, pero la
+afirmación necesita condiciones — y el trabajo de limpieza que falta es parte del costo de B.
+
+Todas las consultas normalizan el documento a dígitos
+(`regexp_replace(documento_nro,'[^0-9]','','g')`) antes de comparar, así que un mismo número
+escrito con y sin puntos cuenta como duplicado.
+
+### Panorama
+
+| Tabla | Filas | Con documento | Sin documento | Documentos distintos |
+|---|---|---|---|---|
+| `profesionales` | 185 | 145 | **40** (21,6 %) | 145 |
+| `propietarios` | 260 | 220 | **40** (15,4 %) | 220 |
+
+### 1. Duplicados en `profesionales`: **cero**
+
+145 filas con documento, 145 documentos distintos. Ningún número aparece dos veces.
+
+### 2. Duplicados en `propietarios`: **cero**
+
+220 filas con documento, 220 documentos distintos. Ídem.
+
+### 3. Cruzado profesional ↔ propietario: **43 documentos en las dos tablas**
+
+Los 43 son **del mismo club**. Es el caso legítimo que anticipaste: entrenador que además
+es dueño de sus caballos. No son un error de datos y no hay que "limpiarlos" — pero **sí**
+son trabajo para B: un modelo de persona compartida tiene que fusionar esas 43 duplas en
+una sola persona con dos roles, y decidir qué nombre queda como canónico.
+
+En 37 de los 43 el nombre coincide exacto. En **6 no**, y ahí la fusión no es automática:
+
+| Documento | En `profesionales` | En `propietarios` | Lectura |
+|---|---|---|---|
+| 24074423 | DE LA TORRE, GABRIEL | DE LA TORRE, ORGLANDO GAIEL | **Revisar**: no es una variante menor |
+| 29849239 | ODIOSOLA, MARINA | ODRIOSOLA, MARINA | Typo en un apellido — hay que decidir cuál vale |
+| 43001366 | MORAGA, ADRIAN LEONARDO | MORAGA MILLAN, ADRIAN LEONARDO | Apellido compuesto en una sola |
+| 18151946 | DI FRANCO, GUSTAVO | DI FRANCO, GUSTAVO FABIAN | Segundo nombre en una sola |
+| 39491188 | ALDECOA, IVAN | ALDECOA, IVAN LUCIANO | Ídem |
+| 32555190 | CASTRO, CRISTIAN FABIO | CASTRO, CRISTIAN | Ídem |
+
+### 4. Constraints sobre documento
+
+Asimétrico, y es el hallazgo importante:
+
+| Tabla | Constraint |
+|---|---|
+| `propietarios` | `ux_propietarios_club_doc` UNIQUE (club_id, documento_tipo, documento_nro) WHERE documento_nro IS NOT NULL |
+| `profesionales` | **ninguno** |
+
+O sea:
+
+- En `propietarios` el cero duplicados está **garantizado por la DB** — pero sólo
+  **dentro de un club**. El unique incluye `club_id`, así que el mismo DNI en dos clubs
+  distintos pasa sin problema. Correcto para el modelo actual, insuficiente para B.
+- En `profesionales` el cero duplicados es **suerte y disciplina de carga, no garantía**.
+  Nada impide que mañana entren dos filas con el mismo DNI. El ABM tampoco lo valida —
+  vale la pena agregar el unique análogo con independencia de A o B.
+
+### Qué significa para el costo de B
+
+El DNI está **más limpio de lo que esperaba**, y eso baja el costo de B respecto de lo que
+uno temería. Pero "limpio" no es "listo":
+
+1. **80 filas sin documento** (40 + 40). No se pueden mapear a una persona por DNI: hay que
+   identificarlas a mano una por una, o dejarlas fuera del modelo compartido. Es el grueso
+   del trabajo y no lo resuelve ningún script.
+2. **43 fusiones profesional↔propietario**, de las cuales **6 necesitan decisión humana**
+   sobre el nombre canónico y una (24074423) necesita confirmación de que es la misma persona.
+3. **Falta el unique en `profesionales`**, y el de `propietarios` es per-club. B necesita
+   unicidad **global** por documento, y ponerla es lo que va a hacer aflorar los conflictos
+   que hoy no se ven porque nadie los mira.
+4. **Hay documentos fuera del formato típico** — p. ej. `92364561` (rango 90–99M, residentes
+   extranjeros) y varios de 7 dígitos. Pasan la validación de la RPC (`^[0-9]{7,8}$`), pero
+   cualquier limpieza que asuma "8 dígitos, nativo" los rompe.
+
+**Conclusión sobre la recomendación**: no cambia — sigue siendo A. Pero el argumento se
+corrige: no es "el DNI ya es la clave", es "el DNI **puede** llegar a serlo con una limpieza
+acotada y medible" — 80 identificaciones manuales, 43 fusiones, 6 decisiones de nombre y dos
+índices nuevos. Eso es lo que hay que contar cuando se evalúe B, y no estaba contado antes.
+
+**Acción recomendada con independencia de A/B**: agregar
+`ux_profesionales_club_doc` análogo al de propietarios. Es barato, hoy no rompe nada
+(cero duplicados) y evita que el problema crezca. No lo incluí en
+`migrations/solicitud_origen.sql` porque es un cambio de otra naturaleza — que quede como
+migración aparte y decidida aparte.
