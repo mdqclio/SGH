@@ -262,6 +262,29 @@ async function load(){
   }
 }
 
+// Origen declarado por el solicitante. Es texto libre: no hay padrón nacional,
+// así que esto es lo que la persona escribió, no un dato verificado. Se muestra
+// aparte y rotulado como declarado para que quede claro que es el punto de
+// partida de la validación telefónica, no su resultado.
+function origenHTML(s){
+  const hip = (s.origen_hipodromo || '').trim();
+  const cab = (s.origen_caballeriza || '').trim();
+  const pat = (s.origen_patente_nro || '').trim();
+  // Solicitudes anteriores a este cambio no tienen origen cargado.
+  if (!hip && !cab && !pat) return '';
+  const partes = [];
+  if (s.rol_pedido === 'profesional') {
+    if (hip) partes.push(`Patente de <strong>${esc(hip)}</strong>`);
+    partes.push(pat ? `matrícula ${esc(pat)}` : '<em>sin número de matrícula</em>');
+  } else {
+    if (cab) partes.push(`Caballeriza <strong>${esc(cab)}</strong>`);
+    if (hip) partes.push(`registrada en <strong>${esc(hip)}</strong>`);
+  }
+  return `<div class="sol-meta" style="margin-top:8px;">
+            <span class="chip">origen declarado</span> ${partes.join(' · ')}
+          </div>`;
+}
+
 async function tarjetaHTML(s){
   const rolTxt = s.rol_pedido === 'profesional' ? 'Entrenador' : 'Propietario';
   const cabecera = `
@@ -273,6 +296,7 @@ async function tarjetaHTML(s){
           ${s.telefono ? ' · ' + esc(s.telefono) : ''}<br>
           ${esc(s.email)} · solicitado ${fecha(s.created_at)}
         </div>
+        ${origenHTML(s)}
       </div>
       ${s.estado !== 'pendiente' ? `<span class="estado-tag e-${s.estado}">${s.estado.toUpperCase()}</span>` : ''}
     </div>`;

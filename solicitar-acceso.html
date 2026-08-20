@@ -140,6 +140,56 @@
         <p class="hint">Lo usamos para avisarte por WhatsApp cuando tu acceso esté aprobado.</p>
       </div>
 
+      <!-- ===== ORIGEN =====
+           No existe padrón nacional de profesionales ni de caballerizas: cada
+           hipódromo registra los suyos. La secretaría valida la solicitud
+           llamando al hipódromo de origen, así que necesita saber cuál es.
+           El <datalist> sugiere los que ya aparecen en el padrón, pero el input
+           queda libre: el que viene de uno que no está en la lista lo escribe.
+           Es HTML puro — sin tabla, sin FK y sin abrir lectura anon. -->
+      <div id="grp-origen-prof">
+        <div class="form-group">
+          <label for="f-hip-prof">Hipódromo que te otorgó la patente</label>
+          <input type="text" id="f-hip-prof" list="dl-hipodromos" maxlength="120"
+                 placeholder="Empezá a escribir…" autocomplete="off">
+          <p class="hint">Elegí de la lista o escribilo si el tuyo no aparece.</p>
+        </div>
+        <div class="form-group">
+          <label for="f-patente">
+            Número de patente o matrícula
+            <span style="color:var(--gris);font-weight:400;">(opcional)</span>
+          </label>
+          <input type="text" id="f-patente" maxlength="40"
+                 placeholder="Si no lo recordás, dejalo vacío">
+        </div>
+      </div>
+
+      <div id="grp-origen-prop" style="display:none;">
+        <div class="form-group">
+          <label for="f-caballeriza">Caballeriza</label>
+          <input type="text" id="f-caballeriza" maxlength="120"
+                 placeholder="Nombre de la caballeriza o stud">
+        </div>
+        <div class="form-group">
+          <label for="f-hip-prop">Hipódromo donde está registrada la caballeriza</label>
+          <input type="text" id="f-hip-prop" list="dl-hipodromos" maxlength="120"
+                 placeholder="Empezá a escribir…" autocomplete="off">
+          <p class="hint">Elegí de la lista o escribilo si el tuyo no aparece.</p>
+        </div>
+      </div>
+
+      <!-- Sugerencias, no validación: el input acepta cualquier texto. Salen de
+           los hipódromos que ya figuran en el padrón de caballerizas de Dolores
+           (DOL, AZ, TDL, LP) más los de la zona que pidió la secretaría. -->
+      <datalist id="dl-hipodromos">
+        <option value="Dolores"></option>
+        <option value="Azul"></option>
+        <option value="Tandil"></option>
+        <option value="La Plata"></option>
+        <option value="San Isidro"></option>
+        <option value="Palermo"></option>
+      </datalist>
+
       <div id="grp-cuenta">
         <div class="form-group">
           <label for="f-email">Correo electrónico</label>
@@ -265,6 +315,11 @@ function setRol(r) {
   document.getElementById('opt-prof').classList.toggle('sel', r === 'profesional');
   document.getElementById('opt-prop').classList.toggle('sel', r === 'propietario');
   document.querySelector(`input[name=rol][value="${r}"]`).checked = true;
+  // El bloque de origen cambia con el rol, sin recargar. Se muestra uno y se
+  // esconde el otro: los campos del escondido no se leen ni se validan, así que
+  // lo que haya quedado escrito ahí no viaja a la RPC.
+  document.getElementById('grp-origen-prof').style.display = (r === 'profesional') ? '' : 'none';
+  document.getElementById('grp-origen-prop').style.display = (r === 'propietario') ? '' : 'none';
 }
 function rolElegido() { return document.querySelector('input[name=rol]:checked').value; }
 
@@ -278,13 +333,26 @@ document.getElementById('f-dni').addEventListener('input', (e) => {
 // cuenta, quedaría una cuenta huérfana en auth.users que sólo se limpia a mano.
 // Validar acá elimina la causa más probable de que eso pase.
 function leerDatos(conCuenta) {
+  const rol = rolElegido();
   const d = {
     nombre:   document.getElementById('f-nombre').value.trim(),
     apellido: document.getElementById('f-apellido').value.trim(),
     dni:      document.getElementById('f-dni').value.trim(),
     telefono: normalizarTel(document.getElementById('f-tel').value),
-    rol:      rolElegido(),
+    rol,
   };
+  // Origen. Se lee sólo el bloque del rol elegido: el hipódromo tiene un input
+  // por rol porque la etiqueta cambia (patente vs caballeriza), pero los dos
+  // terminan en el mismo campo.
+  if (rol === 'profesional') {
+    d.origenHipodromo = document.getElementById('f-hip-prof').value.trim();
+    d.origenPatente   = document.getElementById('f-patente').value.trim();
+    d.origenCaballeriza = '';
+  } else {
+    d.origenHipodromo = document.getElementById('f-hip-prop').value.trim();
+    d.origenPatente   = '';
+    d.origenCaballeriza = document.getElementById('f-caballeriza').value.trim();
+  }
   if (conCuenta) {
     d.email = document.getElementById('f-email').value.trim().toLowerCase();
     d.pass  = document.getElementById('f-pass').value;
@@ -309,6 +377,15 @@ function validar(d, conCuenta) {
   if (!d.nombre)   return 'Escribí tu nombre.';
   if (!d.apellido) return 'Escribí tu apellido.';
   if (!/^\d{7,8}$/.test(d.dni)) return 'El DNI tiene que tener 7 u 8 números, sin puntos.';
+  // El origen es con lo que la secretaría llama a validar: sin eso la solicitud
+  // no se puede resolver. El número de patente sí es opcional — mucha gente no
+  // se lo acuerda y no queremos que eso frene el trámite.
+  if (!d.origenHipodromo) {
+    return d.rol === 'profesional'
+      ? 'Escribí el hipódromo que te otorgó la patente.'
+      : 'Escribí el hipódromo donde está registrada la caballeriza.';
+  }
+  if (d.rol === 'propietario' && !d.origenCaballeriza) return 'Escribí el nombre de la caballeriza.';
   // El teléfono es recomendado, no obligatorio: si no está, la secretaría
   // avisa por otra vía. No bloquea la solicitud.
   if (conCuenta) {
@@ -323,6 +400,9 @@ async function enviarSolicitud(d) {
   const { error } = await sb.rpc('rpc_solicitar_acceso', {
     p_nombre: d.nombre, p_apellido: d.apellido, p_documento_nro: d.dni,
     p_telefono: d.telefono, p_rol_pedido: d.rol, p_club_id: CLUB_DOLORES,
+    p_origen_hipodromo: d.origenHipodromo || null,
+    p_origen_patente_nro: d.origenPatente || null,
+    p_origen_caballeriza: d.origenCaballeriza || null,
   });
   return error;
 }
@@ -445,7 +525,14 @@ document.getElementById('btn-reintentar').onclick = async () => {
   if (b.apellido) document.getElementById('f-apellido').value = b.apellido;
   if (b.dni)      document.getElementById('f-dni').value = b.dni;
   if (b.telefono) document.getElementById('f-tel').value = b.telefono;
+  // setRol ANTES de pintar el origen: es lo que decide qué bloque queda visible.
   if (b.rol)      setRol(b.rol);
+  if (b.origenHipodromo) {
+    const id = (b.rol === 'propietario') ? 'f-hip-prop' : 'f-hip-prof';
+    document.getElementById(id).value = b.origenHipodromo;
+  }
+  if (b.origenPatente)     document.getElementById('f-patente').value = b.origenPatente;
+  if (b.origenCaballeriza) document.getElementById('f-caballeriza').value = b.origenCaballeriza;
 })();
 </script>
 </body>
