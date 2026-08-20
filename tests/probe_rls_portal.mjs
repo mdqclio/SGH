@@ -467,6 +467,7 @@ try {
   const { data: sol1, error: eSol1 } = await sbP1.rpc('rpc_solicitar_acceso', {
     p_nombre: 'Probe', p_apellido: `Pendiente ${RUN}`, p_documento_nro: doc1,
     p_telefono: '2245-000000', p_rol_pedido: 'propietario', p_club_id: CLUB_DOLORES,
+    p_origen_hipodromo: 'Tandil', p_origen_caballeriza: `Stud Probe ${RUN}`,
   });
   check('P0', !eSol1 && !!sol1, 'el pendiente puede crear su solicitud',
     eSol1?.message ?? `id=${sol1}`);
@@ -475,6 +476,7 @@ try {
   const { data: sol2 } = await sbP2.rpc('rpc_solicitar_acceso', {
     p_nombre: 'Probe', p_apellido: `Pendiente2 ${RUN}`, p_documento_nro: doc2,
     p_telefono: '2245-000001', p_rol_pedido: 'propietario', p_club_id: CLUB_DOLORES,
+    p_origen_hipodromo: 'Azul', p_origen_caballeriza: `Stud Probe2 ${RUN}`,
   });
   if (sol2) fx.solicitudes.push(sol2);
 
@@ -482,6 +484,7 @@ try {
   const { error: eDni } = await sbP1.rpc('rpc_solicitar_acceso', {
     p_nombre: 'X', p_apellido: 'Y', p_documento_nro: '12.345.678',
     p_telefono: '1', p_rol_pedido: 'propietario', p_club_id: CLUB_DOLORES,
+    p_origen_hipodromo: 'Tandil', p_origen_caballeriza: 'Stud X',
   });
   check('P0b', !!eDni && /DNI/i.test(eDni.message),
     'rechaza un DNI con formato inválido', eDni?.message);
@@ -489,8 +492,29 @@ try {
   const { error: eDup } = await sbP1.rpc('rpc_solicitar_acceso', {
     p_nombre: 'X', p_apellido: 'Y', p_documento_nro: doc1,
     p_telefono: '1', p_rol_pedido: 'propietario', p_club_id: CLUB_DOLORES,
+    p_origen_hipodromo: 'Tandil', p_origen_caballeriza: 'Stud X',
   });
-  check('P0c', !!eDup, 'una cuenta no puede enviar dos solicitudes', eDup?.message);
+  // Se afirma el MOTIVO, no sólo que haya error: sin esto el check pasaría
+  // igual si fallara por el origen faltante, que es otra cosa.
+  check('P0c', !!eDup && /ya envió una solicitud|solicitud pendiente/i.test(eDup.message),
+    'una cuenta no puede enviar dos solicitudes', eDup?.message);
+
+  // --- origen obligatorio (feat/solicitud-origen) -------------------------
+  const { error: eSinOrigen } = await sbP2.rpc('rpc_solicitar_acceso', {
+    p_nombre: 'X', p_apellido: 'Y', p_documento_nro: String(30000000 + Math.floor(Math.random() * 9000000)),
+    p_telefono: '1', p_rol_pedido: 'propietario', p_club_id: CLUB_DOLORES,
+    p_origen_caballeriza: 'Stud sin hipodromo',
+  });
+  check('P0d', !!eSinOrigen && /hipódromo de origen/i.test(eSinOrigen.message),
+    'rechaza la solicitud sin hipódromo de origen', eSinOrigen?.message);
+
+  const { error: eSinCab } = await sbP2.rpc('rpc_solicitar_acceso', {
+    p_nombre: 'X', p_apellido: 'Y', p_documento_nro: String(30000000 + Math.floor(Math.random() * 9000000)),
+    p_telefono: '1', p_rol_pedido: 'propietario', p_club_id: CLUB_DOLORES,
+    p_origen_hipodromo: 'Azul',
+  });
+  check('P0e', !!eSinCab && /caballeriza/i.test(eSinCab.message),
+    'rechaza al propietario sin caballeriza', eSinCab?.message);
 
   // --- P1-P5: el pendiente no lee NADA ------------------------------------
   const vacio = async (tabla) => {
