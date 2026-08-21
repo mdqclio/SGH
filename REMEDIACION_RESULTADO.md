@@ -36,7 +36,7 @@
 ### Diff (muestra — `supabase.js`)
 ```diff
 -const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.Supabase.co';
--const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…rKb8…Vmkn1SYM';
+-const SUPABASE_KEY = 'sb_publishable_...';
 +const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
 +const SUPABASE_KEY = 'sb_publishable_…WgAK';
 ```

@@ -80,7 +80,7 @@ WHERE NOT EXISTS (
 -- ------------------------------------------------------------
 -- 3. ALDECOA IVAN — NO es alta, es cambio de tipo
 --    En la planilla figura en la lista de jockeys Y en la de cuidadores.
---    En la base ya está como 'entrenador' (DNI 39491188, patente DOL).
+--    En la base ya está como 'entrenador' (DNI [REDACTADO], patente DOL).
 --    El enum tipo_profesional tiene 'ambos' justo para esto.
 --    No se toca ningún otro campo — el DNI que ya tiene queda igual.
 -- ------------------------------------------------------------

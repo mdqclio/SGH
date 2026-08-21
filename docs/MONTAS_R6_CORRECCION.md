@@ -57,9 +57,9 @@ De los 8 sospechados por Leo, **6 ya estaban en la base**:
 
 | Sospechado | Realidad |
 |---|---|
-| IBARRA FERNANDO | Existe como `IBARRA FERNANDO AUGUSTO` (grafía más larga, mismo id `8f24be30…`, DOL, DNI 34749265) |
+| IBARRA FERNANDO | Existe como `IBARRA FERNANDO AUGUSTO` (grafía más larga, mismo id `8f24be30…`, DOL, DNI [REDACTADO]) |
 | ZAPICO DIEGO | Existe (`8abe11d7…`) |
-| CAÑETE FACUNDO | Existe (`2a4a0c3f…`, DOL, DNI 43521065) |
+| CAÑETE FACUNDO | Existe (`2a4a0c3f…`, DOL, DNI [REDACTADO]) |
 | ACUÑA MATIAS | Existe (`0b2c6b27…`) |
 | ACUÑA LUIS | Existe (`f67ec948…`) |
 | GIULIANO BRUNO | Existe (`5c1d5e54…`) |

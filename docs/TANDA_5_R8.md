@@ -53,7 +53,7 @@ No existe ninguna caballeriza `EL POBRE` en la base (scan normalizado sobre las 
 | `inscripciones` | `caballeriza_id` | **0** |
 | `profesionales` | `caballeriza_id` | **0** |
 
-La única referencia dura es la fila de responsables: **MEDINA OSCAR ROBERTO**, DNI 16670713,
+La única referencia dura es la fila de responsables: **MEDINA OSCAR ROBERTO**, DNI [REDACTADO],
 nac. 01/05/1964, PILA, rol `propietario`, `propietario_id` `399d2029-…`. Se conserva tal cual.
 
 > ⚠ **Corrección al supuesto del pedido**: **LA LAGUNERA J no apunta a EL POE por FK.**
@@ -120,7 +120,7 @@ Mismo scan: 0 filas. (El único match del radical `TIA` es `PEPE Y CINTIA` — r
 |---|---|---|
 | id | `17ea2904-ce23-4ba1-94be-202b1f62eb50` | `f6cdb63a-30b8-4221-812f-0527b5b9c433` |
 | apellido, nombre | ALDECOA, **`IVAN`** | ALDECOA, **`MATIAS IGNACIO`** |
-| DNI | **39491188** | **41386735** |
+| DNI | **[REDACTADO]** | **[REDACTADO]** |
 | nacimiento | 1996-07-15 | 1999-02-03 |
 | localidad | CASTELLI | CASTELLI |
 | tipo | **`ambos`** (único de la tabla) | `entrenador` |
@@ -154,14 +154,14 @@ La evidencia es el `updated_at` + el SQL versionado.)*
 
 ### 4.3 (b) Alta de IVAN LUCIANO → **duplicaría**
 
-Ya existe `ALDECOA, IVAN` con DNI **39491188** — distinto del de Matías, misma localidad,
+Ya existe `ALDECOA, IVAN` con DNI **[REDACTADO]** — distinto del de Matías, misma localidad,
 nacido 1996. Todo indica que es el mismo Iván, cargado con el nombre corto.
 
 Un alta nueva crearía un **tercer** ALDECOA y partiría en dos las referencias existentes.
-Lo correcto, si Yesi confirma que **39491188 es el DNI de Iván Luciano**, es un UPDATE de
+Lo correcto, si Yesi confirma que **[REDACTADO] es el DNI de Iván Luciano**, es un UPDATE de
 un campo (`nombre` → `IVAN LUCIANO`), no un INSERT.
 
-❓ **Pregunta para Yesi:** ¿el DNI 39491188 (nac. 15/07/1996, Castelli) es de Iván Luciano?
+❓ **Pregunta para Yesi:** ¿el DNI [REDACTADO] (nac. 15/07/1996, Castelli) es de Iván Luciano?
 Si dice que sí → UPDATE de nombre y listo. Si dice que no → ahí sí hay alta, pero primero hay
 que definir de quién es esa fila, porque tiene 7 referencias colgando.
 

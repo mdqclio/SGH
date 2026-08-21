@@ -81,7 +81,7 @@ comentario ancla y lo ejecuta con `new Function` contra la base de producción, 
                                                        → 17 sólo-copropietarios, 0 colados
 ✅ d) benefSearch matchea por apellido de profesional  → Gimenez
 ✅ d) benefSearch matchea por nombre de profesional    → Roberto
-✅ d) benefSearch matchea por DNI de profesional       → 14223344
+✅ d) benefSearch matchea por DNI de profesional       → [REDACTADO]
 ✅ d) benefSearch matchea por DNI de propietario       → Leonardo Fernandez
 ✅ d) benefSearch matchea por nombre de propietario    → Leonardo Fernandez
 ```

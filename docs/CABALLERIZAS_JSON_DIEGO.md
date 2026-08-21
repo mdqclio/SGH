@@ -26,7 +26,7 @@ Competidor de muestra (carrera 1, primer competidor), tal como salía **antes**:
   "ejemplar": { "nombre": "Conesera", "id": null },
   "kilos_ejemplar": "55",
   "jockey_inscripto": { "nombre": "IGNACIO DELLI QUADRI", "dni": null, "cuit": null },
-  "cuidador": { "nombre": "ADRIAN ALFREDO ALDAY", "dni": "26850159", "cuit": null },
+  "cuidador": { "nombre": "ADRIAN ALFREDO ALDAY", "dni": "[REDACTADO]", "cuit": null },
   "caballeriza": {
     "nombre": "Abuelo Calin",
     "id": "7f7cee40-beed-42fb-807a-70c900259be5",

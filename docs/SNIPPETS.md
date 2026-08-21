@@ -3,7 +3,7 @@
 ## Conexión Supabase (patrón en cada archivo)
 ```js
 const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM';
+const SUPABASE_KEY = 'sb_publishable_...';
 const CLUB_ID = '0649e9c5-9e87-4aad-842f-101458e6b33c';
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -228,7 +228,7 @@ ORDER BY tablename, policyname;
 const { createClient } = supabase;
 const testDb = createClient(
   'https://unlhcuanfrtpatoipwve.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGhjdWFuZnJ0cGF0b2lwd3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjQ0OTcsImV4cCI6MjA5MjMwMDQ5N30.rKb8BI7fBQcRdyyyxVfBOZbtCmGYKIMLUDLVmkn1SYM'
+  'sb_publishable_...'
 );
 // Reutilizar la sesión activa del browser:
 const { data: { session } } = await db.auth.getSession();

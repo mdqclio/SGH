@@ -64,8 +64,8 @@ WHERE NOT EXISTS (
 --      PREBE JOSE          entrenador · 8528087d-… · sin DNI
 --      CANTO HORACIO       entrenador · a8d0e58a-… · sin DNI
 --      MORAGA ADRIAN       → en base MORAGA, 'ADRIAN LEONARDO'
---                            entrenador · 3d20a735-… · DNI 43001366 · DOL
---      CASINELLI FABRICIO  entrenador · 580338fd-… · DNI 41434669 · DOL
+--                            entrenador · 3d20a735-… · DNI [REDACTADO] · DOL
+--      CASINELLI FABRICIO  entrenador · 580338fd-… · DNI [REDACTADO] · DOL
 --
 --    MORAGA ADRIAN matchea contra la grafía más larga de la base, igual
 --    que los 6 casos de la tanda 2 (FARIAS OSVALDO = OSVALDO ISMAEL, etc.).

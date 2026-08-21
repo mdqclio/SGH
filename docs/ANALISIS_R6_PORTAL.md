@@ -211,7 +211,7 @@ Lo que sí existe es un **piloto natural**: BRIGANTI (13 insc., 10,4 % sola) + l
 | `profesionales` (tabla completa) | 11 | 167 | 6,6 % |
 | `profesionales` con `tipo = 'entrenador'` | 5 | 125 | 4,0 % |
 
-**Los 18 emails que existen en la base son fixtures de demo y ninguno participa de R6.** Los 11 de `profesionales` son 5 entrenadores + 6 jockeys con dominio `@hipica.com` (Gaitán, Labanca, Leguizamón, Peralta, Blanco, Cabrera, Méndez, Ramírez, Suárez) más `fedeiguacel@gmail.com`. Los 7 de `propietarios` son `@mail.com` (Bemberg, Haras El Ombu, Bullrich, Anchorena, Sánchez Alzaga, Los Potreros) más `clio@mdq.com.ar`. Se verificó uno por uno: **`en_r6 = false` en los 18**.
+**Los 18 emails que existen en la base son fixtures de demo y ninguno participa de R6.** Los 11 de `profesionales` son 5 entrenadores + 6 jockeys con dominio `@hipica.com` (Gaitán, Labanca, Leguizamón, Peralta, Blanco, Cabrera, Méndez, Ramírez, Suárez) más `[EMAIL REDACTADO]`. Los 7 de `propietarios` son `@mail.com` (Bemberg, Haras El Ombu, Bullrich, Anchorena, Sánchez Alzaga, Los Potreros) más `clio@mdq.com.ar`. Se verificó uno por uno: **`en_r6 = false` en los 18**.
 
 **Cobertura efectiva de email para invitar a alguien de R6: 0 %, por ambas vías.** El portal no puede arrancar con invitación por email sin una campaña previa de carga de contacto.
 

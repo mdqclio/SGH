@@ -82,7 +82,7 @@ Real-code: RPCs `emitir_recibo` v1.1 + `liberar_linea` + función JS real `benef
 ✅ b1 liberar_linea retenido→impago
 ✅ b2 tras liberar, la línea ya es emitible (recibo creado, total 5000)
 ✅ c1 liberar_linea sobre no-retenida → error controlado
-✅ d1 benefSearch incluye el nombre   ✅ d2 apellido   ✅ d3 documento (DNI=36384455)
+✅ d1 benefSearch incluye el nombre   ✅ d2 apellido   ✅ d3 documento (DNI=[REDACTADO])
 ✅ e1 filtro carreraA incluye LI (carreraA)   ✅ e2 EXCLUYE LB (carreraB)
 ✅ R1 cleanup: fixtures borradas
 ✅ TODO OK — 11 checks
