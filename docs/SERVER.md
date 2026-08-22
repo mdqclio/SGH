@@ -75,3 +75,29 @@ ejemplo de referencia: `tests/probe_fase_c.mjs`.
   **Nunca** se hardcodea ni entra a git; se lee de `process.env`.
 - Frontend usa la **publishable key** (`sb_publishable_...`), pública, hardcodeada en los HTML.
 - Legacy `eyJ...` (anon + service_role) **DESACTIVADAS** desde 2026-06-07 (401). Ver `docs/SECURITY.md`, `SECURITY_AUDIT.md` y `REMEDIACION_RESULTADO.md`.
+
+## Swap lleno — procesos `chroma-mcp` acumulados (pendiente, 2026-08-22)
+
+**Síntoma**: swap 4.0 GiB / 4.0 GiB (452 KiB libres) con memoria en 4.9/7.6 GiB. No es
+crítico — hay 2.7 GiB disponibles — pero un swap saturado hace que el server se arrastre.
+
+**Causa**: instancias de `chroma-mcp` (plugin `claude-mem`) que nunca se recolectan. Cada
+sesión levanta una y queda viva; se contaron 12+ procesos python, el más viejo con 39 días
+de uptime. Entre todos suman **~2.5 GiB de los 4 GiB de swap**. Las más gordas:
+
+| PID | RSS | Uptime |
+|---|---:|---|
+| 2548759 | 582 MB | 2 d |
+| 2374254 | 519 MB | 4 d |
+| 1821244 | 380 MB | 11 d |
+| 1610233 | 303 MB | 14 d |
+
+Todas con el mismo `--data-dir /home/clio/.claude-mem/chroma`.
+
+**Aparte**: proceso zombie PID 903123 (`node`, `Zs`), padre PID 902871 = `npm run start:prod`
+con 23 días de uptime — el padre no está haciendo `wait()` sobre el hijo. Un solo zombie no
+consume memoria; molesta si el patrón se repite.
+
+**Pendiente**: matar las instancias viejas de `chroma-mcp` (dejar la de la sesión activa),
+verificar si `claude-mem` tiene forma de reusar una sola instancia, y revisar el padre del
+zombie. Revisar antes de tocar: matar el proceso equivocado corta el MCP de la sesión en curso.
