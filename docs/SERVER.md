@@ -76,28 +76,59 @@ ejemplo de referencia: `tests/probe_fase_c.mjs`.
 - Frontend usa la **publishable key** (`sb_publishable_...`), pública, hardcodeada en los HTML.
 - Legacy `eyJ...` (anon + service_role) **DESACTIVADAS** desde 2026-06-07 (401). Ver `docs/SECURITY.md`, `SECURITY_AUDIT.md` y `REMEDIACION_RESULTADO.md`.
 
-## Swap lleno — procesos `chroma-mcp` acumulados (pendiente, 2026-08-22)
+## Swap saturado por `chroma-mcp` acumulado — RESUELTO 2026-08-22
 
-**Síntoma**: swap 4.0 GiB / 4.0 GiB (452 KiB libres) con memoria en 4.9/7.6 GiB. No es
-crítico — hay 2.7 GiB disponibles — pero un swap saturado hace que el server se arrastre.
+**Síntoma**: swap 4.0 GiB / 4.0 GiB (472 KiB libres) con memoria en 4.9/7.6 GiB.
 
-**Causa**: instancias de `chroma-mcp` (plugin `claude-mem`) que nunca se recolectan. Cada
-sesión levanta una y queda viva; se contaron 12+ procesos python, el más viejo con 39 días
-de uptime. Entre todos suman **~2.5 GiB de los 4 GiB de swap**. Las más gordas:
+**Resultado de la limpieza**: swap **4095 MB → 1338 MB usados, 2757 MB liberados**
+(de 472 KiB libres a 2.7 GiB). Memoria de 4.9 a 3.7 GiB usados; disponible de 2.7 a
+3.9 GiB. Se bajaron 38 procesos, todos con `TERM` — ninguno necesitó `KILL`.
 
-| PID | RSS | Uptime |
-|---|---:|---|
-| 2548759 | 582 MB | 2 d |
-| 2374254 | 519 MB | 4 d |
-| 1821244 | 380 MB | 11 d |
-| 1610233 | 303 MB | 14 d |
+### Causa raíz
 
-Todas con el mismo `--data-dir /home/clio/.claude-mem/chroma`.
+Instancias de `chroma-mcp` del plugin `claude-mem` que no se recolectan al cerrar sesión.
+Se acumularon **20 instancias**, la más vieja con 39 días de uptime, sumando ~2.5 GiB de swap.
 
-**Aparte**: proceso zombie PID 903123 (`node`, `Zs`), padre PID 902871 = `npm run start:prod`
-con 23 días de uptime — el padre no está haciendo `wait()` sobre el hijo. Un solo zombie no
-consume memoria; molesta si el patrón se repite.
+### El criterio de limpieza es la ORFANDAD, no el uptime
 
-**Pendiente**: matar las instancias viejas de `chroma-mcp` (dejar la de la sesión activa),
-verificar si `claude-mem` tiene forma de reusar una sola instancia, y revisar el padre del
-zombie. Revisar antes de tocar: matar el proceso equivocado corta el MCP de la sesión en curso.
+**Filtrar por uptime es incorrecto y peligroso.** El `chroma-mcp` no lo levanta el proceso
+`claude` de la sesión: lo levanta un **worker `bun` de claude-mem que es long-lived y se
+comparte entre sesiones** — no reinicia cuando abrís una sesión nueva. Consecuencia: una
+instancia con 2 días de uptime puede estar **en uso activo** por la sesión actual. En la
+limpieza del 22/08 el criterio "matar todo lo que tenga más de 24 h" habría matado
+justamente el par vivo (2 d 18 h) y cortado la captura de memoria en caliente.
+
+El discriminante correcto es **`PPID = 1`**: el proceso quedó reparentado a init, o sea que
+el cliente que lo levantó está muerto. Un MCP por stdio sin cliente vivo no sirve a nadie.
+
+Verificación adicional recomendada antes de matar: **cruzar los inodos de pipe/socket**
+(`/proc/<pid>/fd`) de los huérfanos contra los de los clientes `mcp-server.cjs` vivos. En el
+server hay sesiones `claude` de 26, 25 y 12 días todavía activas; el cruce confirmó que
+ningún huérfano compartía descriptor con un cliente vivo.
+
+### Se cuentan PARES, no procesos sueltos
+
+Cada instancia son **dos** procesos: el wrapper `uv tool uvx` y su hijo `python`. Lo que a
+simple vista parecen 20 procesos son 40. La limpieza fue de **19 pares = 38 PIDs**; sobrevivió
+1 par (wrapper 2548730 + python 2548759) más su worker padre `bun` (2548606).
+
+### Esto se vuelve a acumular
+
+Mientras `claude-mem` no recolecte al cerrar sesión, el problema **reaparece**: al ritmo
+observado (20 instancias en ~40 días) en unas semanas el swap vuelve a estar igual. Opciones,
+sin decidir todavía:
+
+- **Cron de limpieza de huérfanos** — matar `chroma-mcp` con `PPID=1`, con el cruce de inodos
+  como guarda. Es el criterio de arriba, automatizado.
+- **Revisar la config del plugin** — ver si `claude-mem` permite reusar una sola instancia de
+  chroma en vez de levantar una por worker, o si tiene hook de cleanup al cerrar sesión.
+
+## Pendiente — proceso zombie 903123
+
+PID 903123, `node`, estado `Zs`. Padre: PID 902871 = `npm run start:prod`, **23 días de
+uptime**, que no hace `wait()` sobre el hijo.
+
+**No pesa** — un zombie ocupa una entrada en la tabla de procesos, no memoria. No se tocó y no
+hay apuro. Lo que conviene saber antes de reiniciar ese `start:prod` alguna vez: **qué está
+sirviendo ese proceso de producción**. Está corriendo hace 23 días y todavía no se identificó
+qué levanta; matarlo a ciegas puede cortar algo en uso. Averiguar eso primero, después decidir.
