@@ -235,8 +235,8 @@ Las dos van con `documento_nro` NULL (regla de la tanda 2), `hipodromo_patente` 
 **Jockeys (2 de 4)**: `D'ELIA THIAGO` · `DIESTRA BAUTISTA`.
 
 **Cuidadores (5 de 5)**: `BLANCO MARCELO` · `PREBE JOSE` · `CANTO HORACIO` ·
-`MORAGA ADRIAN` (en base `MORAGA, 'ADRIAN LEONARDO'`, DNI 43001366, DOL) ·
-`CASINELLI FABRICIO` (DNI 41434669, DOL).
+`MORAGA ADRIAN` (en base `MORAGA, 'ADRIAN LEONARDO'`, DNI [REDACTADO], DOL) ·
+`CASINELLI FABRICIO` (DNI [REDACTADO], DOL).
 
 **Los 2 de junio (2 de 2)**: `BOLONTI ROBERTO` · `CANTO TOBIAS`. Están los dos, como
 esperaba Leo.

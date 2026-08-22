@@ -413,12 +413,12 @@ En 37 de los 43 el nombre coincide exacto. En **6 no**, y ahí la fusión no es 
 
 | Documento | En `profesionales` | En `propietarios` | Lectura |
 |---|---|---|---|
-| 24074423 | DE LA TORRE, GABRIEL | DE LA TORRE, ORGLANDO GAIEL | **Revisar**: no es una variante menor |
-| 29849239 | ODIOSOLA, MARINA | ODRIOSOLA, MARINA | Typo en un apellido — hay que decidir cuál vale |
-| 43001366 | MORAGA, ADRIAN LEONARDO | MORAGA MILLAN, ADRIAN LEONARDO | Apellido compuesto en una sola |
-| 18151946 | DI FRANCO, GUSTAVO | DI FRANCO, GUSTAVO FABIAN | Segundo nombre en una sola |
-| 39491188 | ALDECOA, IVAN | ALDECOA, IVAN LUCIANO | Ídem |
-| 32555190 | CASTRO, CRISTIAN FABIO | CASTRO, CRISTIAN | Ídem |
+| [REDACTADO] | DE LA TORRE, GABRIEL | DE LA TORRE, ORGLANDO GAIEL | **Revisar**: no es una variante menor |
+| [REDACTADO] | ODIOSOLA, MARINA | ODRIOSOLA, MARINA | Typo en un apellido — hay que decidir cuál vale |
+| [REDACTADO] | MORAGA, ADRIAN LEONARDO | MORAGA MILLAN, ADRIAN LEONARDO | Apellido compuesto en una sola |
+| [REDACTADO] | DI FRANCO, GUSTAVO | DI FRANCO, GUSTAVO FABIAN | Segundo nombre en una sola |
+| [REDACTADO] | ALDECOA, IVAN | ALDECOA, IVAN LUCIANO | Ídem |
+| [REDACTADO] | CASTRO, CRISTIAN FABIO | CASTRO, CRISTIAN | Ídem |
 
 ### 4. Constraints sobre documento
 
@@ -447,11 +447,11 @@ uno temería. Pero "limpio" no es "listo":
    identificarlas a mano una por una, o dejarlas fuera del modelo compartido. Es el grueso
    del trabajo y no lo resuelve ningún script.
 2. **43 fusiones profesional↔propietario**, de las cuales **6 necesitan decisión humana**
-   sobre el nombre canónico y una (24074423) necesita confirmación de que es la misma persona.
+   sobre el nombre canónico y una ([REDACTADO]) necesita confirmación de que es la misma persona.
 3. **Falta el unique en `profesionales`**, y el de `propietarios` es per-club. B necesita
    unicidad **global** por documento, y ponerla es lo que va a hacer aflorar los conflictos
    que hoy no se ven porque nadie los mira.
-4. **Hay documentos fuera del formato típico** — p. ej. `92364561` (rango 90–99M, residentes
+4. **Hay documentos fuera del formato típico** — p. ej. `[REDACTADO]` (rango 90–99M, residentes
    extranjeros) y varios de 7 dígitos. Pasan la validación de la RPC (`^[0-9]{7,8}$`), pero
    cualquier limpieza que asuma "8 dígitos, nativo" los rompe.
 

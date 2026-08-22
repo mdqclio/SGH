@@ -7,7 +7,7 @@
  *       → propietarios (club=Dolores, documento_nro)
  *   y que inscripciones.propietario_id quedó derivado (C2 backfill + trigger C).
  *
- * Caso ancla: R5 / caballeriza "BAUTY MI" / titular OLGUIN (DNI 14269781).
+ * Caso ancla: R5 / caballeriza "BAUTY MI" / titular OLGUIN (DNI [REDACTADO]).
  *
  * Secciones:
  *   A) Estática (read-only): la cadena BAUTY MI→OLGUIN está completa tras el backfill.
@@ -38,13 +38,17 @@ const CLUB_ID = '0649e9c5-9e87-4aad-842f-101458e6b33c';
 const R5      = 'c90b6186-268d-4089-8cc6-71626b627cf8';
 
 const CABALLERIZA_ANCLA = 'BAUTY MI';
-const DNI_ANCLA = '14269781';        // OLGUIN
+// DNI del titular ancla: dato personal, fuera del repo (ver docs/SCRUB_PII_PROPUESTA.md).
+// Exportar SGH_DNI_ANCLA para que corra el chequeo A2; sin la variable, A2 se saltea.
+//   SGH_DNI_ANCLA=... SUPABASE_SERVICE_ROLE_KEY=... node tests/probe_propietario_derivacion.mjs
+const DNI_ANCLA = process.env.SGH_DNI_ANCLA || null;
 const DNI_FAKE_1 = '99999901';       // para test del trigger C3 (alta)
 const DNI_FAKE_2 = '99999902';       // para test de idempotencia C3
 
 const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 const results = [];
 const ok = (t, c, n = '') => results.push({ t, s: c ? '✅' : '❌', n });
+const skip = (t, n = '') => results.push({ t, s: '⏭', n });
 
 (async () => {
   let phase = 'init';
@@ -70,9 +74,16 @@ const ok = (t, c, n = '') => results.push({ t, s: c ? '✅' : '❌', n });
     // propietario apuntado
     const { data: prop } = await sb.from('propietarios')
       .select('id,club_id,documento_nro,nombre').eq('id', tit.propietario_id).maybeSingle();
-    ok('A2 propietario del puente es de Dolores y doc = DNI ancla',
-       prop?.club_id === CLUB_ID && prop?.documento_nro === DNI_ANCLA,
-       `club=${prop?.club_id === CLUB_ID ? 'Dolores' : prop?.club_id} doc=${prop?.documento_nro} nombre=${prop?.nombre}`);
+    if (DNI_ANCLA) {
+      ok('A2 propietario del puente es de Dolores y doc = DNI ancla',
+         prop?.club_id === CLUB_ID && prop?.documento_nro === DNI_ANCLA,
+         `club=${prop?.club_id === CLUB_ID ? 'Dolores' : prop?.club_id} doc=${prop?.documento_nro} nombre=${prop?.nombre}`);
+    } else {
+      skip('A2 propietario del puente es de Dolores y doc = DNI ancla',
+           'falta SGH_DNI_ANCLA — se verifica sólo que el propietario sea de Dolores');
+      ok('A2b propietario del puente es de Dolores', prop?.club_id === CLUB_ID,
+         `club=${prop?.club_id === CLUB_ID ? 'Dolores' : prop?.club_id}`);
+    }
 
     // inscripción de R5 sobre esa caballeriza: propietario_id derivado (C2)
     const { data: carsR5 } = await sb.from('carreras').select('id').eq('reunion_id', R5);
@@ -163,7 +174,8 @@ const ok = (t, c, n = '') => results.push({ t, s: c ? '✅' : '❌', n });
     console.log('\n──────── RESULTADO ────────');
     for (const r of results) console.log(`${r.s} ${r.t}${r.n ? '  (' + r.n + ')' : ''}`);
     const failed = results.filter(r => r.s === '❌').length;
-    console.log(`\n${failed === 0 ? '✅ TODO OK' : '❌ ' + failed + ' fallo(s)'} — ${results.length} checks`);
+    const skipped = results.filter(r => r.s === '⏭').length;
+    console.log(`\n${failed === 0 ? '✅ TODO OK' : '❌ ' + failed + ' fallo(s)'} — ${results.length} checks` + (skipped ? ` · ${skipped} salteado(s)` : ''));
     process.exit(failed === 0 ? 0 : 1);
   }
 })();

@@ -13,11 +13,11 @@
 -- seed del 11/05/2026. No hay una sola fila ALDECOA: hay dos.
 --
 --   id 17ea2904-ce23-4ba1-94be-202b1f62eb50
---     ALDECOA, 'IVAN'          · DNI 39491188 · nac 1996-07-15 · CASTELLI
+--     ALDECOA, 'IVAN'          · DNI [REDACTADO] · nac 1996-07-15 · CASTELLI
 --     tipo 'ambos' · DOL · activo · created 2026-05-11 · updated 2026-08-05 (tanda 2)
 --
 --   id f6cdb63a-30b8-4221-812f-0527b5b9c433
---     ALDECOA, 'MATIAS IGNACIO' · DNI 41386735 · nac 1999-02-03 · CASTELLI
+--     ALDECOA, 'MATIAS IGNACIO' · DNI [REDACTADO] · nac 1999-02-03 · CASTELLI
 --     tipo 'entrenador' · DOL · activo · created 2026-05-11 · updated 2026-05-11
 --
 -- ------------------------------------------------------------
@@ -40,18 +40,18 @@
 -- ------------------------------------------------------------
 -- (b) ALTA de ALDECOA IVAN LUCIANO  ->  DUPLICARÍA.
 -- ------------------------------------------------------------
--- Ya existe 'ALDECOA, IVAN' con DNI propio (39491188, distinto del de
+-- Ya existe 'ALDECOA, IVAN' con DNI propio ([REDACTADO], distinto del de
 -- Matías), misma localidad CASTELLI, nacido 1996. Es, con toda la pinta,
 -- el mismo Iván. Dar de alta una persona nueva crearía un tercer ALDECOA
 -- y partiría sus referencias en dos.
 --
--- Si Yesi confirma que el DNI 39491188 es el de Iván Luciano, lo único
+-- Si Yesi confirma que el DNI [REDACTADO] es el de Iván Luciano, lo único
 -- que corresponde es completar el nombre (UPDATE de un campo):
 --
 --   UPDATE profesionales SET nombre='IVAN LUCIANO', updated_at=now()
 --   WHERE id='17ea2904-ce23-4ba1-94be-202b1f62eb50' AND nombre='IVAN';
 --
--- Si en cambio confirma que 39491188 NO es de Iván, ahí sí es alta — pero
+-- Si en cambio confirma que [REDACTADO] NO es de Iván, ahí sí es alta — pero
 -- entonces hay que decidir de quién es esa fila y a dónde se reapuntan sus
 -- 7 referencias, y eso no se resuelve sin ella.
 --

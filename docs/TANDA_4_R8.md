@@ -172,18 +172,18 @@ tandas 2 y 3 (`FARIAS OSVALDO` = `OSVALDO ISMAEL`, `MORAGA ADRIAN` = `ADRIAN LEO
 
 | planilla | en base | confirmación cruzada |
 |---|---|---|
-| ANRIQUEZ GERONIMO | GERONIMO FERNANDO · DNI 25395876 | — |
-| AZURI SANTIAGO | SANTIAGO DAMIAN · DNI 21446180 | responsable de `LOS AMIGOS` |
-| CUEVAS CESAR | CESAR DANIEL · DNI 23983195 | responsable de `EL LINYE Y RAMI` |
-| PEREZ GUILLERMO | GUILLERMO HERNESTO · DNI 27105881 | responsable de `SANTA BARBARA (DOL)` |
-| PRESA LUIS | LUIS HORACIO · DNI 12735421 | — |
+| ANRIQUEZ GERONIMO | GERONIMO FERNANDO · DNI [REDACTADO] | — |
+| AZURI SANTIAGO | SANTIAGO DAMIAN · DNI [REDACTADO] | responsable de `LOS AMIGOS` |
+| CUEVAS CESAR | CESAR DANIEL · DNI [REDACTADO] | responsable de `EL LINYE Y RAMI` |
+| PEREZ GUILLERMO | GUILLERMO HERNESTO · DNI [REDACTADO] | responsable de `SANTA BARBARA (DOL)` |
+| PRESA LUIS | LUIS HORACIO · DNI [REDACTADO] | — |
 
 `ALZA MAXIMILIANO`, `TRUPPA ROBERTO`, `CARLI FEDERICO`, `CLAVERIE CLAUDIO` y `PALLET GUIDO`
 matchean exacto. `PALLET GUIDO` es además responsable de `EL GALPON`, el dato que resolvió §2.
 
 ✅ **`PRESA LUIS` es persona distinta de `PRESA DANIEL`**, como avisó Leo: distinto tipo
 (entrenador vs jockey), distinto nombre, distinto DNI. No se unifican.
-⚠ `CARLI FEDERICO` (sin DNI) convive con `CARLI ORNELA` (DNI 34653709). Dos personas.
+⚠ `CARLI FEDERICO` (sin DNI) convive con `CARLI ORNELA` (DNI [REDACTADO]). Dos personas.
 
 **3 son alta**, las tres como `entrenador` (`cuidador` en la planilla = `entrenador` en
 `profesionales`): `MALENA GUSTAVO`, `PALMIERI LEONARDO`, `VILLANUEVA SANTINO`.

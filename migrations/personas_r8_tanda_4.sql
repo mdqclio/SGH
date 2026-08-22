@@ -80,18 +80,18 @@ WHERE NOT EXISTS (
 --      ALZA MAXIMILIANO    entrenador · b75cbb70-… · sin DNI · patente NULL
 --      TRUPPA ROBERTO      entrenador · 405ba68e-… · sin DNI · patente NULL
 --      CARLI FEDERICO      entrenador · 05d9fbb6-… · sin DNI · patente NULL
---      CLAVERIE CLAUDIO    entrenador · ea8c26e4-… · DNI 23525492 · DOL
---      PALLET GUIDO        entrenador · 428cec84-… · DNI 34412986 · DOL
+--      CLAVERIE CLAUDIO    entrenador · ea8c26e4-… · DNI [REDACTADO] · DOL
+--      PALLET GUIDO        entrenador · 428cec84-… · DNI [REDACTADO] · DOL
 --      ANRIQUEZ GERONIMO   → en base 'GERONIMO FERNANDO'
---                            entrenador · bee25d92-… · DNI 25395876 · DOL
+--                            entrenador · bee25d92-… · DNI [REDACTADO] · DOL
 --      AZURI SANTIAGO      → en base 'SANTIAGO DAMIAN'
---                            entrenador · 280c3aab-… · DNI 21446180 · DOL
+--                            entrenador · 280c3aab-… · DNI [REDACTADO] · DOL
 --      CUEVAS CESAR        → en base 'CESAR DANIEL'
---                            entrenador · 1da2aebd-… · DNI 23983195 · DOL
+--                            entrenador · 1da2aebd-… · DNI [REDACTADO] · DOL
 --      PEREZ GUILLERMO     → en base 'GUILLERMO HERNESTO'
---                            entrenador · ba8e2691-… · DNI 27105881 · DOL
+--                            entrenador · ba8e2691-… · DNI [REDACTADO] · DOL
 --      PRESA LUIS          → en base 'LUIS HORACIO'
---                            entrenador · ec4af08c-… · DNI 12735421 · DOL
+--                            entrenador · ec4af08c-… · DNI [REDACTADO] · DOL
 --
 --    Los 5 que matchean contra una grafía más larga siguen el mismo
 --    criterio de las tandas 2 y 3 (FARIAS OSVALDO = OSVALDO ISMAEL,
@@ -105,12 +105,12 @@ WHERE NOT EXISTS (
 --      PALLET GUIDO              → EL GALPON
 --
 --    ✅ PRESA LUIS es persona distinta de PRESA DANIEL, como avisó Leo.
---       En la base: PRESA LUIS HORACIO (entrenador, DNI 12735421, DOL) y
+--       En la base: PRESA LUIS HORACIO (entrenador, DNI [REDACTADO], DOL) y
 --       PRESA DANIEL (jockey, 8c358b73-…, sin DNI). Distinto tipo,
 --       distinto nombre, distinto DNI. NO es typo, no se unifican.
 --
 --    ⚠ CARLI FEDERICO (entrenador, sin DNI) convive con CARLI ORNELA
---      (entrenador, DNI 34653709, DOL). Dos personas, no duplicados.
+--      (entrenador, DNI [REDACTADO], DOL). Dos personas, no duplicados.
 -- ------------------------------------------------------------
 
 -- Verificación dentro de la misma transacción:

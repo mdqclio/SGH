@@ -30,7 +30,7 @@
 -- Referencias de EL POE contadas ANTES del rename (por eso es rename y no
 -- borrar+crear, aunque el conteo haya salido más flaco de lo esperado):
 --   caballeriza_responsables  -> 1  (MEDINA OSCAR ROBERTO, rol propietario,
---                                    DNI 16670713, PILA — se conserva)
+--                                    DNI [REDACTADO], PILA — se conserva)
 --   spcs.caballeriza_id       -> 0
 --   inscripciones.caballeriza_id -> 0
 --   profesionales.caballeriza_id -> 0

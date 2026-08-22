@@ -219,7 +219,7 @@ documento, armada sin el padrón. El cruce completo los descartó: ya estaban.
 ### ALDECOA IVAN — cambio de tipo, no alta
 
 Figura en la lista de jockeys **y** en la de cuidadores. En la base ya estaba como
-`entrenador` con DNI `39491188` y patente DOL. Se aplicó
+`entrenador` con DNI `[REDACTADO]` y patente DOL. Se aplicó
 `UPDATE tipo → 'ambos'`; ningún otro campo se tocó.
 
 ### ⚠ MAITIA MIGUEL A — no hacía falta ni comentarlo
@@ -242,7 +242,7 @@ Migración `personas_r8_tanda_2` por MCP `apply_migration`.
 | filas con `tipo = 'ambos'` | 1 (ALDECOA IVAN) | **1** | ✅ |
 | duplicados de (apellido, nombre) en toda la tabla | 0 | **0** | ✅ |
 | las 10 altas: `documento_nro` | NULL | NULL | ✅ |
-| ALDECOA IVAN: DNI tras el UPDATE | 39491188 | **39491188** | ✅ |
+| ALDECOA IVAN: DNI tras el UPDATE | [REDACTADO] | **[REDACTADO]** | ✅ |
 
 ## 4. Lo que quedó abierto
 
