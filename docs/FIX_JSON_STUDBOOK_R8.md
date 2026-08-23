@@ -255,3 +255,64 @@ tres cambios reales.
 5. [ ] Decidir sobre los 2 tiempos de 800 m con los tickets en la mano.
 6. [ ] Carga de datos, en orden de impacto: 17 DNI de cuidadores → 23 `studbook_id` → reconciliación
        de montas de R8.
+
+---
+
+# Anexo — cotejo contra los tickets del tote y corrección (2026-08-23)
+
+Los 8 tiempos del ticket los aportó el usuario en sesión. Cotejo contra `tiempo_ganador`:
+
+| nro | turno | dist | en DB (antes) | ticket | cotejo | valor aplicado |
+|---|---|---|---|---|---|---|
+| 1 | 2 | 800 | `43:13.00` | 47.13 | 🔴 **DIFIERE** | `00:47.13` |
+| 2 | 12 | 800 | `49:00.00` | 49.00 | 🔴 **DIFIERE** | `00:49.00` |
+| 3 | 4 | 1000 | `01:02.03` | 1:02.03 | ✅ igual | — |
+| 4 | 5 | 1000 | `01:00.72` | 1:00.72 | ✅ igual | — |
+| 5 | 10 | 1000 | `00:59.90` | 59.90 | ✅ igual | — |
+| 6 | 11 | 1100 | `01:04.81` | 1:04.81 | ✅ igual | — |
+| 7 | 3 | 1200 | `01:15.51` | 1:15.51 | ✅ igual | — |
+| 8 | 8 | 1200 | `01:15.19` | 1:15.19 | ✅ igual | — |
+
+**2 filas corregidas**, las mismas 2 que la guarda de plausibilidad había marcado. Las 6 restantes
+coinciden dígito por dígito con el ticket — la coherencia de velocidad no se equivocó en ninguna.
+
+Nótese el caso de la **nro 2**: `49:00.00` y `49.00` comparten los dígitos, pero lo guardado eran
+**49 minutos**. Coincidencia de grafía, no de valor.
+
+## Estado post-corrección
+
+| nro | dist | `tiempo_ganador` | m/s | `tiempo` en el JSON |
+|---|---|---|---|---|
+| 1 | 800 | `00:47.13` | 16,97 | `{minutos:0, segundos:47, centesimas:13, decimas:13}` |
+| 2 | 800 | `00:49.00` | 16,33 | `{minutos:0, segundos:49, centesimas:0, decimas:0}` |
+| 3 | 1000 | `01:02.03` | 16,12 | `{1, 2, c:3}` |
+| 4 | 1000 | `01:00.72` | 16,47 | `{1, 0, c:72}` |
+| 5 | 1000 | `00:59.90` | 16,69 | `{0, 59, c:90}` |
+| 6 | 1100 | `01:04.81` | 16,97 | `{1, 4, c:81}` |
+| 7 | 1200 | `01:15.51` | 15,89 | `{1, 15, c:51}` |
+| 8 | 1200 | `01:15.19` | 15,96 | `{1, 15, c:19}` |
+
+**Las 8 salen con tiempo válido. Ninguna en `null`.** La banda de velocidad quedó en 15,89–16,97 m/s.
+
+## Rollback de la corrección
+
+```sql
+UPDATE resultados res SET tiempo_ganador = v.viejo
+FROM (VALUES (1,'43:13.00'), (2,'49:00.00')) AS v(prog, viejo)
+JOIN carreras c ON c.numero_carrera_programa = v.prog
+JOIN reuniones r ON r.id = c.reunion_id AND r.numero = 8
+WHERE res.carrera_id = c.id;
+```
+
+No hay motivo para correrlo: los valores viejos son los erróneos. Queda por trazabilidad.
+
+## Guarda en la carga (`resultados.html`)
+
+La máscara vieja validaba forma, no magnitud. Ahora el tiempo se cruza contra
+`carreras.distancia_metros` con una banda de 8–20 m/s, se acepta la forma en segundos pelados
+(`47.13` → `00:47.13`) y el rechazo sugiere la reinterpretación: para 800 m, `43:13.00` propone
+`00:43.13`. Sin distancia cargada se aplica el tope de 10 min, el mismo `TIEMPO_MAX_SEGUNDOS` del
+exportador.
+
+Casos probados: los 8 de R8 (los 2 rotos rechazados, los 6 buenos aceptados), segundos pelados,
+enteros, legacy `1:11.20`, un decimal `1:15.5`, 3000 m en `03:10.00`, basura y `seg > 59`.
