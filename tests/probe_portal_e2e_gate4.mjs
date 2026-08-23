@@ -247,6 +247,11 @@ async function main() {
     'la UI avisa que ya está en otros turnos, sin bloquear',
     htmlModal.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 160));
   if (avisoOtros) info(`aviso en el modal: "también anotado en el turno ${avisoOtros[1]} — está bien, la secretaría define después"`);
+  // El caballo se anotó primero en el turno 1 y después en el 7. La lista sale de
+  // misInscripciones, que viene por created_at: sin sort numérico decía "7, 1".
+  check('E5g', avisoOtros?.[1] === '1, 7',
+    'los turnos del aviso salen ordenados por número, no por fecha de alta',
+    `dijo "${avisoOtros?.[1]}"`);
   check('E5f', !/disabled>Anotado</.test(htmlModal),
     'y el botón de anotar sigue habilitado en ese turno');
 

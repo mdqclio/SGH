@@ -12,7 +12,9 @@
 > **Actualización 2026-08-23 — bug 2 cerrado.** Se aplicó la opción C: la función pasó
 > a `SECURITY DEFINER` con motivo genérico para el portal. Verificado end-to-end con la
 > sesión real del usuario de portal: los tres casos que deben rechazarse ahora se
-> rechazan. Lo único pendiente de Fede es **el texto del mensaje**, no el bloqueo.
+> rechazan. El texto del mensaje quedó **definido por Fede el 2026-08-23**: va el genérico
+> ("no habilitado" / "suspendido"), **sin el motivo**. El que está vivo ya es ése — no hay nada
+> pendiente acá.
 > Ver "Lo que se aplicó" más abajo. El resto del documento describe el estado previo.
 
 Un usuario del portal (rol `profesional` / `propietario`) podía inscribir cualquier

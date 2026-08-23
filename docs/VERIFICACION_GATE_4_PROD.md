@@ -148,10 +148,13 @@ fixture no está.
 
 ## Detalles menores, no bloqueantes
 
-1. **El aviso lista los turnos sin ordenar**: dice *"también anotado en el turno 7, 1"* en vez de
-   *"1, 7"*. Sale del orden de `misInscripciones`, que viene por `created_at`. Cosmético.
-2. **El texto del rechazo sigue pendiente de Fede** — hoy es el genérico. Ver
-   `PORTAL_VALIDACION_INSCRIPCION.md`.
+1. ~~El aviso lista los turnos sin ordenar~~ — **corregido**: `renderListaCaballosModal` ordena los
+   turnos por número antes de imprimirlos. Decía *"turno 7, 1"* porque salía del orden de
+   `misInscripciones`, que viene por `created_at`. Cubierto por E5g.
+2. ~~El texto del rechazo sigue pendiente de Fede~~ — **decidido por Fede el 2026-08-23**: va el
+   genérico, sin el motivo. El texto vivo ya es ése, así que no hay cambio que hacer. (El comentario
+   de `migrations/validar_inscripcion_security_definer.sql` todavía dice "texto provisorio"; es
+   cosmético, el cuerpo de la función es el correcto.)
 3. **El único usuario de portal real** (`hipodromodolores@gmail.com`, profesional `11d8c346`) tiene
    **0 SPC a su nombre**, aunque el backfill vinculó 114 de 183. Con esa cuenta el portal funciona
    pero "Mis caballos" sale vacío y no hay nada para anotar. **Para que un entrenador de verdad use
@@ -161,5 +164,5 @@ fixture no está.
 
 - **ISSUE-053**: la resolución de las anotaciones multi-turno sigue sin control, y ahora que el
   portal las hace masivas la prioridad sube. Espera la decisión de Fede entre las tres opciones.
-- El texto del mensaje de rechazo (Fede).
-- Vincular SPC reales al entrenador de prueba, o a los entrenadores que vayan a usar el portal.
+- **Tenencia y cuentas** — lo que falta para que el portal sirva de verdad. Ver
+  [`TENENCIA_SPC_ESTADO.md`](TENENCIA_SPC_ESTADO.md).

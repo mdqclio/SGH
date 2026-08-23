@@ -601,7 +601,9 @@ function renderListaCaballosModal() {
       ? `<span class="chip" style="color:var(--success);border-color:rgba(76,175,130,0.35);">ya anotado en este turno</span>`
       : enOtrosTurnos.length
         ? `<span class="chip">también anotado en el turno ${enOtrosTurnos
-            .map(i => esc(i.carreras?.numero_turno)).join(', ')} — está bien, la secretaría define después</span>`
+            .map(i => i.carreras?.numero_turno)
+            .sort((a, b) => (a ?? 9999) - (b ?? 9999))
+            .map(esc).join(', ')} — está bien, la secretaría define después</span>`
         : '';
 
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
