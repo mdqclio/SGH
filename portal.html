@@ -406,7 +406,10 @@ function showSection(name) {
   document.getElementById(`section-${name}`).classList.add('active');
   document.getElementById(`nav-${name}`).classList.add('active');
   if (name === 'spcs') loadSpcs();
-  if (name === 'carta' && !cartaLoaded) { cartaLoaded = true; loadCarta(); }
+  // cartaLoaded lo setea loadCarta() recién cuando la carga sale bien. Marcarlo
+  // acá, antes de llamar, dejaba la sección muerta hasta recargar la página:
+  // si loadCarta fallaba, salir y volver a entrar no reintentaba nada.
+  if (name === 'carta' && !cartaLoaded) loadCarta();
   if (name === 'inscripciones') loadMisInscripciones();
 }
 
@@ -513,17 +516,65 @@ async function saveSpc(e) {
 let reunionesAbiertas = [], carrerasMap = {};
 let carreraSeleccionada = null;
 
+// Chip de edad a partir de las dos columnas reales de `carreras`.
+// NO existe `carreras.condicion_edad` — pedirla en el select tiraba
+// HTTP 400 42703 y volteaba la consulta entera.
+function chipEdad(min, max) {
+  if (min == null && max == null) return '';
+  if (min != null && max == null) return `desde ${min} años`;
+  if (min == null && max != null) return `hasta ${max} años`;
+  return min === max ? `${min} años` : `${min} a ${max} años`;
+}
+
+function reintentarCarta() { cartaLoaded = false; loadCarta(); }
+
 async function loadCarta() {
   const cont = document.getElementById('carta-container');
   cont.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando reuniones…</div>';
+
+  // Estado: SOLO 'publicada'. El ENUM estado_reunion es
+  //   borrador | publicada | en_curso | finalizada | cancelada | suspendida | programada
+  // 'abierta' NO existe — PostgREST castea los literales del in() al tipo de la
+  // columna, así que el valor inválido tiraba HTTP 400 22P02 y la request moria
+  // antes de mirar una sola fila. (El literal viene de carta-llamados.html, que
+  // lo escribe en `carreras.estado`, que es VARCHAR libre y ahí no falla.)
+  //
+  // Fecha: se excluyen las reuniones ya corridas. R8 (16/08) sigue en
+  // 'publicada' porque nadie la pasa a 'finalizada' al oficializarla, y sin
+  // este filtro la carta ofrecería "Inscribir" en una reunión ya disputada.
+  // Decisión conservadora: mejor no mostrarla que ofrecer algo imposible.
+  // El arreglo de fondo es que oficializar cierre la reunión — ver el reporte.
+  const hoy = new Date().toISOString().slice(0, 10);
   const { data: reuns, error } = await sb.from('reuniones')
-    .select('id,numero,numero_publico,fecha,estado,hipodromos(nombre),carreras(id,numero_turno,nombre,distancia_metros,condicion_sexo,condicion_edad,bolsa_total,cupo_maximo,tipo_pista)')
-    .in('estado', ['publicada', 'abierta'])
+    .select('id,numero,numero_publico,fecha,estado,hipodromos(nombre),carreras(id,numero_turno,nombre,distancia_metros,condicion_sexo,edad_minima_anos,edad_maxima_anos,bolsa_total,cupo_maximo,tipo_pista)')
+    .eq('estado', 'publicada')
+    .gte('fecha', hoy)
     .order('fecha', { ascending: true });
-  if (error) { toast(error.message, 'error'); return; }
+
+  if (error) {
+    // El spinner se limpia SÍ o SÍ. Antes el `return` se iba sin tocar el
+    // contenedor y dejaba "Cargando reuniones…" para siempre; el toast se
+    // autodestruía a los 3,5 s y el usuario se quedaba sin ninguna pista.
+    console.error('[loadCarta] error al traer reuniones', error);
+    cont.innerHTML = `<div class="empty-state">
+      <div class="icon">⚠️</div>
+      <h3>No se pudieron cargar las reuniones</h3>
+      <p>${error.message ? String(error.message).replace(/</g, '&lt;') : 'Error desconocido'}</p>
+      <p style="margin-top:14px;"><button class="btn-inscribir" onclick="reintentarCarta()">Reintentar</button></p>
+    </div>`;
+    toast('No se pudieron cargar las reuniones', 'error');
+    return;   // cartaLoaded queda en false: volver a entrar reintenta.
+  }
+
+  cartaLoaded = true;
   reunionesAbiertas = reuns || [];
   if (!reunionesAbiertas.length) {
-    cont.innerHTML = `<div class="empty-state"><div class="icon">📋</div><h3>Sin reuniones abiertas</h3><p>No hay reuniones con inscripción abierta en este momento.</p></div>`;
+    cont.innerHTML = `<div class="empty-state"><div class="icon">📋</div>
+      <h3>No hay reuniones abiertas</h3>
+      <p>Ahora mismo no hay ninguna reunión con inscripción abierta.</p>
+      <p style="margin-top:6px;">Cuando la secretaría publique la próxima, va a aparecer acá.</p>
+      <p style="margin-top:14px;"><button class="btn-inscribir" onclick="reintentarCarta()">Actualizar</button></p>
+    </div>`;
     return;
   }
   const html = reunionesAbiertas.map(r => {
@@ -538,7 +589,7 @@ async function loadCarta() {
             <span class="chip">${c.distancia_metros}m</span>
             ${c.tipo_pista ? `<span class="chip">${c.tipo_pista}</span>` : ''}
             ${c.condicion_sexo ? `<span class="chip">${c.condicion_sexo}</span>` : ''}
-            ${c.condicion_edad ? `<span class="chip">${c.condicion_edad}</span>` : ''}
+            ${chipEdad(c.edad_minima_anos, c.edad_maxima_anos) ? `<span class="chip">${chipEdad(c.edad_minima_anos, c.edad_maxima_anos)}</span>` : ''}
             ${c.bolsa_total ? `<span class="chip">💰 ${formatMonto(c.bolsa_total)}</span>` : ''}
             ${c.cupo_maximo ? `<span class="chip">Cupo ${c.cupo_maximo}</span>` : ''}
           </div>
