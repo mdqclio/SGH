@@ -23,7 +23,7 @@ const STORAGE_KEY   = 'sb-unlhcuanfrtpatoipwve-auth-token';
 const REUNION_ID    = 'c90b6186-268d-4089-8cc6-71626b627cf8';
 const CARRERA_ID    = 'ee373aea-bb8d-4866-9a11-1f34282dbb73';
 const RESULTADO_ID  = '052b679b-f539-4c20-9038-a4f2fce48287';
-const BASE_URL      = `https://mdqclio.github.io/SGH/resultados.html?reunion_id=${REUNION_ID}`;
+const BASE_URL      = `https://sigh.com.ar/resultados.html?reunion_id=${REUNION_ID}`;
 const DOLORES_EMAIL = 'dolores@sgh.com';
 const DOLORES_UID   = '01c55b92-c53e-42fd-948f-ebfdb31b8d65';
 

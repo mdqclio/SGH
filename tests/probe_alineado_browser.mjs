@@ -30,7 +30,7 @@ const args     = process.argv.slice(2);
 const flag     = n => args.includes(n);
 const valorDe  = n => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : null; };
 const reunionId = args.find(a => /^[0-9a-f-]{36}$/i.test(a)) || R8_DEFAULT;
-const base      = valorDe('--url') || 'https://mdqclio.github.io/SGH';
+const base      = valorDe('--url') || 'https://sigh.com.ar';
 const pagina    = flag('--bn') ? 'programa-oficial.html' : 'programa-oficial-color.html';
 const tablaSel  = flag('--bn') ? 'table.inscriptos' : 'table.inscriptos-color';
 

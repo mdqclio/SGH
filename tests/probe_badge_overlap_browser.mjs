@@ -29,7 +29,7 @@ const R8_DEFAULT = '7b6e003e-22e2-4629-bf55-f18560b1260f';
 const args      = process.argv.slice(2);
 const valorDe   = n => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : null; };
 const reunionId = args.find(a => /^[0-9a-f-]{36}$/i.test(a)) || R8_DEFAULT;
-const base      = valorDe('--url') || 'https://mdqclio.github.io/SGH';
+const base      = valorDe('--url') || 'https://sigh.com.ar';
 const conPdf    = args.includes('--pdf');
 
 // iPhone 12/13/14 en vertical, iPhone SE, tablet, y desktop
