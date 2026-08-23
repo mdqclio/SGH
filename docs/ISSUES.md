@@ -319,6 +319,8 @@ Qué hay que hacer en el Gate 4:
 - La baja de las inscripciones sobrantes **no** va en el portal del Gate 4: es la resolución del lunes y la hace la secretaría desde el back office. El portal no necesita un botón de baja para esto.
 - Revisar todo conteo por caballo/reunión (incentivos de montas, resumen de la Fase 5, cupos) para que no sobrecuente estas filas.
 
+Complemento: **ISSUE-053** cubre el otro extremo de la misma regla — la resolución del lunes no tiene ningún control y ya se olvidó tres veces.
+
 Módulo: `portal.html` + RPC de inscripción del Gate 4 (`docs/AUTOREGISTRO_PLAN.md` §Gate 4). Estado: ⏳ Abierto — es requisito de diseño, hay que resolverlo **antes** de escribir el RPC. Prioridad: Alta (bloquea el Gate 4, apuntado a R9 del 06/09).
 
 ### ISSUE-049: `profesionales.html` listaba entrenadores de todos los clubes y los creaba sin `club_id` — RESUELTO
@@ -374,3 +376,37 @@ Explícitamente NO tocar hasta responder ambas. No es un fix de una línea aunqu
 
 Módulo: `reuniones` (datos) + posibles filtros app-wide.
 Estado: ⏳ Abierto — a investigar. Prioridad: Baja (no bloquea nada hoy; R6 ya está liquidada y cotejada).
+
+### ISSUE-053: Anotaciones multi-turno que quedan sin resolver en `inscripto`
+Descripción: complemento directo de ISSUE-048. Aquel dice que el portal **no debe bloquear** que un ejemplar se anote en varios turnos de la misma reunión, y que la resolución (dejarlo en uno y dar de baja el resto) es la pasada del lunes de secretaría. Este issue es sobre el otro extremo: **esa resolución no tiene ningún control, y ya se olvidó tres veces**.
+
+Relevado el 2026-08-23 (`docs/REGLA_INSCRIPCION_MULTITURNO.md`). Tres ejemplares quedaron ratificados en un turno y con la otra anotación colgada en `inscripto`, ni forfait ni mal_inscrito:
+
+| Reunión | Ejemplar | Ratificado en turno | Quedó `inscripto` en turno |
+|---|---|---|---|
+| 6 (20/06) | LATIN PRESUMIDA | 9 | 10 |
+| 8 (16/08) | FALAYS | 5 | 7 |
+| 8 (16/08) | TATA FOOT | 11 | 9 |
+
+Las dos de R8 sobrevivieron la reunión entera, con los resultados ya oficializados.
+
+Por qué hoy no molesta: `renumerarChapas` filtra con `estado === 'ratificado'` (filtro positivo, GOTCHA #7), así que una fila en `inscripto` no entra al programa, ni al mandil, ni a la carta de llamados, ni al JSON del Stud Book. Es ruido en la tabla, no un dato malo en pantalla.
+
+Por qué va a molestar: hoy las inscripciones las carga secretaría a mano y son ~100 por reunión. Con el portal del Gate 4 las carga cada entrenador, y el proceso que ISSUE-048 declara correcto — anotarse en varias categorías — pasa a ser masivo. En R8 el 30 % de los SPC ya estaba en 2+ turnos con carga manual. Cada anotación que no se resuelve queda como fila colgada, y no hay nada que las junte ni las muestre.
+
+**Estado actual del control (ninguno):**
+- `validar_inscripcion` es per-carrera: recibe una carrera y no mira el resto de la reunión. No sabe que existe otra anotación.
+- `ratificar()` (`ratificacion.html:897`) es un UPDATE pelado. Sin lectura previa, sin chequeo, sin confirmación. La única guarda del botón es que haya jockey asignado.
+- No hay trigger ni constraint. **Se puede ratificar el mismo SPC en los 11 turnos de una reunión y el sistema no dice una palabra.** Nunca pasó (0 casos en toda la base), pero por disciplina del operador. Si pasara, el caballo saldría impreso dos veces en el programa oficial, con un mandil distinto en cada turno.
+
+**PREGUNTA DE PRODUCTO — la define Fede:** al ratificar un SPC en un turno, ¿qué hace el sistema con las otras anotaciones de ese mismo SPC en la misma reunión?
+
+1. **No hace nada** (hoy). La resolución es 100 % manual y se sigue olvidando.
+2. **Avisa.** Al ratificar, un aviso no bloqueante: "este ejemplar tiene anotaciones sin resolver en los turnos N, M". Precedente en la casa: `recalcJockeyColisiones` (`ratificacion.html:813`) ya hace exactamente esto para jockeys duplicados dentro de una carrera — pinta la fila y agrega un badge `⚠ dup.`, sin bloquear. Acá sería lo mismo pero a nivel reunión.
+3. **Resuelve solo.** Al ratificar en un turno, las demás anotaciones del SPC pasan automáticamente a `forfait`. Es lo que describe la regla de Fede ("se declara forfait en los demás"), pero **automatizarlo escribe filas que nadie pidió** y hay que decidir si el forfait automático es el estado correcto o si a veces corresponde `mal_inscrito`.
+4. **Bloquea la doble ratificación** (independiente de 1-3). Impedir que un SPC quede ratificado en dos turnos. Esto es más defendible que las otras tres: no existe el caso legítimo de un caballo corriendo dos carreras de la misma reunión, y la consecuencia hoy es un programa oficial mal impreso.
+
+Nota de implementación para cuando se decida: el dato ya está cargado. `ratificacion.html:586` trae **todas** las inscripciones de la reunión (`.in('carrera_id', ids)` sobre todas las carreras), así que detectar las otras anotaciones de un SPC es un `filter` sobre un array en memoria — cero queries nuevas.
+
+Módulo: `ratificacion.html` (`ratificar`, `volverInscripto`, `marcarEstado`) + eventualmente `validar_inscripcion` y el RPC del Gate 4. Relacionado: ISSUE-048 (la otra mitad de la misma regla), GOTCHA #69.
+Estado: ⏳ Abierto — **esperando definición de producto de Fede**. Las 3 filas colgadas no requieren saneamiento urgente. Prioridad: Media hoy, **Alta cuando se abra el portal del Gate 4**.

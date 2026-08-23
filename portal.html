@@ -584,7 +584,7 @@ async function loadCarta() {
       <div class="carrera-row">
         <div class="carrera-num">${c.numero_turno}</div>
         <div class="carrera-info">
-          <div class="carrera-name">${c.nombre || `Carrera ${c.numero_turno}`}</div>
+          <div class="carrera-name">${c.nombre || `Turno ${c.numero_turno}`}</div>
           <div class="carrera-chips">
             <span class="chip">${c.distancia_metros}m</span>
             ${c.tipo_pista ? `<span class="chip">${c.tipo_pista}</span>` : ''}
@@ -594,7 +594,7 @@ async function loadCarta() {
             ${c.cupo_maximo ? `<span class="chip">Cupo ${c.cupo_maximo}</span>` : ''}
           </div>
         </div>
-        <button class="btn-inscribir" onclick="abrirInscripcion('${c.id}','${r.hipodromos?.nombre||''}',${c.numero_turno},'${(c.nombre||'Carrera '+c.numero_turno).replace(/'/g,"\\'")}')">Inscribir</button>
+        <button class="btn-inscribir" onclick="abrirInscripcion('${c.id}','${r.hipodromos?.nombre||''}',${c.numero_turno},'${(c.nombre||'Turno '+c.numero_turno).replace(/'/g,"\\'")}')">Inscribir</button>
       </div>`).join('');
     return `<div class="reunion-block">
       <div class="reunion-header">
@@ -609,7 +609,7 @@ async function loadCarta() {
 
 function abrirInscripcion(carreraId, hipNombre, num, nombreCarrera) {
   carreraSeleccionada = { id: carreraId };
-  document.getElementById('minsc-title').textContent = `Inscribir en Carrera ${num}`;
+  document.getElementById('minsc-title').textContent = `Inscribir en Turno ${num}`;
   document.getElementById('minsc-carrera-info').innerHTML = `<strong style="color:var(--text)">${nombreCarrera}</strong> — ${hipNombre}`;
   document.getElementById('minsc-spc-search').value = '';
   document.getElementById('minsc-spc-id').value = '';
@@ -736,13 +736,13 @@ async function loadMisInscripciones() {
       <td style="font-weight:600;color:var(--accent);font-family:'Playfair Display',serif;">${spc?.nombre || i.spc_id}</td>
       <td>${reun?.hipodromos?.nombre || '—'}</td>
       <td>Reunión ${reun?.numero_publico ?? reun?.numero ?? ''} — ${fecha}</td>
-      <td>Carrera ${car?.numero_turno || '—'}</td>
+      <td>Turno ${car?.numero_turno || '—'}</td>
       <td><span class="badge ${estadoBadge[i.estado] || ''}">${i.estado?.replace('_', ' ') || '—'}</span></td>
       <td>${i.estado !== 'forfait' && i.estado !== 'ratificado' ? `<button class="btn-sm btn-danger" onclick="darForfait('${i.id}')">Forfait</button>` : '—'}</td>
     </tr>`;
   }).join('');
   cont.innerHTML = `<div class="table-wrap"><table>
-    <thead><tr><th>SPC</th><th>Hipódromo</th><th>Reunión</th><th>Carrera</th><th>Estado</th><th>Acción</th></tr></thead>
+    <thead><tr><th>SPC</th><th>Hipódromo</th><th>Reunión</th><th>Turno</th><th>Estado</th><th>Acción</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
 }
