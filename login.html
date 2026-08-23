@@ -255,6 +255,7 @@ VALUES (
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="activacion-pendiente.js"></script>
 <!-- Cloudflare Turnstile — el proyecto tiene Attack Protection activo, así que
      GoTrue rechaza signInWithPassword y resetPasswordForEmail sin captchaToken.
      Render explícito: hay dos widgets (login y recuperación) y uno arranca
@@ -310,11 +311,38 @@ function cfReset(cual) {
   if (id !== null && typeof turnstile !== 'undefined') turnstile.reset(id);
 }
 
+// Si venimos rebotados desde initAuth por cuenta inactiva, explicar por qué.
+// El signOut ya lo hizo quien nos mandó acá, así que no hay sesión que limpiar.
+(function avisoDeRebote() {
+  const motivo = new URLSearchParams(window.location.search).get('motivo');
+  if (!motivo) return;
+  const textos = {
+    inactiva:   'Tu cuenta está pendiente de activación. Pedile a la secretaría del hipódromo que te habilite.',
+    desactivada:'Tu cuenta está desactivada. Contactá a la secretaría del hipódromo.',
+    rechazada:  'Tu registro fue rechazado. Contactá al administrador.',
+  };
+  if (textos[motivo]) showError(textos[motivo]);
+})();
+
 // Si ya hay sesión activa, redirigir según rol
 (async () => {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return;
-  const { data: usr } = await sb.from('usuarios').select('rol').eq('email', session.user.email).single();
+  const { data: usr } = await sb.from('usuarios')
+    .select('id, rol, activo, estado')
+    .eq('email', session.user.email).single();
+
+  // Antes de rebotar a ningún lado: si la cuenta está inactiva, no tiene
+  // sentido mandarla a un dashboard que RLS le va a devolver vacío.
+  if (usr && usr.activo === false) {
+    const res = await window.ActivacionPendiente.rescatar(sb, usr);
+    if (!res.rescatado) {
+      await sb.auth.signOut();
+      showError(window.ActivacionPendiente.mensajeInactivo(usr));
+      return;
+    }
+  }
+
   if (usr?.rol === 'propietario' || usr?.rol === 'profesional') {
     window.location.replace('portal.html');
   } else {
@@ -377,7 +405,7 @@ async function doLogin(e) {
   // 2. Verificar usuario en la tabla
   const { data: usr, error: usrErr } = await sb
     .from('usuarios')
-    .select('club_id, nombre_completo, rol, estado')
+    .select('id, club_id, nombre_completo, rol, estado, activo')
     .eq('email', email)
     .single();
 
@@ -388,7 +416,26 @@ async function doLogin(e) {
     return;
   }
 
-  // 3. Propietarios y entrenadores van a portal.html
+  // 3. Cuenta inactiva — vale para TODOS los roles, y va ANTES de ramificar
+  // por rol. Con `activo=false`, fn_get_user_club_id() devuelve NULL y las 72
+  // policies que dependen de ella no devuelven una sola fila: dejar entrar
+  // acá es mandar al usuario a una pantalla vacía sin explicación.
+  if (usr.activo === false) {
+    const res = await window.ActivacionPendiente.rescatar(sb, usr);
+    if (res.rescatado) {
+      // Invitación de staff que nunca se completó (link vencido): se activa
+      // sola y el login sigue normal. El usuario no se entera de nada.
+      usr.activo = true;
+      usr.estado = 'activo';
+    } else {
+      await sb.auth.signOut();
+      setLoading(false);
+      showError(window.ActivacionPendiente.mensajeInactivo(usr));
+      return;
+    }
+  }
+
+  // 4. Propietarios y entrenadores van a portal.html
   if (usr.rol === 'propietario' || usr.rol === 'profesional') {
     if (usr.estado === 'pendiente') {
       await sb.auth.signOut();
@@ -406,13 +453,13 @@ async function doLogin(e) {
     return;
   }
 
-  // 4. Super admin → dashboard
+  // 5. Super admin → dashboard
   if (usr.rol === 'super_admin') {
     window.location.replace('index.html');
     return;
   }
 
-  // 5. Otros roles necesitan club_id
+  // 6. Otros roles necesitan club_id
   if (!usr.club_id) {
     await sb.auth.signOut();
     setLoading(false);

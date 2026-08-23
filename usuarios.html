@@ -485,10 +485,24 @@ async function saveEdit() {
 }
 
 /* ---- TOGGLE ---- */
+/**
+ * Alta/baja manual de un usuario.
+ *
+ * Escribe SIEMPRE `activo` y `estado` juntos. Antes tocaba sólo `activo` y eso
+ * dejaba filas incoherentes (`activo=true, estado='pendiente'` — el caso de
+ * Valeria), pero sobre todo dejaba una trampa: si una baja conservara
+ * `estado='pendiente'`, la red de contención de activacion-pendiente.js
+ * reactivaría al usuario en su próximo login y la baja sería un placebo.
+ *
+ * De ahí el 'inactivo' al desactivar: es un valor que `esRescatable()` NO
+ * acepta. Está cubierto por tests/probe_activacion_pendiente.mjs.
+ */
 async function toggleActivo(id, activo) {
   const u = allData.find(x => x.id === id);
   if (!confirm(`¿Deseas ${activo ? 'activar' : 'desactivar'} al usuario "${u?.nombre_completo}"?`)) return;
-  const { error } = await sb.from('usuarios').update({ activo }).eq('id', id);
+  const { error } = await sb.from('usuarios')
+    .update({ activo, estado: activo ? 'activo' : 'inactivo' })
+    .eq('id', id);
   if (error) { toast(error.message, 'error'); return; }
   toast(`Usuario ${activo ? 'activado' : 'desactivado'}`);
   load();

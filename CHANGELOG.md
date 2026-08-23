@@ -1,5 +1,51 @@
 # Changelog
 
+## [2026-08-23] — Los invitados dejan de nacer en un sistema vacío (activación automática)
+
+> Fede entró y no vio datos. Valeria, lo mismo el 16/08. No era RLS rota ni un `auth_user_id`
+> desalineado: la fila de `usuarios` quedaba con `activo=false`. Diagnóstico completo en
+> `docs/DIAGNOSTICO_CUENTAS_2026-08-23.md` y `docs/FIX_ACTIVACION_INVITADOS.md`.
+
+- **Causa**: `invite-user` inserta `activo=false, estado='pendiente'` y la activación la hacía el
+  propio invitado en `reset-password.html`… pero colgada de un `if (ES_INVITE)`, que sólo es cierto
+  si la URL trae `type=invite`. Los links de invitación de GoTrue vencen a las 24 h. Fede fue
+  invitado el 07/08 y entró el 23/08 — 16 días — así que llegó por "olvidé mi contraseña"
+  (`type=recovery`) y **la activación se salteó por diseño**. La auditoría lo confirma: su fila
+  tiene un solo evento, el INSERT. Cero UPDATEs.
+- **Efecto**: con `activo=false`, `fn_get_user_club_id()` devuelve NULL y las **72 de 124** policies
+  que dependen de ella no devuelven una sola fila. Sesión válida, UI que carga, sistema vacío y
+  ni un mensaje.
+- **`activacion-pendiente.js`** (nuevo): red de contención compartida. Si la fila propia es una
+  invitación de staff sin completar, el usuario la activa él mismo — la policy `usuarios_update` ya
+  lo permite por la rama `auth_user_id = auth.uid()`, así que no se agrega ninguna capacidad nueva
+  al cliente.
+- ⚠️ **El gate es estrecho a propósito.** `estado='pendiente'` lo usan DOS colas distintas:
+  la invitación de staff sin aceptar (esa sí se auto-rescata: sólo un super_admin puede invitar, y
+  `usuarios_insert WITH CHECK fn_is_super_admin()` ya es la barrera) y el **autorregistro de portal
+  esperando aprobación**, que `admin.html` lista con botones Aprobar/Rechazar. Rescatar la segunda
+  sería auto-aprobar la cola del administrador. Por eso los roles de portal quedan afuera y se exige
+  `estado==='pendiente'` (una baja escribe `'inactivo'`, no se puede auto-revertir).
+- **`login.html`**: chequea `activo` para **todos** los roles y **antes** de ramificar por rol.
+  Si no se puede rescatar, cierra sesión y muestra el motivo real — "pendiente de activación",
+  "desactivada" o "rechazado" — en vez de dejar entrar a una pantalla vacía. También atiende
+  `?motivo=` para explicar los rebotes que llegan desde `initAuth`.
+- **`reset-password.html`**: se sacó el gate `ES_INVITE` — la activación corre en los dos flujos.
+  Quién califica lo decide `esRescatable()`, no el `type` de la URL, así que una cuenta dada de baja
+  que resetea su contraseña **no** puede reactivarse sola. De paso se corrigió un comentario que
+  documentaba una rama de policy (`email = auth.jwt()->>'email'`) que no existe desde el hardening
+  `sec_rls_fase2b_escritura` del 01/08.
+- **`index.html` / `portal.html`**: mismo guard en `initAuth`, para las sesiones ya abiertas que no
+  vuelven a pasar por el login. Rebotan al login con `?motivo=`.
+- **`usuarios.html`**: `toggleActivo` escribe `activo` **y** `estado` juntos. Antes tocaba sólo
+  `activo` y dejaba filas incoherentes; ahora Desactivar escribe `estado='inactivo'`, que es
+  justamente el valor que `esRescatable()` rechaza.
+- **Datos**: se normalizó `vale_0735@hotmail.com` (`activo=true, estado='pendiente'` →
+  `estado='activo'`), residuo de la reparación manual del 18/08. 1 fila. **Fede sigue inactivo a
+  propósito**: se activa desde `usuarios.html` para que la auditoría registre quién lo hizo.
+- **Probe**: `tests/probe_activacion_pendiente.mjs` **17 OK · 0 FALLA**. Corre el código REAL de
+  `login.html` y `usuarios.html` (patrón AsyncFunction de `tests/README.md`). El caso central es
+  L2: usuario inactivo que no se puede rescatar → **ve el aviso y NO entra**.
+
 ## [2026-08-23] — El JSON del Stud Book deja de mandar las No Computables (reunion-json v19)
 
 > Punto 1 de los ocho que reportó Diego. Fede confirmó que las No Computables no van y que el dato
