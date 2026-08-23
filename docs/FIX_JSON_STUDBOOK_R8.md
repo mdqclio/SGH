@@ -316,3 +316,49 @@ exportador.
 
 Casos probados: los 8 de R8 (los 2 rotos rechazados, los 6 buenos aceptados), segundos pelados,
 enteros, legacy `1:11.20`, un decimal `1:15.5`, 3000 m en `03:10.00`, basura y `seg > 59`.
+
+---
+
+# Deploy — APLICADO 2026-08-23
+
+| Ítem | Valor |
+|---|---|
+| Función | `reunion-json` |
+| Versión | **17 → 18** (ACTIVE) |
+| `verify_jwt` | `false` — **preservado**. La función usa su propio `Bearer STUDBOOK_API_TOKEN`; ponerlo en `true` habría hecho que la plataforma rechazara el token de Diego antes de llegar al código. |
+| Build | `node supabase/functions/reunion-json/_build/build.mjs` → 30.140 bytes, 667 líneas, 0 imports relativos |
+
+**Verificación post-deploy:**
+
+1. `get_edge_function` devuelve el fuente desplegado con las tres regiones cambiadas presentes:
+   `TIEMPO_MAX_SEGUNDOS`, `parseTiempo` con `centesimas`, el bloque `jockey` con `jockEfectivo`, y
+   `profIds` incluyendo `jockey_suplente_id`. El camino de auth quedó intacto.
+2. Smoke test en frío contra el endpoint real:
+   - sin header `Authorization` → **HTTP 401** `{"status":401,"error":"unauthorized"}`
+   - con token inválido → **HTTP 401**
+
+   El 401 limpio (en vez de un 500 o un error de arranque) prueba que el módulo parsea, que el
+   top-level ejecuta y que `Deno.serve` quedó registrado. Una corrupción del archivo habría
+   reventado en el cold start.
+
+No se pudo hacer un GET con datos: el `STUDBOOK_API_TOKEN` no está en el repo (correctamente) ni en
+esta sesión. **La verificación del contenido del JSON contra R8 la tiene que hacer quien tenga el
+token** — o Diego directamente.
+
+## Lo que Diego va a ver distinto
+
+1. **`tiempo.centesimas`** — campo nuevo. `tiempo.decimas` sigue saliendo con el mismo número de
+   antes, así que si ya lo consumía no se rompe nada.
+2. **Carreras 1 y 2** — antes `{minutos:43, segundos:13}` y `{minutos:49, segundos:0}`; ahora
+   `{minutos:0, segundos:47, centesimas:13}` y `{minutos:0, segundos:49, centesimas:0}`.
+3. **Bloque `jockey`** — antes tres `null`; ahora nombre y DNI. En R8 coincide con
+   `jockey_inscripto` porque no hay suplentes cargados.
+
+## Lo que NO cambió y sigue pendiente
+
+- `resultados.html` (la guarda de carga) está en la rama, **no en `main`**, así que **no está en
+  producción**: GitHub Pages sirve `main`. Hasta que se mergee, el 20/09 se puede volver a cargar
+  un tiempo implausible.
+- Puntos 6 y 7 de Diego (No Computables, campos de condición): sin tocar, los define Fede.
+- Carga de datos pendiente, por impacto: 17 DNI de cuidadores → 23 `studbook_id` → reconciliación de
+  montas de R8.

@@ -1,5 +1,33 @@
 # Changelog
 
+## [2026-08-23] — JSON del Stud Book: tiempos, centésimas y jockey (reunion-json v18)
+
+> Cuatro de los ocho puntos que reportó Diego sobre el JSON de R8. Fuera de alcance a propósito:
+> carreras No Computables y campos de condición — los define Fede.
+
+- **`parseTiempo`**: campo **`centesimas`** nuevo, con el nombre correcto. **`decimas` se mantiene**
+  emitiendo el mismo número — contrato aditivo, igual que `numero_publico`: Diego hoy lo lee como
+  centésimas, así que "corregirlo" a décimas reales le habría roto la lectura en silencio. Un dígito
+  después del punto se normaliza (`1:15.5` → 50 centésimas). Guarda de plausibilidad
+  `TIEMPO_MAX_SEGUNDOS = 600`: por encima de 10 min salen los cuatro campos en `null`.
+- **Bloque `jockey`**: estaba hardcodeado a tres `null` con un `// v1`. Ahora sale de
+  `jockey_suplente_id ?? jockey_titular_id` — la única fuente que existe: no hay columna del jockey
+  que corrió, ni en `inscripciones` ni en `resultado_posiciones`. `jockey_suplente_id` se agregó al
+  lookup de `profesionales` en los dos consumidores.
+- **Datos — 2 tiempos de R8 corregidos contra el ticket del tote**: prog 1 (800 m) `43:13.00` →
+  `00:47.13`, prog 2 (800 m) `49:00.00` → `00:49.00`. Las otras 6 coincidían dígito por dígito. Las
+  8 salen ahora con tiempo válido, banda 15,89–16,97 m/s. Rollback en
+  `docs/FIX_JSON_STUDBOOK_R8.md`.
+- **`resultados.html`**: la máscara del tiempo validaba forma, no magnitud. Ahora se cruza contra
+  `carreras.distancia_metros` (banda 8–20 m/s), se acepta la forma en segundos pelados
+  (`47.13` → `00:47.13`) y el rechazo sugiere la reinterpretación. Era la causa del error: para una
+  carrera sub-minuto la forma natural de tipear no estaba permitida.
+- **Deploy**: `reunion-json` **v17 → v18**, `verify_jwt: false` preservado. Smoke test en frío:
+  401 limpio sin token y con token inválido.
+- **Sin tocar, con diagnóstico**: `studbook_id` 44/67 competidores de R8 (23 en NULL, 2 de ellos
+  ganadores; `Wave Rimout` duplicado en `spcs`). DNI: jockeys 23/26, cuidadores 26/43. CUIT no tiene
+  columna en `profesionales`.
+
 ## [2026-08-23] — `peso_balanza`: saneamiento de R6/R8 + barrera de rango
 
 > Fede confirmó que en Dolores **sí** se pesan los caballos y que lo cargado en R6 y R8 fue un
