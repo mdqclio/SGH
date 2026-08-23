@@ -156,9 +156,27 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="activacion-pendiente.js"></script>
 <script>
 let sb, CLUB_ID, currentUser;
-async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
+async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('id,club_id,nombre_completo,rol,activo,estado').eq('email',session.user.email).single();
+/* Red de contención (activacion-pendiente.js): con activo=false,
+   fn_get_user_club_id() devuelve NULL y las 72 policies que dependen de
+   ella no traen una sola fila. Antes eso era un dashboard vacío y mudo.
+   Si la fila es una invitación de staff sin completar se activa sola; si
+   no califica, se rebota al login CON motivo. Nunca más pantalla vacía. */
+if(usr&&usr.activo===false){
+  const res=await window.ActivacionPendiente.rescatar(sb,usr);
+  if(res.rescatado){usr.activo=true;usr.estado='activo';}
+  else{
+    const motivo=usr.estado==='rechazado'?'rechazada'
+               :usr.estado==='pendiente'?'inactiva':'desactivada';
+    await sb.auth.signOut();
+    window.location.replace('login.html?motivo='+motivo);
+    return false;
+  }
+}
+if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
 async function selectClub(clubId) {

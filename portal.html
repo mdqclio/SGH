@@ -233,6 +233,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="activacion-pendiente.js"></script>
 <script>
 let sb, currentUser, miUsuarioId = null, esEntrenador = false;
 let misCaballos = [], misInscripciones = [];
@@ -299,7 +300,23 @@ async function initAuth() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.replace('login.html'); return false; }
   const { data: usr } = await sb.from('usuarios')
-    .select('id,club_id,nombre_completo,rol,estado').eq('email', session.user.email).maybeSingle();
+    .select('id,club_id,nombre_completo,rol,estado,activo').eq('email', session.user.email).maybeSingle();
+
+  // Red de contención, igual que index.html: una cuenta con activo=false no ve
+  // NADA por RLS. Para los roles de portal `esRescatable()` siempre dice que no
+  // (su cola de aprobación la resuelve un humano en admin.html), así que en la
+  // práctica esto rebota al login explicando el motivo en vez de mostrar un
+  // portal vacío. Ver activacion-pendiente.js.
+  if (usr && usr.activo === false) {
+    const res = await window.ActivacionPendiente.rescatar(sb, usr);
+    if (!res.rescatado) {
+      const motivo = usr.estado === 'rechazado' ? 'rechazada'
+                   : usr.estado === 'pendiente' ? 'inactiva' : 'desactivada';
+      await sb.auth.signOut();
+      window.location.replace('login.html?motivo=' + motivo);
+      return false;
+    }
+  }
 
   // Sin fila en `usuarios` = auto-registrado todavía sin aprobar (Gate 2).
   // Se le muestra el estado de su solicitud y NADA del club: no tiene acceso a
