@@ -1,81 +1,128 @@
 #!/usr/bin/env node
 /**
- * probe_portal_validacion.mjs — la validación de inscripción del portal BLOQUEA
+ * probe_portal_validacion.mjs — el portal SURFACEA el rechazo del servidor
  *
- * Bug original (portal.html:608): la RPC devuelve
- * TABLE(puede_inscribirse boolean, motivo text) y el front leía `valResult.valido`.
- * `undefined === false` es siempre falso → edad, sexo, cupo y sanción se
- * calculaban en el servidor y se descartaban en el cliente. Nada bloqueaba.
- * Además el error de la RPC no se capturaba: si fallaba, se insertaba igual.
+ * Historia: el bug original (portal.html, pre-gate-4) era que `confirmarInscripcion`
+ * leía `valResult.valido`, un campo que no existe — la RPC devuelve
+ * `TABLE(puede_inscribirse boolean, motivo text)`. `undefined === false` es
+ * siempre falso, así que edad, sexo, cupo y sanción se calculaban en el servidor
+ * y se descartaban en el cliente. Nada bloqueaba. Además el error de la RPC no se
+ * capturaba: si fallaba, insertaba igual.
  *
- * Corre el confirmarInscripcion REAL de portal.html (harness de tests/README.md)
- * contra la DB de prod, con el INSERT INTERCEPTADO: se registra la intención de
- * insertar, nunca se escribe. Cero filas creadas.
+ * El gate 4 cambió la arquitectura y con eso el bug dejó de ser posible por
+ * construcción: el front ya no inserta. Llama a `rpc_inscribir`, que es
+ * SECURITY DEFINER, revalida todo server-side (tenencia, ventana, reunión
+ * publicada, validar_inscripcion, duplicado en el mismo turno) y es quien hace
+ * el INSERT. Si el RPC levanta excepción, no se escribe nada — no hay decisión
+ * del cliente que pueda saltearse la validación.
  *
- * Uso:  set -a; . ./.env; set +a; node tests/probe_portal_validacion.mjs
+ * Lo que queda por cubrir, y es lo que testea este probe, es el otro extremo:
+ * que el rechazo del servidor **se vea en pantalla** y no falle en silencio.
+ * Un `anotar` que se coma el error dejaría al entrenador creyendo que anotó.
+ *
+ * La validación server-side en sí la cubre tests/probe_gate4_inscribir.mjs,
+ * que sí pega contra prod. Éste corre el `anotar` REAL de portal.html con el
+ * RPC stubeado: no toca la red ni la base. Cero filas escritas.
+ *
+ * Uso:  node tests/probe_portal_validacion.mjs
  */
 import { readFileSync } from 'node:fs';
-import { createClient } from '@supabase/supabase-js';
 
-const KEY = process.env.SUPABASE_SECRET_KEY;
-if (!KEY) { console.error('Falta SUPABASE_SECRET_KEY'); process.exit(1); }
-const real = createClient('https://unlhcuanfrtpatoipwve.supabase.co', KEY,
-  { auth: { autoRefreshToken: false, persistSession: false } });
-
-// Carreras de R9 (20/09) y SPCs, verificados en la sesión del 2026-08-23.
-const T1 = 'c037b139-b8b5-46d7-900e-cbc7a01bd643'; // turno 1 — edad 3 a 3
-const T2 = '2d4016ad-460a-44c9-9b2d-d710a510edee'; // turno 2 — edad 4 a 4
-const CASOS = [
-  { n: 'A edad insuficiente  (Es Mistres 2a → turno 1, mín 3)', spc: '9fc5b39c-0579-4cd9-acbb-f023ab35d168', carrera: T1, debeBloquear: true },
-  { n: 'B excede edad máxima (Pampero Real 4a → turno 1, máx 3)', spc: '555690c6-d426-45f4-82e5-c5caad9a0cec', carrera: T1, debeBloquear: true },
-  { n: 'C sanción vigente    (El Pampeano 4a → turno 2, 4-4)', spc: '3b54e7ff-6bf1-4949-ba40-3f838323b492', carrera: T2, debeBloquear: true },
-  { n: 'D caso válido        (Pampero Real 4a → turno 2, 4-4)', spc: '555690c6-d426-45f4-82e5-c5caad9a0cec', carrera: T2, debeBloquear: false },
-  { n: 'E la RPC falla       (fail-closed)', spc: '555690c6-d426-45f4-82e5-c5caad9a0cec', carrera: T2, debeBloquear: true, romperRpc: true },
-];
-
-// --- Código real ---
+// --- Código real, extraído de portal.html ---
 const html = readFileSync(new URL('../portal.html', import.meta.url), 'utf8');
-const desde = html.indexOf('async function confirmarInscripcion');
+const desde = html.indexOf('async function anotar');
 const hasta = html.indexOf('/* ========== MIS INSCRIPCIONES ========== */');
-if (desde < 0 || hasta < 0) { console.error('No se pudo extraer confirmarInscripcion'); process.exit(1); }
+if (desde < 0 || hasta < 0) {
+  console.error('No se pudo extraer anotar() de portal.html');
+  process.exit(1);
+}
 const codigo = html.slice(desde, hasta);
 
+const GENERICO = 'Tu ejemplar no está habilitado para inscribirse. Consultá en secretaría.';
+
+const CASOS = [
+  {
+    n: 'A rechazo con motivo genérico (edad/sexo/sanción/cupo)',
+    rpcError: { message: `No se puede inscribir: ${GENERICO}` },
+    esperaError: true,
+    esperaTexto: GENERICO,
+  },
+  {
+    n: 'B duplicado en el MISMO turno (mensaje sin prefijo)',
+    rpcError: { message: 'Ese caballo ya está anotado en ese turno.' },
+    esperaError: true,
+    esperaTexto: 'Ese caballo ya está anotado en ese turno.',
+  },
+  {
+    n: 'C caballo ajeno — no figura a su nombre',
+    rpcError: { message: 'Ese caballo no figura a su nombre. Si corresponde, pedile a la secretaría que lo vincule a su ficha.' },
+    esperaError: true,
+    esperaTexto: 'que lo vincule a su ficha.',
+  },
+  {
+    n: 'D ventana de inscripción cerrada',
+    rpcError: { message: 'La inscripción para ese turno no está abierta.' },
+    esperaError: true,
+    esperaTexto: 'La inscripción para ese turno no está abierta.',
+  },
+  {
+    n: 'E el RPC no responde (fail-closed, no puede pasar por éxito)',
+    rpcError: { message: 'network error' },
+    esperaError: true,
+    esperaTexto: 'network error',
+  },
+  {
+    n: 'F caso válido — anota y refresca',
+    rpcError: null,
+    esperaError: false,
+  },
+];
+
 let fallos = 0;
-console.log('\n== probe_portal_validacion ==\n');
+console.log('\n== probe_portal_validacion — el rechazo se ve en pantalla ==\n');
 
 for (const c of CASOS) {
-  const insertsIntentados = [];
-  // Cliente que delega TODO al real, salvo el INSERT sobre inscripciones, que se
-  // intercepta. La RPC y el SELECT de carreras pegan contra prod de verdad.
-  const sb = {
-    from: (tabla) => tabla === 'inscripciones'
-      ? { insert: async (payload) => { insertsIntentados.push(payload); return { error: null }; } }
-      : real.from(tabla),
-    rpc: (nombre, args) => c.romperRpc
-      ? { maybeSingle: async () => ({ data: null, error: { message: 'simulado: la RPC no respondió' } }) }
-      : real.rpc(nombre, args),
-  };
-  const campos = {
-    'minsc-spc-id': { value: c.spc },
-    'minsc-btn': { disabled: false },
-    'validation-msg': { textContent: '', className: '', style: {} },
-  };
-  const document = { getElementById: (id) => campos[id] ?? null };
-  const errores = [];
-  const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-  const correr = new AsyncFunction('sb', 'document', 'toast', 'console', 'carreraSeleccionada', 'currentUser', 'propietarioId', 'profesionalId', 'closeModalInscribir',
-    `let cartaLoaded = true, inscLoaded = true;
-     ${codigo}
-     await confirmarInscripcion();`);
-  await correr(sb, document, () => {}, { ...console, error: (...a) => errores.push(a.map(String).join(' ')) },
-    { id: c.carrera }, { rol: 'profesional' }, null, null, () => {});
+  const vm = { textContent: '', className: '', style: {} };
+  const document = { getElementById: (id) => (id === 'validation-msg' ? vm : null) };
 
-  const bloqueo = insertsIntentados.length === 0;
-  const bien = bloqueo === c.debeBloquear;
+  let rpcLlamado = null;
+  const sb = { rpc: async (nombre, args) => { rpcLlamado = { nombre, args }; return { error: c.rpcError }; } };
+
+  const toasts = [];
+  let refrescos = 0;
+  const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+  const correr = new AsyncFunction(
+    'sb', 'document', 'toast', 'carreraSeleccionada',
+    'cargarInscripcionesCrudas', 'renderListaCaballosModal', 'loadLlamado',
+    `${codigo}
+     await anotar('spc-de-prueba');`);
+  await correr(
+    sb, document, (m) => toasts.push(m), { id: 'carrera-de-prueba' },
+    async () => { refrescos++; }, () => {}, () => {},
+  );
+
+  const problemas = [];
+  // El RPC es quien inserta: si no se llamó, no se anotó nada.
+  if (rpcLlamado?.nombre !== 'rpc_inscribir') problemas.push(`llamó a ${rpcLlamado?.nombre ?? '(nada)'} en vez de rpc_inscribir`);
+
+  if (c.esperaError) {
+    if (vm.style.display !== 'block') problemas.push('el mensaje quedó oculto (display != block)');
+    if (!/validation-err/.test(vm.className)) problemas.push(`className sin validation-err: "${vm.className}"`);
+    if (!vm.textContent.includes(c.esperaTexto)) problemas.push(`el texto no contiene "${c.esperaTexto}" (dice "${vm.textContent}")`);
+    if (toasts.length) problemas.push(`toast de éxito indebido: ${toasts.join(' / ')}`);
+    if (refrescos) problemas.push('refrescó la lista como si hubiera anotado');
+  } else {
+    if (!toasts.length) problemas.push('no avisó del alta');
+    if (!refrescos) problemas.push('no refrescó las inscripciones');
+    if (/validation-err/.test(vm.className)) problemas.push('marcó error en un caso válido');
+  }
+
+  const bien = problemas.length === 0;
   if (!bien) fallos++;
   console.log(`${bien ? '  ok  ' : ' FALLA'} ${c.n}`);
-  console.log(`        ${bloqueo ? 'BLOQUEÓ' : 'INSERTÓ'} · mensaje: ${campos['validation-msg'].textContent || '(ninguno)'}`);
+  if (!bien) problemas.forEach(p => console.log(`        → ${p}`));
+  else if (c.esperaError) console.log(`        mensaje: ${vm.textContent}`);
 }
 
-console.log(`\n${fallos === 0 ? '✅ TODO OK' : `❌ ${fallos} fallo(s)`} — 0 filas escritas en prod (INSERT interceptado)\n`);
+console.log(`\n${fallos === 0 ? '✅ TODO OK' : `❌ ${fallos} fallo(s)`} — sin red y sin base: 0 filas tocadas\n`);
 process.exit(fallos === 0 ? 0 : 1);
