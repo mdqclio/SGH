@@ -377,7 +377,7 @@ Explícitamente NO tocar hasta responder ambas. No es un fix de una línea aunqu
 Módulo: `reuniones` (datos) + posibles filtros app-wide.
 Estado: ⏳ Abierto — a investigar. Prioridad: Baja (no bloquea nada hoy; R6 ya está liquidada y cotejada).
 
-### ISSUE-053: Anotaciones multi-turno que quedan sin resolver en `inscripto`
+### ISSUE-053: La resolución de las anotaciones multi-turno no tiene ningún control (y una doble ratificación imprimiría el caballo dos veces)
 Descripción: complemento directo de ISSUE-048. Aquel dice que el portal **no debe bloquear** que un ejemplar se anote en varios turnos de la misma reunión, y que la resolución (dejarlo en uno y dar de baja el resto) es la pasada del lunes de secretaría. Este issue es sobre el otro extremo: **esa resolución no tiene ningún control, y ya se olvidó tres veces**.
 
 Relevado el 2026-08-23 (`docs/REGLA_INSCRIPCION_MULTITURNO.md`). Tres ejemplares quedaron ratificados en un turno y con la otra anotación colgada en `inscripto`, ni forfait ni mal_inscrito:
@@ -394,17 +394,26 @@ Por qué hoy no molesta: `renumerarChapas` filtra con `estado === 'ratificado'` 
 
 Por qué va a molestar: hoy las inscripciones las carga secretaría a mano y son ~100 por reunión. Con el portal del Gate 4 las carga cada entrenador, y el proceso que ISSUE-048 declara correcto — anotarse en varias categorías — pasa a ser masivo. En R8 el 30 % de los SPC ya estaba en 2+ turnos con carga manual. Cada anotación que no se resuelve queda como fila colgada, y no hay nada que las junte ni las muestre.
 
-**Estado actual del control (ninguno):**
+**EL ESCENARIO QUE HAY QUE EVITAR — el programa oficial imprime el caballo dos veces.**
+
+Si un SPC queda **ratificado en dos carreras de la misma reunión**, `renumerarChapas` lo cuenta como ratificado en las dos y le asigna **un mandil en cada una** (números distintos, porque el mandil es 1..N por carrera). El caballo sale impreso **dos veces en el programa oficial, en dos turnos distintos, como si fuera a correr las dos**. Se propaga a todo lo que deriva de ratificados: `programa-oficial.html` y `programa-oficial-color.html`, `carta-llamados.html`, el JSON del Stud Book de Diego y el marcador de `resultados.html`.
+
+No hay error, no hay warning, no revienta nada. Sale un programa con un caballo duplicado y se detecta cuando alguien lo lee. **Esto no es un residuo de datos en una tabla: es un error visible en el papel que va a imprenta**, con el nombre del hipódromo arriba. La diferencia con las 3 filas colgadas en `inscripto` es exactamente ésa — aquéllas no se ven en ningún lado, ésta se ve en el programa oficial.
+
+**Y hoy nada lo impide:**
 - `validar_inscripcion` es per-carrera: recibe una carrera y no mira el resto de la reunión. No sabe que existe otra anotación.
 - `ratificar()` (`ratificacion.html:897`) es un UPDATE pelado. Sin lectura previa, sin chequeo, sin confirmación. La única guarda del botón es que haya jockey asignado.
-- No hay trigger ni constraint. **Se puede ratificar el mismo SPC en los 11 turnos de una reunión y el sistema no dice una palabra.** Nunca pasó (0 casos en toda la base), pero por disciplina del operador. Si pasara, el caballo saldría impreso dos veces en el programa oficial, con un mandil distinto en cada turno.
+- No hay trigger, ni constraint, ni unique que involucre `reunion_id`. **Se puede ratificar el mismo SPC en los 11 turnos de una reunión y el sistema no dice una palabra.**
 
-**PREGUNTA DE PRODUCTO — la define Fede:** al ratificar un SPC en un turno, ¿qué hace el sistema con las otras anotaciones de ese mismo SPC en la misma reunión?
+Nunca pasó — 0 casos de doble ratificación en toda la base, verificado sobre todas las reuniones de todos los clubes. Pero eso es **disciplina del operador, no un control del sistema**. Las 3 anotaciones de la tabla de arriba quedaron en `inscripto` **por suerte**: si el mismo olvido hubiera caído del lado de ratificar en vez de dejar sin resolver, hoy tendríamos dos programas oficiales impresos con un caballo duplicado. Nada del código las empujó hacia el lado inofensivo.
 
-1. **No hace nada** (hoy). La resolución es 100 % manual y se sigue olvidando.
-2. **Avisa.** Al ratificar, un aviso no bloqueante: "este ejemplar tiene anotaciones sin resolver en los turnos N, M". Precedente en la casa: `recalcJockeyColisiones` (`ratificacion.html:813`) ya hace exactamente esto para jockeys duplicados dentro de una carrera — pinta la fila y agrega un badge `⚠ dup.`, sin bloquear. Acá sería lo mismo pero a nivel reunión.
-3. **Resuelve solo.** Al ratificar en un turno, las demás anotaciones del SPC pasan automáticamente a `forfait`. Es lo que describe la regla de Fede ("se declara forfait en los demás"), pero **automatizarlo escribe filas que nadie pidió** y hay que decidir si el forfait automático es el estado correcto o si a veces corresponde `mal_inscrito`.
-4. **Bloquea la doble ratificación** (independiente de 1-3). Impedir que un SPC quede ratificado en dos turnos. Esto es más defendible que las otras tres: no existe el caso legítimo de un caballo corriendo dos carreras de la misma reunión, y la consecuencia hoy es un programa oficial mal impreso.
+**PREGUNTA DE PRODUCTO — la define Fede:** al ratificar un SPC en un turno, ¿qué hace el sistema con las otras anotaciones de ese mismo SPC en la misma reunión? Tres opciones:
+
+1. **Resolver automáticamente las otras al ratificar.** Al ratificar en un turno, las demás anotaciones del SPC pasan solas a `forfait`. Es literalmente lo que describe la regla de Fede ("se declara forfait en los demás") y es la única que cierra el problema sin depender de que alguien se acuerde. A favor: elimina las filas colgadas y hace imposible la doble ratificación. En contra: **escribe filas que nadie pidió explícitamente**, y hay que definir si el estado automático es siempre `forfait` o si a veces corresponde `mal_inscrito` (que no es lo mismo: uno es retiro, el otro es fuera de condición).
+2. **Avisar y que decida Yesi.** Al ratificar, un aviso no bloqueante: "este ejemplar tiene anotaciones sin resolver en los turnos N, M". La secretaría las resuelve a mano, pero deja de tener que recordarlas. Precedente exacto en la casa: `recalcJockeyColisiones` (`ratificacion.html:813`) ya hace esto para jockeys duplicados dentro de una carrera — pinta la fila y agrega un badge `⚠ dup.`, sin bloquear. Acá sería lo mismo pero a nivel reunión. A favor: no escribe nada, respeta que la resolución es decisión de secretaría (ISSUE-048). En contra: sigue siendo posible ignorar el aviso y ratificar dos veces.
+3. **Bloquear la ratificación doble.** Impedir que un SPC quede ratificado en dos turnos de la misma reunión. Es la más acotada de las tres y ataca directamente el escenario del programa duplicado: **no existe el caso legítimo de un caballo corriendo dos carreras de la misma reunión**, así que bloquearlo no le quita ninguna opción real a la secretaría. En contra: no resuelve las anotaciones colgadas en `inscripto`, sólo evita que el olvido llegue al papel.
+
+No son excluyentes: 3 se puede combinar con 1 o con 2. Si hay que elegir una sola, 3 es la que cubre el daño visible.
 
 Nota de implementación para cuando se decida: el dato ya está cargado. `ratificacion.html:586` trae **todas** las inscripciones de la reunión (`.in('carrera_id', ids)` sobre todas las carreras), así que detectar las otras anotaciones de un SPC es un `filter` sobre un array en memoria — cero queries nuevas.
 
