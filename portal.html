@@ -655,9 +655,29 @@ async function confirmarInscripcion() {
   const { data: carrera } = await sb.from('carreras').select('*').eq('id', carreraSeleccionada.id).single();
   if (!carrera) { toast('No se pudo obtener la carrera', 'error'); btn.disabled = false; return; }
 
-  // Intentar RPC de validación
-  const { data: valResult } = await sb.rpc('validar_inscripcion', { p_spc_id: spcId, p_carrera_id: carreraSeleccionada.id }).maybeSingle();
-  if (valResult && valResult.valido === false) {
+  // VALIDACIÓN. La RPC devuelve TABLE(puede_inscribirse boolean, motivo text) —
+  // esos son los DOS únicos campos. El código leía `valResult.valido`, que no
+  // existe: la comparación era siempre `undefined === false` → falsa, así que
+  // edad, sexo, cupo y sanción se calculaban en el servidor y se descartaban acá.
+  // La validación no bloqueaba absolutamente nada. `motivo` sí estaba bien leído.
+  const { data: valResult, error: valError } = await sb
+    .rpc('validar_inscripcion', { p_spc_id: spcId, p_carrera_id: carreraSeleccionada.id })
+    .maybeSingle();
+
+  // FAIL-CLOSED. Antes el error de la RPC ni se capturaba: si fallaba, `valResult`
+  // quedaba null, el `if` daba falso y se insertaba igual. Una compuerta de
+  // validación que ante la duda deja pasar no es una compuerta. Sin una respuesta
+  // afirmativa de la RPC no se inscribe.
+  if (valError || !valResult) {
+    console.error('[confirmarInscripcion] validar_inscripcion falló', valError);
+    vm.textContent = '❌ No se pudo validar la inscripción. Probá de nuevo; si sigue, avisá a la secretaría.';
+    vm.className = 'validation-msg validation-err';
+    vm.style.display = 'block';
+    btn.disabled = false;
+    return;
+  }
+
+  if (valResult.puede_inscribirse === false) {
     vm.textContent = '❌ ' + (valResult.motivo || 'El SPC no cumple las condiciones de esta carrera.');
     vm.className = 'validation-msg validation-err';
     vm.style.display = 'block';

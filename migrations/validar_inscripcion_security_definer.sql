@@ -1,0 +1,55 @@
+-- validar_inscripcion → SECURITY DEFINER   [NO APLICADA — requiere revisión]
+--
+-- PROBLEMA
+-- La función es SECURITY INVOKER (prosecdef = false), o sea que corre con el RLS
+-- del que la llama. Un usuario de portal (rol profesional/propietario) ve:
+--     spcs                  0 filas
+--     v_sanciones_vigentes  0 filas
+--     carreras             49 filas
+--
+-- Con `spcs` invisible, `SELECT * INTO v_spc FROM spcs WHERE id = p_spc_id` no
+-- encuentra nada y v_spc queda NULL. A partir de ahí TODOS los IF comparan contra
+-- NULL, que en SQL no es TRUE, así que ninguno dispara y la función cae hasta el
+-- `RETURN QUERY SELECT TRUE, 'SPC habilitado para inscribirse.'` del final.
+--
+-- Verificado el 2026-08-23 con SET LOCAL ROLE authenticated + request.jwt.claims
+-- del usuario profesional real de Dolores. Los cuatro casos que como service_role
+-- dan FALSE, como portal dan TRUE:
+--
+--   caso                         service_role                          portal
+--   edad insuficiente (2a/mín 3) false "Edad insuficiente: 2 años…"    TRUE
+--   excede edad máx  (4a/máx 3)  false "Excede edad máxima: 4 años…"   TRUE
+--   sanción vigente              false "SPC con sanción vigente: Doping" TRUE
+--   caso válido                  true                                  TRUE
+--
+-- O sea: la validación es decorativa para quien la usa. Arreglar el front
+-- (leer `puede_inscribirse` en vez de `valido`) es necesario pero NO alcanza —
+-- el front ahora obedece a la RPC, y la RPC dice que sí a todo.
+--
+-- Es exactamente el gotcha #10 de CLAUDE.md: las funciones que evalúan reglas
+-- por encima de RLS tienen que ser SECURITY DEFINER.
+--
+-- POR QUÉ ES SEGURO ACÁ
+-- La función no devuelve datos de las filas que lee: sólo un booleano y un motivo.
+-- No filtra ejemplares, sanciones ni carreras de otros. Ya tiene
+-- `SET search_path TO 'public'`, que es la precaución obligatoria en SECURITY
+-- DEFINER (evita el secuestro por search_path).
+--
+-- QUÉ REVISAR ANTES DE APLICAR
+--   1. El `motivo` pasa a exponer datos que el usuario no ve por RLS: el nombre
+--      del tipo de sanción ("Doping"), la edad del ejemplar. Sobre SU propio
+--      caballo es información que le corresponde; confirmar que está bien que
+--      la vea escrita así.
+--   2. Ningún otro consumidor depende de que hoy devuelva TRUE por accidente.
+
+ALTER FUNCTION public.validar_inscripcion(uuid, uuid) SECURITY DEFINER;
+
+-- Verificación posterior:
+--   SELECT proname, prosecdef FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+--   WHERE n.nspname='public' AND proname='validar_inscripcion';   -- prosecdef debe dar true
+--
+-- Y repetir la matriz de 4 casos como `authenticated` con el sub del usuario de
+-- portal: los tres primeros tienen que pasar a FALSE.
+--
+-- Rollback:
+--   ALTER FUNCTION public.validar_inscripcion(uuid, uuid) SECURITY INVOKER;
