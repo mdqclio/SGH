@@ -325,3 +325,35 @@ Bonus del prefijo: los criaderos nombran por serie (`LE CHAT BOTTE` / `NOIR` / `
 
 ## 71. `unaccent()` NO está instalada en la base (2026-08-07)
 `SELECT unaccent(nombre) …` por MCP falla con `42883: function unaccent(character varying) does not exist`. Los scans acento-insensibles que describe `CIRCUITO_ALTA_SPCS_R8.md` hay que hacerlos con `~*` plano (que ya es case-insensitive) o con `translate()`. Los radicales de búsqueda conviene elegirlos sin acentos igual (`PORTEN` en vez de `PORTEÑ`).
+
+
+## 72. `CHECK ... NOT VALID` NO exime a las filas viejas de los UPDATE futuros (2026-08-23)
+`NOT VALID` saltea **únicamente el scan de verificación al agregar la constraint**. La constraint
+queda activa para todo `INSERT` y para **todo `UPDATE` posterior, incluidos los de las filas que
+nunca se validaron** — Postgres chequea la tupla nueva completa, no sólo las columnas del `SET`.
+
+Consecuencia práctica: dejar filas sucias + `NOT VALID` no compra convivencia, la pospone y la hace
+estallar en el peor lugar. Con las 104 filas de R6/R8 fuera de rango, un `UPDATE` de `estado` desde
+`ratificacion.html` habría fallado con una violación de `peso_balanza` — hay 10 sitios de
+`.update()` sobre `inscripciones` en 8 archivos, ninguno de los cuales toca esa columna.
+
+`NOT VALID` sirve cuando vas a limpiar en breve y querés la barrera activa mientras tanto. Si la
+decisión es dejar los datos sucios indefinidamente, es **peor** que no poner el CHECK.
+
+## 73. `peso_balanza` es el peso del CABALLO — no el handicap del jockey (2026-08-23)
+`inscripciones` tiene tres columnas de peso y dos de ellas son handicap: `peso_declarado` y
+`peso_final` (~50–64 kg, lo que carga el jockey). `peso_balanza` es lo que pesa **el animal** en la
+balanza post-carrera (300–600 kg).
+
+En R6 y R8 se cargó el handicap en la columna de la balanza: 104 filas, **103 de ellas copia exacta
+de `peso_final`** (la excepción fue `73cd96b9`, 55 contra 57). Fede confirmó el 2026-08-23 que en
+Dolores **sí** se pesan los caballos y que el dato correcto se empieza a cargar desde la reunión del
+20/09 — o sea que la definición de la columna siempre estuvo bien, lo que faltaba era la barrera.
+
+Saneado: las 104 filas quedaron en `NULL` (no se perdió información — `peso_final` conserva los
+mismos números con el nombre correcto). Hoy hay dos barreras: la constraint
+`inscripciones_peso_balanza_rango` y el guard de rango en `savePesoBalanza()`.
+
+Importa más allá de la UI: `supabase/functions/_shared/studbook_format.mjs` manda
+`kilos_ejemplar: str(i.peso_balanza)` en el JSON a Diego. Un valor de jockey ahí no es un dato feo,
+es una afirmación falsa sobre el peso del ejemplar. `NULL` dice "no tengo el dato", que es verdad.

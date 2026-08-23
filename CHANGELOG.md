@@ -1,5 +1,33 @@
 # Changelog
 
+## [2026-08-23] — `peso_balanza`: saneamiento de R6/R8 + barrera de rango
+
+> Fede confirmó que en Dolores **sí** se pesan los caballos y que lo cargado en R6 y R8 fue un
+> error; el dato correcto se empieza a cargar desde la reunión del 20/09. La definición de la
+> columna no cambia — lo que se agrega es que no se pueda volver a cargar mal.
+
+- **`resultados.html` — guard en `savePesoBalanza()`**: antes hacía `parseFloat(raw)` y persistía
+  cualquier valor. Ahora rechaza fuera de 300–600 kg y no-finitos, **bloquea el guardado entero**
+  (no guarda las buenas y descarta las malas), marca los inputs con `.pb-invalid` y nombra los
+  ejemplares en el toast. Vacío sigue siendo válido → `NULL`.
+- **Saneamiento de datos**: 104 filas de R6 (57) y R8 (47) tenían el handicap del jockey (54–64 kg)
+  en la columna del peso del caballo. **103 de las 104 eran copia exacta de `peso_final`** — la
+  excepción, `73cd96b9`, tenía 55 contra 57. Pasaron a `NULL`: no se perdió información, porque
+  `peso_final` conserva los mismos números con el nombre correcto, y `peso_balanza` no entra en
+  ningún cálculo de liquidación (no lo lee `liquidaciones-engine.js`; ningún premio ni recibo
+  cambia). Rollback explícito en `migrations/ROLLBACK_peso_balanza_null_r6_r8.sql`.
+- **Constraint `inscripciones_peso_balanza_rango`** (`migrations/peso_balanza_check_rango.sql`):
+  CHECK 300–600 con `NULL` permitido, aplicado **validado** (`convalidated = true`). Se descartó
+  `NOT VALID` a propósito — ver GOTCHAS #72: no exime a las filas viejas de los UPDATE futuros, así
+  que con los datos sucios en su lugar habría roto `ratificacion.html` y compañía con una violación
+  de una columna que esos módulos ni tocan.
+- **Efecto en la integración con el Stud Book**: `studbook_format.mjs` manda
+  `kilos_ejemplar: str(i.peso_balanza)`. Para R6/R8 el JSON de Diego pasa de afirmar un peso de
+  ejemplar falso (57 kg) a mandar `null` = "no tengo el dato".
+- **Docs**: GOTCHAS #72 y #73, `SCHEMA.md`, `docs/PREGUNTAS_ABIERTAS.md` #21 (rango cerrado;
+  obligatoriedad y descalificados siguen abiertos), nuevo **ISSUE-052** (R6 en `borrador` con fecha
+  pasada y las 8 carreras oficiales — anotado, deliberadamente sin tocar).
+
 ## [2026-07-25] — Alta por invitación: error reintentable (precondición 2 de la etapa (c))
 
 > Branch `feat/invitacion-reintento`. **Sin deploy todavía**: la Edge Function nueva no está en

@@ -302,5 +302,7 @@ Una fila por caballo inscripto en una carrera.
 - Se agrega en migración `add_peso_balanza_to_inscripciones` (2026-05-26).
 - Dato separado del handicap (`peso_declarado`/`peso_final`): es el peso real que arroja la balanza al pesaje post-carrera.
 - Se carga para **todos los caballos que corrieron** (excluir `forfait` y `mal_inscrito`).
-- Rango esperado: 300–600 kg (peso del CABALLO, no del jockey), paso 0.5 kg.
+- Rango: 300–600 kg (peso del CABALLO, no del jockey), paso 0.5 kg. **Forzado por la constraint
+  `inscripciones_peso_balanza_rango`** (CHECK validado, 2026-08-23) y por el guard de
+  `savePesoBalanza()` en `resultados.html`. `NULL` sigue siendo válido = dato no cargado.
 - RLS: cubierto por `rls_inscripciones_update` (mismo check de club que el resto de columnas).

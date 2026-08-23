@@ -362,3 +362,15 @@ No se investigó si las carreras se borraron, si se migraron a otra reunión, o 
 
 Módulo: datos (`carreras`) + `CLAUDE.md` §"Reunión activa para testing".
 Estado: ⏳ Abierto — a revisar después del domingo 16/08. Prioridad: Baja (R1–R5 son reuniones viejas, ninguna se imprime esta semana; no afecta a R8).
+
+### ISSUE-052: R6 en estado `borrador` con fecha pasada y sus 8 carreras oficiales
+Descripción: la reunión 6 (`b02ca761-6f44-4720-86aa-a3c3099019ea`, 20/06/2026) sigue en `reuniones.estado = 'borrador'` aunque la fecha ya pasó y **las 8 carreras están oficiales**. Ya había aparecido durante el cotejo de R6 (`docs/COTEJO_R6.md:6`); volvió a surgir el 2026-08-23 al sanear `peso_balanza`, que fue el disparador de anotarlo como issue propio.
+
+Antes de tocar el estado hay que entender dos cosas:
+1. **Qué significa `borrador` a nivel reunión** cuando las carreras de abajo ya están oficiales — si es un estado inconsistente o si el flujo lo admite a propósito.
+2. **Qué filtra por ese estado**. Si algún módulo (calendario, resumen, portal, export) excluye reuniones en `borrador`, cambiarlo hace aparecer R6 en lugares donde hoy no está, y eso puede ser el efecto deseado o un problema.
+
+Explícitamente NO tocar hasta responder ambas. No es un fix de una línea aunque lo parezca.
+
+Módulo: `reuniones` (datos) + posibles filtros app-wide.
+Estado: ⏳ Abierto — a investigar. Prioridad: Baja (no bloquea nada hoy; R6 ya está liquidada y cotejada).

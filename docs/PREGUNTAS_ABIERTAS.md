@@ -114,7 +114,10 @@ Estado: pendiente validación con secretario. Columna modelada pero no usada aú
 
 ### 21. peso_balanza — ¿rango real y obligatoriedad?
 Se implementó `inscripciones.peso_balanza NUMERIC(5,2)` con rango de UI 300–600 kg (peso del caballo). ¿Es obligatorio para todos los caballos que corrieron? ¿Qué pasa si el caballo fue disqualificado? ¿Se carga en todos los hipódromos o solo en Dolores?
-Estado: pendiente confirmación con Fede.
+
+Estado: **rango CERRADO (2026-08-23)**. Fede confirmó que en Dolores sí se pesan los caballos, que lo cargado en R6/R8 fue un error y que desde la reunión del 20/09 el dato correcto lo carga la persona asignada. Rango 300–600 fijado en la constraint `inscripciones_peso_balanza_rango` + guard en `savePesoBalanza()`. Ver GOTCHAS #73.
+
+Sigue abierto: **obligatoriedad** (¿todos los que corrieron?), **descalificados**, y si aplica a otros hipódromos además de Dolores. Hoy `NULL` es válido y significa "no cargado".
 
 ## Pendientes al cierre del 16/05/2026
 
