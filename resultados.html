@@ -289,6 +289,7 @@
     /* ── Pesos Balanza modal ── */
     .pb-th { text-align:left; padding:8px 14px; font-size:12px; color:var(--muted); font-weight:500; border-bottom:1px solid var(--border); }
     .pb-td { padding:8px 14px; font-size:13px; border-bottom:1px solid rgba(201,168,76,0.1); }
+    .pb-invalid { border-color:#e55 !important; background:rgba(229,85,85,0.08); }
     .pb-input { width:80px; padding:6px 8px; font-size:13px; border-radius:8px; background:var(--input-bg); border:1px solid var(--border); color:var(--text); text-align:right; font-family:'DM Sans',sans-serif; }
 
     /* ── Auth overlay ── */
@@ -1720,7 +1721,8 @@ function openPesoBalanza() {
       <td class="pb-td" style="font-weight:600;">${spc?.nombre || '—'}</td>
       <td class="pb-td" style="text-align:right;">
         <input class="pb-input" type="number" id="pb-${i.id}"
-               value="${val}" step="0.5" min="300" max="600" placeholder="—" autocomplete="off">
+               value="${val}" step="0.5" min="${PB_MIN}" max="${PB_MAX}" placeholder="—" autocomplete="off"
+               oninput="this.classList.remove('pb-invalid')">
       </td>
     </tr>`;
   }).join('');
@@ -1741,15 +1743,32 @@ function closePesoBalanza() {
   document.getElementById('modal-peso-balanza').classList.remove('open');
 }
 
+// Rango valido del peso del CABALLO en balanza (kg). No confundir con el
+// handicap del jockey (peso_declarado / peso_final, ~50-64 kg): cargar ese
+// numero aca es el error que se cometio en R6 y R8.
+const PB_MIN = 300, PB_MAX = 600;
+
 async function savePesoBalanza() {
   const insc = inscripciones.filter(i =>
     i.carrera_id === currentCarreraId && i.estado === 'ratificado'
   );
-  const updates = [];
+  const updates = [], invalidos = [];
   for (const i of insc) {
-    const raw = document.getElementById(`pb-${i.id}`)?.value.trim() ?? '';
+    const el  = document.getElementById(`pb-${i.id}`);
+    const raw = el?.value.trim() ?? '';
     const val = raw === '' ? null : parseFloat(raw);
+    if (raw !== '' && (!Number.isFinite(val) || val < PB_MIN || val > PB_MAX)) {
+      el?.classList.add('pb-invalid');
+      invalidos.push({ nombre: spcsMap[i.spc_id]?.nombre || '—', raw });
+      continue;
+    }
+    el?.classList.remove('pb-invalid');
     if (val !== pbOriginal[i.id]) updates.push({ id: i.id, peso_balanza: val });
+  }
+  if (invalidos.length) {
+    const detalle = invalidos.map(v => `${v.nombre} (${v.raw})`).join(', ');
+    toast(`Peso fuera de rango (${PB_MIN}-${PB_MAX} kg, peso del caballo, no el del jockey): ${detalle}`, 'error');
+    return;
   }
   if (!updates.length) {
     document.getElementById('modal-peso-balanza').classList.remove('open');
