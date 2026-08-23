@@ -33,7 +33,7 @@ const CARRERA_T1   = 'f49bb3ff-5596-4126-abe9-26271d9b179a';
 const DOLORES_EMAIL = 'dolores@sgh.com';
 const DOLORES_UID  = '01c55b92-c53e-42fd-948f-ebfdb31b8d65';
 
-const BASE_HOST = USE_PROD ? 'https://mdqclio.github.io/SGH' : 'http://localhost:8080';
+const BASE_HOST = USE_PROD ? 'https://sigh.com.ar' : 'http://localhost:8080';
 const BASE_URL  = `${BASE_HOST}/resultados.html?reunion_id=${REUNION_ID}`;
 
 const SS_DIR = '/workspaces/SGH/docs/smoke_screenshots';
