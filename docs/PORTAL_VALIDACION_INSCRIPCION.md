@@ -1,6 +1,13 @@
 # Portal — la validación de inscripción no bloquea nada
 
-**Fecha:** 2026-08-23 · **Rama:** `fix/portal-carta-llamados` · **Estado:** fix de front aplicado, migración de DB **propuesta y NO aplicada**
+**Fecha:** 2026-08-23 · **Rama:** `fix/portal-carta-llamados`
+
+| | |
+|---|---|
+| Fix de front (bug 1) | commiteado en la rama · **no está en `main` · no está en prod** |
+| Fix de `loadCarta` (`fbdd988`) | ídem — en la rama, **no en `main`** |
+| Migración `SECURITY DEFINER` (bug 2) | escrita, **NO aplicada** |
+| Prod (`main`, GitHub Pages) | `portal.html` byte-idéntico a `main`, con el código viejo |
 
 Un usuario del portal (rol `profesional` / `propietario`) puede inscribir hoy cualquier
 ejemplar en cualquier carrera. Ni la edad, ni el sexo, ni el cupo, ni una sanción
@@ -36,25 +43,43 @@ compuerta que ante la duda deja pasar no es una compuerta.
 prod). Corre con el RLS de quien la llama. Con el JWT del usuario profesional real
 de Dolores (`de88e4f2…`):
 
-| tabla que lee la función | filas visibles |
+| tabla que lee la función | visibles / total |
 |---|---|
-| `spcs` | **0** |
-| `v_sanciones_vigentes` | **0** |
-| `carreras` | **0** |
+| `spcs` | **0** / 183 |
+| `sanciones` → `v_sanciones_vigentes` | **0** / 1 |
+| `inscripciones` (chequeo de cupo) | **0** / 248 |
+| `carreras` | 49 / 49 ✅ |
+
+> **Cómo simular el JWT.** `fn_get_user_club_id()` y compañía resuelven por
+> `usuarios.auth_user_id`, **no** por `usuarios.id` — son distintos. Con el `sub`
+> equivocado toda la simulación da 0 filas por el motivo incorrecto y
+> `fn_is_portal_user()` devuelve `false`. Para este usuario:
+> `usuarios.id = de88e4f2…` pero `auth_user_id = 194f7e35…`. Chequear siempre que
+> `fn_is_portal_user()` dé `true` antes de creerle a la simulación.
 
 Con `spcs` invisible, `SELECT * INTO v_spc FROM spcs WHERE id = p_spc_id` no encuentra
 nada y `v_spc` queda NULL. A partir de ahí **todos** los `IF` comparan contra NULL, que
 en SQL no es TRUE, así que ninguno dispara y la función cae hasta el
 `RETURN QUERY SELECT TRUE, 'SPC habilitado para inscribirse.'` del final.
 
-El chequeo de cupo tiene la misma enfermedad por otra vía: cuenta
-`SELECT COUNT(*) FROM inscripciones`, que bajo RLS del portal cuenta solo lo que ese
-usuario ve — sub-cuenta y nunca llega al tope.
+### Qué se rompe, chequeo por chequeo
+
+No todos fallan igual, y la diferencia importa para dimensionar el riesgo:
+
+| chequeo | estado bajo RLS del portal |
+|---|---|
+| edad mín/máx, sexo | Funcionan **solo si el SPC es del propio usuario** (`spcs_select` deja ver los suyos vía `fn_mis_spc_ids()`). Con un SPC ajeno, `v_spc` queda NULL y pasan de largo |
+| **sanción vigente** | **Siempre salteado.** `v_sanciones_vigentes` da 0 filas para cualquier usuario de portal, así que el `IF FOUND` nunca dispara. Un ejemplar con doping vigente pasa aunque sea del propio usuario |
+| cupo máximo | `SELECT COUNT(*) FROM inscripciones` cuenta solo lo visible = **0**. Nunca llega al tope |
+
+O sea: el agujero de sanciones es incondicional, y los de edad/sexo dependen de a
+quién pertenece el ejemplar. Ninguno de los tres se puede confiar hoy.
 
 ### Evidencia — la misma matriz, dos contextos
 
 Verificado hoy contra prod. Como `service_role` (sin RLS) vs. como `authenticated` con
-el JWT del usuario de portal:
+el JWT del usuario de portal (`sub = 194f7e35…`, `fn_is_portal_user() = true`).
+Los SPC de la matriz **no pertenecen** a ese usuario — es el escenario del SPC ajeno:
 
 | caso | service_role | portal (authenticated) |
 |---|---|---|
