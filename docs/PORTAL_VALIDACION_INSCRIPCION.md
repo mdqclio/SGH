@@ -1,4 +1,4 @@
-# Portal — la validación de inscripción no bloquea nada
+# Portal — la validación de inscripción no bloqueaba nada
 
 **Fecha:** 2026-08-23 · **Rama:** `fix/portal-carta-llamados`
 
@@ -6,12 +6,18 @@
 |---|---|
 | Fix de front (bug 1) | commiteado en la rama · **no está en `main` · no está en prod** |
 | Fix de `loadCarta` (`fbdd988`) | ídem — en la rama, **no en `main`** |
-| Migración `SECURITY DEFINER` (bug 2) | escrita, **NO aplicada** |
+| Migración `SECURITY DEFINER` + motivo genérico (bug 2) | **APLICADA en prod** el 2026-08-23 (opción C) |
 | Prod (`main`, GitHub Pages) | `portal.html` byte-idéntico a `main`, con el código viejo |
 
-Un usuario del portal (rol `profesional` / `propietario`) puede inscribir hoy cualquier
+> **Actualización 2026-08-23 — bug 2 cerrado.** Se aplicó la opción C: la función pasó
+> a `SECURITY DEFINER` con motivo genérico para el portal. Verificado end-to-end con la
+> sesión real del usuario de portal: los tres casos que deben rechazarse ahora se
+> rechazan. Lo único pendiente de Fede es **el texto del mensaje**, no el bloqueo.
+> Ver "Lo que se aplicó" más abajo. El resto del documento describe el estado previo.
+
+Un usuario del portal (rol `profesional` / `propietario`) podía inscribir cualquier
 ejemplar en cualquier carrera. Ni la edad, ni el sexo, ni el cupo, ni una sanción
-vigente por doping lo frenan. Son **dos bugs encadenados**: arreglar uno solo no
+vigente por doping lo frenaban. Eran **dos bugs encadenados**: arreglar uno solo no
 alcanza, y arreglar solo el primero es peor que no arreglar nada, porque deja la
 apariencia de una compuerta que sigue abierta.
 
@@ -37,10 +43,10 @@ compuerta que ante la duda deja pasar no es una compuerta.
 **Fix** (`portal.html:658-687`): leer `puede_inscribirse`, capturar `valError`, y
 **fail-closed** — sin una respuesta afirmativa de la RPC no se inscribe.
 
-## Bug 2 — la RPC dice que sí a todo bajo RLS *(NO arreglado — requiere decisión)*
+## Bug 2 — la RPC decía que sí a todo bajo RLS *(CERRADO — opción C aplicada)*
 
-`validar_inscripcion` es `SECURITY INVOKER` (`prosecdef = false`, verificado hoy en
-prod). Corre con el RLS de quien la llama. Con el JWT del usuario profesional real
+`validar_inscripcion` era `SECURITY INVOKER` (`prosecdef = false`). Corría con el RLS
+de quien la llamaba. Con el JWT del usuario profesional real
 de Dolores (`de88e4f2…`):
 
 | tabla que lee la función | visibles / total |
@@ -72,8 +78,8 @@ No todos fallan igual, y la diferencia importa para dimensionar el riesgo:
 | **sanción vigente** | **Siempre salteado.** `v_sanciones_vigentes` da 0 filas para cualquier usuario de portal, así que el `IF FOUND` nunca dispara. Un ejemplar con doping vigente pasa aunque sea del propio usuario |
 | cupo máximo | `SELECT COUNT(*) FROM inscripciones` cuenta solo lo visible = **0**. Nunca llega al tope |
 
-O sea: el agujero de sanciones es incondicional, y los de edad/sexo dependen de a
-quién pertenece el ejemplar. Ninguno de los tres se puede confiar hoy.
+O sea: el agujero de sanciones era incondicional, y los de edad/sexo dependían de a
+quién pertenece el ejemplar. Ninguno de los tres era confiable.
 
 ### Evidencia — la misma matriz, dos contextos
 
@@ -101,13 +107,15 @@ tienen que ser `SECURITY DEFINER`.
 `tests/probe_portal_validacion.mjs` corre el `confirmarInscripcion` **real** extraído de
 `portal.html` (patrón AsyncFunction de `tests/README.md`) contra la DB de prod, con el
 INSERT **interceptado**: registra la intención de insertar, nunca escribe. Cero filas creadas.
+Salida después de aplicar la opción C (`service_role` no es staff — `auth.uid()` es NULL —
+así que también recibe el motivo genérico):
 
 ```
 $ set -a; . ./.env; set +a; node tests/probe_portal_validacion.mjs
 
-  ok   A edad insuficiente  → BLOQUEÓ · ❌ Edad insuficiente: 2 años. Mínimo: 3
-  ok   B excede edad máxima → BLOQUEÓ · ❌ Excede edad máxima: 4 años. Máximo: 3
-  ok   C sanción vigente    → BLOQUEÓ · ❌ SPC con sanción vigente: Doping
+  ok   A edad insuficiente  → BLOQUEÓ · ❌ Tu ejemplar no está habilitado para inscribirse…
+  ok   B excede edad máxima → BLOQUEÓ · ❌ Tu ejemplar no está habilitado para inscribirse…
+  ok   C sanción vigente    → BLOQUEÓ · ❌ Tu ejemplar no está habilitado para inscribirse…
   ok   D caso válido        → INSERTÓ
   ok   E la RPC falla       → BLOQUEÓ · ❌ No se pudo validar la inscripción…
 ✅ TODO OK — 0 filas escritas en prod
@@ -115,27 +123,72 @@ $ set -a; . ./.env; set +a; node tests/probe_portal_validacion.mjs
 
 **Ojo con este 5/5.** El probe se autentica con `SUPABASE_SECRET_KEY`, o sea
 `service_role`, que **saltea RLS**. Prueba que el fix del front es correcto y que la
-lógica del servidor es correcta. **No** prueba que el portal bloquee: eso depende del
-bug 2, y ahí el probe mira desde el lado equivocado del vidrio. Cuando se aplique la
-migración habría que agregarle un caso que corra con el JWT del usuario de portal.
+lógica del servidor es correcta. **No** prueba que el portal bloquee: mira desde el
+lado equivocado del vidrio. Para eso está el segundo probe.
+
+### `tests/probe_portal_validacion_rls.mjs` — el camino real del navegador
+
+Mismo `confirmarInscripcion` real, pero con la **sesión real** del usuario de portal:
+JWT emitido por Supabase Auth (magic link vía admin API — no manda mail y no toca la
+contraseña), publishable key, PostgREST de prod, RLS activo. INSERT igualmente
+interceptado. Incluye un chequeo de cordura: si `fn_is_portal_user()` no da `true`, el
+probe lo grita, porque entonces estaría midiendo otra cosa.
+
+```
+$ set -a; . ./.env; set +a; node tests/probe_portal_validacion_rls.mjs
+
+sesión real de hipodromodolores@gmail.com (sub 194f7e35-1647-4997-a7ad-c4b000068672)
+fn_is_portal_user() = true
+
+  ok   A edad insuficiente  → BLOQUEÓ · ❌ Tu ejemplar no está habilitado para inscribirse. Consultá en secretaría.
+  ok   B excede edad máxima → BLOQUEÓ · ❌ Tu ejemplar no está habilitado para inscribirse. Consultá en secretaría.
+  ok   C sanción vigente    → BLOQUEÓ · ❌ Tu ejemplar no está habilitado para inscribirse. Consultá en secretaría.
+  ok   D caso válido        → INSERTÓ
+✅ TODO OK — 0 filas escritas en prod
+```
+
+Esto es la prueba que faltaba: una inscripción que **tiene** que ser rechazada, por el
+camino del portal, con RLS puesto, y efectivamente rechazada.
 
 ---
 
-## Migración propuesta — `migrations/validar_inscripcion_security_definer.sql`
+## Lo que se aplicó — opción C
 
-```sql
-ALTER FUNCTION public.validar_inscripcion(uuid, uuid) SECURITY DEFINER;
-```
+`migrations/validar_inscripcion_security_definer.sql`, aplicada por MCP el 2026-08-23
+como `validar_inscripcion_security_definer_motivo_generico`. `CREATE OR REPLACE` de la
+función con tres cambios y ninguna regla de validación tocada:
 
-**Por qué es defendible:** la función no devuelve datos de las filas que lee — solo un
-booleano y un motivo. No filtra ejemplares, sanciones ni carreras de otros. Ya tiene
-`SET search_path TO 'public'`, la precaución obligatoria en `SECURITY DEFINER` (evita el
-secuestro por search_path).
+1. **`SECURITY DEFINER`.** La función ya no depende de lo que el llamador puede ver.
+   Mantiene `SET search_path TO 'public'` (obligatorio en DEFINER: evita el secuestro
+   por search_path) y sigue **`VOLATILE`**, igual que antes — PostgREST corre las
+   funciones no-volátiles en transacción READ ONLY, y ese cambio de comportamiento no
+   hacía falta acá.
+2. **Motivo genérico para el portal.** `v_detalle := fn_is_staff()`. El staff sigue
+   viendo "Edad insuficiente: 2 años. Mínimo: 3" y "SPC con sanción vigente: Doping" —
+   lo necesita para operar `inscripciones.html`. Todo lo demás recibe:
+   `Tu ejemplar no está habilitado para inscribirse. Consultá en secretaría.`
+   Esto además tapa un agujero que el DEFINER abría solo: `p_spc_id` es un parámetro
+   libre, así que un usuario de portal podía sondear ejemplares **ajenos** y leerles la
+   sanción. Con el motivo genérico no hay nada que sondear.
+3. **Fail-closed si no hay fila.** `v_spc` o `v_carrera` en NULL antes caían hasta el
+   `TRUE` final; ahora cortan con `FALSE`. Es la misma clase de bug que el del front.
 
-**Verificación posterior:** `prosecdef` debe dar `true`, y la matriz de 4 casos como
-`authenticated` tiene que pasar A/B/C a `false`.
+### Verificación
 
-**Rollback:** `ALTER FUNCTION public.validar_inscripcion(uuid, uuid) SECURITY INVOKER;`
+`prosecdef = true`, `provolatile = 'v'`, `proconfig = {search_path=public}`.
+
+Matriz como `authenticated`, dos usuarios distintos:
+
+| caso | portal (`194f7e35…`) | staff / secretaría (`01c55b92…`) |
+|---|---|---|
+| A — edad insuficiente | `false` · "Tu ejemplar no está habilitado…" | `false` · "Edad insuficiente: 2 años. Mínimo: 3" |
+| B — excede edad máx | `false` · "Tu ejemplar no está habilitado…" | — |
+| C — sanción vigente | `false` · "Tu ejemplar no está habilitado…" | `false` · "SPC con sanción vigente: Doping" |
+| D — caso válido | `true` | — |
+
+**Rollback:** `git show <sha>~1:migrations/validar_inscripcion_security_definer.sql` tiene
+la versión previa; o, para revertir solo el modo,
+`ALTER FUNCTION public.validar_inscripcion(uuid, uuid) SECURITY INVOKER;`
 
 ---
 
@@ -149,14 +202,13 @@ secuestro por search_path).
 
 Recomendación: **A**, salvo que la respuesta a la pregunta de abajo sea que no.
 
-## La llamada de producto
+## La llamada de producto — sigue abierta, pero ya no bloquea nada
 
-Pasar a `SECURITY DEFINER` hace que el `motivo` le muestre al usuario del portal dos
-datos que hoy RLS le tapa: **el tipo de sanción de su ejemplar** (el string literal
-"Doping") y **su edad exacta**. Es información sobre su propio caballo, así que lo más
-probable es que le corresponda — pero que el portal le escriba "Doping" en la pantalla
-en vez de derivarlo a secretaría es una decisión de cómo Dolores quiere comunicar una
-sanción, no una decisión técnica.
+Con `SECURITY DEFINER` el `motivo` **podría** mostrarle al usuario del portal el tipo de
+sanción de su ejemplar ("Doping") y su edad exacta. Hoy no lo hace: recibe el texto
+genérico. Cambiarlo es una línea — `v_detalle := fn_is_staff()` pasa a incluir al dueño
+del ejemplar (`p_spc_id IN (SELECT spc_id FROM fn_mis_spc_ids())`), que es el chequeo
+correcto si Fede quiere mostrar el detalle sin exponer ejemplares ajenos.
 
 **Para preguntarle a Fede:** ¿el portal puede decirle al entrenador/propietario, por
 escrito y en el momento, que su ejemplar tiene una sanción vigente por doping — o eso
