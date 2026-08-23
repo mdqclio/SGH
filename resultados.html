@@ -1351,40 +1351,110 @@ function tgAutoFormat(el) {
   el.classList.remove('tg-invalid');
 }
 
+/* ── Tiempo ganador — plausibilidad contra la distancia ────────────────────
+   La máscara vieja validaba FORMA, no MAGNITUD: `^(\d{1,2}):([0-5]\d)\.(\d{2})$`
+   acepta hasta 99 minutos. El modo de falla real (R8, las 2 carreras de 800 m)
+   es que el operador tipea "4313" queriendo decir 43 segundos 13 centésimas,
+   tgAutoFormat mete los dos puntos como MM:SS, y queda 43 MINUTOS 13 segundos.
+   Nadie lo frena y el JSON del Stud Book lo publica.
+
+   Banda de velocidad admisible, a propósito ANCHA para no bloquear nunca un
+   tiempo real: 8 a 20 m/s (28,8 a 72 km/h). El récord de un SPC ronda los
+   70 km/h y ni la carrera más arrastrada baja de 30, así que un tiempo
+   verdadero no puede caer afuera; lo que cae afuera es un error de carga.
+   Sin distancia cargada se usa el tope absoluto de 10 minutos — el mismo
+   TIEMPO_MAX_SEGUNDOS que aplica el exportador (studbook_format.mjs), para que
+   la UI y el JSON no discrepen sobre qué es un tiempo posible. */
+const TG_VEL_MIN = 8, TG_VEL_MAX = 20, TG_MAX_SEG = 600;
+
+function tgDistanciaActual() {
+  return carreras.find(c => c.id === currentCarreraId)?.distancia_metros ?? null;
+}
+
+// "MM:SS.CC" | "M:SS.CC" | "M:SS" | "SS.CC" | "SS" → "MM:SS.CC". null si no matchea.
+function tgNormalizar(v) {
+  let m = v.match(/^(\d{1,2}):(\d{1,2})(?:\.(\d{1,2}))?$/);
+  if (m) {
+    const min = parseInt(m[1], 10), seg = parseInt(m[2], 10);
+    if (seg > 59) return null;
+    const cen = m[3] == null ? 0 : parseInt(m[3].padEnd(2, '0'), 10);
+    return `${String(min).padStart(2,'0')}:${String(seg).padStart(2,'0')}.${String(cen).padStart(2,'0')}`;
+  }
+  // Sin dos puntos son SEGUNDOS. "47.13" es la forma natural de tipear una
+  // carrera sub-minuto y antes NO se aceptaba — parte de por qué el operador
+  // terminaba escribiendo "43:13" para decir 43 segundos.
+  m = v.match(/^(\d{1,3})(?:\.(\d{1,2}))?$/);
+  if (!m) return null;
+  const tot = parseInt(m[1], 10);
+  const cen = m[2] == null ? 0 : parseInt(m[2].padEnd(2, '0'), 10);
+  return `${String(Math.floor(tot/60)).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}.${String(cen).padStart(2,'0')}`;
+}
+
+function tgSegundos(norm) {
+  const m = norm.match(/^(\d{2}):(\d{2})\.(\d{2})$/);
+  return m ? parseInt(m[1],10)*60 + parseInt(m[2],10) + parseInt(m[3],10)/100 : null;
+}
+
+// null = plausible. String = motivo del rechazo, listo para mostrar.
+function tgMotivoImplausible(norm, dist) {
+  const seg = tgSegundos(norm);
+  if (seg == null || seg <= 0) return `${norm} no es un tiempo válido`;
+  if (!dist) {
+    return seg > TG_MAX_SEG
+      ? `${norm} son más de 10 minutos — ninguna carrera dura eso`
+      : null;
+  }
+  const vel = dist / seg;
+  if (vel > TG_VEL_MAX) return `${norm} para ${dist} m da ${vel.toFixed(1)} m/s — imposible (tope ${TG_VEL_MAX} m/s)`;
+  if (vel < TG_VEL_MIN) {
+    // Sugerencia para el error típico MM:SS tipeado en lugar de SS.CC:
+    // "43:13.00" quiso decir "00:43.13". Sólo se sugiere si el reinterpretado
+    // cae dentro de la banda — si no, no se adivina nada.
+    const m = norm.match(/^(\d{2}):(\d{2})\.(\d{2})$/);
+    let hint = '';
+    if (m && m[3] === '00') {
+      const alt = `00:${m[1]}.${m[2]}`;
+      const altSeg = tgSegundos(alt);
+      if (altSeg > 0 && dist/altSeg <= TG_VEL_MAX && dist/altSeg >= TG_VEL_MIN) hint = ` ¿Quisiste poner ${alt}?`;
+    }
+    return `${norm} para ${dist} m da ${vel.toFixed(1)} m/s — demasiado lento para ser real.${hint}`;
+  }
+  return null;
+}
+
 function tgOnBlur(el) {
   const v = el.value.trim();
   if (!v) { el.classList.remove('tg-invalid'); return; }
-  const m = v.match(/^(\d{1,2}):(\d{1,2})\.(\d{1,2})$/);
-  if (m) {
-    const sec = parseInt(m[2], 10), cent = parseInt(m[3], 10);
-    if (sec <= 59 && cent <= 99) {
-      el.value = `${String(parseInt(m[1],10)).padStart(2,'0')}:${String(sec).padStart(2,'0')}.${String(cent).padStart(2,'0')}`;
-      el.classList.remove('tg-invalid');
-      return;
-    }
-  }
-  el.classList.add('tg-invalid');
+  const norm = tgNormalizar(v);
+  if (!norm) { el.classList.add('tg-invalid'); return; }
+  el.value = norm;
+  el.classList.toggle('tg-invalid', tgMotivoImplausible(norm, tgDistanciaActual()) !== null);
 }
 
+// { ok:true, value } | { ok:true, value:null } (vacío) | { ok:false, msg }
 function getTiempoGanador() {
   const el = document.getElementById('tg');
-  if (!el) return null;
+  if (!el) return { ok: true, value: null };
   const v = el.value.trim();
-  if (!v) return null;
-  if (!v.match(/^(\d{1,2}):([0-5]\d)\.(\d{2})$/)) return false;
-  return v;
+  if (!v) return { ok: true, value: null };
+  const norm = tgNormalizar(v);
+  if (!norm) return { ok: false, msg: `Tiempo inválido — formato esperado MM:SS.CC (ej: 01:32.45) o segundos (ej: 47.13)` };
+  const motivo = tgMotivoImplausible(norm, tgDistanciaActual());
+  if (motivo) return { ok: false, msg: `Tiempo implausible — ${motivo}` };
+  return { ok: true, value: norm };
 }
 
 async function aplicar(carreraId, estado) {
   syncDivInputsToPending();  // capturar los inputs inline antes de construir apuestasArr
   const estadoPista = document.getElementById('estado-pista')?.value || null;
-  const tiempoGan   = getTiempoGanador();
-  if (tiempoGan === false) {
-    toast('Tiempo inválido — formato esperado MM:SS.CC (ej: 01:32.45)', 'error');
+  const tgRes = getTiempoGanador();
+  if (!tgRes.ok) {
+    toast(tgRes.msg, 'error');
     const tgEl = document.getElementById('tg');
     if (tgEl) { tgEl.classList.add('tg-invalid'); tgEl.focus(); }
     return;
   }
+  const tiempoGan = tgRes.value;
   const incidentes   = document.getElementById('incidentes')?.value.trim()     || null;
   const favVal       = document.getElementById('favorito-mandil')?.value;
   const favorito_mandil = favVal ? parseInt(favVal,10) : null;

@@ -22,11 +22,31 @@ export function importePuesto(bolsa, pct, minimo) {
   return (min > 0 && calc < min) ? min : calc;
 }
 
-// Parte un tiempo_ganador (varchar libre) en {minutos, segundos, decimas}.
-// Formatos tolerados: "M:SS.d", "M:SS", "SS.d", "SS", numérico de segundos.
-// Si no se puede parsear (o es null), devuelve los tres campos en null.
+// Techo de plausibilidad de un tiempo de carrera, en segundos. Ninguna carrera
+// de turf dura 10 minutos: la mas larga del calendario argentino (3000 m) se
+// corre en ~3'10". Un valor por encima de esto no es un tiempo lento, es un
+// tiempo mal cargado — y el modo de falla conocido es que el operador tipee
+// "43:13" queriendo decir 43 segundos 13 centesimas y la mascara MM:SS.CC de
+// resultados.html lo acepte como 43 minutos. Ver TIEMPO_R8 en el reporte.
+export const TIEMPO_MAX_SEGUNDOS = 600;
+
+// Parte un tiempo_ganador (varchar libre) en {minutos, segundos, centesimas, decimas}.
+// Formatos tolerados: "M:SS.cc", "M:SS", "SS.cc", "SS", numerico de segundos.
+// Si no se puede parsear (o es null), devuelve los campos en null.
+//
+// Dos digitos despues del punto son CENTESIMAS, no decimas: es la notacion que
+// usa el tote y la que usa Diego ("47.13c"). El campo historico `decimas` sale
+// con ese mismo numero — se mantiene tal cual para no romper al consumidor, que
+// hoy lo lee como centesimas — y se agrega `centesimas` con el nombre correcto.
+// Contrato ADITIVO, igual que numero_publico: se suma el campo bueno, no se saca
+// el viejo. Cuando Diego confirme que migro, `decimas` se puede retirar.
+//
+// Un tiempo por encima de TIEMPO_MAX_SEGUNDOS sale en null en los cuatro campos.
+// Emitir 43 minutos para una carrera de 800 m seria mandar un numero falso con
+// cara de dato bueno; null dice "no tengo el tiempo", que es la verdad hasta que
+// alguien lo corrija contra el ticket del tote.
 export function parseTiempo(raw) {
-  const empty = { minutos: null, segundos: null, decimas: null };
+  const empty = { minutos: null, segundos: null, centesimas: null, decimas: null };
   if (raw == null) return empty;
   const s = String(raw).trim();
   if (!s) return empty;
@@ -36,16 +56,19 @@ export function parseTiempo(raw) {
     minutos = parseInt(m, 10) || 0;
     resto = r;
   }
-  let segundos = 0, decimas = 0;
+  let segundos = 0, centesimas = 0;
   if (resto.includes('.')) {
-    const [seg, dec] = resto.split('.');
+    const [seg, cen] = resto.split('.');
     segundos = parseInt(seg, 10) || 0;
-    decimas = parseInt(dec, 10) || 0;
+    // "1:15.5" son 5 decimas = 50 centesimas, no 5 centesimas.
+    const cenTxt = String(cen).replace(/\D/g, '');
+    centesimas = cenTxt.length === 1 ? (parseInt(cenTxt, 10) || 0) * 10 : (parseInt(cenTxt, 10) || 0);
   } else {
     segundos = parseInt(resto, 10) || 0;
   }
   if (Number.isNaN(minutos) && Number.isNaN(segundos)) return empty;
-  return { minutos, segundos, decimas };
+  if (minutos * 60 + segundos > TIEMPO_MAX_SEGUNDOS) return empty;
+  return { minutos, segundos, centesimas, decimas: centesimas };
 }
 
 // 'ambos' → 'T'; otros valores se pasan tal cual (gap de mapeo definitivo).
@@ -187,6 +210,24 @@ export function buildReunionJson({
         const cuid = profMap.get(i.entrenador_id) || null;
         const cab = cabMap.get(i.caballeriza_id) || null;
 
+        // JOCKEY QUE MONTO. El schema no tiene una columna de "quien largo":
+        // `inscripciones` tiene exactamente dos, `jockey_titular_id` y
+        // `jockey_suplente_id`, y `resultado_posiciones` no tiene ninguna.
+        // La mejor fuente disponible es el suplente cuando fue designado y el
+        // titular cuando no. Hoy `jockey_suplente_id` esta en NULL en los 67
+        // competidores de R8, asi que en la practica `jockey` sale igual que
+        // `jockey_inscripto` — que es la verdad de lo que sabemos, no un dato
+        // inventado, y es estrictamente mejor que los tres null hardcodeados
+        // que habia antes.
+        //
+        // LIMITE QUE HAY QUE CONOCER: un cambio de monta del dia de la carrera
+        // que nadie carga en el sistema pisa `jockey_titular_id` o no entra en
+        // absoluto, y en los dos casos este campo lo repite sin poder marcarlo.
+        // R6 necesito 32 UPDATEs a mano contra la planilla de Yesi (d1600d3);
+        // R8 no tuvo esa pasada. Cerrar esto de verdad es agregar la columna
+        // del jockey que corrio, no cambiar este mapeo.
+        const jockEfectivo = profMap.get(i.jockey_suplente_id ?? i.jockey_titular_id) || null;
+
         // puesto: sin resultado → "0"; no_largo → "99"; si no → posicion
         let puesto;
         if (!hasResult) puesto = '0';
@@ -214,7 +255,13 @@ export function buildReunionJson({
             dni: jock?.documento_nro ?? null,
             cuit: null,
           },
-          jockey: { nombre: null, dni: null, cuit: null }, // v1
+          // cuit: no hay columna de CUIT en `profesionales` — no es un dato que
+          // falte cargar, no hay donde ponerlo. Fuera del alcance de este fix.
+          jockey: {
+            nombre: nombreCompleto(jockEfectivo),
+            dni: jockEfectivo?.documento_nro ?? null,
+            cuit: null,
+          },
           cuidador: {
             nombre: nombreCompleto(cuid),
             dni: cuid?.documento_nro ?? null,
