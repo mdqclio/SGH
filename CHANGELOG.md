@@ -1,5 +1,36 @@
 # Changelog
 
+## [2026-08-23] — El JSON del Stud Book deja de mandar las No Computables (reunion-json v19)
+
+> Punto 1 de los ocho que reportó Diego. Fede confirmó que las No Computables no van y que el dato
+> está cargado por ellos y coincide con el programa impreso.
+
+- **Filtro**: `carrerasVisibles` en `_shared/studbook_format.mjs` ahora exige
+  `es_oficial && es_computable`. Está en el origen del pipeline
+  (`carreras → carrerasVisibles → carrerasJson → data.carreras`), así que todo lo derivado —
+  `competidores_cantidad`, `premios`, `competidores` — sale coherente con lo emitido sin recálculo.
+  No hay totales de reunión que puedan quedar desfasados: el formato no tiene ninguno.
+- **Impacto en Dolores**: la ONC es la categoría mayoritaria. R8 (2026-08-16) pasa de 8 carreras
+  emitidas a **2** — 51,2 KB → 11,7 KB. Quedan `#6 ANIV- DOLORES PRIMER PUEBLO PATRIO` (1100 m) y
+  `#2 GRAL JOSÉ DE SAN MARTIN` (800 m), las dos OC, las dos con resultado oficial.
+- ⚠️ **El filtro asume la semántica de Dolores.** `es_computable` significa acá "cuenta para el
+  Stud Book". Otros clubes ya cargados usan los MISMOS códigos de tres letras con otro sentido: en
+  Jockey Club San Francisco (`710d43c1`) `ONC` es "Oficial No Clásico" y **sí** es computable. Hoy
+  no molesta porque el endpoint está clavado a `CLUB_ID_DOLORES`, pero **hay que revisarlo antes de
+  servirle este endpoint a otro hipódromo**. El eje son los flags, nunca el `codigo`.
+- **Probe**: `tests/probe_studbook_v2.mjs` **51 OK · 0 FALLA** (+11 casos: filtro por flag y no por
+  código, ONC de dos clubes con flags opuestos, reunión enteramente no computable → `carreras: []`
+  con el resto de la estructura intacta, coherencia de `competidores_cantidad`). De paso se
+  actualizó la aserción de `parseTiempo`, que había quedado vieja desde el fix de la R8.
+- **`tests/dryrun_reunion_json.mjs`** (nuevo): arma el JSON con datos reales de prod y compara
+  antes/después sin desplegar. Sólo lee.
+- **Deploy v18 → v19**, `verify_jwt: false` preservado. El deploy por MCP manda el fuente inline y
+  la llamada topea en ~32 KB; el bundle comentado pesa 32.459 B ya escapado y no entra. Se agregó
+  `_build/slim.mjs`, que genera `_build/index.slim.ts` sacando **sólo** las líneas que son 100 %
+  comentario (seguro: el bundle no tiene ningún template literal multilínea, y el generador aborta
+  si aparece uno). El slim lleva en el header el sha256 del bundle del que salió. El canónico para
+  leer y revisar sigue siendo `_build/index.ts`.
+
 ## [2026-08-23] — JSON del Stud Book: tiempos, centésimas y jockey (reunion-json v18)
 
 > Cuatro de los ocho puntos que reportó Diego sobre el JSON de R8. Fuera de alcance a propósito:
