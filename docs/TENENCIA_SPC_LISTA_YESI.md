@@ -1,16 +1,16 @@
 # SPC sin entrenador — qué hacer con cada uno
 
-**Fecha:** 2026-08-23 · Relevado sobre producción, sólo lectura. Nada aplicado.
+**Fecha:** 2026-08-23 · **Backfill v1.1 APLICADO.** Cobertura **147 de 183 (80,3 %)**.
 
 Un SPC sin `entrenador_id` **no existe para el portal**: `fn_mis_spc_ids()` resuelve la tenencia por
 ese campo, así que el caballo no aparece en "Mis caballos" y `rpc_inscribir` lo rechaza. Se sigue
 inscribiendo por secretaría, como siempre.
 
-Hoy son **69 de 183**. Se reparten así:
+Eran **69 de 183**. El backfill v1.1 vinculó 33; quedan **36**, que se reparten así:
 
 | | Caballos | Quién lo resuelve |
 |---|---|---|
-| Los levanta el backfill | **33** | automático, ver §1 |
+| ✅ Los levantó el backfill v1.1 | **33** | hecho, ver §1 |
 | **Para que asigne o descarte Yesi** | **19** | §2 — **ésta es la lista** |
 | Caballos de prueba, hay que borrarlos | **17** | teardown de ISSUE-035, no es trabajo de Yesi |
 | | **69** | |
@@ -31,18 +31,27 @@ Hoy son **69 de 183**. Se reparten así:
 > después se haya suspendido la fecha. Sólo escribe donde el campo está en **NULL** — no pisa
 > ninguna corrección manual.
 
-Dry run contra prod: **+33 entrenadores, +0 caballerizas**. Cobertura **114/183 (62,3 %) →
-147/183 (80,3 %)**.
+**Resultado real de la aplicación (2026-08-23): +33 entrenadores, +0 caballerizas.** Cobertura
+**114/183 (62,3 %) → 147/183 (80,3 %)**, exactamente lo que anticipaba el dry run.
 
-⚠️ **No alcanza con re-correr el archivo original.** La v1 es idempotente para el UPDATE, pero el
+Control de que no se pisó nada: se tomó la huella md5 de los **114 valores de `entrenador_id` que ya
+existían** antes de la pasada, y de los 152 de `caballeriza_id`. Después de aplicar, las dos huellas
+son **idénticas** (`42661ed6…` y `35544d35…`). Además, 0 SPC quedaron apuntando a un entrenador
+inexistente. El backfill sólo agregó filas nuevas; no tocó una sola que ya tuviera valor.
+
+⚠️ **No alcanzaba con re-correr el archivo original.** La v1 es idempotente para el UPDATE, pero el
 INSERT de auditoría usa `ON CONFLICT (spc_id) DO NOTHING` y el UPDATE se apoya en esa tabla: un
 caballo que ya tiene fila de auditoría no se vuelve a tocar nunca, aunque haya aparecido evidencia
 nueva. Hoy eso deja afuera a **TIRSO** —el 06/08 sólo tenía evidencia de caballeriza; R8 le dio
 entrenador (MALENA, GUSTAVO) después— y escribiría 32 en vez de 33, en silencio.
 
-Por eso está `migrations/backfill_tenencia_spcs_v1_1.sql`: **cambia sólo el `ON CONFLICT`**, de
-`DO NOTHING` a un `DO UPDATE` que rellena únicamente los `_nuevo` en NULL y no toca los `_previo`,
-que son la base del rollback. Mismo criterio de derivación, palabra por palabra. **No aplicada.**
+Por eso se escribió `migrations/backfill_tenencia_spcs_v1_1.sql`: **cambia sólo el `ON CONFLICT`**,
+de `DO NOTHING` a un `DO UPDATE` que rellena únicamente los `_nuevo` en NULL y no toca los
+`_previo`, que son la base del rollback. Mismo criterio de derivación, palabra por palabra.
+**Aplicada el 2026-08-23** — y TIRSO quedó con MALENA, GUSTAVO, que era el caso que la v1 perdía.
+
+Rollback disponible sin cambios: `migrations/rollback_tenencia_spcs.sql`, que lee la misma tabla de
+auditoría.
 
 ---
 

@@ -1,7 +1,11 @@
 -- ============================================================
 -- Gate 4.1 — Backfill de tenencia, segunda pasada (v1.1)
 -- ============================================================
--- NO APLICADA. Esperando el OK.
+-- ✅ APLICADA 2026-08-23 por MCP, como migración `backfill_tenencia_spcs_v1_1`.
+--    Resultado real: +33 entrenadores (114 → 147 de 183), +0 caballerizas (152).
+--    TIRSO quedó con MALENA, GUSTAVO — el que la v1 dejaba afuera. 0 campos pisados,
+--    verificado por huella md5 de los 114 valores preexistentes: idéntica antes y
+--    después. 0 entrenadores inexistentes.
 --
 -- POR QUÉ HACE FALTA UNA v1.1 EN VEZ DE RE-CORRER LA v1
 --   La v1 (backfill_tenencia_spcs.sql, aplicada el 2026-08-06) es idempotente
