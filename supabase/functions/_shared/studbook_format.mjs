@@ -136,24 +136,41 @@ export function buildReunionJson({
   tz = TZ_DEFAULT,
 }) {
   // ------------------------------------------------------------
-  // Qué carreras VIAJAN. Conjunto fijo, dos condiciones y nada más:
-  //   1. la CATEGORÍA de la carrera es oficial (categorias_carrera.es_oficial)
-  //   2. la carrera no está anulada
+  // Qué carreras VIAJAN. Conjunto fijo, tres condiciones y nada más:
+  //   1. la CATEGORÍA de la carrera es oficial   (categorias_carrera.es_oficial)
+  //   2. la CATEGORÍA de la carrera es computable (categorias_carrera.es_computable)
+  //   3. la carrera no está anulada
   //
   // El estado del RESULTADO no filtra carreras — sólo decide si se adjunta
   // el resultado (ver `res` más abajo). Una carrera con resultado provisional
   // viaja igual, como programa.
   //
-  // El eje es el FLAG es_oficial, nunca el `codigo`: hay clubes que reusan
-  // los códigos OC/ONC/CC con otra semántica (p.ej. en 710d43c1 `ONC` es
-  // "Oficial No Clásico" y es computable). Ver INTEGRACION_STUDBOOK_ESTADO §2.2.
+  // es_computable se agregó el 2026-08-23 (punto 1 del diagnóstico de Diego).
+  // Antes viajaban todas las oficiales, computables o no. Fede confirmó que las
+  // No Computables no van y que el dato está cargado por ellos y coincide con
+  // el programa impreso. En Dolores el recorte es grande: la ONC es la categoría
+  // mayoritaria, así que una reunión típica pasa de ~12 carreras a ~2.
+  //
+  // ⚠️ ESTE FILTRO ASUME LA SEMÁNTICA DE DOLORES. `es_computable` significa acá
+  // "cuenta para el Stud Book", y en Dolores la categoría ONC ("Oficial No
+  // Computable") lo tiene en false. Otros clubes ya cargados usan los MISMOS
+  // códigos con otro sentido: en 710d43c1 (Jockey Club San Francisco) `ONC` es
+  // "Oficial No Clásico" y sí es computable, y `CC` es "Clásico Confirmado" y
+  // sí es oficial. Hoy no molesta porque reunion-json está clavado al club de
+  // Dolores (CLUB_ID_DOLORES en index.ts) y esos clubes no tienen ni una
+  // carrera cargada. El día que entre otro hipódromo hay que revisar que su
+  // es_computable quiera decir lo mismo antes de servirle este endpoint.
+  // Ver INTEGRACION_STUDBOOK_ESTADO §2.2 y §2.3.
+  //
+  // El eje son los FLAGS, nunca el `codigo`: el código de tres letras sólo es
+  // interpretable dentro de un club.
   //
   // Fail-closed: carrera sin categoria_id, o con una que no está en catMap,
-  // NO viaja (no se puede afirmar que sea oficial).
+  // NO viaja (no se puede afirmar que sea oficial ni computable).
   const carrerasVisibles = carreras.filter(c => {
     if (c.estado === 'anulada') return false;
     const cat = c.categoria_id ? catMap.get(c.categoria_id) : null;
-    return cat?.es_oficial === true;
+    return cat?.es_oficial === true && cat?.es_computable === true;
   });
 
   const carrerasJson = carrerasVisibles.map(c => {

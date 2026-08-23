@@ -120,10 +120,16 @@ console.log('\nB. mandil.mjs ↔ renumerar-chapas.js');
 // ------------------------------------------------------------
 console.log('\nC. filtro de carreras');
 // ------------------------------------------------------------
-const CAT_OF = 'cat-oficial', CAT_NO = 'cat-no-oficial';
+const CAT_OF = 'cat-oficial', CAT_NO = 'cat-no-oficial', CAT_ONC = 'cat-onc', CAT_SF_ONC = 'cat-sf-onc';
 const catMap = new Map([
-  [CAT_OF, { id: CAT_OF, nombre: 'Oficial Computable', codigo: 'OC', es_oficial: true, es_computable: true }],
-  [CAT_NO, { id: CAT_NO, nombre: 'Concertada', codigo: 'CC', es_oficial: false, es_computable: false }],
+  [CAT_OF,  { id: CAT_OF,  nombre: 'Oficial Computable',    codigo: 'OC',  es_oficial: true,  es_computable: true }],
+  [CAT_NO,  { id: CAT_NO,  nombre: 'Concertada',            codigo: 'CC',  es_oficial: false, es_computable: false }],
+  // Dolores: oficial PERO no computable. No viaja desde el 2026-08-23.
+  [CAT_ONC, { id: CAT_ONC, nombre: 'Oficial No Computable', codigo: 'ONC', es_oficial: true,  es_computable: false }],
+  // Jockey Club San Francisco: MISMO código `ONC`, otra cosa — "Oficial No
+  // Clásico", oficial y computable. Está acá para dejar clavado que el filtro
+  // mira los FLAGS y no el código: esta sí viaja aunque comparta el `ONC`.
+  [CAT_SF_ONC, { id: CAT_SF_ONC, nombre: 'Oficial No Clásico', codigo: 'ONC', es_oficial: true, es_computable: true }],
 ]);
 
 function armar(carreras, { resultados = [], inscripciones = [], posiciones = [] } = {}) {
@@ -151,14 +157,62 @@ function armar(carreras, { resultados = [], inscripciones = [], posiciones = [] 
     { id: 'c4', numero_turno: 4, categoria_id: null,   estado: 'abierta' },   // sin categoría
     { id: 'c5', numero_turno: 5, categoria_id: 'inexistente', estado: 'abierta' },
     { id: 'c6', numero_turno: 6, categoria_id: CAT_OF, estado: null },        // estado null = ok
+    { id: 'c7', numero_turno: 7, categoria_id: CAT_ONC, estado: 'abierta' },  // oficial NO computable
+    { id: 'c8', numero_turno: 8, categoria_id: CAT_SF_ONC, estado: 'abierta' }, // `ONC` de otro club: sí computable
   ];
   const out = armar(carreras);
   const nums = out.data.carreras.map(c => c.numero);
-  eq('sólo viajan las oficiales no anuladas', nums, ['1', '6']);
+  eq('sólo viajan las oficiales computables no anuladas', nums, ['1', '6', '8']);
   check('la no-oficial queda afuera', !nums.includes('2'));
   check('la anulada queda afuera', !nums.includes('3'));
   check('sin categoría queda afuera (fail-closed)', !nums.includes('4'));
   check('categoría que no está en catMap queda afuera', !nums.includes('5'));
+  check('la OFICIAL NO COMPUTABLE queda afuera', !nums.includes('7'));
+  check('el filtro mira el flag y no el código: `ONC` computable de otro club viaja',
+        nums.includes('8'));
+}
+
+{
+  // Reunión donde TODO es no computable: estructura válida, `carreras` vacío.
+  // No es un caso nuevo — ya pasaba con una reunión toda no-oficial — pero
+  // ahora es mucho más probable, así que queda clavado.
+  const out = armar([
+    { id: 'x1', numero_turno: 1, categoria_id: CAT_ONC, estado: 'abierta' },
+    { id: 'x2', numero_turno: 2, categoria_id: CAT_ONC, estado: 'abierta' },
+  ]);
+  eq('status 200 igual', out.status, 200);
+  eq('carreras es un array vacío, no null ni undefined', out.data.carreras, []);
+  check('la reunión conserva sus campos', out.data.id === 'r' && out.data.fecha.date === '2026-06-20');
+  check('el hipódromo sigue ahí', out.data.hipodromo.nombre === 'Dolores');
+  check('el JSON serializa sin romperse', typeof JSON.stringify(out) === 'string');
+}
+
+{
+  // Coherencia: lo que se emite se cuenta sobre lo EMITIDO, no sobre lo que
+  // había antes de filtrar. competidores_cantidad es el único total del
+  // formato y es por carrera; se verifica que cuente los competidores de SU
+  // carrera y que las carreras filtradas no aporten nada.
+  const carreras = [
+    { id: 'k1', numero_turno: 1, categoria_id: CAT_OF,  estado: 'abierta' },
+    { id: 'k2', numero_turno: 2, categoria_id: CAT_ONC, estado: 'abierta' },
+  ];
+  const inscripciones = [
+    { id: 'a1', carrera_id: 'k1', estado: 'ratificado', numero_partidor: 1 },
+    { id: 'a2', carrera_id: 'k1', estado: 'ratificado', numero_partidor: 3 },
+    // la ONC tiene 5 ratificados que NO tienen que aparecer en ningún conteo
+    { id: 'b1', carrera_id: 'k2', estado: 'ratificado', numero_partidor: 1 },
+    { id: 'b2', carrera_id: 'k2', estado: 'ratificado', numero_partidor: 2 },
+    { id: 'b3', carrera_id: 'k2', estado: 'ratificado', numero_partidor: 3 },
+    { id: 'b4', carrera_id: 'k2', estado: 'ratificado', numero_partidor: 4 },
+    { id: 'b5', carrera_id: 'k2', estado: 'ratificado', numero_partidor: 5 },
+  ];
+  const out = armar(carreras, { inscripciones });
+  eq('viaja una sola carrera', out.data.carreras.length, 1);
+  const c = out.data.carreras[0];
+  eq('competidores_cantidad cuenta los de la carrera emitida', c.competidores_cantidad, 2);
+  eq('competidores_cantidad coincide con el array', c.competidores_cantidad, c.competidores.length);
+  check('ningún competidor de la carrera filtrada se coló',
+        !JSON.stringify(out).includes('"b1"'));
 }
 
 {
@@ -186,7 +240,11 @@ function armar(carreras, { resultados = [], inscripciones = [], posiciones = [] 
   const ofi = out.data.carreras.find(c => c.numero === '2');
   eq('provisional: estado null', prov.estado, null);
   eq('provisional: estado_pista null', prov.estado_pista, { id: null, nombre: null });
-  eq('provisional: tiempo vacío', prov.tiempo, { minutos: null, segundos: null, decimas: null });
+  // `centesimas` se sumó al tiempo en el fix de la R8 (2026-08-23) y `decimas`
+  // quedó como alias por compatibilidad con Diego. Esta expectativa se había
+  // quedado en la forma vieja y venía fallando desde entonces.
+  eq('provisional: tiempo vacío', prov.tiempo,
+     { minutos: null, segundos: null, centesimas: null, decimas: null });
   eq('provisional: puesto "0"', prov.competidores[0].puesto, '0');
   eq('provisional: sin dividendo', prov.competidores[0].pagaria, null);
   eq('oficial: estado oficial', ofi.estado, 'oficial');
