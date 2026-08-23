@@ -243,6 +243,25 @@ Nunca usar `.catch(()=>{})` silencioso. Siempre:
 
 ---
 
+## Guard de sesión
+
+Antes de cualquier operación de escritura sobre producción, verificar los tres:
+
+```
+pwd                          → /home/clio/dev/SGH
+SELECT count(*) FROM spcs    → 181        (baseline al 2026-08-23)
+ref del proyecto             → unlhcuanfrtpatoipwve
+```
+
+El baseline de `spcs` **cambia cada vez que se dan de alta o de baja ejemplares** — actualizarlo acá
+cuando pase. Historial: 179 → 183 (tanda 5) → **181** (2026-08-23, se unificaron los dos pares de
+duplicados: se borraron `Fist Queen` y `Malenuchi`, ver `docs/PLAN_DUPLICADOS_SPC.md`).
+
+Los guards que aparecen dentro de los planes y bitácoras de `docs/` son **fotos de su fecha**, no el
+baseline vigente: no se reescriben.
+
+---
+
 ## Workflow de trabajo
 
 - Ramas con prefijo: `feat/`, `fix/`, `chore/`

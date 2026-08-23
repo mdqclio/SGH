@@ -1,7 +1,9 @@
 # Plan — unificar los dos pares de SPC duplicados
 
-**Fecha:** 2026-08-23 · **NADA EJECUTADO.** Esto es el plan; el SQL está en
-`migrations/merge_duplicados_spc.sql`, sin aplicar.
+**Fecha:** 2026-08-23 · ✅ **EJECUTADO** como migración `merge_duplicados_spc`.
+Resultado: `spcs` **183 → 181**, 0 huérfanos, sobrevivientes intactos
+(`Malenuchi Jack` conserva Emir Jack / Quartermaster), 2 filas en `_bak_merge_duplicados_spc`
+para el rollback. Tenencia sin cambios: 147 con entrenador, 34 sin.
 
 **Guard verificado antes de relevar:** `pwd` = `/home/clio/dev/SGH`, rama `main` en `bc9b310`,
 `count(spcs)` = **183**, proyecto `unlhcuanfrtpatoipwve` (confirmado por `get_project_url`).
