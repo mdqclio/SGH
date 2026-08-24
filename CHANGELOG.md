@@ -1,5 +1,46 @@
 # Changelog
 
+## [2026-08-24] — Inscripción libre: cualquier entrenador puede anotar cualquier SPC
+
+> Cambio de **regla de negocio**, confirmado por Fede y Yesi: no hay vínculo caballo↔entrenador.
+> El control pasa a ser disciplinario, no técnico — queda registrado quién inscribió, y una
+> inscripción falsa va a sanción de la comisión de carreras. Relevamiento, decisiones y
+> verificación en `docs/PORTAL_INSCRIPCION_LIBRE_PROPUESTA.md` (§4).
+
+- **Por qué**: el filtro por tenencia dejaba **34 de 181 SPC invisibles** para todo el portal —
+  los que no tienen `entrenador_id` cargado. Nadie los podía anotar. El filtro no protegía nada
+  que la comisión no pueda resolver, y bloqueaba el 19% del padrón.
+- **`rpc_buscar_spc(p_q)`** (nuevo): buscador sobre **todo** el padrón, por nombre, con columnas
+  whitelisteadas — nada de `entrenador_id`, `caballeriza_id` ni propietario. Mínimo 2 caracteres,
+  `LIMIT 30`, comodines de LIKE escapados. `spcs_select` **no** se abre al padrón completo: el
+  buscador es la única puerta y devuelve sólo lo que hace falta para anotar.
+- **`fn_mis_spc_visibles()`** (nuevo) = tenencia ∪ lo que yo inscribí. Sin esto, un entrenador que
+  anotaba un caballo ajeno **no veía la fila que él mismo había creado** ni podía retirarla.
+  `spcs_select` e `inscripciones_select` pasan a usarla. `fn_mis_spc_ids()` queda intacta: sigue
+  siendo la respuesta a "¿qué caballos figuran a mi nombre?", que es lo que muestra Mis caballos.
+- **`rpc_inscribir`**: fuera la validación de tenencia. `entrenador_id` pasa a ser **el que
+  inscribe**, no `spcs.entrenador_id` — con la regla nueva, anotar un caballo es declararse su
+  entrenador para esa carrera, y es el dato que la comisión necesita. `caballeriza_id` sale del SPC
+  y **puede quedar NULL** (29 de 181 no la tienen): la completa la secretaría en ratificación, igual
+  que hoy. No se hereda la caballeriza del que inscribe — le atribuiría el propietario equivocado a
+  un caballo ajeno.
+- **`rpc_baja_inscripcion`**: fuera la revalidación de tenencia. La fila ya está protegida por
+  `canal='portal' AND inscripto_por = el que llama`, que es más fuerte: **B no puede retirar lo que
+  cargó A, aunque el caballo sea de B** (assert G6e).
+- **Privacidad, por pedido de Yesi**: el portal **no** muestra inscripciones ajenas. Cada uno ve su
+  tenencia y lo que cargó. La lista pública de inscriptos ("largar los inscriptos") no existe
+  todavía y queda fuera de esta pasada. Residual inevitable: al duplicar, el mensaje dice que el
+  caballo ya está anotado — nunca por quién.
+- **`portal.html`**: modal de anotar con buscador; sin búsqueda activa sigue mostrando la lista
+  corta de caballos propios. El nombre en Mis inscripciones sale de un JOIN y no de `misCaballos`,
+  que con un caballo ajeno mostraba "—". SPC no activos se listan marcados y no clickeables
+  (hoy hay 0).
+- **`inscripciones.html`**: columna **"Cargada por"** — Portal + nombre, o Secretaría. El registro
+  ya existía (`inscripto_por` + `canal` + trigger de auditoría); lo que faltaba era mostrarlo. Es
+  el control que reemplaza al filtro.
+- **Probes**: `probe_gate4_inscribir` 15 → **21 asserts** (G6 invertido + G6b–G6g). Canarios de RLS
+  en verde: secretaría 18/18, portal 39/39, portal_ui 14/14, e2e 18/18.
+
 ## [2026-08-23] — Los invitados dejan de nacer en un sistema vacío (activación automática)
 
 > Fede entró y no vio datos. Valeria, lo mismo el 16/08. No era RLS rota ni un `auth_user_id`

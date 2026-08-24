@@ -223,6 +223,15 @@
     <div class="modal-body">
       <div id="minsc-carrera-info" style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;color:var(--muted);"></div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Elegí cuál de tus caballos anotás en este turno:</div>
+      <div class="spc-search-wrap" style="margin-bottom:14px;">
+        <input id="minsc-buscar" type="text" autocomplete="off" oninput="onBuscarSpc(this.value)"
+               placeholder="Buscar cualquier caballo del padrón por nombre…"
+               style="width:100%;padding:11px 13px;background:#0f2417;border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;">
+        <div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;">
+          Podés anotar cualquier ejemplar del padrón, esté o no a tu nombre.
+          Queda registrado que lo anotaste vos.
+        </div>
+      </div>
       <div id="minsc-lista"></div>
       <div id="validation-msg" class="validation-msg"></div>
     </div>
@@ -409,7 +418,9 @@ function renderCaballos() {
         todavía no figuran a tu nombre.<br><br>
         <strong>Qué hacer:</strong> pedile a ${TEL} que vincule tus caballos a tu ficha.
         Es un minuto de trabajo de su lado y después aparecen acá solos.<br><br>
-        Mientras tanto, tus inscripciones las sigue cargando la secretaría, como siempre.
+        <strong>Esto no te impide anotar:</strong> desde <strong>Llamado abierto</strong>
+        podés buscar cualquier ejemplar del padrón por nombre y anotarlo. Queda
+        registrado que lo anotaste vos.
       </p>
     </div>`;
     return;
@@ -561,11 +572,38 @@ async function loadLlamado() {
 /* ========== ANOTAR ========== */
 let carreraSeleccionada = null;
 
+// Buscador sobre TODO el padrón (cambio de regla 24/08/2026: cualquier
+// entrenador puede anotar cualquier SPC). null = no hay búsqueda activa y el
+// modal muestra la lista corta de caballos propios, que es el caso frecuente.
+let resultadosBusqueda = null;
+let buscarTimer = null;
+
+function onBuscarSpc(q) {
+  clearTimeout(buscarTimer);
+  const t = (q || '').trim();
+  // El RPC exige 2 caracteres; abajo de eso se vuelve a la lista propia.
+  if (t.length < 2) { resultadosBusqueda = null; renderListaCaballosModal(); return; }
+
+  const cont = document.getElementById('minsc-lista');
+  cont.innerHTML = '<div class="loading-state"><div class="spinner"></div> Buscando…</div>';
+
+  buscarTimer = setTimeout(async () => {
+    const { data, error } = await sb.rpc('rpc_buscar_spc', { p_q: t });
+    if (error) {
+      console.error('[rpc_buscar_spc]', error);
+      cont.innerHTML = `<div style="font-size:13px;color:var(--danger);padding:8px 0;">${esc(error.message)}</div>`;
+      return;
+    }
+    resultadosBusqueda = data || [];
+    renderListaCaballosModal();
+  }, 250);
+}
+
 // Inscripciones crudas del usuario. La policy de SELECT ya las limita a los
 // caballos propios, así que no hace falta filtrar por spc_id acá.
 async function cargarInscripcionesCrudas() {
   const { data, error } = await sb.from('inscripciones')
-    .select('id,estado,canal,inscripto_por,spc_id,carrera_id,created_at,'
+    .select('id,estado,canal,inscripto_por,spc_id,carrera_id,created_at,spcs(nombre),'
           + 'carreras(numero_turno,nombre,estado,apertura_inscripcion,cierre_inscripcion,'
           + 'reuniones(id,numero,numero_publico,fecha,estado,hipodromos(nombre)))')
     .order('created_at', { ascending: false });
@@ -588,6 +626,9 @@ function abrirInscripcion(carreraId, reunionId) {
   const vm = document.getElementById('validation-msg');
   vm.style.display = 'none'; vm.className = 'validation-msg';
 
+  resultadosBusqueda = null;
+  clearTimeout(buscarTimer);
+  document.getElementById('minsc-buscar').value = '';
   renderListaCaballosModal();
   document.getElementById('modal-inscribir').classList.add('open');
 }
@@ -597,22 +638,39 @@ function abrirInscripcion(carreraId, reunionId) {
 // avisa, nunca se bloquea. Lo único que se bloquea es repetir el MISMO turno.
 function renderListaCaballosModal() {
   const cont = document.getElementById('minsc-lista');
-  if (!misCaballos.length) {
-    cont.innerHTML = `<div style="font-size:13px;color:var(--muted);line-height:1.7;padding:8px 0;">
-      No tenés caballos asociados a tu ficha, así que no hay nada para anotar.<br>
-      Pedile a ${TEL} que los vincule.
-    </div>`;
+  const buscando = resultadosBusqueda !== null;
+  const lista = buscando ? resultadosBusqueda : misCaballos;
+
+  if (!lista.length) {
+    cont.innerHTML = buscando
+      ? `<div style="font-size:13px;color:var(--muted);line-height:1.7;padding:8px 0;">
+           Ningún caballo del padrón coincide con esa búsqueda.<br>
+           Si el ejemplar existe y no aparece, todavía no está cargado en el sistema:
+           avisale a ${TEL}.
+         </div>`
+      : `<div style="font-size:13px;color:var(--muted);line-height:1.7;padding:8px 0;">
+           No tenés caballos asociados a tu ficha, pero <strong>podés anotar cualquier
+           ejemplar del padrón</strong>: buscalo por nombre acá arriba.
+         </div>`;
     return;
   }
+
   const reunion = turnosAbiertos.find(r => r.id === carreraSeleccionada.reunionId);
   const idsDeLaReunion = new Set((reunion?.carreras || []).map(c => c.id));
 
-  cont.innerHTML = misCaballos.map(c => {
+  cont.innerHTML = lista.map(c => {
+    // Sólo se miran MIS inscripciones: las de otros entrenadores no se ven
+    // hasta que la secretaría publica el listado de inscriptos.
     const enEsteTurno = misInscripciones.find(
       i => i.spc_id === c.id && i.carrera_id === carreraSeleccionada.id);
     const enOtrosTurnos = misInscripciones.filter(
       i => i.spc_id === c.id && i.carrera_id !== carreraSeleccionada.id
         && idsDeLaReunion.has(i.carrera_id));
+
+    // habilitado sólo viene del buscador. Un SPC no activo se muestra igual
+    // —verlo tachado es mejor que "no aparece y no sé por qué"— pero no se
+    // puede anotar: validar_inscripcion lo rechaza de todos modos.
+    const noHabilitado = c.habilitado === false;
 
     const aviso = enEsteTurno
       ? `<span class="chip" style="color:var(--success);border-color:rgba(76,175,130,0.35);">ya anotado en este turno</span>`
@@ -623,17 +681,21 @@ function renderListaCaballosModal() {
             .map(esc).join(', ')} — está bien, la secretaría define después</span>`
         : '';
 
-    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;${noHabilitado ? 'opacity:.55;' : ''}">
       <div style="flex:1;min-width:150px;">
         <div style="font-family:'Playfair Display',serif;color:var(--accent);font-size:15px;">${esc(c.nombre)}</div>
         <div class="carrera-chips" style="margin-top:4px;">
           <span class="chip">${esc(c.sexo || '—')}</span>
+          ${c.fecha_nacimiento ? `<span class="chip">${esc(fechaCorta(c.fecha_nacimiento))}</span>` : ''}
+          ${noHabilitado ? `<span class="chip" style="color:var(--danger);border-color:rgba(224,82,82,0.35);">no habilitado (${esc(c.estado || '—')})</span>` : ''}
           ${aviso}
         </div>
       </div>
       ${enEsteTurno
         ? `<button class="btn-sm" style="opacity:.45;cursor:not-allowed;background:none;border:1px solid var(--border);color:var(--muted);" disabled>Anotado</button>`
-        : `<button class="btn-sm btn-success" onclick="anotar('${esc(c.id)}')">Anotar</button>`}
+        : noHabilitado
+          ? `<button class="btn-sm" style="opacity:.45;cursor:not-allowed;background:none;border:1px solid var(--border);color:var(--muted);" disabled>No habilitado</button>`
+          : `<button class="btn-sm btn-success" onclick="anotar('${esc(c.id)}')">Anotar</button>`}
     </div>`;
   }).join('');
 }
@@ -641,6 +703,8 @@ function renderListaCaballosModal() {
 function closeModalInscribir() {
   document.getElementById('modal-inscribir').classList.remove('open');
   carreraSeleccionada = null;
+  resultadosBusqueda = null;
+  clearTimeout(buscarTimer);
 }
 
 // Toda la escritura pasa por rpc_inscribir. El portal NO tiene INSERT sobre
@@ -691,16 +755,18 @@ async function loadMisInscripciones() {
       <p style="line-height:1.7;">
         Acá vas a ver los caballos que anotes desde el portal
         <strong>y también los que cargue la secretaría por vos</strong>.<br><br>
-        ${misCaballos.length
-          ? 'Para anotar uno, entrá a <strong>Llamado abierto</strong>.'
-          : `Todavía no tenés caballos asociados a tu ficha — pedile a ${TEL} que los vincule.`}
+        Para anotar uno, entrá a <strong>Llamado abierto</strong> y buscá el caballo
+        por nombre: podés anotar cualquier ejemplar del padrón.
       </p>
     </div>`;
     return;
   }
 
+  // El nombre sale del JOIN, no de misCaballos: con inscripción libre puedo
+  // haber anotado un caballo que no figura a mi nombre.
   const nombrePorSpc = {};
   misCaballos.forEach(c => { nombrePorSpc[c.id] = c.nombre; });
+  misInscripciones.forEach(i => { if (i.spcs?.nombre) nombrePorSpc[i.spc_id] = i.spcs.nombre; });
   const estadoBadge = { inscripto: 'badge-inscripto', ratificado: 'badge-ratificado', forfait: 'badge-forfait' };
 
   const filas = misInscripciones.map(i => {

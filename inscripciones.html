@@ -478,7 +478,12 @@ function renderCarreraHeader() {
 async function loadInscripciones() {
   if (!currentCarreraId) return;
   document.getElementById('list-container').innerHTML='<div class="loading-state"><div class="spinner"></div> Cargando inscriptos…</div>';
-  const { data, error } = await sb.from('inscripciones').select('*').eq('carrera_id', currentCarreraId).order('created_at');
+  // El nombre del cargador va por JOIN explícito: inscripciones tiene DOS FK a
+  // usuarios (inscripto_por y ratificado_por), así que PostgREST necesita el
+  // nombre del constraint o falla por ambigüedad.
+  const { data, error } = await sb.from('inscripciones')
+    .select('*, cargador:usuarios!inscripciones_inscripto_por_fkey(nombre_completo)')
+    .eq('carrera_id', currentCarreraId).order('created_at');
   if (error) { toast(error.message,'error'); return; }
   inscripciones = data||[];
   renderInscripciones();
@@ -528,6 +533,12 @@ function renderInscripciones() {
     const certCell = i.certificado_correr
       ? `<span style="color:var(--success);font-weight:600;">Sí</span>`
       : `<span style="color:var(--danger);font-weight:600;">No</span>`;
+    // Quién cargó la inscripción. Con inscripción libre (24/08/2026) cualquier
+    // entrenador puede anotar cualquier SPC, y este dato ES el control que
+    // reemplaza al filtro por tenencia: la comisión de carreras sanciona con él.
+    const cargadaCell = i.canal === 'portal'
+      ? `<div style="font-size:12px;line-height:1.4;"><span style="color:var(--oro,#c9a84c);">Portal</span><br><span style="color:var(--muted);">${i.cargador?.nombre_completo || '—'}</span></div>`
+      : `<span style="font-size:12px;color:var(--muted);">Secretaría</span>`;
     const gateraCell = (i.estado==='forfait'||i.estado==='mal_inscrito')
       ? `<span style="color:var(--muted)">—</span>`
       : `<input type="number" min="1" step="1" class="gatera-input" value="${i.numero_partidor??''}" data-prev="${i.numero_partidor??''}" onchange="guardarGatera('${i.id}', this)" style="width:60px;text-align:center" title="N° de gatera (sorteo)">`;
@@ -540,15 +551,16 @@ function renderInscripciones() {
       <td>${jkey?`${jkey.apellido}, ${jkey.nombre}`:'-'}</td>
       <td>${jkeySup?`${jkeySup.apellido}, ${jkeySup.nombre}`:'—'}</td>
       <td>${(() => { const l=[]; if(i.peon) l.push(`Peón: ${i.peon}`); if(i.capataz) l.push(`Cap: ${i.capataz}`); if(i.sereno) l.push(`Sereno: ${i.sereno}`); return l.length?`<div style="font-size:12px;color:var(--muted);">${l.join('<br>')}</div>`:''; })()}</td>
+      <td>${cargadaCell}</td>
       <td><span class="badge badge-${i.estado}">${i.estado?.replace('_',' ')||'—'}</span></td>
       <td class="actions-cell">
-        <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(i)})'>✏️</button>
+        <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify({ ...i, cargador: undefined })})'>✏️</button>
         <button class="btn-sm btn-delete" onclick="deleteRecord('${i.id}')">🗑️</button>
       </td>
     </tr>`;
   }).join('');
   document.getElementById('list-container').innerHTML = `<div class="table-wrap"><table>
-    <thead><tr><th>SPC</th><th>Gatera</th><th>Cert.</th><th>Caballeriza</th><th>Entrenador</th><th>Jockey</th><th>Jockey suplente</th><th>Personal</th><th>Estado</th><th>Acciones</th></tr></thead>
+    <thead><tr><th>SPC</th><th>Gatera</th><th>Cert.</th><th>Caballeriza</th><th>Entrenador</th><th>Jockey</th><th>Jockey suplente</th><th>Personal</th><th>Cargada por</th><th>Estado</th><th>Acciones</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
   const n=inscripciones.length; const cEl=document.getElementById('inscriptos-count'); cEl.textContent=`${n} inscripto${n!==1?'s':''}`; cEl.style.display='';

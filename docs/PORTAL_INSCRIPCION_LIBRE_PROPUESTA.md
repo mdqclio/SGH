@@ -263,3 +263,116 @@ pg_trigger sobre inscripciones                          → trg_audit_inscripcio
 curl https://sigh.com.ar/{inscripciones,spcs,programa}.html | grep '<script src'
                                                         → ninguna carga edad-spc.js
 ```
+
+---
+
+# §4. DECISIONES DE FEDE/YESI Y ESTADO DE IMPLEMENTACIÓN
+
+_Agregado el 24/08/2026, después de las respuestas de Yesi (mensajes 75586, 75588, 75589)._
+
+## §4.1 Las tres decisiones
+
+**1. Caballeriza faltante (29 de 181 SPC).**
+Yesi contestó desde otro supuesto: creía que el entrenador tendría que elegir una
+caballeriza, y que si esa caballeriza no está en el sistema el caballo "no le va a
+salir". No es así: el buscador busca **por nombre de caballo** sobre `spcs`, y la
+caballeriza no participa de la búsqueda. Un caballo aparece aunque su caballeriza
+esté vacía.
+
+→ **Decisión: `caballeriza_id` queda NULL y no se le pide nada al entrenador.**
+La secretaría la completa en ratificación. Es exactamente lo que ya pasa hoy cuando
+la inscripción la carga Yesi a mano sobre un SPC sin caballeriza. Consecuencia
+conocida y aceptada: con caballeriza NULL el trigger deja `propietario_id` en NULL
+y la inscripción no liquida hasta completarla (GOTCHAS #47).
+
+**2. Quién anotó cada caballo — sólo la secretaría.**
+Textual: _"el entrenador de quién anotó un caballo, no, eso lo deberíamos ver
+solamente nosotros. Después, cuando nosotros largamos los inscriptos, ahí recién
+ellos pueden ver cuáles son los caballos que se anotaron. Antes no."_
+
+→ **Decisión: el portal NO muestra inscripciones ajenas.** Implementado tal cual:
+`fn_mis_spc_visibles()` deja ver sólo la tenencia propia más lo que uno mismo
+cargó. La lista pública de inscriptos ("largar los inscriptos") **no existe todavía
+en el sistema** y queda fuera de esta pasada — no hay que construir nada, sólo no
+construir de más.
+
+Residual conocido, sin solución posible: si dos entrenadores anotan el mismo
+caballo en el mismo turno, el segundo recibe _"Ese caballo ya está anotado en ese
+turno."_ Eso revela que el caballo está tomado, pero **nunca por quién**. Es
+enumerable de a un intento por vez y es el mínimo inevitable — sin ese mensaje el
+duplicado no se puede rechazar.
+
+**3. SPC no activos en el buscador.**
+Yesi volvió a hablar de caballos que no están en el padrón. Esos no los puede
+inscribir nadie, ni ella ni el portal: es importación de Stud Book, problema aparte
+y de carga de datos, no de código.
+
+→ **Decisión sobre lo que sí se preguntaba: se muestran, marcados "no habilitado"
+y con el botón deshabilitado.** Ver que existe pero está frenado es mejor que "no
+aparece y no sé por qué", que es justo la queja. Al 24/08/2026 hay **0 SPC con
+estado ≠ 'activo'**, así que hoy no cambia nada en pantalla; el código lo contempla
+para cuando los haya. `validar_inscripcion` los rechaza igual, así que la marca es
+informativa, no es el control.
+
+## §4.2 Qué se implementó
+
+| # | Cambio | Dónde |
+|---|---|---|
+| 1 | `fn_mis_spc_visibles()` = tenencia ∪ lo que yo inscribí | `migrations/portal_inscripcion_libre.sql` |
+| 2 | `spcs_select` e `inscripciones_select` pasan a usar la función nueva | idem |
+| 3 | `rpc_buscar_spc(p_q)` — busca en todo el padrón, columnas whitelisteadas, mín. 2 caracteres, LIMIT 30, comodines de LIKE escapados | idem |
+| 4 | `rpc_inscribir` sin validación de tenencia; `entrenador_id` = **el que inscribe**, no `spcs.entrenador_id`; `caballeriza_id` del SPC, puede ser NULL | `migrations/rpc_inscribir.sql` |
+| 5 | `rpc_baja_inscripcion` sin revalidación de tenencia (la fila ya está protegida por `canal='portal' AND inscripto_por = el que llama`) | `migrations/rpc_baja_inscripcion.sql` |
+| 6 | Modal de anotar con buscador sobre el padrón; sin búsqueda activa sigue mostrando la lista corta de caballos propios | `portal.html` |
+| 7 | El nombre del caballo en "Mis inscripciones" sale de un JOIN, no de `misCaballos` — si no, un caballo ajeno anotado mostraba "—" | `portal.html` |
+| 8 | Columna **"Cargada por"** (Portal + nombre, o Secretaría) | `inscripciones.html` |
+
+Por qué `entrenador_id` = el que inscribe y no el del padrón: con la regla nueva,
+anotar un caballo **es** declararse su entrenador para esa carrera, y es el dato
+que la comisión necesita para sancionar. Copiar `spcs.entrenador_id` sería peor —
+en 34 casos es NULL y en el resto puede estar desactualizado.
+
+Por qué **no** se hereda la caballeriza del que inscribe: le atribuiría el
+propietario equivocado a un caballo ajeno, vía `fn_inscripcion_set_propietario`.
+
+## §4.3 El control disciplinario, confirmado
+
+No hubo que agregar nada. Ya existía por duplicado:
+
+1. `inscripciones.inscripto_por` (FK a `usuarios`) + `canal='portal'` + `created_at`.
+2. El trigger `trg_audit_inscripciones` → `fn_auditoria_log`, que escribe la fila
+   completa y el `usuario_id` resuelto por el email del JWT.
+
+Lo único que faltaba era **mostrarlo**: eso es la columna "Cargada por" del punto 8.
+
+## §4.4 Verificación
+
+`node tests/probe_gate4_inscribir.mjs` → **21 PASS / 0 FAIL** (era 15; los asserts
+nuevos son G6 invertido y G6b–G6g).
+
+Los canarios de RLS, que son los que podía romper el cambio de policies:
+
+```
+node tests/probe_rls_secretaria.mjs    → 18 OK · 0 FAIL
+node tests/probe_rls_portal.mjs        → 39 PASS · 0 FAIL
+node tests/probe_gate4_portal_ui.mjs   → 14 PASS · 0 FAIL
+node tests/probe_portal_e2e_gate4.mjs  → 18 PASS · 0 FAIL   teardown limpio
+node tests/probe_portal_validacion.mjs → TODO OK
+```
+
+Asserts nuevos que valen la pena nombrar:
+
+- **G6e** — B **no** puede retirar la inscripción que cargó A, aunque el caballo sea
+  de B. Retirar es de quien cargó la fila, no de quien tiene el caballo.
+- **G6c** — A ve la inscripción ajena que él mismo cargó. Sin `fn_mis_spc_visibles()`
+  le quedaba invisible y sin botón de retirar: la habría creado y no la habría podido
+  sacar.
+
+## §4.5 Lo que sigue pendiente
+
+- **Padrón**: la importación desde Stud Book. Es el faltante real que marcó Yesi, y
+  es carga de datos.
+- **Lista pública de inscriptos** ("largar los inscriptos"): no existe. Cuando se
+  haga, ahí es donde se abre la visibilidad que Yesi describió, y no antes.
+- **Backfill de `propietario_id`** (GOTCHAS #47): sigue igual, este cambio no lo
+  empeora ni lo mejora.
