@@ -188,6 +188,7 @@
   </style>
   <script src="premios-utils.js"></script>
   <script src="active-reunion.js"></script>
+  <script src="edad-spc.js"></script>
 </head>
 <body>
 <div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;"></div></div>
@@ -575,7 +576,7 @@ async function searchSpc() {
   dd.style.display = 'block';
   spcSearchTimer = setTimeout(async () => {
     const { data, error } = await sb.from('spcs')
-      .select('id, nombre, fecha_nacimiento, sexo, color, padrillo_nombre, madre_nombre, entrenador_id, caballeriza_id')
+      .select('id, nombre, fecha_nacimiento, sexo, color, padrillo_nombre, madre_nombre, entrenador_id, caballeriza_id, certificado_correr')
       .eq('estado', 'activo')
       .ilike('nombre', `%${q}%`)
       .order('nombre')
@@ -598,7 +599,7 @@ async function searchSpc() {
 function selectSpcIdx(idx) {
   const s = spcSearchResults[idx];
   if (!s) return;
-  selectSpc(s.id, s.nombre, s.entrenador_id||'', '', s.caballeriza_id||'', false);
+  selectSpc(s.id, s.nombre, s.entrenador_id||'', '', s.caballeriza_id||'', !!s.certificado_correr);
 }
 
 function selectSpc(id, nombre, entrenadorId, jockeyId, caballerizaId, tieneCert) {
