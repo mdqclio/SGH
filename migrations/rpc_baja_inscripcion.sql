@@ -18,8 +18,11 @@
 --            que es acto de ratificación y está fuera de v1.
 --     3. estado = 'inscripto'
 --          → si ya está ratificada hay un acto de secretaría encima.
---     4. el SPC sigue en fn_mis_spc_ids()
---          → la tenencia se revalida, no se asume.
+--   (Hasta el 24/08/2026 había una quinta condición: que el SPC siguiera en
+--   fn_mis_spc_ids(). Se eliminó con el cambio de regla de inscripción libre
+--   — si no hay tenencia al inscribir, tampoco puede haberla al retirar. La
+--   fila sigue protegida por canal='portal' AND inscripto_por = el que llama,
+--   que es más fuerte: sólo se borra lo que uno mismo cargó.)
 --
 --   Es DELETE y no un estado nuevo: la fila nunca tuvo efecto, y agregar un
 --   valor al ENUM estado_inscripcion (rígido, GOTCHAS #4) para representar
@@ -73,14 +76,7 @@ BEGIN
     RAISE EXCEPTION 'Esa inscripción ya fue procesada por la secretaría y no se puede retirar desde el portal.';
   END IF;
 
-  -- 4. Tenencia vigente.
-  IF NOT EXISTS (
-    SELECT 1 FROM fn_mis_spc_ids() m WHERE m.spc_id = v_insc.spc_id
-  ) THEN
-    RAISE EXCEPTION 'Ese caballo ya no figura a su nombre.';
-  END IF;
-
-  -- 5. Ventana abierta — mismo criterio que rpc_inscribir, fail-closed.
+  -- 4. Ventana abierta — mismo criterio que rpc_inscribir, fail-closed.
   SELECT c.*, r.estado::text AS reunion_estado
     INTO v_carrera
     FROM carreras c JOIN reuniones r ON r.id = c.reunion_id
@@ -95,7 +91,7 @@ BEGIN
     RAISE EXCEPTION 'La inscripción para ese turno ya cerró. Para retirar el caballo, hablá con la secretaría.';
   END IF;
 
-  -- 6. Borrado. Orden de FK: resultado_posiciones antes que inscripciones
+  -- 5. Borrado. Orden de FK: resultado_posiciones antes que inscripciones
   --    (GOTCHAS #12). Con la ventana abierta no puede haber resultados,
   --    pero el DELETE va igual para no depender de esa suposición.
   DELETE FROM resultado_posiciones WHERE inscripcion_id = p_inscripcion_id;

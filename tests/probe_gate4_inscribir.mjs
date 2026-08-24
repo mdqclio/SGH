@@ -138,7 +138,7 @@ async function darDeBaja(sb, inscripcionId) {
 
 // ===========================================================================
 async function main() {
-  console.log(`\n probe_gate4_inscribir — 15 asserts · run ${RUN}\n`);
+  console.log(`\n probe_gate4_inscribir — 21 asserts · run ${RUN}\n`);
 
   // --- lookups de contexto ---
   const { data: hip, error: eH } = await admin.from('hipodromos')
@@ -231,7 +231,7 @@ async function main() {
     `canal=${row?.canal} inscripto_por=${row?.inscripto_por === uA.usuarioId} estado=${row?.estado}`);
 
   check('G3', row?.entrenador_id === profA && row?.caballeriza_id === cab,
-    'entrenador_id y caballeriza_id copiados del SPC',
+    'entrenador_id = el que inscribe; caballeriza_id copiada del SPC',
     `entrenador=${row?.entrenador_id === profA} caballeriza=${row?.caballeriza_id === cab}`);
   // propietario_id lo pone el trigger a partir de los responsables de la
   // caballeriza. La caballeriza fixture no tiene responsables, así que acá
@@ -257,13 +257,63 @@ async function main() {
     r5.ok ? 'el RPC lo aceptó' : `filas=${f5.length}`);
 
   // =========================================================================
-  console.log('\n── Tenencia ──');
+  console.log('\n── Inscripción libre (cambio de regla 24/08/2026) ──');
   // =========================================================================
+  // ANTES este assert era el inverso: A NO podía inscribir un caballo de B.
+  // Fede y Yesi cambiaron la regla — cualquier entrenador puede anotar
+  // cualquier SPC del padrón y el control es disciplinario, con
+  // inscripto_por como evidencia. Ver migrations/portal_inscripcion_libre.sql.
   const r6 = await inscribir(sbA, spcB1, cAbierta);
   const f6 = await filasEn(cAbierta, spcB1);
-  check('G6', !r6.ok && f6.length === 0,
-    'A NO puede inscribir un caballo AJENO (de B)',
-    r6.ok ? 'el RPC lo aceptó' : `filas coladas=${f6.length}`);
+  if (r6.id) fx.inscripciones.push(r6.id);
+  check('G6', r6.ok && f6.length === 1,
+    'A SÍ puede inscribir un caballo AJENO (de B) — inscripción libre',
+    r6.msg ?? `filas=${f6.length}`);
+
+  const rowAjeno = f6[0]
+    ? (await admin.from('inscripciones').select('*').eq('id', f6[0].id).single()).data
+    : null;
+
+  // El dato que reemplaza al filtro: queda registrado que fue A, y el
+  // entrenador de la inscripción es A —el que se declara responsable—,
+  // NO el profB que figura en el padrón.
+  check('G6b', rowAjeno?.inscripto_por === uA.usuarioId
+            && rowAjeno?.entrenador_id === profA
+            && rowAjeno?.canal === 'portal',
+    'la inscripción ajena registra a A como quien inscribió y como entrenador',
+    `inscripto_por=${rowAjeno?.inscripto_por === uA.usuarioId} entrenador=${rowAjeno?.entrenador_id === profA}`);
+
+  // Sin fn_mis_spc_visibles() esta fila le quedaría invisible al propio A:
+  // el caballo no está en su tenencia y la policy vieja filtraba por ella.
+  const { data: veAjena } = await sbA.from('inscripciones')
+    .select('id').eq('id', f6[0]?.id ?? '00000000-0000-0000-0000-000000000000');
+  check('G6c', (veAjena?.length ?? 0) === 1,
+    'A VE la inscripción ajena que él mismo cargó (fn_mis_spc_visibles)',
+    `filas visibles=${veAjena?.length ?? 0}`);
+
+  // B, el dueño del caballo, la ve por tenencia. Sigue valiendo.
+  const { data: veB } = await sbB.from('inscripciones')
+    .select('id').eq('id', f6[0]?.id ?? '00000000-0000-0000-0000-000000000000');
+  check('G6d', (veB?.length ?? 0) === 1,
+    'B ve la inscripción de su propio caballo, aunque la haya cargado A',
+    `filas visibles=${veB?.length ?? 0}`);
+
+  // Retirar es de quien la cargó, NO de quien tiene el caballo: B no puede.
+  const b6e = await darDeBaja(sbB, f6[0]?.id);
+  check('G6e', !b6e.ok && (await filasEn(cAbierta, spcB1)).length === 1,
+    'B NO puede retirar la inscripción que cargó A, aunque el caballo sea suyo',
+    b6e.ok ? 'la borró' : b6e.msg);
+
+  // El buscador ve todo el padrón, incluido el caballo de B.
+  const { data: busq, error: eBusq } = await sbA.rpc('rpc_buscar_spc', { p_q: `PROBE-G4-B1-${RUN}` });
+  check('G6f', !eBusq && (busq?.length ?? 0) === 1 && busq[0].id === spcB1 && busq[0].habilitado === true,
+    'rpc_buscar_spc encuentra un SPC ajeno y lo marca habilitado',
+    eBusq?.message ?? `filas=${busq?.length ?? 0}`);
+
+  const { data: corto } = await sbA.rpc('rpc_buscar_spc', { p_q: 'a' });
+  check('G6g', (corto?.length ?? 0) === 0,
+    'rpc_buscar_spc no devuelve nada con menos de 2 caracteres',
+    `filas=${corto?.length ?? 0}`);
 
   // =========================================================================
   console.log('\n── Ventana ──');

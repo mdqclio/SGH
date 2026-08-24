@@ -11,7 +11,7 @@
  *
  * El gate 4 cambió la arquitectura y con eso el bug dejó de ser posible por
  * construcción: el front ya no inserta. Llama a `rpc_inscribir`, que es
- * SECURITY DEFINER, revalida todo server-side (tenencia, ventana, reunión
+ * SECURITY DEFINER, revalida todo server-side (ventana, reunión
  * publicada, validar_inscripcion, duplicado en el mismo turno) y es quien hace
  * el INSERT. Si el RPC levanta excepción, no se escribe nada — no hay decisión
  * del cliente que pueda saltearse la validación.
@@ -54,10 +54,12 @@ const CASOS = [
     esperaTexto: 'Ese caballo ya está anotado en ese turno.',
   },
   {
-    n: 'C caballo ajeno — no figura a su nombre',
-    rpcError: { message: 'Ese caballo no figura a su nombre. Si corresponde, pedile a la secretaría que lo vincule a su ficha.' },
+    // El rechazo por tenencia dejó de existir el 24/08/2026 (inscripción
+    // libre). Lo que queda de ese camino es el SPC inexistente.
+    n: 'C SPC inexistente',
+    rpcError: { message: 'El caballo no existe.' },
     esperaError: true,
-    esperaTexto: 'que lo vincule a su ficha.',
+    esperaTexto: 'El caballo no existe.',
   },
   {
     n: 'D ventana de inscripción cerrada',

@@ -238,8 +238,11 @@ async function main() {
   check('U4',
     /todavía no figuran a tu nombre/i.test(htmlVacio)
     && /pedile a la secretaría/i.test(htmlVacio)
-    && /la secretaría, como siempre/i.test(htmlVacio),
-    'el entrenador sin caballos ve POR QUÉ está vacío y QUÉ hacer',
+    // Desde el 24/08/2026 el estado vacío ya no puede terminar en "esperá a la
+    // secretaría": con inscripción libre el entrenador puede anotar igual.
+    && /no te impide anotar/i.test(htmlVacio)
+    && /cualquier ejemplar del padrón/i.test(htmlVacio),
+    'el entrenador sin caballos ve POR QUÉ está vacío y que igual puede anotar',
     htmlVacio.slice(0, 120));
 
   // El mismo caso, pero end-to-end contra la base: cuenta real sin tenencia.

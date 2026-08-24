@@ -10,6 +10,12 @@
 --   "el cliente puede insertar y confiamos en el JS" y "el cliente no
 --   puede insertar, punto".
 --
+-- ⚠️ CAMBIO DE REGLA 24/08/2026 — INSCRIPCIÓN LIBRE
+--    Se eliminó la validación de tenencia (paso 2). Cualquier entrenador
+--    puede anotar CUALQUIER SPC del padrón: el control es disciplinario,
+--    no técnico. Ver migrations/portal_inscripcion_libre.sql y
+--    docs/PORTAL_INSCRIPCION_LIBRE_PROPUESTA.md.
+--
 -- ⚠️ REQUIERE migrations/canal_portal.sql aplicado ANTES (agrega el valor
 --    'portal' al ENUM canal_inscripcion). Postgres no permite usar un valor
 --    de ENUM en la misma transacción en que se lo agregó.
@@ -23,6 +29,7 @@ SET search_path = public
 AS $$
 DECLARE
   v_usuario_id     uuid;
+  v_entrenador_id  uuid;
   v_carrera        RECORD;
   v_reunion_estado text;
   v_spc            RECORD;
@@ -36,9 +43,11 @@ BEGIN
   --    confiable de tenencia por propiedad (spc_propietarios está vacía).
   --    La secretaría tampoco entra por acá — tiene su propio camino.
   -- ----------------------------------------------------------
-  IF NOT EXISTS (
-    SELECT 1 FROM fn_mis_entidades() e WHERE e.entidad_tipo = 'profesional'
-  ) THEN
+  SELECT e.entidad_id INTO v_entrenador_id
+    FROM fn_mis_entidades() e
+   WHERE e.entidad_tipo = 'profesional'
+   LIMIT 1;
+  IF v_entrenador_id IS NULL THEN
     RAISE EXCEPTION 'No autorizado: esta operación es para entrenadores del portal.';
   END IF;
 
@@ -51,16 +60,18 @@ BEGIN
   END IF;
 
   -- ----------------------------------------------------------
-  -- 2. TENENCIA. El caballo tiene que estar a nombre del que llama.
-  --    fn_mis_spc_ids() lee spcs.entrenador_id — el campo que puebla el
-  --    gate 4.1 y que Yesi puede corregir en el ABM.
+  -- 2. SIN VALIDACIÓN DE TENENCIA — es el cambio de regla del 24/08/2026.
+  --    Antes acá se exigía que el caballo estuviera en fn_mis_spc_ids().
+  --    Eso dejaba fuera a 34 de 181 SPC (los que no tienen entrenador_id
+  --    cargado): nadie los podía anotar desde el portal.
+  --
+  --    Lo que reemplaza al filtro NO es nada técnico: es el registro de
+  --    quién inscribió (inscripto_por + canal + auditoría) y la sanción de
+  --    la comisión de carreras si la inscripción es falsa.
+  --
+  --    El caballo tiene que EXISTIR, eso sí. SECURITY DEFINER ⇒ este SELECT
+  --    ve todo el padrón aunque el que llama no vea la fila por RLS.
   -- ----------------------------------------------------------
-  IF NOT EXISTS (
-    SELECT 1 FROM fn_mis_spc_ids() m WHERE m.spc_id = p_spc_id
-  ) THEN
-    RAISE EXCEPTION 'Ese caballo no figura a su nombre. Si corresponde, pedile a la secretaría que lo vincule a su ficha.';
-  END IF;
-
   SELECT * INTO v_spc FROM spcs WHERE id = p_spc_id;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'El caballo no existe.';
@@ -130,9 +141,21 @@ BEGIN
 
   -- ----------------------------------------------------------
   -- 6. INSERT.
-  --    caballeriza_id es imprescindible: sin ella el trigger
-  --    fn_inscripcion_set_propietario deja propietario_id en NULL y la
-  --    inscripción nace rota para liquidaciones (GOTCHAS #47).
+  --    entrenador_id = EL QUE INSCRIBE, no spcs.entrenador_id. Con la regla
+  --    nueva el que anota se está declarando entrenador del caballo para esa
+  --    carrera, y es el dato que la comisión necesita si hay que sancionar.
+  --    Copiar spcs.entrenador_id sería peor: en 34 casos es NULL y en el
+  --    resto puede estar desactualizado.
+  --
+  --    caballeriza_id sale del SPC y PUEDE QUEDAR NULL (29 de 181 no la
+  --    tienen). Con caballeriza NULL el trigger fn_inscripcion_set_propietario
+  --    deja propietario_id en NULL y la inscripción no liquida hasta que la
+  --    secretaría la complete (GOTCHAS #47) — que es exactamente lo que ya
+  --    pasa hoy cuando la carga Yesi a mano. Decisión de Fede/Yesi: no se le
+  --    pide la caballeriza al entrenador, la completa la secretaría en
+  --    ratificación.
+  --    NO se hereda la caballeriza del que inscribe: le atribuiría el
+  --    propietario equivocado a un caballo ajeno.
   --    propietario_id NO se setea a mano — lo pone el trigger.
   -- ----------------------------------------------------------
   INSERT INTO inscripciones (
@@ -143,8 +166,8 @@ BEGIN
     'inscripto',          -- el valor que usa el circuito real; no 'pre_inscripto'
     'portal',             -- estrena la trazabilidad: 0/186 filas la tenían
     v_usuario_id,         -- usuarios.id, no auth.uid() — ver arriba
-    v_spc.entrenador_id,
-    v_spc.caballeriza_id
+    v_entrenador_id,      -- el que inscribe, no el del padrón
+    v_spc.caballeriza_id  -- puede ser NULL; la completa la secretaría
   )
   RETURNING id INTO v_id;
 
@@ -153,7 +176,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.rpc_inscribir(uuid, uuid) IS
-  'Gate 4 — inscripción desde el portal. Valida entidad, tenencia, ventana y reglas de carrera; escribe canal=portal e inscripto_por. Multi-categoría permitido (GOTCHAS #69).';
+  'Gate 4 — inscripción desde el portal. Valida entidad, ventana y reglas de carrera (SIN tenencia desde 24/08/2026: inscripción libre); escribe canal=portal e inscripto_por. Multi-categoría permitido (GOTCHAS #69).';
 
 REVOKE ALL     ON FUNCTION public.rpc_inscribir(uuid, uuid) FROM PUBLIC;
 REVOKE ALL     ON FUNCTION public.rpc_inscribir(uuid, uuid) FROM anon;
