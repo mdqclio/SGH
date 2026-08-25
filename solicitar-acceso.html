@@ -73,6 +73,12 @@
     .msg.show { display: block; }
     .msg-error { background: rgba(180,60,50,0.16); border: 1px solid rgba(200,80,70,0.45); color: #ffc9c2; }
     .msg-ok { background: rgba(60,150,90,0.14); border: 1px solid rgba(80,180,110,0.4); color: #bff0cf; }
+    .msg-aviso {
+      display: block; background: rgba(201,168,76,0.10);
+      border: 1px solid rgba(201,168,76,0.42); color: var(--oro-suave);
+      font-size: 12.5px; margin-top: 18px; margin-bottom: 0;
+    }
+    .msg-aviso strong { color: var(--oro); font-weight: 600; }
     .foot { text-align: center; margin-top: 18px; }
     .foot a { color: var(--gris); font-size: 13px; text-decoration: none; }
     .foot a:hover { color: var(--oro-suave); }
@@ -202,6 +208,12 @@
         </div>
         <div class="cf" id="cf-widget"></div>
       </div>
+
+      <p class="msg msg-aviso">
+        Para registrarte tenés que ser <strong>propietario o entrenador habilitado</strong>.
+        Cargá tus datos con veracidad: las solicitudes con datos falsos se rechazan, y una
+        inscripción hecha con identidad falsa puede derivar en sanción de la Comisión de Carreras.
+      </p>
 
       <button class="btn" id="btn-enviar">
         <span id="btn-txt">Enviar solicitud</span>
