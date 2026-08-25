@@ -78,6 +78,32 @@ const CASOS = [
     rpcError: null,
     esperaError: false,
   },
+  {
+    // Declaración de monta (25/08/2026): sin caballeriza no se llama al RPC.
+    n: 'G falta la caballeriza — ni siquiera llama al RPC',
+    rpcError: null,
+    monta: { cab: '', ent: 'ent-1', joc: 'joc-1', sup: '' },
+    esperaError: true,
+    esperaTexto: 'la caballeriza',
+    noLlamaRpc: true,
+  },
+  {
+    n: 'H falta el jockey — ni siquiera llama al RPC',
+    rpcError: null,
+    monta: { cab: 'cab-1', ent: 'ent-1', joc: '', sup: '' },
+    esperaError: true,
+    esperaTexto: 'el jockey que va a montar',
+    noLlamaRpc: true,
+  },
+  {
+    // El entrenador es DECLARADO, no derivado del que anota (Yesi 25/08/2026).
+    n: 'I falta el entrenador — ni siquiera llama al RPC',
+    rpcError: null,
+    monta: { cab: 'cab-1', ent: '', joc: 'joc-1', sup: '' },
+    esperaError: true,
+    esperaTexto: 'el entrenador que presenta el caballo',
+    noLlamaRpc: true,
+  },
 ];
 
 let fallos = 0;
@@ -85,7 +111,17 @@ console.log('\n== probe_portal_validacion — el rechazo se ve en pantalla ==\n'
 
 for (const c of CASOS) {
   const vm = { textContent: '', className: '', style: {} };
-  const document = { getElementById: (id) => (id === 'validation-msg' ? vm : null) };
+  // Los tres selects de la monta (25/08/2026). Por defecto vienen completos:
+  // los casos que los vacían prueban la validación previa al RPC.
+  const selects = {
+    'minsc-caballeriza': { value: c.monta?.cab ?? 'cab-1' },
+    'minsc-entrenador':  { value: c.monta?.ent ?? 'ent-1' },
+    'minsc-jockey':      { value: c.monta?.joc ?? 'joc-1' },
+    'minsc-suplente':    { value: c.monta?.sup ?? '' },
+  };
+  const document = {
+    getElementById: (id) => (id === 'validation-msg' ? vm : (selects[id] ?? null)),
+  };
 
   let rpcLlamado = null;
   const sb = { rpc: async (nombre, args) => { rpcLlamado = { nombre, args }; return { error: c.rpcError }; } };
@@ -104,8 +140,19 @@ for (const c of CASOS) {
   );
 
   const problemas = [];
-  // El RPC es quien inserta: si no se llamó, no se anotó nada.
-  if (rpcLlamado?.nombre !== 'rpc_inscribir') problemas.push(`llamó a ${rpcLlamado?.nombre ?? '(nada)'} en vez de rpc_inscribir`);
+  if (c.noLlamaRpc) {
+    // Falta un dato obligatorio de la monta: se frena antes de la red.
+    if (rpcLlamado) problemas.push(`llamó a ${rpcLlamado.nombre} con la monta incompleta`);
+  } else {
+    // El RPC es quien inserta: si no se llamó, no se anotó nada.
+    if (rpcLlamado?.nombre !== 'rpc_inscribir') problemas.push(`llamó a ${rpcLlamado?.nombre ?? '(nada)'} en vez de rpc_inscribir`);
+    // La monta viaja al servidor: si no, se pierde lo que declaró el entrenador.
+    const a = rpcLlamado?.args ?? {};
+    if (a.p_caballeriza_id !== 'cab-1') problemas.push(`no mandó p_caballeriza_id (mandó ${a.p_caballeriza_id})`);
+    if (a.p_entrenador_id !== 'ent-1') problemas.push(`no mandó p_entrenador_id (mandó ${a.p_entrenador_id})`);
+    if (a.p_jockey_titular_id !== 'joc-1') problemas.push(`no mandó p_jockey_titular_id (mandó ${a.p_jockey_titular_id})`);
+    if (!('p_jockey_suplente_id' in a)) problemas.push('no mandó p_jockey_suplente_id');
+  }
 
   if (c.esperaError) {
     if (vm.style.display !== 'block') problemas.push('el mensaje quedó oculto (display != block)');

@@ -628,7 +628,14 @@ try {
   // =========================================================================
   // El RPC se llama `rpc_inscribir` (Gate 4). El nombre `portal_inscribir` de
   // PORTAL_V2_PLAN §C.2 quedó sin usar: un solo nombre, sin alias.
-  const { error: eRpc } = await sbA.rpc('rpc_inscribir', { p_spc_id: spcB, p_carrera_id: carrFix });
+  // Caballeriza, entrenador y jockey son obligatorios desde el 25/08/2026:
+  // van en null a propósito, porque A es PROPIETARIO y el RPC lo frena antes,
+  // en la validación 1. Lo que se testea acá es que no se cuele la fila.
+  const { error: eRpc } = await sbA.rpc('rpc_inscribir', {
+    p_spc_id: spcB, p_carrera_id: carrFix,
+    p_caballeriza_id: null, p_entrenador_id: null,
+    p_jockey_titular_id: null, p_jockey_suplente_id: null,
+  });
   if (eRpc && /does not exist|Could not find/i.test(eRpc.message)) {
     pending(11, 'rpc_inscribir rechaza un SPC ajeno', 'RPC no existe todavía (Gate 4.3)');
     pending(12, 'rpc_inscribir rechaza fuera de ventana', 'RPC no existe todavía (Gate 4.3)');

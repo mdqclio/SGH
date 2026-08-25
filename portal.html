@@ -112,6 +112,8 @@
     textarea { resize: vertical; min-height: 70px; }
     select option { background: #1a3d26; }
     .modal-footer { padding: 14px 24px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
+    .minsc-select { width: 100%; margin-top: 5px; padding: 10px 12px; background: #0f2417; border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; }
+    .minsc-select:focus { outline: none; border-color: var(--accent); }
     .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; }
 
     /* MISC */
@@ -222,6 +224,35 @@
     </div>
     <div class="modal-body">
       <div id="minsc-carrera-info" style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;color:var(--muted);"></div>
+      <!-- Declaración de monta (corrección Yesi 25/08/2026): la monta se
+           declara al anotar, no en la ratificación. -->
+      <div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px;">
+        <div style="font-size:12px;color:var(--accent);margin-bottom:10px;letter-spacing:.04em;text-transform:uppercase;">Datos de la monta</div>
+        <div style="display:grid;gap:10px;">
+          <label style="display:block;font-size:12px;color:var(--muted);">
+            Caballeriza <span style="color:var(--danger);">*</span>
+            <select id="minsc-caballeriza" class="minsc-select"><option value="">Cargando…</option></select>
+          </label>
+          <label style="display:block;font-size:12px;color:var(--muted);">
+            Entrenador que presenta <span style="color:var(--danger);">*</span>
+            <select id="minsc-entrenador" class="minsc-select"><option value="">Cargando…</option></select>
+          </label>
+          <label style="display:block;font-size:12px;color:var(--muted);">
+            Jockey <span style="color:var(--danger);">*</span>
+            <select id="minsc-jockey" class="minsc-select"><option value="">Cargando…</option></select>
+          </label>
+          <label style="display:block;font-size:12px;color:var(--muted);">
+            Suplente <span style="opacity:.7;">(opcional)</span>
+            <select id="minsc-suplente" class="minsc-select"><option value="">Cargando…</option></select>
+          </label>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5;">
+          Estos datos se guardan con el caballo que anotes abajo.
+          El entrenador es <strong>el que presenta el caballo</strong>, que no
+          tiene por qué ser el que lo anota: queda registrado aparte que lo
+          anotaste vos.
+        </div>
+      </div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Elegí cuál de tus caballos anotás en este turno:</div>
       <div class="spc-search-wrap" style="margin-bottom:14px;">
         <input id="minsc-buscar" type="text" autocomplete="off" oninput="onBuscarSpc(this.value)"
@@ -244,8 +275,12 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="activacion-pendiente.js"></script>
 <script>
-let sb, currentUser, miUsuarioId = null, esEntrenador = false;
+let sb, currentUser, miUsuarioId = null, esEntrenador = false, miProfesionalId = null;
 let misCaballos = [], misInscripciones = [];
+// Padrón para la declaración de monta. Se carga una sola vez, al abrir el
+// primer modal: son ~300 caballerizas y ~50 jockeys, no cambia dentro de una
+// sesión y no vale la pena pagarlo en el arranque del portal.
+let padronCaballerizas = [], padronJockeys = [], padronEntrenadores = [], padronMontaCargado = false;
 const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK';
 
@@ -346,6 +381,7 @@ async function initAuth() {
   // vínculo distinto del que la base considera válido.
   const { data: ents } = await sb.rpc('fn_mis_entidades');
   esEntrenador = (ents || []).some(e => e.entidad_tipo === 'profesional');
+  miProfesionalId = (ents || []).find(e => e.entidad_tipo === 'profesional')?.entidad_id || null;
   return true;
 }
 
@@ -611,6 +647,75 @@ async function cargarInscripcionesCrudas() {
   misInscripciones = data || [];
 }
 
+/* ---------- Padrón de monta (caballeriza + jockeys) ---------- */
+// Caballerizas: la policy `caballerizas_select` es por club y el usuario del
+// portal tiene club_id, así que se leen directo.
+// Jockeys y entrenadores: `profesionales_select` sólo deja ver la ficha
+// propia, por eso van por rpc_padron_profesionales() (SECURITY DEFINER,
+// acotado al club del usuario). Viene una sola lista y se parte por tipo:
+// 'ambos' cae en las dos, que es justamente lo que significa.
+async function cargarPadronMonta() {
+  if (padronMontaCargado) return;
+
+  const [cab, prof] = await Promise.all([
+    sb.from('caballerizas').select('id,nombre').eq('activo', true).order('nombre'),
+    sb.rpc('rpc_padron_profesionales'),
+  ]);
+  if (cab.error) { console.error('[caballerizas]', cab.error); throw cab.error; }
+  if (prof.error) { console.error('[rpc_padron_profesionales]', prof.error); throw prof.error; }
+
+  padronCaballerizas = cab.data || [];
+  padronJockeys      = (prof.data || []).filter(p => p.tipo === 'jockey' || p.tipo === 'ambos');
+  padronEntrenadores = (prof.data || []).filter(p => p.tipo === 'entrenador' || p.tipo === 'ambos');
+  padronMontaCargado = true;
+}
+
+function nombreProfesional(p) {
+  const n = [p.apellido, p.nombre].filter(Boolean).join(', ');
+  return p.matricula_nro ? `${n} (mat. ${p.matricula_nro})` : n;
+}
+
+// Se repuebla en cada apertura del modal, pero conservando lo ya elegido: el
+// entrenador suele anotar varios caballos seguidos con la misma caballeriza.
+function renderSelectsMonta() {
+  const selCab = document.getElementById('minsc-caballeriza');
+  const selEnt = document.getElementById('minsc-entrenador');
+  const selJoc = document.getElementById('minsc-jockey');
+  const selSup = document.getElementById('minsc-suplente');
+  const prev = { cab: selCab.value, ent: selEnt.value, joc: selJoc.value, sup: selSup.value };
+
+  const optsCab = padronCaballerizas
+    .map(c => `<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('');
+  const optsEnt = padronEntrenadores
+    .map(p => `<option value="${esc(p.id)}">${esc(nombreProfesional(p))}</option>`).join('');
+  const optsJoc = padronJockeys
+    .map(p => `<option value="${esc(p.id)}">${esc(nombreProfesional(p))}</option>`).join('');
+
+  selCab.innerHTML = `<option value="">Elegí una caballeriza…</option>${optsCab}`;
+  selEnt.innerHTML = `<option value="">Elegí un entrenador…</option>${optsEnt}`;
+  selJoc.innerHTML = `<option value="">Elegí un jockey…</option>${optsJoc}`;
+  selSup.innerHTML = `<option value="">Sin suplente</option>${optsJoc}`;
+
+  selCab.value = prev.cab || caballerizaPorDefecto || '';
+  // El caso frecuente sigue siendo "me anoto yo": el propio entrenador viene
+  // precargado, pero es un valor inicial — se puede declarar a otro.
+  selEnt.value = prev.ent
+    || (padronEntrenadores.some(p => p.id === miProfesionalId) ? miProfesionalId : '');
+  selJoc.value = prev.joc || '';
+  selSup.value = prev.sup || '';
+}
+
+// Caballeriza de la ficha del propio entrenador: sólo es un valor inicial,
+// se puede cambiar. Si la ficha no la tiene, el select arranca vacío.
+let caballerizaPorDefecto = null;
+async function cargarCaballerizaPorDefecto() {
+  if (caballerizaPorDefecto !== null || !miProfesionalId) return;
+  const { data, error } = await sb.from('profesionales')
+    .select('caballeriza_id').eq('id', miProfesionalId).maybeSingle();
+  if (error) { console.error('[profesionales.caballeriza_id]', error); return; }
+  caballerizaPorDefecto = data?.caballeriza_id || '';
+}
+
 function abrirInscripcion(carreraId, reunionId) {
   const reunion = turnosAbiertos.find(r => r.id === reunionId);
   const carrera = reunion?.carreras.find(c => c.id === carreraId);
@@ -631,6 +736,20 @@ function abrirInscripcion(carreraId, reunionId) {
   document.getElementById('minsc-buscar').value = '';
   renderListaCaballosModal();
   document.getElementById('modal-inscribir').classList.add('open');
+
+  // El padrón se carga después de abrir: el modal se ve al instante y los
+  // selects pasan de "Cargando…" a la lista. Si falla, se avisa en el mismo
+  // bloque de validación en vez de dejar tres selects mudos.
+  cargarCaballerizaPorDefecto()
+    .then(cargarPadronMonta)
+    .then(renderSelectsMonta)
+    .catch(err => {
+      console.error('[padron monta]', err);
+      const vm = document.getElementById('validation-msg');
+      vm.textContent = '❌ No se pudo cargar el padrón de caballerizas, entrenadores y jockeys: ' + err.message;
+      vm.className = 'validation-msg validation-err';
+      vm.style.display = 'block';
+    });
 }
 
 // Un caballo puede estar anotado en VARIOS turnos de la misma reunión: es el
@@ -714,8 +833,30 @@ async function anotar(spcId) {
   const vm = document.getElementById('validation-msg');
   vm.style.display = 'none';
 
+  // Monta declarada al anotar. El RPC revalida las tres contra el padrón del
+  // club de la reunión: acá sólo se evita el viaje de ida y vuelta.
+  const caballerizaId = document.getElementById('minsc-caballeriza').value || null;
+  const entrenadorId  = document.getElementById('minsc-entrenador').value || null;
+  const jockeyId      = document.getElementById('minsc-jockey').value || null;
+  const suplenteId    = document.getElementById('minsc-suplente').value || null;
+
+  const falta = !caballerizaId ? 'la caballeriza'
+              : !entrenadorId ? 'el entrenador que presenta el caballo'
+              : !jockeyId     ? 'el jockey que va a montar'
+              : null;
+  if (falta) {
+    vm.textContent = `❌ Antes de anotar tenés que elegir ${falta}.`;
+    vm.className = 'validation-msg validation-err';
+    vm.style.display = 'block';
+    return;
+  }
+
   const { error } = await sb.rpc('rpc_inscribir', {
     p_spc_id: spcId, p_carrera_id: carreraSeleccionada.id,
+    p_caballeriza_id: caballerizaId,
+    p_entrenador_id: entrenadorId,
+    p_jockey_titular_id: jockeyId,
+    p_jockey_suplente_id: suplenteId,
   });
 
   if (error) {

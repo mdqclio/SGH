@@ -177,6 +177,11 @@ async function main() {
   const cab = await ins('caballerizas', {
     club_id: CLUB_DOLORES, nombre: `PROBE-UI-CAB-${RUN}`, hipodromo_patente: 'DOL',
   }, 'caballerizas');
+  // Monta obligatoria desde el 25/08/2026: el fixture necesita un jockey.
+  const jock = await ins('profesionales', {
+    club_id: CLUB_DOLORES, tipo: 'jockey', nombre: 'PROBE-UI-JOC', apellido: RUN,
+    hipodromo_patente: 'DOL', activo: true,
+  }, 'profesionales');
 
   const spc1 = await ins('spcs', {
     nombre: `PROBE-UI-UNO-${RUN}`, fecha_nacimiento: '2020-01-01', sexo: 'macho',
@@ -273,7 +278,11 @@ async function main() {
   // =========================================================================
   console.log('\n── Multi-categoría: avisa, no bloquea (GOTCHAS #69) ──');
   // =========================================================================
-  const insc1 = await sbA.rpc('rpc_inscribir', { p_spc_id: spc1, p_carrera_id: cAbierta });
+  const insc1 = await sbA.rpc('rpc_inscribir', {
+    p_spc_id: spc1, p_carrera_id: cAbierta,
+    p_caballeriza_id: cab, p_entrenador_id: prof,
+    p_jockey_titular_id: jock, p_jockey_suplente_id: null,
+  });
   if (insc1.error) die('rpc_inscribir fixture', insc1.error);
 
   await P.cargarInscripcionesCrudas();

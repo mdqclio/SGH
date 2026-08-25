@@ -124,10 +124,18 @@ async function filasEn(carreraId, spcId) {
   return data ?? [];
 }
 
+// Monta declarada al anotar (25/08/2026). Los fixtures se cargan en main();
+// cada llamada puede pisar cualquiera de los tres campos.
+const MONTA = { cab: null, ent: null, joc: null };
+
 // Llamar al RPC y devolver {ok, id, msg} sin explotar.
-async function inscribir(sb, spcId, carreraId) {
+async function inscribir(sb, spcId, carreraId, monta = {}) {
   const { data, error } = await sb.rpc('rpc_inscribir', {
     p_spc_id: spcId, p_carrera_id: carreraId,
+    p_caballeriza_id:     'cab' in monta ? monta.cab : MONTA.cab,
+    p_entrenador_id:      'ent' in monta ? monta.ent : MONTA.ent,
+    p_jockey_titular_id:  'joc' in monta ? monta.joc : MONTA.joc,
+    p_jockey_suplente_id: 'sup' in monta ? monta.sup : null,
   });
   return { ok: !error, id: data ?? null, msg: error?.message ?? null };
 }
@@ -138,7 +146,7 @@ async function darDeBaja(sb, inscripcionId) {
 
 // ===========================================================================
 async function main() {
-  console.log(`\n probe_gate4_inscribir — 21 asserts · run ${RUN}\n`);
+  console.log(`\n probe_gate4_inscribir — 31 asserts · run ${RUN}\n`);
 
   // --- lookups de contexto ---
   const { data: hip, error: eH } = await admin.from('hipodromos')
@@ -161,6 +169,24 @@ async function main() {
   const cab = await ins('caballerizas', {
     club_id: CLUB_DOLORES, nombre: `PROBE-G4-CAB-${RUN}`, hipodromo_patente: 'DOL',
   }, 'caballerizas');
+
+  // Jockeys para la declaración de monta: uno activo, uno de baja y un
+  // suplente. El de baja cubre el rechazo por padrón.
+  const jockOk = await ins('profesionales', {
+    club_id: CLUB_DOLORES, tipo: 'jockey',
+    nombre: 'PROBE-G4-JOC', apellido: RUN, hipodromo_patente: 'DOL', activo: true,
+  }, 'profesionales');
+  const jockSup = await ins('profesionales', {
+    club_id: CLUB_DOLORES, tipo: 'jockey',
+    nombre: 'PROBE-G4-SUP', apellido: RUN, hipodromo_patente: 'DOL', activo: true,
+  }, 'profesionales');
+  const jockBaja = await ins('profesionales', {
+    club_id: CLUB_DOLORES, tipo: 'jockey',
+    nombre: 'PROBE-G4-BAJA', apellido: RUN, hipodromo_patente: 'DOL', activo: false,
+  }, 'profesionales');
+  MONTA.cab = cab;
+  MONTA.ent = profA;   // el entrenador es DECLARADO: por defecto, el que anota
+  MONTA.joc = jockOk;
 
   // SPCs de A (machos, adultos) y uno de B.
   const nac = '2020-01-01';
@@ -231,8 +257,12 @@ async function main() {
     `canal=${row?.canal} inscripto_por=${row?.inscripto_por === uA.usuarioId} estado=${row?.estado}`);
 
   check('G3', row?.entrenador_id === profA && row?.caballeriza_id === cab,
-    'entrenador_id = el que inscribe; caballeriza_id copiada del SPC',
+    'entrenador_id y caballeriza_id = los DECLARADOS al anotar',
     `entrenador=${row?.entrenador_id === profA} caballeriza=${row?.caballeriza_id === cab}`);
+
+  check('G3b', row?.jockey_titular_id === jockOk && row?.jockey_suplente_id === null,
+    'la monta declarada queda guardada en la fila (titular sí, suplente vacío)',
+    `titular=${row?.jockey_titular_id === jockOk} suplente=${row?.jockey_suplente_id}`);
   // propietario_id lo pone el trigger a partir de los responsables de la
   // caballeriza. La caballeriza fixture no tiene responsables, así que acá
   // queda NULL — eso NO es un fallo del RPC. Se informa, no se assertea:
@@ -341,6 +371,71 @@ async function main() {
   check('G11', !r11.ok && (await filasEn(cHembras, spcA2)).length === 0,
     'SPC macho en carrera de hembras: rechazado por validar_inscripcion',
     r11.ok ? 'el RPC lo aceptó — la validación no está cableada' : r11.msg);
+
+  // =========================================================================
+  console.log('\n── Declaración de monta (25/08/2026) ──');
+  // =========================================================================
+  // spcA2 sigue libre en cAbierta: sirve de sujeto para los cinco rechazos.
+  const rM1 = await inscribir(sbA, spcA2, cAbierta, { cab: null });
+  check('G16', !rM1.ok && (await filasEn(cAbierta, spcA2)).length === 0,
+    'sin caballeriza: rechazado', rM1.ok ? 'lo aceptó' : rM1.msg);
+
+  const rM2 = await inscribir(sbA, spcA2, cAbierta, { joc: null });
+  check('G17', !rM2.ok && (await filasEn(cAbierta, spcA2)).length === 0,
+    'sin jockey titular: rechazado', rM2.ok ? 'lo aceptó' : rM2.msg);
+
+  const rM3 = await inscribir(sbA, spcA2, cAbierta, { joc: jockBaja });
+  check('G18', !rM3.ok && (await filasEn(cAbierta, spcA2)).length === 0,
+    'jockey dado de baja: rechazado', rM3.ok ? 'lo aceptó' : rM3.msg);
+
+  const rM4 = await inscribir(sbA, spcA2, cAbierta, { sup: jockOk });
+  check('G19', !rM4.ok && (await filasEn(cAbierta, spcA2)).length === 0,
+    'suplente igual al titular: rechazado', rM4.ok ? 'lo aceptó' : rM4.msg);
+
+  const rM5 = await inscribir(sbA, spcA2, cAbierta, { sup: jockSup });
+  if (rM5.id) fx.inscripciones.push(rM5.id);
+  const rowM5 = rM5.id
+    ? (await admin.from('inscripciones').select('jockey_suplente_id').eq('id', rM5.id).single()).data
+    : null;
+  check('G20', rM5.ok && rowM5?.jockey_suplente_id === jockSup,
+    'con suplente distinto del titular: anota y lo guarda',
+    rM5.msg ?? `suplente=${rowM5?.jockey_suplente_id === jockSup}`);
+  if (rM5.id) await darDeBaja(sbA, rM5.id);
+
+  // El padrón se lee por RPC: la RLS de profesionales sólo deja ver la ficha
+  // propia, así que sin esto los selects del portal quedan vacíos.
+  const { data: padron, error: ePad } = await sbA.rpc('rpc_padron_profesionales');
+  check('G21', !ePad && (padron ?? []).some(j => j.id === jockOk)
+        && (padron ?? []).some(p => p.id === profB)
+        && !(padron ?? []).some(j => j.id === jockBaja),
+    'rpc_padron_profesionales trae jockeys y entrenadores activos del club, no los de baja',
+    ePad?.message ?? `filas=${padron?.length ?? 0}`);
+
+  // =========================================================================
+  console.log('\n── Entrenador declarado, no derivado (25/08/2026) ──');
+  // =========================================================================
+  // A anota declarando que el que PRESENTA el caballo es B. Quién anotó queda
+  // aparte, en inscripto_por.
+  const rE1 = await inscribir(sbA, spcA2, cAbierta, { ent: profB });
+  if (rE1.id) fx.inscripciones.push(rE1.id);
+  const rowE1 = rE1.id
+    ? (await admin.from('inscripciones').select('entrenador_id,inscripto_por,canal')
+        .eq('id', rE1.id).single()).data
+    : null;
+  check('G22', rE1.ok && rowE1?.entrenador_id === profB
+        && rowE1?.inscripto_por === uA.usuarioId && rowE1?.canal === 'portal',
+    'A anota declarando a B como entrenador: entrenador_id=B, inscripto_por=A',
+    rE1.msg ?? `entrenador=${rowE1?.entrenador_id === profB} anotó=${rowE1?.inscripto_por === uA.usuarioId}`);
+  if (rE1.id) await darDeBaja(sbA, rE1.id);
+
+  const rE2 = await inscribir(sbA, spcA2, cAbierta, { ent: null });
+  check('G23', !rE2.ok && (await filasEn(cAbierta, spcA2)).length === 0,
+    'sin entrenador declarado: rechazado', rE2.ok ? 'lo aceptó' : rE2.msg);
+
+  // jockOk es tipo='jockey': no puede figurar como entrenador.
+  const rE3 = await inscribir(sbA, spcA2, cAbierta, { ent: jockOk });
+  check('G24', !rE3.ok && (await filasEn(cAbierta, spcA2)).length === 0,
+    'un jockey declarado como entrenador: rechazado', rE3.ok ? 'lo aceptó' : rE3.msg);
 
   // =========================================================================
   console.log('\n── Baja ──');
