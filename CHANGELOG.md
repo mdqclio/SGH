@@ -1,5 +1,51 @@
 # Changelog
 
+## [2026-08-25] — La monta se declara al anotar, y el entrenador también
+
+> **Corrección de Yesi** al modelo de inscripción del portal: el entrenador declara la monta
+> cuando anota, no cuando ratifica. Y **quien anota no es necesariamente quien entrena** — el
+> entrenador pasa a ser un dato declarado. SQL en `migrations/portal_monta_al_anotar.sql`.
+
+- **Sin DDL de tablas**: `inscripciones` ya tenía las cuatro columnas — `caballeriza_id`,
+  `entrenador_id`, `jockey_titular_id` y `jockey_suplente_id`. No hubo que agregar nada.
+- **`entrenador_id` deja de ser derivado**. Hasta ahora el RPC lo copiaba de `fn_mis_entidades()`,
+  o sea *el que llamaba*. Ahora se declara en el formulario: un propietario puede anotar diciendo
+  qué entrenador presenta el caballo, y un entrenador puede anotar uno que presenta otro. Queda
+  separado **quién ANOTA** (`inscripto_por` + `canal='portal'`, intactos) de **quién ENTRENA**
+  (`entrenador_id`, declarado).
+- **`rpc_inscribir`** pasa de 2 a 6 parámetros: `p_caballeriza_id`, `p_entrenador_id`,
+  `p_jockey_titular_id` (los tres **obligatorios**) y `p_jockey_suplente_id` (opcional,
+  `DEFAULT NULL`). Va por `DROP` + `CREATE`: agregar parámetros crea un overload y PostgREST no lo
+  resuelve. Los cuatro se validan contra el padrón del **club de la reunión** — activos, el
+  entrenador con `tipo IN ('entrenador','ambos')` y los jockeys con `tipo IN ('jockey','ambos')`.
+  El suplente no puede ser el mismo que el titular.
+- **Cambia de dónde sale `caballeriza_id`**: antes se copiaba de `spcs.caballeriza_id` y podía
+  quedar NULL; ahora es la que **declara** quien anota, y es obligatoria.
+- **`rpc_padron_profesionales()`** (nuevo, SECURITY DEFINER): el portal no puede leer
+  `profesionales` —`profesionales_select` sólo deja ver la ficha propia—, así que los activos del
+  club llegan por RPC (46 jockeys en Dolores) y el front los parte por tipo; `'ambos'` cae en las
+  dos listas. Las 292 caballerizas sí se leen directo: `caballerizas_select` ya es por club y el
+  usuario del portal tiene `club_id`.
+- **`portal.html`**: bloque "Datos de la monta" en el modal de anotar, con los cuatro selects
+  (caballeriza / entrenador que presenta / jockey / suplente). El padrón se carga una vez, al
+  abrir el primer modal. La caballeriza arranca precargada con la de la ficha del entrenador y el
+  entrenador con uno mismo — son valores iniciales, se cambian. Si falta uno de los tres
+  obligatorios no se llama al RPC.
+- **Probes**: `probe_portal_validacion` suma los casos G, H e I (dato obligatorio faltante ⇒ no
+  viaja al servidor) y verifica que los cuatro campos lleguen en los args; `probe_gate4_inscribir`
+  pasa de 21 a **31 asserts** (G3b, G16–G21 monta; G22–G24 entrenador declarado: A anota
+  declarando a B, sin entrenador, y un jockey puesto como entrenador). 31/31 y 14/14 contra prod.
+- **Pendiente de confirmar con Yesi/Fede**:
+  1. Dejamos el **jockey titular como obligatorio**. Ella marcó "obligatorio" sólo para la
+     caballeriza y "opcional" sólo para el suplente; el titular quedó sin marcar y, como el sentido
+     de la corrección es que la monta se declare al anotar, se tomó como requerido. Se afloja
+     sacando el `RAISE` de `p_jockey_titular_id` y el chequeo del front.
+  2. **El propietario todavía no puede anotar.** El RPC sigue exigiendo que quien llama tenga
+     entidad `profesional` (`fn_mis_entidades()`), y el portal le muestra "anotar caballos lo hace
+     el entrenador". El campo entrenador declarado ya cubre el caso "un entrenador anota uno que
+     presenta otro"; habilitar al propietario es un cambio de permisos aparte, que toca el gate del
+     RPC, la UI del portal y el assert G15. No se hizo por las nuestras.
+
 ## [2026-08-24] — Inscripción libre: cualquier entrenador puede anotar cualquier SPC
 
 > Cambio de **regla de negocio**, confirmado por Fede y Yesi: no hay vínculo caballo↔entrenador.
