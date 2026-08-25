@@ -88,11 +88,20 @@ const CASOS = [
     noLlamaRpc: true,
   },
   {
-    n: 'H falta el jockey — ni siquiera llama al RPC',
+    // El jockey es OPCIONAL al anotar (Fede, 25/08/2026): el compromiso de
+    // monta va hasta el martes y se cierra en la ratificación.
+    n: 'H sin jockey — anota igual',
     rpcError: null,
     monta: { cab: 'cab-1', ent: 'ent-1', joc: '', sup: '' },
+    esperaError: false,
+    jockeyEsperado: null,
+  },
+  {
+    n: 'J suplente sin titular — ni siquiera llama al RPC',
+    rpcError: null,
+    monta: { cab: 'cab-1', ent: 'ent-1', joc: '', sup: 'joc-2' },
     esperaError: true,
-    esperaTexto: 'el jockey que va a montar',
+    esperaTexto: 'suplente sin jockey titular',
     noLlamaRpc: true,
   },
   {
@@ -150,7 +159,9 @@ for (const c of CASOS) {
     const a = rpcLlamado?.args ?? {};
     if (a.p_caballeriza_id !== 'cab-1') problemas.push(`no mandó p_caballeriza_id (mandó ${a.p_caballeriza_id})`);
     if (a.p_entrenador_id !== 'ent-1') problemas.push(`no mandó p_entrenador_id (mandó ${a.p_entrenador_id})`);
-    if (a.p_jockey_titular_id !== 'joc-1') problemas.push(`no mandó p_jockey_titular_id (mandó ${a.p_jockey_titular_id})`);
+    // El jockey puede ir vacío: lo que importa es que viaje tal cual.
+    const jockEsperado = 'jockeyEsperado' in c ? c.jockeyEsperado : 'joc-1';
+    if (a.p_jockey_titular_id !== jockEsperado) problemas.push(`p_jockey_titular_id mal (mandó ${a.p_jockey_titular_id}, esperaba ${jockEsperado})`);
     if (!('p_jockey_suplente_id' in a)) problemas.push('no mandó p_jockey_suplente_id');
   }
 

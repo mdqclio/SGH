@@ -62,7 +62,7 @@ const mail = (q) => `probe-g4-${q}-${RUN}@sgh-probe.invalid`;
 
 const fx = {
   authIds: [], usuarios: [], profesionales: [], caballerizas: [],
-  spcs: [], reuniones: [], carreras: [], inscripciones: [],
+  propietarios: [], spcs: [], reuniones: [], carreras: [], inscripciones: [],
 };
 
 const die = (ctx, err) => { throw new Error(`[${ctx}] ${err?.message ?? JSON.stringify(err)}`); };
@@ -89,7 +89,9 @@ async function clientePortal(email) {
   return sb;
 }
 
-async function crearUsuarioPortal(q, profesionalId) {
+// `tipo` es la entidad de portal: 'profesional' (entrenador/jockey) o
+// 'propietario'. Desde el 25/08/2026 las dos pueden anotar.
+async function crearUsuarioPortal(q, entidadId, tipo = 'profesional') {
   const email = mail(q);
   const { data, error } = await admin.auth.admin.createUser({
     email, password: PASS, email_confirm: true,
@@ -101,13 +103,13 @@ async function crearUsuarioPortal(q, profesionalId) {
     email,
     nombre_completo: `Probe G4 ${q} ${RUN}`,
     club_id: CLUB_DOLORES,
-    rol: 'profesional',
+    rol: tipo,
     activo: true,
     estado: 'activo',
     password_hash: '',
     auth_user_id: data.user.id,
-    entidad_tipo: 'profesional',
-    entidad_id: profesionalId,
+    entidad_tipo: tipo,
+    entidad_id: entidadId,
   }).select('id').single();
   if (e2) die(`insert usuarios ${q}`, e2);
   fx.usuarios.push(email);
@@ -146,7 +148,7 @@ async function darDeBaja(sb, inscripcionId) {
 
 // ===========================================================================
 async function main() {
-  console.log(`\n probe_gate4_inscribir — 31 asserts · run ${RUN}\n`);
+  console.log(`\n probe_gate4_inscribir — 34 asserts · run ${RUN}\n`);
 
   // --- lookups de contexto ---
   const { data: hip, error: eH } = await admin.from('hipodromos')
@@ -205,6 +207,12 @@ async function main() {
 
   const uA = await crearUsuarioPortal('a', profA);
   const uB = await crearUsuarioPortal('b', profB);
+
+  // Propietario de portal: desde el 25/08/2026 también puede anotar.
+  const propP = await ins('propietarios', {
+    club_id: CLUB_DOLORES, nombre: `PROBE-G4-PROP-${RUN}`,
+  }, 'propietarios');
+  const uP = await crearUsuarioPortal('p', propP, 'propietario');
 
   // --- reuniones fixture ---
   const reunPub = await ins('reuniones', {
@@ -380,9 +388,22 @@ async function main() {
   check('G16', !rM1.ok && (await filasEn(cAbierta, spcA2)).length === 0,
     'sin caballeriza: rechazado', rM1.ok ? 'lo aceptó' : rM1.msg);
 
+  // El jockey es OPCIONAL al anotar (Fede, 25/08/2026): se anota de lunes a
+  // viernes y el compromiso de monta va hasta el martes. Obligatorio recién en
+  // la ratificación.
   const rM2 = await inscribir(sbA, spcA2, cAbierta, { joc: null });
-  check('G17', !rM2.ok && (await filasEn(cAbierta, spcA2)).length === 0,
-    'sin jockey titular: rechazado', rM2.ok ? 'lo aceptó' : rM2.msg);
+  if (rM2.id) fx.inscripciones.push(rM2.id);
+  const rowM2 = rM2.id
+    ? (await admin.from('inscripciones').select('jockey_titular_id').eq('id', rM2.id).single()).data
+    : null;
+  check('G17', rM2.ok && rowM2 !== null && rowM2.jockey_titular_id === null,
+    'sin jockey titular: anota igual y queda NULL',
+    rM2.msg ?? `titular=${rowM2?.jockey_titular_id}`);
+  if (rM2.id) await darDeBaja(sbA, rM2.id);
+
+  const rM2b = await inscribir(sbA, spcA2, cAbierta, { joc: null, sup: jockSup });
+  check('G17b', !rM2b.ok && (await filasEn(cAbierta, spcA2)).length === 0,
+    'suplente sin titular: rechazado', rM2b.ok ? 'lo aceptó' : rM2b.msg);
 
   const rM3 = await inscribir(sbA, spcA2, cAbierta, { joc: jockBaja });
   check('G18', !rM3.ok && (await filasEn(cAbierta, spcA2)).length === 0,
@@ -436,6 +457,27 @@ async function main() {
   const rE3 = await inscribir(sbA, spcA2, cAbierta, { ent: jockOk });
   check('G24', !rE3.ok && (await filasEn(cAbierta, spcA2)).length === 0,
     'un jockey declarado como entrenador: rechazado', rE3.ok ? 'lo aceptó' : rE3.msg);
+
+  // =========================================================================
+  console.log('\n── El propietario también anota (25/08/2026) ──');
+  // =========================================================================
+  const sbP = await clientePortal(uP.email);
+  const rP1 = await inscribir(sbP, spcA2, cAbierta, { ent: profB });
+  if (rP1.id) fx.inscripciones.push(rP1.id);
+  const rowP1 = rP1.id
+    ? (await admin.from('inscripciones').select('entrenador_id,inscripto_por,canal')
+        .eq('id', rP1.id).single()).data
+    : null;
+  check('G25', rP1.ok && rowP1?.entrenador_id === profB
+        && rowP1?.inscripto_por === uP.usuarioId && rowP1?.canal === 'portal',
+    'un PROPIETARIO anota declarando quién entrena: entrenador=B, inscripto_por=el propietario',
+    rP1.msg ?? `entrenador=${rowP1?.entrenador_id === profB} anotó=${rowP1?.inscripto_por === uP.usuarioId}`);
+
+  // Si puede anotar, tiene que poder retirar lo suyo: si no, el flujo queda
+  // partido al medio.
+  const bP = await darDeBaja(sbP, rP1.id);
+  check('G26', bP.ok && (await filasEn(cAbierta, spcA2)).length === 0,
+    'el propietario retira la inscripción que cargó él', bP.msg);
 
   // =========================================================================
   console.log('\n── Baja ──');
@@ -517,6 +559,7 @@ async function teardown() {
   const usrIds = (usrRows ?? []).map((r) => r.id);
   await borrar('auditoria', usrIds, 'usuario_id');
   await borrar('usuarios', fx.usuarios, 'email');
+  await borrar('propietarios', fx.propietarios);
   for (const id of fx.authIds) {
     const { error } = await admin.auth.admin.deleteUser(id);
     if (error) console.error(`  ⚠️ teardown auth ${id}: ${error.message}`);

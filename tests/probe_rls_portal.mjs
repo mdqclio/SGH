@@ -628,9 +628,11 @@ try {
   // =========================================================================
   // El RPC se llama `rpc_inscribir` (Gate 4). El nombre `portal_inscribir` de
   // PORTAL_V2_PLAN §C.2 quedó sin usar: un solo nombre, sin alias.
-  // Caballeriza, entrenador y jockey son obligatorios desde el 25/08/2026:
-  // van en null a propósito, porque A es PROPIETARIO y el RPC lo frena antes,
-  // en la validación 1. Lo que se testea acá es que no se cuele la fila.
+  // Caballeriza y entrenador son obligatorios desde el 25/08/2026 (el jockey
+  // no: se define hasta el martes). Van en null a propósito: A es PROPIETARIO
+  // y desde el 25/08 SÍ puede anotar, así que ya no lo frena el gate de
+  // entidad sino la falta de caballeriza. Lo que se testea acá sigue siendo lo
+  // mismo: que no se cuele la fila.
   const { error: eRpc } = await sbA.rpc('rpc_inscribir', {
     p_spc_id: spcB, p_carrera_id: carrFix,
     p_caballeriza_id: null, p_entrenador_id: null,
@@ -643,12 +645,12 @@ try {
     const { data: colada } = await admin.from('inscripciones')
       .select('id').eq('spc_id', spcB).eq('carrera_id', carrFix).neq('id', inscB);
     check(11, !!eRpc && (colada?.length ?? 0) === 0,
-      'rpc_inscribir rechaza un SPC ajeno', `error=${!!eRpc} coladas=${colada?.length}`);
+      'rpc_inscribir rechaza y no cuela ninguna fila', `error=${!!eRpc} coladas=${colada?.length}`);
 
-    // `carrFix` no tiene apertura/cierre cargados: es el caso fail-closed.
-    // A es un usuario PROPIETARIO, así que el RPC lo frena en la validación 1
-    // antes de mirar la ventana — el assert vale como "no se coló nada", y la
-    // ventana en sí la cubre probe_gate4_inscribir (G7/G8) con un entrenador.
+    // `carrFix` no tiene apertura/cierre cargados: es el caso fail-closed, y
+    // la ventana se mira antes que los datos declarados, así que es lo que
+    // frena el intento. La ventana con datos completos la cubre
+    // probe_gate4_inscribir (G7/G8).
     const { data: carrSinVentana } = await admin.from('carreras')
       .select('apertura_inscripcion, cierre_inscripcion').eq('id', carrFix).single();
     const sinVentana = !carrSinVentana?.apertura_inscripcion && !carrSinVentana?.cierre_inscripcion;

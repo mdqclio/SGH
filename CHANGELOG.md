@@ -13,12 +13,21 @@
   qué entrenador presenta el caballo, y un entrenador puede anotar uno que presenta otro. Queda
   separado **quién ANOTA** (`inscripto_por` + `canal='portal'`, intactos) de **quién ENTRENA**
   (`entrenador_id`, declarado).
-- **`rpc_inscribir`** pasa de 2 a 6 parámetros: `p_caballeriza_id`, `p_entrenador_id`,
-  `p_jockey_titular_id` (los tres **obligatorios**) y `p_jockey_suplente_id` (opcional,
-  `DEFAULT NULL`). Va por `DROP` + `CREATE`: agregar parámetros crea un overload y PostgREST no lo
-  resuelve. Los cuatro se validan contra el padrón del **club de la reunión** — activos, el
-  entrenador con `tipo IN ('entrenador','ambos')` y los jockeys con `tipo IN ('jockey','ambos')`.
-  El suplente no puede ser el mismo que el titular.
+- **El jockey es OPCIONAL al anotar** (Fede): se anota de lunes a viernes y los compromisos de
+  monta van hasta el martes. Obligatorio recién en la ratificación. El suplente sigue siendo
+  opcional, pero no se puede declarar sin titular.
+- **El PROPIETARIO puede anotar** (Yesi, confirmado por Fede), declarando qué entrenador presenta
+  el caballo. El gate de `rpc_inscribir` pasa de `entidad_tipo = 'profesional'` a
+  `IN ('profesional','propietario')`. `rpc_baja_inscripcion` se abre igual —si puede anotar tiene
+  que poder retirar lo suyo—: la fila sigue protegida por `canal='portal' AND inscripto_por = el
+  que llama`, que es más fuerte que el tipo de entidad. Del portal se sacó el aviso "anotar
+  caballos lo hace el entrenador" y el botón **Anotar** ahora se muestra a todos.
+- **`rpc_inscribir`** pasa de 2 a 6 parámetros: `p_caballeriza_id` y `p_entrenador_id`
+  (**obligatorios**), `p_jockey_titular_id` y `p_jockey_suplente_id` (opcionales, `DEFAULT NULL`).
+  Va por `DROP` + `CREATE`: agregar parámetros crea un overload y PostgREST no lo resuelve. Lo
+  declarado se valida contra el padrón del **club de la reunión** — activos, el entrenador con
+  `tipo IN ('entrenador','ambos')` y los jockeys con `tipo IN ('jockey','ambos')`. El suplente no
+  puede ser el mismo que el titular.
 - **Cambia de dónde sale `caballeriza_id`**: antes se copiaba de `spcs.caballeriza_id` y podía
   quedar NULL; ahora es la que **declara** quien anota, y es obligatoria.
 - **`rpc_padron_profesionales()`** (nuevo, SECURITY DEFINER): el portal no puede leer
@@ -29,22 +38,16 @@
 - **`portal.html`**: bloque "Datos de la monta" en el modal de anotar, con los cuatro selects
   (caballeriza / entrenador que presenta / jockey / suplente). El padrón se carga una vez, al
   abrir el primer modal. La caballeriza arranca precargada con la de la ficha del entrenador y el
-  entrenador con uno mismo — son valores iniciales, se cambian. Si falta uno de los tres
-  obligatorios no se llama al RPC.
-- **Probes**: `probe_portal_validacion` suma los casos G, H e I (dato obligatorio faltante ⇒ no
-  viaja al servidor) y verifica que los cuatro campos lleguen en los args; `probe_gate4_inscribir`
-  pasa de 21 a **31 asserts** (G3b, G16–G21 monta; G22–G24 entrenador declarado: A anota
-  declarando a B, sin entrenador, y un jockey puesto como entrenador). 31/31 y 14/14 contra prod.
-- **Pendiente de confirmar con Yesi/Fede**:
-  1. Dejamos el **jockey titular como obligatorio**. Ella marcó "obligatorio" sólo para la
-     caballeriza y "opcional" sólo para el suplente; el titular quedó sin marcar y, como el sentido
-     de la corrección es que la monta se declare al anotar, se tomó como requerido. Se afloja
-     sacando el `RAISE` de `p_jockey_titular_id` y el chequeo del front.
-  2. **El propietario todavía no puede anotar.** El RPC sigue exigiendo que quien llama tenga
-     entidad `profesional` (`fn_mis_entidades()`), y el portal le muestra "anotar caballos lo hace
-     el entrenador". El campo entrenador declarado ya cubre el caso "un entrenador anota uno que
-     presenta otro"; habilitar al propietario es un cambio de permisos aparte, que toca el gate del
-     RPC, la UI del portal y el assert G15. No se hizo por las nuestras.
+  entrenador con uno mismo — son valores iniciales, se cambian. Sin caballeriza o sin entrenador no
+  se llama al RPC; un suplente sin titular tampoco.
+- **Probes**: `probe_portal_validacion` suma G, H, I y J (obligatorio faltante ⇒ no viaja al
+  servidor; sin jockey ⇒ anota igual; suplente sin titular ⇒ frenado) y verifica que los cuatro
+  campos lleguen en los args; `probe_gate4_inscribir` pasa de 21 a **34 asserts** (G3b, G16–G21
+  monta; G22–G24 entrenador declarado; G25–G26 el propietario anota y retira lo suyo).
+  **34/34 · 14/14 · 39/39 contra prod** (`probe_gate4_inscribir`, `probe_gate4_portal_ui`,
+  `probe_rls_portal`).
+- **Lo que NO cambió**: el staff sigue afuera de `rpc_inscribir` (assert G15) — la secretaría
+  inscribe por su propio camino.
 
 ## [2026-08-24] — Inscripción libre: cualquier entrenador puede anotar cualquier SPC
 

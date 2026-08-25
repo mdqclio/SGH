@@ -238,7 +238,7 @@
             <select id="minsc-entrenador" class="minsc-select"><option value="">Cargando…</option></select>
           </label>
           <label style="display:block;font-size:12px;color:var(--muted);">
-            Jockey <span style="color:var(--danger);">*</span>
+            Jockey <span style="opacity:.7;">(opcional — se puede definir hasta el martes)</span>
             <select id="minsc-jockey" class="minsc-select"><option value="">Cargando…</option></select>
           </label>
           <label style="display:block;font-size:12px;color:var(--muted);">
@@ -250,7 +250,9 @@
           Estos datos se guardan con el caballo que anotes abajo.
           El entrenador es <strong>el que presenta el caballo</strong>, que no
           tiene por qué ser el que lo anota: queda registrado aparte que lo
-          anotaste vos.
+          anotaste vos.<br>
+          El jockey no hace falta ahora: el compromiso de monta va hasta el
+          martes y se termina de definir en la ratificación.
         </div>
       </div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Elegí cuál de tus caballos anotás en este turno:</div>
@@ -581,9 +583,7 @@ async function loadLlamado() {
             ${yaAnotados ? `<span class="chip" style="color:var(--success);border-color:rgba(76,175,130,0.35);">✓ ${yaAnotados} anotado${yaAnotados > 1 ? 's' : ''}</span>` : ''}
           </div>
         </div>
-        ${esEntrenador
-          ? `<button class="btn-inscribir" onclick="abrirInscripcion('${esc(c.id)}','${esc(r.id)}')">Anotar</button>`
-          : ''}
+        <button class="btn-inscribir" onclick="abrirInscripcion('${esc(c.id)}','${esc(r.id)}')">Anotar</button>
       </div>`;
     }).join('');
     return `<div class="reunion-block">
@@ -595,14 +595,8 @@ async function loadLlamado() {
     </div>`;
   }).join('');
 
-  if (!esEntrenador) {
-    cont.insertAdjacentHTML('afterbegin', `
-      <div style="background:rgba(201,168,76,0.08);border:1px solid var(--border);border-radius:10px;
-                  padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--muted);line-height:1.6;">
-        Podés ver el llamado, pero anotar caballos lo hace el entrenador.
-        Si tenés que anotar uno, hablá con tu entrenador o con ${TEL}.
-      </div>`);
-  }
+  // Anotar ya no es exclusivo del entrenador (Yesi + Fede, 25/08/2026): el
+  // propietario también anota, declarando qué entrenador presenta el caballo.
 }
 
 /* ========== ANOTAR ========== */
@@ -840,12 +834,19 @@ async function anotar(spcId) {
   const jockeyId      = document.getElementById('minsc-jockey').value || null;
   const suplenteId    = document.getElementById('minsc-suplente').value || null;
 
+  // El jockey NO se pide acá: el compromiso de monta va hasta el martes y se
+  // cierra en la ratificación (Fede, 25/08/2026).
   const falta = !caballerizaId ? 'la caballeriza'
               : !entrenadorId ? 'el entrenador que presenta el caballo'
-              : !jockeyId     ? 'el jockey que va a montar'
               : null;
   if (falta) {
     vm.textContent = `❌ Antes de anotar tenés que elegir ${falta}.`;
+    vm.className = 'validation-msg validation-err';
+    vm.style.display = 'block';
+    return;
+  }
+  if (suplenteId && !jockeyId) {
+    vm.textContent = '❌ No se puede declarar un suplente sin jockey titular.';
     vm.className = 'validation-msg validation-err';
     vm.style.display = 'block';
     return;
