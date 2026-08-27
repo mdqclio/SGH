@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-08-27 |
-| **SHA del commit** | `SHA_PLACEHOLDER` (este informe, branch `reports`) |
+| **SHA del commit** | `6a2e02b` (este informe, branch `reports`) |
 | **SHA del código** | `54574bc` — branch `fix/edad-reglamentaria-unica`, **pusheada, NO mergeada** |
 | **Estado** | 🔴 **PLAN. NADA APLICADO.** La migración no se ejecutó contra la base. Requiere OK explícito. |
 | **Diagnóstico de origen** | `docs/diagnosticos/2026-08-27_edad-gate-inscripcion.md` (SHA `7de5461`) |
