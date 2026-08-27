@@ -259,6 +259,8 @@ const CASOS_FN = [
   ['2026-06-20', '2022-11-10', 3, 'reunión ANTERIOR al 1° de julio: la resta del CASE sí aplica'],
   ['2026-07-01', '2022-11-10', 4, 'reunión el 1° de julio exacto: ya cumplió, no resta'],
   ['2026-06-30', '2022-11-10', 3, 'reunión el 30 de junio: todavía no cumplió, resta'],
+  [r9.fecha, '2027-03-01', 0, 'nacido DESPUES de la reunión: clampea en 0, igual que edad-spc.js'],
+  ['2026-06-20', '2026-05-01', 0, 'nacido el mismo año, antes del 1/7: la resta daría -1, clampea en 0'],
   [r9.fecha, null, null, 'sin fecha de nacimiento -> NULL'],
   [null, '2022-11-10', null, 'sin fecha de referencia -> NULL'],
 ];
