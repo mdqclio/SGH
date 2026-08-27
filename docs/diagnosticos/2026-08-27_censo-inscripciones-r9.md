@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-08-27 |
-| **SHA del commit** | `7398c12` |
+| **SHA del commit** | `5abb8be` — commit que introduce este informe |
 | **Branch** | `reports` |
 | **Diagnóstico de origen** | `docs/diagnosticos/2026-08-27_edad-gate-inscripcion.md` (SHA `7de5461`) |
 | **Tipo** | Censo de datos. **Read-only**: sólo `SELECT` por MCP y `grep`/`sed` sobre el repo. Cero DDL, cero DML, cero cambios de código. |
