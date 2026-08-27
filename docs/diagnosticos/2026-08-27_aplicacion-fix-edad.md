@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-08-27 |
-| **SHA del commit** | `SHA_PLACEHOLDER` (este informe, branch `reports`) |
+| **SHA del commit** | `6236547` (este informe, branch `reports`) |
 | **SHA del código** | `54ccbad` — branch `fix/edad-reglamentaria-unica`, **pusheada, NO mergeada a `main`** |
 | **Estado** | 🟢 **APLICADO.** Probe **GATE OK — 32/32**. |
 | **Antecedentes** | `2026-08-27_edad-gate-inscripcion.md` (`7de5461`) · `2026-08-27_censo-inscripciones-r9.md` · `2026-08-27_fix-edad-una-sola-vez.md` · `2026-08-27_quien-choco-con-el-gate.md` |
