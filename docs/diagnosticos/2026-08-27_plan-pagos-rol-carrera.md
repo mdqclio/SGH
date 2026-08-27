@@ -5,7 +5,7 @@
 | **Fecha** | 2026-08-27 |
 | **Estado** | 🟡 **SIN APLICAR.** Branch pusheada, **NO mergeada a `main`**. No llegó a producción. |
 | **Branch del código** | `feat/pagos-rol-y-carrera` — `aee09bc`, sobre `main` `68444a2` |
-| **SHA de este informe** | (este commit, branch `reports`) |
+| **SHA de este informe** | `94952bf` — branch `reports` |
 | **Probe** | `tests/probe_pagos_rol_carrera.mjs` — **32/32, exit 0** |
 | **Antecedente** | `2026-08-27_relevamiento-pagos.md` (`64542b5`) |
 | **Alcance** | Consulta y render. **Cero cambios de modelo de datos, cero DDL, cero escritura en prod.** |
