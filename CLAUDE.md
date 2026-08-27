@@ -306,9 +306,20 @@ Todo informe, diagnóstico o análisis va a un archivo, nunca al chat.
 
 ## Deploy
 
-- **URL prod**: `https://mdqclio.github.io/SGH/`
+- **URL prod**: `https://sigh.com.ar/` — dominio propio desde la migración (`CNAME` en la raíz del
+  repo). `www.sigh.com.ar` redirige al apex. **Verificar siempre contra `sigh.com.ar`**, no contra
+  `mdqclio.github.io/SGH/`: ese origen quedó del período anterior y puede servir contenido viejo.
+  Ojo con la ruta: con dominio propio el sitio vive en la **raíz** (`sigh.com.ar/login.html`), no
+  en el subdirectorio `/SGH/`. Ver `docs/PLAN_DOMINIO_SIGH_COM_AR.md`.
 - **Método**: GitHub Pages "Deploy from branch" desde `main`. Sin workflow, sin build.
-- **Tiempo**: ~15–60 s después del push. Si no se ven los cambios: `Ctrl+Shift+R` o `?v=N` en la URL.
+- **Tiempo**: ~15–60 s de build, pero el CDN puede tardar varios minutos más en servir la versión
+  nueva. Si no se ven los cambios: `Ctrl+Shift+R` o `?v=N` en la URL. Para verificar de verdad,
+  comparar el md5 contra el archivo del commit:
+  ```bash
+  curl -s "https://sigh.com.ar/<archivo>.html?v=$RANDOM" -o /tmp/prod.html
+  git show <sha>:<archivo>.html > /tmp/local.html
+  md5sum /tmp/local.html /tmp/prod.html   # tienen que coincidir
+  ```
 - **Flujo**:
   ```bash
   git add <archivos>
