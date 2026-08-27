@@ -738,6 +738,12 @@ async function loadResumen(){
 let cobLineas = [];        // líneas pagables del beneficiario seleccionado
 let cobBenef = null;       // {tipo, id, nombre}
 let cobCaballerizas = [];  // {nombre, propietario_id} para resolver búsqueda por caballeriza
+// Mapas de carrera cacheados: no dependen del texto tipeado (el filtro por q es client-side y va
+// al final), sólo del scope de reunión. Sin esto cobrosBuscar pegaba 3 viajes al servidor por cada
+// tecla del buscador. Mismo patrón que cobCaballerizas: var de módulo + guarda antes de consultar.
+let cobInscCarrera = {};   // inscripcion_id → carrera_id
+let cobNroCarrera  = {};   // carrera_id → numero_carrera_programa ?? numero_turno
+let cobMapsScope   = null; // reunión de la que son los mapas; al cambiar se invalidan
 let cobReunInit = false;
 let _cobDebounce = null;
 function cobrosBuscarDebounced(){ clearTimeout(_cobDebounce); _cobDebounce=setTimeout(cobrosBuscar, 300); }
@@ -822,20 +828,33 @@ async function cobrosBuscar(){
   // respaldo. El incentivo de jockey no tiene ninguno de los dos y eso es correcto: es por
   // reunión, no por carrera — se rotula en la tarjeta, no se deja en blanco.
   const lineas = (data||[]).filter(l => !inscFiltro || inscFiltro.has(l.inscripcion_id));
-  const bInscIds = [...new Set(lineas.map(l=>l.inscripcion_id).filter(Boolean))];
-  const { data: bInscs, error: eInsc } = bInscIds.length
-    ? await sb.from('inscripciones').select('id,carrera_id').in('id', bInscIds)
-    : { data: [] };
-  if (eInsc) console.error('[cobrosBuscar/inscripciones]', eInsc);
-  const inscCarrera = Object.fromEntries((bInscs||[]).map(i=>[i.id, i.carrera_id]));
-  const carreraDe = l => inscCarrera[l.inscripcion_id] ?? l.carrera_id;
-  const carrIds = [...new Set(lineas.map(carreraDe).filter(Boolean))];
-  const { data: bCarrs, error: eCarr } = carrIds.length
-    ? await sb.from('carreras').select('id,numero_turno,numero_carrera_programa').in('id', carrIds)
-    : { data: [] };
-  if (eCarr) console.error('[cobrosBuscar/carreras]', eCarr);
-  // GOTCHA: numero_carrera_programa puede ser null → fallback numero_turno. Nunca un offset.
-  const nroCarrera = Object.fromEntries((bCarrs||[]).map(c=>[c.id, c.numero_carrera_programa ?? c.numero_turno]));
+  // ═══ CACHE MAPAS CARRERA — INICIO (el probe extrae este bloque por estas anclas) ═══
+  // Se pide sólo lo que falta: el universo de líneas puede crecer dentro de la misma reunión
+  // cuando liberar_linea suelta una retenida. Tipeando en el buscador no falta nada → 0 consultas.
+  if (cobMapsScope !== rid) { cobInscCarrera = {}; cobNroCarrera = {}; cobMapsScope = rid; }
+  const faltanInsc = [...new Set(lineas.map(l=>l.inscripcion_id).filter(i=>i && !(i in cobInscCarrera)))];
+  if (faltanInsc.length){
+    const { data: bInscs, error: eInsc } = await sb.from('inscripciones').select('id,carrera_id').in('id', faltanInsc);
+    if (eInsc) console.error('[cobrosBuscar/inscripciones]', eInsc);
+    else {
+      // se cachea también el negativo (id pedido que no volvió) para no re-pedirlo en cada tecla
+      faltanInsc.forEach(i => { cobInscCarrera[i] = null; });
+      (bInscs||[]).forEach(i => { cobInscCarrera[i.id] = i.carrera_id; });
+    }
+  }
+  const carreraDe = l => cobInscCarrera[l.inscripcion_id] ?? l.carrera_id;
+  const faltanCarr = [...new Set(lineas.map(carreraDe).filter(c=>c && !(c in cobNroCarrera)))];
+  if (faltanCarr.length){
+    const { data: bCarrs, error: eCarr } = await sb.from('carreras').select('id,numero_turno,numero_carrera_programa').in('id', faltanCarr);
+    if (eCarr) console.error('[cobrosBuscar/carreras]', eCarr);
+    else {
+      faltanCarr.forEach(c => { cobNroCarrera[c] = null; });
+      // GOTCHA: numero_carrera_programa puede ser null → fallback numero_turno. Nunca un offset.
+      (bCarrs||[]).forEach(c => { cobNroCarrera[c.id] = c.numero_carrera_programa ?? c.numero_turno; });
+    }
+  }
+  const nroCarrera = cobNroCarrera;
+  // ═══ CACHE MAPAS CARRERA — FIN ═══
   // agrupar por beneficiario (aplicando filtro de carrera si corresponde)
   const grupos = {};
   for (const l of lineas) {

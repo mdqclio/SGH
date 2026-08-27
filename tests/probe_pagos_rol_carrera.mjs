@@ -21,6 +21,13 @@
  *   2c) las líneas sin carrera se rotulan, no dejan hueco
  *   2d) la resolución coincide con la base, beneficiario por beneficiario
  *   2e) el respaldo ?? carrera_id está en el detalle y en el recibo
+ *
+ * CACHEO — los mapas de carrera no se re-consultan con cada tecla
+ *   C1) la primera búsqueda de una reunión arma los dos mapas
+ *   C2) tecleando en el buscador: cero viajes al servidor
+ *   C3) si el conjunto de líneas crece (liberar_linea, sacar el filtro) pide sólo los ids nuevos
+ *   C4/C5) el negativo también se cachea: un id inexistente no se re-pide
+ *   C6) cambiar de reunión invalida y rearma, y la reunión nueva vuelve a cachear
  */
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
@@ -196,6 +203,86 @@ for (const g of gs) {
 }
 ok('2d) el set de carreras de cada tarjeta coincide con la base', benefMal === 0,
    `${gs.length} beneficiarios, ${benefMal} con diferencia`);
+
+// ── C) CACHEO — el bloque real de cobrosBuscar contra un sb que cuenta viajes ───
+// Motivo del cacheo: cobrosBuscar se dispara con cada tecla (debounce 300 ms). Los dos mapas
+// nuevos no dependen del texto, sólo del scope de reunión → se cachean como cobCaballerizas.
+const CACHE_INI = '// ═══ CACHE MAPAS CARRERA — INICIO';
+const CACHE_FIN = '// ═══ CACHE MAPAS CARRERA — FIN ═══';
+const iIni = SRC.indexOf(CACHE_INI), iFin = SRC.indexOf(CACHE_FIN);
+if (iIni < 0 || iFin < 0) throw new Error('no encontré el bloque de cache en cobrosBuscar');
+const bloqueCache = SRC.slice(SRC.indexOf('\n', iIni) + 1, iFin);
+
+ok('C0) las vars del cache son de módulo, al lado de cobCaballerizas',
+   /let cobCaballerizas = \[\];[\s\S]{0,600}let cobInscCarrera = \{\};/.test(SRC) &&
+   /let cobNroCarrera\s+= \{\};/.test(SRC) && /let cobMapsScope\s+= null;/.test(SRC));
+ok('C0) el bloque invalida cuando cambia la reunión', /if \(cobMapsScope !== rid\)/.test(bloqueCache));
+ok('C0) el bloque pide sólo lo que falta (no el universo entero)',
+   /!\(i in cobInscCarrera\)/.test(bloqueCache) && /!\(c in cobNroCarrera\)/.test(bloqueCache));
+
+const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+const correr = new AsyncFunction('sb', 'rid', 'lineas', 'st', `
+  let cobInscCarrera = st.i, cobNroCarrera = st.n, cobMapsScope = st.s;
+${bloqueCache}
+  st.i = cobInscCarrera; st.n = cobNroCarrera; st.s = cobMapsScope;
+  return { nroCarrera, carreraDe };
+`);
+
+let viajes = [];
+const stubSb = { from(tabla){ return { select(){ return { in(_col, ids){
+  viajes.push({ tabla, ids: [...ids] });
+  const filas = tabla === 'inscripciones' ? (inscs || []) : (carrs || []);
+  return Promise.resolve({ data: filas.filter(f => ids.includes(f.id)), error: null });
+} }; } }; } };
+
+// coherencia con el camino sin cache ya calculado arriba (inscCarrera / nroCarrera / carreraDe)
+const resuelveIgual = (r, ls) => ls.every(l => (r.nroCarrera[r.carreraDe(l)] ?? null) === (nroCarrera[carreraDe(l)] ?? null));
+
+const st = { i: {}, n: {}, s: null };
+const subset = lns.slice(0, Math.min(20, lns.length));
+
+viajes = []; const rA = await correr(stubSb, 'R1', subset, st);
+const viajesA = viajes.map(v => v.tabla);
+ok('C1) primera búsqueda de la reunión: consulta inscripciones y carreras',
+   viajesA.includes('inscripciones') && viajesA.includes('carreras'), viajesA.join(' + '));
+ok('C1) y resuelve igual que el camino sin cache', resuelveIgual(rA, subset));
+
+viajes = []; const rB = await correr(stubSb, 'R1', subset, st);
+ok('C2) tecleando lo mismo en la misma reunión: CERO viajes al servidor',
+   viajes.length === 0, `${viajes.length} consultas`);
+ok('C2) y el resultado no cambió', resuelveIgual(rB, subset));
+
+viajes = []; const rC = await correr(stubSb, 'R1', lns, st);
+const pedidosC = viajes.flatMap(v => v.ids);
+const yaCacheadasC = new Set(subset.map(l => l.inscripcion_id).filter(Boolean));
+ok('C3) al ampliar el conjunto pide sólo los ids nuevos, no los ya cacheados',
+   lns.length === subset.length || (pedidosC.length > 0 && !pedidosC.some(id => yaCacheadasC.has(id))),
+   `${pedidosC.length} ids pedidos en ${viajes.length} consultas`);
+ok('C3) y el mapa ampliado sigue coincidiendo con la base', resuelveIgual(rC, lns));
+
+viajes = []; const rD = await correr(stubSb, 'R1', lns, st);
+ok('C4) repetir la búsqueda completa: CERO viajes', viajes.length === 0, `${viajes.length} consultas`);
+ok('C4) y sigue resolviendo bien', resuelveIgual(rD, lns));
+
+// negativo cacheado: un id que la base no devuelve no se re-pide en cada tecla
+const FANTASMA = { inscripcion_id: '00000000-0000-0000-0000-000000000000', carrera_id: null };
+viajes = []; await correr(stubSb, 'R1', [...lns, FANTASMA], st);
+const pedidoFantasma = viajes.flatMap(v => v.ids).includes(FANTASMA.inscripcion_id);
+viajes = []; await correr(stubSb, 'R1', [...lns, FANTASMA], st);
+ok('C5) el id que no existe se pide una vez y queda cacheado en negativo',
+   pedidoFantasma && viajes.length === 0, `${viajes.length} consultas en la segunda vuelta`);
+
+// invalidación por reunión: cambiar de reunión tiene que rearmar los mapas
+viajes = []; const rE = await correr(stubSb, 'R2', lns, st);
+ok('C6) cambiar de reunión invalida el cache y vuelve a consultar',
+   viajes.length >= 2 && viajes.map(v => v.tabla).includes('inscripciones'),
+   `${viajes.length} consultas, scope = ${st.s}`);
+ok('C6) el scope guardado es la reunión nueva', st.s === 'R2');
+ok('C6) los mapas rearmados vuelven a coincidir con la base', resuelveIgual(rE, lns));
+
+viajes = []; await correr(stubSb, 'R2', lns, st);
+ok('C6) y la reunión nueva también cachea (segunda tecla: cero viajes)', viajes.length === 0,
+   `${viajes.length} consultas`);
 
 // ── read-only: nada escrito ────────────────────────────────────────────────
 const { count: postLineas } = await sb.from('liquidacion_detalle').select('*', { count: 'exact', head: true });
