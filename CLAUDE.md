@@ -264,7 +264,7 @@ baseline vigente: no se reescriben.
 
 ## Workflow de trabajo
 
-- Ramas con prefijo: `feat/`, `fix/`, `chore/`
+- Ramas con prefijo: `feat/`, `fix/`, `chore/`. Única excepción: `reports`, sin prefijo ni barra (ver Protocolo de informes)
 - Commits descriptivos en español o inglés (lo que ya se usa en el repo)
 - No pedir confirmación intermedia para cambios chicos; mostrar diff antes de aplicar refactors grandes
 - Si una decisión es de producto (no técnica), elegir la opción más conservadora y dejarla anotada en el resumen final
@@ -285,6 +285,22 @@ El patrón está en `tests/probe_bug2_*.mjs`: auth con magic link → nav → DO
 ### Reunión activa para testing
 Reunión 5 — 17/05/2026 — Hipódromo de Dolores (11 turnos, ~81 inscripciones).
 Fijarla: `localStorage.setItem('sgh_active_reunion_id', 'UUID_REUNION_5')` o desde `reuniones.html` → botón 📍 Activar.
+
+---
+
+## Protocolo de informes
+
+Todo informe, diagnóstico o análisis va a un archivo, nunca al chat.
+
+- Branch fija: `reports`. No se mergea ni se borra. Sin barra en el nombre.
+- Ruta: `docs/diagnosticos/YYYY-MM-DD_slug.md`
+- Encabezado del doc: fecha, SHA del commit, guards verificados.
+- El doc es autocontenido: incluye queries, salida cruda, conclusión,
+  números de resumen y preguntas abiertas.
+- La respuesta en el chat es UNA línea: la ruta del archivo. Nada más.
+  Ni resumen, ni conclusión, ni recomendaciones, ni "¿querés que...?".
+- Si algo no está en el archivo, no existe.
+- No mergear a `main` sin OK explícito.
 
 ---
 
