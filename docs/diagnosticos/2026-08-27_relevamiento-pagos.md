@@ -4,7 +4,7 @@
 |---|---|
 | **Fecha** | 2026-08-27 |
 | **SHA del código relevado** | `68444a2` — `main`, árbol limpio, sincronizado con `origin/main` |
-| **SHA de este informe** | (este commit, branch `reports`) |
+| **SHA de este informe** | `41310e0` — branch `reports` |
 | **Alcance** | **SOLO LECTURA.** 10 `SELECT` por MCP, cero escritura. Ni un archivo de código tocado. Ningún merge. |
 | **Archivo relevado** | `liquidaciones.html` (1090 líneas) · `liquidaciones-engine.js` |
 
