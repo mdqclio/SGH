@@ -345,17 +345,20 @@ caballo de 4 entrando a una carrera de 3— ahora rebota.
 
 ---
 
-## 6. Estado del árbol
+## 6. Estado del árbol — MERGEADO
 
 | rama | SHA | estado |
 |---|---|---|
-| `fix/edad-reglamentaria-unica` | `54ccbad` | pusheada, **NO mergeada** |
-| `reports` | este commit | pusheada |
-| `main` | `c531877` | **sin tocar** |
+| `fix/edad-reglamentaria-unica` | `54ccbad` | mergeada |
+| `main` | **`68444a2`** | **mergeada y pusheada** — merge `--no-ff` con OK explícito del 27/08 |
+| `reports` | este commit | pusheada, no se mergea (protocolo de informes) |
 
-**No se mergeó a `main`**, como indicaste. Queda a la espera de tu OK ahora que viste el
-resultado del probe.
+La ventana que había señalado —base con el fix aplicado y `main` sin el código— **quedó
+cerrada**. `main` trae ahora `migrations/fn_edad_reglamentaria.sql` (342 líneas, con el bloque
+de rollback) y `tests/probe_edad_reglamentaria.mjs` (+115 líneas, Parte B).
 
-⚠️ Ojo con esto: **la base ya tiene el fix aplicado, pero `main` no tiene el código.** Si otra
-sesión levanta `main` y lo toma como fuente de verdad, va a ver el `AGE()` viejo en el
-repositorio y el nuevo en producción. Conviene no dejar esa ventana abierta mucho tiempo.
+Orden real de los hechos, que conviene tener claro por si alguien reconstruye esto después:
+**la base se modificó ANTES que el repositorio.** El `apply_migration` fue a las 14:33 ART y el
+merge a `main` vino después, una vez visto el resultado del probe. Fue deliberado —el gate
+estaba decidiendo mal con la inscripción abierta— pero significa que entre esas dos marcas
+`main` mostraba el `AGE()` viejo mientras producción ya tenía el nuevo.
