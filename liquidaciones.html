@@ -738,6 +738,12 @@ async function loadResumen(){
 let cobLineas = [];        // líneas pagables del beneficiario seleccionado
 let cobBenef = null;       // {tipo, id, nombre}
 let cobCaballerizas = [];  // {nombre, propietario_id} para resolver búsqueda por caballeriza
+// Mapas de carrera cacheados: no dependen del texto tipeado (el filtro por q es client-side y va
+// al final), sólo del scope de reunión. Sin esto cobrosBuscar pegaba 3 viajes al servidor por cada
+// tecla del buscador. Mismo patrón que cobCaballerizas: var de módulo + guarda antes de consultar.
+let cobInscCarrera = {};   // inscripcion_id → carrera_id
+let cobNroCarrera  = {};   // carrera_id → numero_carrera_programa ?? numero_turno
+let cobMapsScope   = null; // reunión de la que son los mapas; al cambiar se invalidan
 let cobReunInit = false;
 let _cobDebounce = null;
 function cobrosBuscarDebounced(){ clearTimeout(_cobDebounce); _cobDebounce=setTimeout(cobrosBuscar, 300); }
@@ -773,6 +779,22 @@ async function cobLoadCarreras(){
   cobrosBuscar();
 }
 
+// Rol(es) de la tarjeta del listado. Se muestran TODOS los roles presentes, no el de la primera
+// línea: 126 de los 127 beneficiarios con deuda tienen un rol solo, pero uno (tipo 'ambos') cobra
+// como Entrenador y como Jockey en la misma tarjeta, y derivar del primero mentiría en la mitad de
+// sus líneas. Es además lo que ya hace el encabezado del recibo con rolesLineas.join(' / ').
+// El fallback a g.tipo es red: hoy no se usa (0 de 299 líneas caen al genérico).
+function etiquetaRoles(g){ return [...g.roles].join(' / ') || g.tipo; }
+
+// Carreras pendientes del beneficiario. Orden NUMÉRICO, no textual: hay reuniones de 12 turnos y
+// un sort de strings pondría C10 antes que C2. Máximo medido hoy: 5 carreras, 18 caracteres.
+function etiquetaCarreras(g){
+  const cs = [...g.carreras].sort((a,b)=>a-b).map(n=>`C${n}`).join(', ');
+  if (cs && g.sinCarrera) return `${cs} · + incentivo por reunión`;
+  if (cs) return cs;
+  return g.sinCarrera ? 'incentivo por reunión' : '—';
+}
+
 async function cobrosBuscar(){
   const q = (document.getElementById('cob-q').value||'').trim().toLowerCase();
   const rid = document.getElementById('cob-reunion')?.value || '';
@@ -787,7 +809,7 @@ async function cobrosBuscar(){
   }
   // líneas pagables (SOLO impago), persona (no club), sin recibo. Scope opcional por reunión.
   let qy = sb.from('liquidacion_detalle')
-    .select('beneficiario_tipo,beneficiario_id,monto_neto,reunion_id,inscripcion_id')
+    .select('beneficiario_tipo,beneficiario_id,monto_neto,reunion_id,inscripcion_id,carrera_id,descripcion,concepto_tipo')
     .eq('estado_linea','impago').neq('beneficiario_tipo','club').is('recibo_id', null);
   if (rid) qy = qy.eq('reunion_id', rid);
   const { data, error } = await qy;
@@ -800,13 +822,49 @@ async function cobrosBuscar(){
     cobCaballerizas = (cab||[]).map(c=>({nombre:(c.caballerizas?.nombre||'').toLowerCase(), propietario_id:c.propietario_id}));
   }
   const propIdsPorCaballeriza = q ? new Set(cobCaballerizas.filter(c=>c.nombre.includes(q)).map(c=>c.propietario_id)) : new Set();
+  // Nº de carrera de cada línea. Dos caminos, ninguno completo solo: `inscripcion_id` cubre los
+  // incentivos de entrenador (que no traen carrera_id) y `carrera_id` cubre las 3 líneas de
+  // premio/bono que quedaron sin inscripción. Se prueba inscripción primero y carrera_id de
+  // respaldo. El incentivo de jockey no tiene ninguno de los dos y eso es correcto: es por
+  // reunión, no por carrera — se rotula en la tarjeta, no se deja en blanco.
+  const lineas = (data||[]).filter(l => !inscFiltro || inscFiltro.has(l.inscripcion_id));
+  // ═══ CACHE MAPAS CARRERA — INICIO (el probe extrae este bloque por estas anclas) ═══
+  // Se pide sólo lo que falta: el universo de líneas puede crecer dentro de la misma reunión
+  // cuando liberar_linea suelta una retenida. Tipeando en el buscador no falta nada → 0 consultas.
+  if (cobMapsScope !== rid) { cobInscCarrera = {}; cobNroCarrera = {}; cobMapsScope = rid; }
+  const faltanInsc = [...new Set(lineas.map(l=>l.inscripcion_id).filter(i=>i && !(i in cobInscCarrera)))];
+  if (faltanInsc.length){
+    const { data: bInscs, error: eInsc } = await sb.from('inscripciones').select('id,carrera_id').in('id', faltanInsc);
+    if (eInsc) console.error('[cobrosBuscar/inscripciones]', eInsc);
+    else {
+      // se cachea también el negativo (id pedido que no volvió) para no re-pedirlo en cada tecla
+      faltanInsc.forEach(i => { cobInscCarrera[i] = null; });
+      (bInscs||[]).forEach(i => { cobInscCarrera[i.id] = i.carrera_id; });
+    }
+  }
+  const carreraDe = l => cobInscCarrera[l.inscripcion_id] ?? l.carrera_id;
+  const faltanCarr = [...new Set(lineas.map(carreraDe).filter(c=>c && !(c in cobNroCarrera)))];
+  if (faltanCarr.length){
+    const { data: bCarrs, error: eCarr } = await sb.from('carreras').select('id,numero_turno,numero_carrera_programa').in('id', faltanCarr);
+    if (eCarr) console.error('[cobrosBuscar/carreras]', eCarr);
+    else {
+      faltanCarr.forEach(c => { cobNroCarrera[c] = null; });
+      // GOTCHA: numero_carrera_programa puede ser null → fallback numero_turno. Nunca un offset.
+      (bCarrs||[]).forEach(c => { cobNroCarrera[c.id] = c.numero_carrera_programa ?? c.numero_turno; });
+    }
+  }
+  const nroCarrera = cobNroCarrera;
+  // ═══ CACHE MAPAS CARRERA — FIN ═══
   // agrupar por beneficiario (aplicando filtro de carrera si corresponde)
   const grupos = {};
-  for (const l of (data||[])) {
-    if (inscFiltro && !inscFiltro.has(l.inscripcion_id)) continue;
+  for (const l of lineas) {
     const k = `${l.beneficiario_tipo}|${l.beneficiario_id}`;
-    if (!grupos[k]) grupos[k] = {tipo:l.beneficiario_tipo, id:l.beneficiario_id, total:0, n:0};
+    if (!grupos[k]) grupos[k] = {tipo:l.beneficiario_tipo, id:l.beneficiario_id, total:0, n:0,
+                                 roles:new Set(), carreras:new Set(), sinCarrera:0};
     grupos[k].total += parseFloat(l.monto_neto)||0; grupos[k].n++;
+    const rol = rolDeLinea(l); if (rol) grupos[k].roles.add(rol);
+    const nro = nroCarrera[carreraDe(l)];
+    if (nro != null) grupos[k].carreras.add(nro); else grupos[k].sinCarrera++;
   }
   let lista = Object.values(grupos).map(g=>({...g, nombre:nombreBenef(g.tipo,g.id)}));
   if (q) lista = lista.filter(g => benefSearch(g.tipo,g.id).includes(q) || propIdsPorCaballeriza.has(g.id));
@@ -815,7 +873,7 @@ async function cobrosBuscar(){
   if (!lista.length) { cont.innerHTML = '<div class="empty-state"><div class="icon">∅</div><h3>Sin deuda pagable para esa búsqueda</h3></div>'; return; }
   cont.innerHTML = `<div class="liq-grid">${lista.map(g=>`<div class="liq-card">
     <div class="liq-header">
-      <div><div class="liq-prof">${g.nombre}</div><div class="liq-recibo">${g.tipo} · ${g.n} línea(s) pagable(s)</div></div>
+      <div><div class="liq-prof">${g.nombre}</div><div class="liq-recibo">${etiquetaRoles(g)} · ${g.n} línea(s) pagable(s) · ${etiquetaCarreras(g)}</div></div>
       <div style="display:flex;gap:16px;align-items:center;">
         <div class="monto-item"><div class="monto-lbl">Adeudado</div><div class="monto-val neto">${fmt(g.total)}</div></div>
         <button class="btn-sm btn-pagar" onclick="cobrosDetalle('${g.tipo}','${g.id}')">🧾 Pagar</button>
@@ -828,10 +886,10 @@ async function cobrosDetalle(tipo, id){
   // pagables = SOLO impago; retenidas aparte
   const [{ data: pag, error: ePag }, { data: ret }, { data: apos }] = await Promise.all([
     sb.from('liquidacion_detalle')
-      .select('id,concepto,monto_neto,posicion,reunion_id,inscripcion_id')
+      .select('id,concepto,descripcion,concepto_tipo,beneficiario_tipo,monto_neto,posicion,reunion_id,inscripcion_id,carrera_id')
       .eq('beneficiario_tipo',tipo).eq('beneficiario_id',id).is('recibo_id',null).eq('estado_linea','impago'),
     sb.from('liquidacion_detalle')
-      .select('id,concepto,monto_neto,posicion,reunion_id,inscripcion_id,fecha_liberacion')
+      .select('id,concepto,descripcion,concepto_tipo,beneficiario_tipo,monto_neto,posicion,reunion_id,inscripcion_id,carrera_id,fecha_liberacion')
       .eq('beneficiario_tipo',tipo).eq('beneficiario_id',id).is('recibo_id',null).eq('estado_linea','retenido'),
     // ISSUE-028 v1.1 — apoderados vigentes del beneficiario (read-only, solo display).
     sb.from('apoderados')
@@ -847,20 +905,27 @@ async function cobrosDetalle(tipo, id){
   const all = [...cobLineas, ...retLineas];
   const reunIds=[...new Set(all.map(l=>l.reunion_id).filter(Boolean))];
   const inscIds=[...new Set(all.map(l=>l.inscripcion_id).filter(Boolean))];
-  const [{data:reuns},{data:inscs}] = await Promise.all([
+  const carrIds=[...new Set(all.map(l=>l.carrera_id).filter(Boolean))];
+  const [{data:reuns},{data:inscs},{data:carrs}] = await Promise.all([
     reunIds.length? sb.from('reuniones').select('id,fecha,numero').in('id',reunIds):Promise.resolve({data:[]}),
     inscIds.length? sb.from('inscripciones').select('id,carrera_id,spcs(nombre),carreras(numero_turno,numero_carrera_programa)').in('id',inscIds):Promise.resolve({data:[]}),
+    carrIds.length? sb.from('carreras').select('id,numero_turno,numero_carrera_programa').in('id',carrIds):Promise.resolve({data:[]}),
   ]);
   const reunMap=Object.fromEntries((reuns||[]).map(r=>[r.id,r])); const inscMap=Object.fromEntries((inscs||[]).map(i=>[i.id,i]));
+  const carrMap=Object.fromEntries((carrs||[]).map(c=>[c.id,c]));
   const cellFecha=l=>{const r=reunMap[l.reunion_id];return r?new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR'):'—';};
-  const cellCarrera=l=>{const ins=inscMap[l.inscripcion_id];const n=ins?.carreras?.numero_carrera_programa ?? ins?.carreras?.numero_turno;return n?`C${n}`:'—';};
+  // numero_carrera_programa ?? numero_turno, primero por inscripción y de respaldo por carrera_id.
+  const cellCarrera=l=>{const ins=inscMap[l.inscripcion_id]; const d=carrMap[l.carrera_id];
+    const n = ins?.carreras?.numero_carrera_programa ?? ins?.carreras?.numero_turno
+           ?? d?.numero_carrera_programa ?? d?.numero_turno;
+    return n!=null?`C${n}`:'—';};
   const cellCaballo=l=>inscMap[l.inscripcion_id]?.spcs?.nombre||'—';
   const total = cobLineas.reduce((s,l)=>s+(parseFloat(l.monto_neto)||0),0);
   const rows = cobLineas.map(l=>`<tr><td><input type="checkbox" class="cob-chk" value="${l.id}" data-monto="${l.monto_neto}" checked onchange="cobrosRecalc()"></td>
-      <td>${cellFecha(l)}</td><td>${cellCarrera(l)}</td><td>${cellCaballo(l)}</td><td>${l.posicion?l.posicion+'°':'—'}</td><td>${l.concepto||''}</td>
+      <td>${cellFecha(l)}</td><td>${cellCarrera(l)}</td><td>${cellCaballo(l)}</td><td>${l.posicion?l.posicion+'°':'—'}</td><td>${rolDeLinea(l)||'—'}</td><td>${l.concepto||''}</td>
       <td style="text-align:right">${fmt(l.monto_neto)}</td></tr>`).join('');
   const retRows = retLineas.map(l=>`<tr>
-      <td>${cellFecha(l)}</td><td>${cellCarrera(l)}</td><td>${cellCaballo(l)}</td><td>${l.posicion?l.posicion+'°':'—'}</td><td>${l.concepto||''}</td>
+      <td>${cellFecha(l)}</td><td>${cellCarrera(l)}</td><td>${cellCaballo(l)}</td><td>${l.posicion?l.posicion+'°':'—'}</td><td>${rolDeLinea(l)||'—'}</td><td>${l.concepto||''}</td>
       <td style="text-align:right">${fmt(l.monto_neto)}</td>
       <td style="font-size:11px;color:var(--muted)">ref. ${l.fecha_liberacion||'—'}</td>
       <td><button class="btn-sm btn-aprobar" onclick="habilitarLinea('${l.id}','${tipo}','${id}')">✅ Habilitar</button></td></tr>`).join('');
@@ -875,12 +940,12 @@ async function cobrosDetalle(tipo, id){
     <div class="config-card" style="margin-top:16px;">
       <h2 style="font-size:18px;color:var(--accent);margin-bottom:6px;">Pago — ${cobBenef.nombre}</h2>
       ${apoBlock}
-      <table class="detalle-table"><thead><tr><th></th><th>Fecha</th><th>Carrera</th><th>Caballo</th><th>Puesto</th><th>Concepto</th><th style="text-align:right">Neto</th></tr></thead>
-        <tbody>${rows||'<tr><td colspan="7" style="text-align:center;padding:14px;color:var(--muted)">Sin líneas pagables</td></tr>'}</tbody>
-        <tfoot><tr><td colspan="6">TOTAL SELECCIONADO</td><td style="text-align:right;color:var(--success)" id="cob-total">${fmt(total)}</td></tr></tfoot>
+      <table class="detalle-table"><thead><tr><th></th><th>Fecha</th><th>Carrera</th><th>Caballo</th><th>Puesto</th><th>Rol</th><th>Concepto</th><th style="text-align:right">Neto</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="8" style="text-align:center;padding:14px;color:var(--muted)">Sin líneas pagables</td></tr>'}</tbody>
+        <tfoot><tr><td colspan="7">TOTAL SELECCIONADO</td><td style="text-align:right;color:var(--success)" id="cob-total">${fmt(total)}</td></tr></tfoot>
       </table>
       ${retLineas.length?`<h3 style="font-size:14px;color:var(--danger);margin:16px 0 6px;">🔒 Retenido por doping — habilitar para poder pagar</h3>
-      <table class="detalle-table"><thead><tr><th>Fecha</th><th>Carrera</th><th>Caballo</th><th>Puesto</th><th>Concepto</th><th style="text-align:right">Neto</th><th>Liberación</th><th></th></tr></thead>
+      <table class="detalle-table"><thead><tr><th>Fecha</th><th>Carrera</th><th>Caballo</th><th>Puesto</th><th>Rol</th><th>Concepto</th><th style="text-align:right">Neto</th><th>Liberación</th><th></th></tr></thead>
         <tbody>${retRows}</tbody></table>`:''}
       <div style="margin-top:12px;display:flex;gap:8px;">
         <button class="btn-primary" onclick="cobrosEmitir()">🧾 Emitir recibo</button>
@@ -938,19 +1003,25 @@ function rolDeLinea(l){
 async function imprimirReciboCobro(recibo, lineaIds){
   // re-leer las líneas marcadas para el print
   const { data: lns, error: eLns } = await sb.from('liquidacion_detalle')
-    .select('concepto,descripcion,concepto_tipo,beneficiario_tipo,monto_neto,posicion,reunion_id,inscripcion_id').eq('recibo_id',recibo.id);
+    .select('concepto,descripcion,concepto_tipo,beneficiario_tipo,monto_neto,posicion,reunion_id,inscripcion_id,carrera_id').eq('recibo_id',recibo.id);
   if (eLns) console.error('[imprimirReciboCobro/lineas]', eLns);
   const reunIds=[...new Set((lns||[]).map(l=>l.reunion_id).filter(Boolean))];
   const inscIds=[...new Set((lns||[]).map(l=>l.inscripcion_id).filter(Boolean))];
-  const [{data:reuns},{data:inscs}] = await Promise.all([
+  const carrIds=[...new Set((lns||[]).map(l=>l.carrera_id).filter(Boolean))];
+  const [{data:reuns},{data:inscs},{data:carrs}] = await Promise.all([
     reunIds.length? sb.from('reuniones').select('id,fecha').in('id',reunIds):Promise.resolve({data:[]}),
     inscIds.length? sb.from('inscripciones').select('id,spcs(nombre),carreras(numero_turno,numero_carrera_programa)').in('id',inscIds):Promise.resolve({data:[]}),
+    carrIds.length? sb.from('carreras').select('id,numero_turno,numero_carrera_programa').in('id',carrIds):Promise.resolve({data:[]}),
   ]);
   const reunMap=Object.fromEntries((reuns||[]).map(r=>[r.id,r])); const inscMap=Object.fromEntries((inscs||[]).map(i=>[i.id,i]));
+  const carrMap=Object.fromEntries((carrs||[]).map(c=>[c.id,c]));
   const rolesLineas=[...new Set((lns||[]).map(rolDeLinea).filter(Boolean))];
   const rows=(lns||[]).map(l=>{const r=reunMap[l.reunion_id];const ins=inscMap[l.inscripcion_id];
     const fecha=r?new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR'):'—';
-    const nroCarr=ins?.carreras?.numero_carrera_programa ?? ins?.carreras?.numero_turno; const carrera=nroCarr?`C${nroCarr}`:'—'; const caballo=ins?.spcs?.nombre||'—';
+    const d=carrMap[l.carrera_id];
+    const nroCarr=ins?.carreras?.numero_carrera_programa ?? ins?.carreras?.numero_turno
+                ?? d?.numero_carrera_programa ?? d?.numero_turno;
+    const carrera=nroCarr!=null?`C${nroCarr}`:'—'; const caballo=ins?.spcs?.nombre||'—';
     const puesto=l.posicion?`${l.posicion}°`:'—';
     return `<tr><td>${fecha}</td><td>${carrera}</td><td>${caballo}</td><td>${puesto}</td><td>${rolDeLinea(l)||'—'}</td><td>${l.concepto||''}</td><td style="text-align:right">${fmt(l.monto_neto)}</td></tr>`;}).join('');
   // Fetch del club con logo_url (el global `club` puede no tenerlo en el flujo de Pagos).
