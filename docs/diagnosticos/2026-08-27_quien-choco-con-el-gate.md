@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-08-27 |
-| **SHA del commit** | `SHA_PLACEHOLDER` (este informe, branch `reports`) |
+| **SHA del commit** | `bce0819` (este informe, branch `reports`) |
 | **Tipo** | Censo de uso real. **Read-only**: sólo `SELECT` por MCP + lectura de logs. Cero DDL, cero DML, cero cambios de código, sin merge a `main`. |
 | **Antecedentes** | `2026-08-27_edad-gate-inscripcion.md` (`7de5461`) · `2026-08-27_censo-inscripciones-r9.md` · `2026-08-27_fix-edad-una-sola-vez.md` |
 
