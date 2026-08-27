@@ -210,6 +210,119 @@ asrt(fueraNuevo === 0,
      `ningun ratificado fuera de la condicion de edad de su carrera (fuera: ${fueraNuevo})`);
 console.log(`     con las edades del baseline habrian figurado ${fueraViejo} caballos fuera de condicion`);
 
+
+// ════════════════════════════════════════════════════════════════════════════
+// PARTE B — el gate de la BASE: fn_edad_reglamentaria + validar_inscripcion
+// ════════════════════════════════════════════════════════════════════════════
+// La parte A compara el helper del front (edad-spc.js) contra el Stud Book.
+// Esta parte verifica que la BASE calcule igual, y que el gate de inscripción
+// decida bien en LAS DOS DIRECCIONES: que deje pasar al que puede correr y que
+// frene al que no.
+//
+// Antes del fix, validar_inscripcion usaba DATE_PART('year', AGE(...)), o sea
+// el aniversario real: todo SPC nacido entre julio y diciembre quedaba con un
+// año de menos. 94 de 181 SPCs del padrón.
+//
+// Requiere la migración migrations/fn_edad_reglamentaria.sql aplicada.
+
+console.log('\n\n══ PARTE B — gate de la base (fn_edad_reglamentaria + validar_inscripcion) ══\n');
+
+const R9_NUM = 9;
+const { data: r9 } = await sb.from('reuniones').select('id,fecha,numero').eq('numero', R9_NUM).single();
+const { data: c9 } = await sb.from('carreras')
+  .select('id,numero_turno,edad_minima_anos,edad_maxima_anos,condicion_sexo,condicion_handicap')
+  .eq('reunion_id', r9.id).order('numero_turno');
+
+const turno1 = c9.find(c => c.edad_minima_anos === 3 && c.edad_maxima_anos === 3);
+const turno4 = c9.find(c => c.edad_minima_anos === 4 && c.edad_maxima_anos === 4);
+asrt(!!turno1, `R9 tiene un turno de 3/3 (turno ${turno1?.numero_turno})`);
+asrt(!!turno4, `R9 tiene un turno de 4/4 (turno ${turno4?.numero_turno})`);
+
+const nombres = ['MOSQUITA GARDEN', 'ABELITO MIMOSO', 'Amiguito Peligroso'];
+const { data: spcB } = await sb.from('spcs').select('id,nombre,fecha_nacimiento,sexo,estado').in('nombre', nombres);
+const N = Object.fromEntries((spcB || []).map(s => [s.nombre.toUpperCase(), s]));
+for (const n of nombres) asrt(!!N[n.toUpperCase()], `SPC de prueba presente en el padrón: ${n}`);
+
+// ── B1. La función, aislada ─────────────────────────────────────────────────
+console.log('\n── B1. fn_edad_reglamentaria(fecha_ref, fecha_nac) ──');
+async function fnEdad(ref, nac) {
+  const { data, error } = await sb.rpc('fn_edad_reglamentaria', { p_fecha_ref: ref, p_fecha_nac: nac });
+  if (error) { bad(`fn_edad_reglamentaria(${ref}, ${nac}) -> ERROR ${error.message}`); return undefined; }
+  return data;
+}
+const CASOS_FN = [
+  // ref,          nac,           esperado, nota
+  [r9.fecha, '2023-10-10', 3, 'MOSQUITA GARDEN — nacida en octubre, el aniversario real daría 2'],
+  [r9.fecha, '2022-11-10', 4, 'ABELITO MIMOSO — nacido en noviembre, el aniversario real daría 3'],
+  [r9.fecha, '2023-07-07', 3, 'Amiguito Peligroso — 5 días después del corte, ambas fórmulas coinciden'],
+  [r9.fecha, '2023-06-28', 3, 'nacido 3 días ANTES del corte del año anterior'],
+  ['2026-06-20', '2022-11-10', 3, 'reunión ANTERIOR al 1° de julio: la resta del CASE sí aplica'],
+  ['2026-07-01', '2022-11-10', 4, 'reunión el 1° de julio exacto: ya cumplió, no resta'],
+  ['2026-06-30', '2022-11-10', 3, 'reunión el 30 de junio: todavía no cumplió, resta'],
+  [r9.fecha, null, null, 'sin fecha de nacimiento -> NULL'],
+  [null, '2022-11-10', null, 'sin fecha de referencia -> NULL'],
+];
+for (const [ref, nac, esperado, nota] of CASOS_FN) {
+  const got = await fnEdad(ref, nac);
+  asrt(got === esperado, `fn(${ref ?? 'NULL'}, ${nac ?? 'NULL'}) = ${got} (esperado ${esperado}) — ${nota}`);
+}
+
+// La base y el front tienen que dar el MISMO número: son dos implementaciones
+// de la misma regla y no hay forma de compartir código entre Postgres y el browser.
+console.log('\n── B2. la base y edad-spc.js coinciden ──');
+let divergen = 0;
+for (const f of filas) {
+  const enBase = await fnEdad(reunion.fecha, f.nac);
+  if (enBase !== f.fix) { divergen++; console.log(`     DIVERGE ${f.nombre}: base ${enBase} vs edad-spc.js ${f.fix}`); }
+}
+asrt(divergen === 0, `fn_edad_reglamentaria coincide con edadSPC() en los ${filas.length} ratificados de R8 (divergen: ${divergen})`);
+
+// ── B3. El gate, en las dos direcciones ─────────────────────────────────────
+console.log('\n── B3. validar_inscripcion — acepta y rechaza ──');
+async function gate(spc, carrera) {
+  const { data, error } = await sb.rpc('validar_inscripcion', { p_spc_id: spc.id, p_carrera_id: carrera.id });
+  if (error) return { ok: null, motivo: `ERROR ${error.message}` };
+  const row = Array.isArray(data) ? data[0] : data;
+  return { ok: row?.puede_inscribirse ?? null, motivo: row?.motivo ?? '(sin motivo)' };
+}
+const CASOS_GATE = [
+  { spc: 'MOSQUITA GARDEN',    carrera: turno1, espera: true,
+    nota: '3 años reales en carrera de 3/3 — ANTES DEL FIX RECHAZABA (falso negativo)' },
+  { spc: 'ABELITO MIMOSO',     carrera: turno1, espera: false,
+    nota: '4 años reales en carrera de 3/3 — ANTES DEL FIX ACEPTABA (falso positivo, el más grave)' },
+  { spc: 'ABELITO MIMOSO',     carrera: turno4, espera: true,
+    nota: '4 años reales en carrera de 4/4 — ANTES DEL FIX RECHAZABA' },
+  { spc: 'Amiguito Peligroso', carrera: turno1, espera: true,
+    nota: 'las dos fórmulas coinciden — tiene que seguir aceptando (no-regresión)' },
+];
+for (const c of CASOS_GATE) {
+  const s = N[c.spc.toUpperCase()];
+  const r = await gate(s, c.carrera);
+  asrt(r.ok === c.espera,
+    `${c.spc} vs turno ${c.carrera.numero_turno} (${c.carrera.edad_minima_anos}/${c.carrera.edad_maxima_anos}): ` +
+    `${r.ok ? 'ACEPTA' : 'RECHAZA'} (esperado ${c.espera ? 'ACEPTA' : 'RECHAZA'}) — ${c.nota}` +
+    (r.ok === c.espera ? '' : ` [motivo: ${r.motivo}]`));
+}
+
+// ── B4. SPC sin fecha_nacimiento: el gate queda FAIL-OPEN ───────────────────
+// No se crea un SPC fixture a propósito: `SELECT count(*) FROM spcs` = 181 es uno
+// de los tres guards de sesión, y un alta/baja lo movería. Se verifica la
+// semántica NULL de las dos comparaciones del gate, que es lo que decide el caso.
+console.log('\n── B4. SPC sin fecha_nacimiento ──');
+const { data: sinFecha } = await sb.from('spcs').select('id,nombre').is('fecha_nacimiento', null);
+console.log(`     SPCs sin fecha_nacimiento en el padrón: ${(sinFecha || []).length}`);
+const { data: nullSem } = await sb.rpc('fn_edad_reglamentaria', { p_fecha_ref: r9.fecha, p_fecha_nac: null });
+asrt(nullSem === null, 'fn_edad_reglamentaria devuelve NULL si falta la fecha de nacimiento');
+// `NULL < 3` es NULL, y un IF con NULL no entra: el gate NO rechaza. Igual que antes
+// del fix, donde DATE_PART('year', AGE(fecha, NULL)) también daba NULL.
+if ((sinFecha || []).length > 0) {
+  const r = await gate(sinFecha[0], turno1);
+  asrt(r.ok === true,
+    `${sinFecha[0].nombre} (sin fecha de nacimiento) pasa el gate de edad — fail-open, comportamiento SIN CAMBIO respecto de antes del fix`);
+} else {
+  ok('no hay SPCs sin fecha_nacimiento en el padrón: el caso es teórico (fail-open documentado en el informe)');
+}
+
 console.log(`\n${'─'.repeat(66)}`);
 console.log(fail === 0 ? `\x1b[32mGATE OK\x1b[0m — ${pass}/${pass + fail} asserts`
                        : `\x1b[31mGATE FAIL\x1b[0m — ${fail} de ${pass + fail} fallaron`);
