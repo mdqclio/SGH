@@ -1,5 +1,52 @@
 # Changelog
 
+## [2026-08-28] — Saldado administrativo de R6 y R8: el histórico deja de ser cobrable
+
+> R6 (20/06) y R8 (16/08) se pagaron **por fuera del sistema**, antes de que el circuito de Pagos
+> estuviera en uso, y el sistema las seguía viendo como impagas. El 20/09 Valeria habría visto ese
+> histórico mezclado con lo nuevo, con riesgo de pagar dos veces. Fede y Valeria acordaron darlo
+> por saldado y arrancar limpio en R9. Plan y ejecución documentados en la branch `reports`:
+> `docs/diagnosticos/2026-08-28_plan-saldado-r6-r8.md` y `…_ejecucion-saldado-r6-r8.md`.
+
+- **332 líneas marcadas como pagadas · $21.861.040,85** — R6: 157 líneas / $7.116.984,19 · R8: 175
+  líneas / $14.744.056,66. Sólo `UPDATE` sobre `liquidacion_detalle`: **0 filas creadas, 0
+  borradas**.
+- **Incluye las retenidas por anti-doping** (78 de las 332). Decisión explícita de Fede: *"los
+  retenidos los damos por pagado, es de antes del sistema"*. Sin esto seguían siendo un vector de
+  doble pago por el botón "✅ Habilitar" del detalle de Pagos.
+- **Sin recibos.** Ninguna fila nueva en `recibos`, **ningún número de `club_secuencias`
+  consumido**, `recibo_id` queda NULL. La numeración correlativa arranca limpia en R9.
+- **Tres columnas escritas**: `estado_linea='pagado'`, `pagado_at='2026-08-28 12:00:00-03:00'`
+  (fijo, no `now()`: determinista y compartido por las 332) y un sufijo en `descripcion`.
+- **La marca de regularización** distingue esto de un pago real por tres señales convergentes: (1)
+  `estado_linea='pagado'` con `recibo_id IS NULL`, combinación que el sistema **nunca** produce
+  —`emitir_recibo` siempre asigna recibo—; (2) el timestamp idéntico en las 332; (3) el sufijo
+  `[REGULARIZACION 2026-08-28: saldado administrativo pre-sistema, sin recibo; estado
+  previo=impago|retenido]`, que además **preserva el estado previo** y hace el rollback exacto.
+  Hizo falta porque **`liquidacion_detalle` no tiene trigger de auditoría** (verificado): el
+  `UPDATE` no dejó rastro en `auditoria`, y la línea no tiene columna `notas` — `descripcion` es el
+  único texto libre disponible.
+- **Quedó afuera, a propósito**: el fondo solidario (75 líneas, $578.753,99 — va al club, no a una
+  persona, no se le pagó a nadie por fuera del sistema), las 10 líneas de R8 ya pagadas con recibo
+  real, R9 (no tiene ninguna línea de liquidación) y la reunión de prueba 9999.
+- **El recálculo no lo revierte** — verificado en código, no supuesto: `liquidaciones-engine.js:274`
+  preserva con la condición `estado_linea==='pagado' || recibo_id != null` (un **OR**, así que
+  alcanza con la primera mitad), `:286-289` borra sólo `recibo_id IS NULL AND estado != 'pagado'`, y
+  `:333` no regenera lo que ya está en `paidKeys`. `lineKey()` (`:37`) no lee `descripcion`, así que
+  la marca no rompe el dedup. Efecto lateral buscado: recalcular R6/R8 ahora **congela** esa plata
+  en vez de regenerarla.
+- **Reversible**: SQL de rollback por la marca, verificado con dry-run (254 + 78 = 332 exactas), con
+  la lista completa de los 332 ids en el informe.
+- **ISSUE-054 (nuevo, anotado sin arreglar)**: el guard de `desoficializar_carrera` dispara con
+  `estado_linea='pagado'` aunque no haya recibo, pero el mensaje dice *"anulá los recibos primero"*.
+  Tras el saldado, 7 de 11 carreras de R6 y 8 de 12 de R8 quedan trabadas sin tener un solo recibo.
+  Que queden trabadas **se acepta** (están cerradas, la plata salió por fuera); lo engañoso es el
+  mensaje.
+- **ISSUE-055 (nuevo)**: la 9999 **no se borra** (es el único sandbox seguro y ya probó su valor en
+  `probe_recuperacion_monta.mjs`), pero sus 36 líneas pagables por $488.000,00 siguen apareciendo en
+  Pagos cuando no se filtra por reunión — el mismo riesgo de doble pago, por otra puerta. Decisión
+  de producto pendiente.
+
 ## [2026-08-25] — La monta se declara al anotar, y el entrenador también
 
 > **Corrección de Yesi** al modelo de inscripción del portal: el entrenador declara la monta

@@ -357,3 +357,35 @@ mismos números con el nombre correcto). Hoy hay dos barreras: la constraint
 Importa más allá de la UI: `supabase/functions/_shared/studbook_format.mjs` manda
 `kilos_ejemplar: str(i.peso_balanza)` en el JSON a Diego. Un valor de jockey ahí no es un dato feo,
 es una afirmación falsa sobre el peso del ejemplar. `NULL` dice "no tengo el dato", que es verdad.
+
+## 74. `estado_linea='pagado'` con `recibo_id IS NULL` = saldado administrativo, NO un pago del sistema (2026-08-28)
+
+`emitir_recibo` **siempre** asigna `recibo_id` al marcar una línea como pagada. Una línea
+`pagado` con `recibo_id` NULL no puede venir del circuito normal: es una **regularización
+administrativa**.
+
+Hoy hay exactamente **332** así — las de R6 y R8, saldadas el 28/08 porque se habían pagado por
+fuera del sistema antes de que Pagos estuviera en uso
+(`docs/diagnosticos/2026-08-28_ejecucion-saldado-r6-r8.md`). Llevan además el sufijo
+`[REGULARIZACION 2026-08-28: … estado previo=impago|retenido]` en `descripcion`, que preserva el
+estado que tenían antes.
+
+Tres consecuencias prácticas:
+
+- **Al contar plata cobrada, `pagado` ya no implica "salió un recibo"**. El Resumen (Fase 5) muestra
+  millones en el bucket "pagado" de R6/R8 con 0 y 5 recibos respectivamente. No es un bug.
+- **No las "arregles" asignándoles un recibo.** No se emitieron a propósito: la numeración
+  correlativa de `club_secuencias` tenía que arrancar limpia en R9.
+- **Disparan el guard de `desoficializar_carrera`** (que chequea `recibo_id IS NOT NULL OR
+  estado_linea='pagado'`) con un mensaje que habla de recibos inexistentes — ver ISSUE-054.
+
+Para distinguir los tres casos:
+
+```sql
+-- pago real del sistema
+WHERE estado_linea='pagado' AND recibo_id IS NOT NULL
+-- saldado administrativo
+WHERE estado_linea='pagado' AND recibo_id IS NULL
+-- pendiente de cobro
+WHERE estado_linea IN ('impago','retenido')
+```
