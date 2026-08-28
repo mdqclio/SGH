@@ -510,3 +510,79 @@ Relacionado: `docs/diagnosticos/2026-08-28_ejecucion-saldado-r6-r8.md` §6.2.
 Estado: ⏳ Abierto — **esperando definición de Fede**. Prioridad: **Alta antes del 20/09** — es
 exactamente el riesgo de doble pago que el saldado de R6/R8 vino a eliminar, sobreviviendo por otra
 puerta.
+
+---
+
+### ISSUE-056: No existe `anular_recibo` — revertir un recibo requiere SQL a mano sobre producción
+
+Detectado el **2026-08-28**, con el **primer caso real**.
+
+`emitir_recibo` es atómico y correcto, pero **no tiene contraparte**. Cuando Valeria emitió el
+recibo **#4** sobre R8 como prueba (LORENA SOLEDAD VARELA, 6 líneas, $62.700), revertirlo exigió un
+plan escrito, relevamiento del estado previo de cada línea y SQL manual contra prod:
+`docs/diagnosticos/2026-08-28_plan-revert-recibo-4.md` +
+`docs/diagnosticos/2026-08-28_ejecucion-revert-recibo-4.md`.
+
+**Por qué urge**: el 20/09 hay reunión con gente esperando el cobro. Un recibo emitido por error
+—beneficiario equivocado, líneas de más, importe mal— hoy no tiene forma limpia de arreglarse: hay
+que abrir la consola de Supabase mientras la cola espera.
+
+**Lo que aprendimos hoy y tiene que entrar en el RPC:**
+
+1. **Soltar las líneas**: `recibo_id = NULL` en todas las del recibo.
+2. **Restaurar el estado previo** de cada línea. Hoy es reconstruible **sólo por inferencia**:
+   `emitir_recibo` v1.1 exige `estado_linea='impago'` (⇒ el previo siempre fue `impago`) y
+   `fecha_liberacion` distingue lo que alguna vez estuvo retenido (`liberar_linea` no la toca).
+   Funcionó, pero es deducción, no dato. Conviene **persistir el estado previo** — una columna en
+   `liquidacion_detalle` o una tabla `recibo_lineas_snapshot`.
+3. **Marcar el recibo como anulado, NO borrarlo.** `recibos` ya tiene `estado` (enum
+   `estado_recibo`) y `anulado_at`, hoy sin uso: `estado='anulado'`, `anulado_at=now()`, motivo en
+   `notas`. El #4 se borró porque era dato de prueba; una anulación de verdad tiene que dejar
+   rastro.
+4. **No devolver el correlativo.** `club_secuencias` no se toca: un número emitido no se recicla,
+   aunque quede hueco. Hoy quedó el hueco del #4 — los recibos vivos son `1, 2, 3, 9001, 9002` y el
+   próximo será el 5. (Decisión del usuario, 28/08.)
+5. **Registrar quién anula** — ver ISSUE-057: `emitir_recibo` nunca setea `emitido_por` y la
+   anulación no puede repetir ese error.
+
+**Detalle técnico útil para implementarlo**: el único FK contra `recibos` es
+`liquidacion_detalle.recibo_id` con `ON DELETE NO ACTION`, que se chequea **al final de la
+sentencia**. Por eso el `UPDATE` que suelta las líneas y el `DELETE`/`UPDATE` del recibo entran en
+una sola sentencia con CTEs modificantes, sin violar el FK. Verificado en prod el 28/08.
+
+Módulo: RPC nuevo (DB) + `liquidaciones.html` (tab Pagos).
+Relacionado: `migrations/emitir_recibo_v1_1.sql`, `migrations/liberar_linea.sql`.
+Estado: ⏳ Abierto — **no construido a propósito** (quedó fuera del alcance de
+`fix/recibo-pie-cobrador`). Prioridad: **Alta antes del 20/09**.
+
+---
+
+### ISSUE-057: `emitir_recibo` no registra el autor — `emitido_por` es NULL en todos los recibos
+
+Detectado el **2026-08-28**, al investigar quién había emitido el recibo #4.
+
+`recibos.emitido_por` existe en el schema y es nullable, pero **el RPC nunca lo setea**. Medido
+sobre prod el 28/08: **NULL en los 6 recibos** de la base (`1, 2, 3, 4, 9001, 9002`).
+
+Sabemos que el #4 lo emitió Valeria **porque lo dijo ella**, no porque la base lo registre. Si
+hubiera negado haberlo hecho, no había forma de saberlo: `emitido_at` da la hora, nada más.
+
+**Por qué importa el 20/09**: van a operar varias personas sobre el mismo módulo de dinero. Un
+recibo sin autor es un agujero de auditoría en el punto exacto donde sale la plata — y es donde
+más se lo va a necesitar si algo sale mal en vivo.
+
+**Arreglo**: `emitido_por = auth.uid()` en el `INSERT INTO recibos` de `emitir_recibo`. El RPC es
+`SECURITY DEFINER`, así que hay que tomar el uid **antes** de cualquier cambio de contexto, y
+contemplar el caso `service_role` (sin usuario → NULL, como hoy). Tocar el RPC implica una
+migración nueva en `migrations/` — no se hizo junto al fix del recibo porque el alcance de ese
+trabajo excluía explícitamente tocar `emitir_recibo` o su firma.
+
+**Nota relacionada, sin arreglo propio**: los recibos **#1, #2 y #3** son **cobros reales de R8** y
+tampoco tienen `cobrador_nombre` / `cobrador_documento` — se emitieron cuando la UI mandaba `null`
+a propósito (decisión previa de Fede, revertida el 28/08 en `fix/recibo-pie-cobrador`). No se
+tocan: son históricos y la plata ya se pagó. Pero quedan sin registro de quién retiró.
+
+Módulo: RPC `emitir_recibo` (DB).
+Relacionado: ISSUE-056, `docs/diagnosticos/2026-08-28_ejecucion-revert-recibo-4.md`.
+Estado: ⏳ Abierto. Prioridad: **Alta antes del 20/09** — es una línea de código y cierra un
+agujero de auditoría sobre dinero.
