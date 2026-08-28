@@ -273,14 +273,20 @@ baseline vigente: no se reescriben.
 - Push frecuente — la sesión SSH al VPS Hetzner se puede cortar. Relevo por `.md` (el asesor lee de raw.githubusercontent.com); ver `docs/SERVER.md`
 
 ### Probes de regresión
-Después de fixear un bug en `resultados.html`, agregar o extender un probe en `tests/` que verifique el fix contra prod:
-```bash
-node tests/probe_no_largo.mjs            # "No corrió" persiste {posicion:null,no_largo:true}
-node tests/probe_fase_c.mjs              # Fase C — estado_linea + retención anti-doping (real-code)
-```
-El patrón está en `tests/probe_bug2_*.mjs`: auth con magic link → nav → DOM assertions vía Playwright.
+Después de fixear un bug, agregar o extender un probe en `tests/` que verifique el fix contra prod:
 
-**Limitación crítica**: las variables internas de `resultados.html` (`currentCarreraId`, `inscripciones`, `posicionesMap`, etc.) son `let` de módulo y no están expuestas en `window.*`. Los probes deben basarse en evidencia DOM observable, no en estado interno JS.
+```bash
+set -a; . ./.env; set +a                  # exporta SUPABASE_SECRET_KEY
+node tests/probe_pagos_rol_carrera.mjs    # rol y nº de carrera en el tab Pagos (48 asserts)
+node tests/probe_edad_reglamentaria.mjs   # la regla del 1° de julio en el gate de inscripción
+node tests/probe_no_largo.mjs             # "No corrió" persiste {posicion:null,no_largo:true}
+```
+
+**El patrón es código real sin browser.** Chromium no corre en este Ubuntu (`"Playwright does not support chromium on ubuntu26.04-x64"` — ver `docs/SERVER.md`), así que el probe **extrae del propio HTML** la función o el bloque a probar —por ancla, con balance de llaves—, lo corre con `new AsyncFunction(...)` inyectando dependencias reales (cliente Supabase con `SUPABASE_SECRET_KEY`, más stubs de DOM si hacen falta) y assertea contra la base. Nunca reimplementar la lógica dentro del test: si el archivo cambia, el probe corre el archivo cambiado. Para lo que escribe: **snapshot → run → assert → restore** en el `finally`.
+
+Los pasos completos y los ejemplos de referencia están en **`tests/README.md`** (sección *Browser NO disponible — patrón de harness de código real*). No duplicar eso acá.
+
+**Por qué así**: las variables internas de los módulos (`currentCarreraId`, `inscripciones`, `posicionesMap`, etc.) son `let` de módulo y no están expuestas en `window.*` — no hay estado interno que inspeccionar desde afuera. Los asserts van contra lo que el código **persiste en la DB** o contra el **texto del archivo**, no contra variables.
 
 ### Reunión activa para testing
 Reunión 5 — 17/05/2026 — Hipódromo de Dolores (11 turnos, ~81 inscripciones).
@@ -335,7 +341,12 @@ Todo informe, diagnóstico o análisis va a un archivo, nunca al chat.
 2. **Supabase key**: usar la **publishable** `sb_publishable_...`. Las legacy `eyJ...` (anon/service_role) están DESACTIVADAS desde 2026-06-07 (401 "Legacy API keys are disabled"). Secret server-side = `sb_secret_...` por env, nunca en el repo.
 3. **`usuarios.nombre_completo`** — NO `nombre`. Afecta todos los archivos con auth.
 4. **`inscripciones.estado` es ENUM rígido** — para nuevos valores: `ALTER TYPE estado_inscripcion ADD VALUE`. No migrar a VARCHAR (hay una vista que depende del ENUM).
-5. **`carreras.estado` es VARCHAR libre** — sin ENUM. Valores en uso: `NULL/'programada'`, `'confirmada'`, `'anulada'`.
+5. **`carreras.estado` es VARCHAR libre** — sin ENUM ni CHECK. Valores reales, medidos el **2026-08-27** sobre las 49 carreras de la base: `'abierta'` 31, `'anulada'` 7, `'confirmada'` 7, `'programada'` 3, `NULL` 1. Los conteos son una foto: si no dan, el listado quedó viejo — volver a medir con `SELECT estado, count(*) FROM carreras GROUP BY estado`.
+   - El valor más común es **`'abierta'`**, que faltaba en la lista anterior de este gotcha. No significa "inscripción abierta": `carta-llamados.html` lo escribe en **toda** carrera que guarda, sin condición (ver `docs/AUTOREGISTRO_GATE_4.md`).
+   - **Filtrar siempre NULL-safe.** `.neq()` solo **no** lo es: PostgREST lo traduce a `estado <> 'anulada'`, que para `NULL` da `NULL` y descarta la fila en silencio. Fue ISSUE-038 — se comía el turno 2 de R6 del programa. Patrón vigente en el repo:
+     ```javascript
+     .or('estado.is.null,estado.neq.anulada')   // programa-oficial.html:229, resultados.html:493
+     ```
 6. **`carrera_apuestas`** reemplaza `carreras.apuestas_habilitadas JSONB` (dropeada 27/05/2026). No usar `.select('apuestas_habilitadas')`.
 7. **`renumerarChapas` usa filtro positivo**: `estado === 'ratificado'`, NO lista de exclusión negativa.
 8. **`bindARSInput` requiere guard `_arsBound`** para no acumular listeners.

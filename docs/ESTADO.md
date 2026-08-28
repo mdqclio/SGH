@@ -391,7 +391,7 @@
 **Validación de Fede**: pendiente en producción. Sesión cerrada con feature-complete según interpretación de las directivas iterativas (WhatsApp + audios).
 
 **Schema relevante** (estado actual de tablas tocadas):
-- `carreras.estado`: nullable, default 'programada'. Valores en uso: NULL/'programada' (ABIERTA), 'confirmada' (CERRADA), 'anulada' (ANULADA), 'reabierta' (legacy, tratado como anulada en algunos lugares).
+- `carreras.estado`: VARCHAR libre, nullable, default 'programada'. Valores reales medidos el **2026-08-27** sobre las 49 carreras de la base: `'abierta'` 31, `'anulada'` 7, `'confirmada'` 7, `'programada'` 3, `NULL` 1. `'reabierta'` figuraba acá como valor en uso y hoy tiene **0 filas**. El más común es `'abierta'`, que `carta-llamados.html` escribe en toda carrera que guarda — no significa "inscripción abierta". Filtrar siempre NULL-safe: `.or('estado.is.null,estado.neq.anulada')`, nunca `.neq()` solo (ver gotcha #5 en CLAUDE.md e ISSUE-038). Los conteos son una foto: si no dan, el listado quedó viejo.
 - `carreras.condicion_adicional`: usado para "Peso del jockey".
 - `carreras.numero_carrera_programa`: INTEGER nullable, para asignar orden post-ratificación.
 - `carreras.hora_estimada`: TIME nullable.
