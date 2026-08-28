@@ -22,7 +22,7 @@
  * NO cubre (imposible sin browser): el corte de página real. Ver la checklist "mirar a ojo" en
  * docs/diagnosticos/2026-08-28_recibo-pie-cobrador.md.
  *
- * Fixtures propias sobre R5, snapshot → run → assert → restore en el finally.
+ * Fixtures propias sobre la reunión 9999 (sandbox), snapshot → run → assert → restore en el finally.
  * Clave server-side de process.env.SUPABASE_SECRET_KEY (.env gitignore). Nunca hardcodeada.
  */
 import { createClient } from '@supabase/supabase-js';
@@ -34,8 +34,12 @@ const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
 if (!SERVICE_KEY) { console.error('Falta SUPABASE_SECRET_KEY (source .env).'); process.exit(2); }
 const CLUB_ID = '0649e9c5-9e87-4aad-842f-101458e6b33c';
-const R5      = 'c90b6186-268d-4089-8cc6-71626b627cf8';
-const BENEF   = 'f6637123-af74-42ae-81e1-d5b9fed88fc9'; // profesionales.id
+// Reunión 9999 (PRUEBA) — la sandbox designada del proyecto, misma que usa
+// probe_recuperacion_monta.mjs. NO se usa R5: hoy tiene 0 carreras y 0 inscripciones (medido el
+// 2026-08-28), así que las fixtures que necesitan inscripcion_id no se pueden armar ahí. Además
+// R5 es una reunión real y la 9999 existe justamente para esto.
+const SANDBOX = 'a0000000-0000-0000-0000-000000009999';
+const BENEF   = 'f6637123-af74-42ae-81e1-d5b9fed88fc9'; // profesionales.id (MENDIBURU, BRIAN ADRIAN)
 
 const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
@@ -56,7 +60,9 @@ function extractMediaPrint(html){
   const s = html.indexOf('@media print'); if (s < 0) throw new Error('no @media print');
   const o = html.indexOf('{', s); let d = 0, i = o;
   for (; i < html.length; i++){ if (html[i] === '{') d++; else if (html[i] === '}'){ d--; if (!d) break; } }
-  return html.slice(o + 1, i);
+  // Sin comentarios: el bloque documenta el bug viejo citando `min-height:100vh` y
+  // `margin-top:auto`, y un assert de ausencia que lea el comentario da falso negativo.
+  return html.slice(o + 1, i).replace(/\/\*[\s\S]*?\*\//g, '');
 }
 // Valor de una propiedad dentro de un selector del bloque de print.
 function cssProp(block, selector, prop){
@@ -85,13 +91,25 @@ function makeDom(){
   return { document, els, setChecked: c => { checked = c; } };
 }
 const chk = (id, monto) => ({ value: id, dataset: { monto: String(monto) }, checked: true });
+// Primer bloque .recibo-pie, acotado al inicio de la copia siguiente. Sin acotar, el slice se come
+// el encabezado de la 2ª copia —que sí lleva el nombre del titular— y rompe el assert de h2.
+function primerPie(html){
+  const ini = html.indexOf('class="recibo-pie"'); if (ini < 0) return '';
+  const sig = html.indexOf('class="recibo-copia"', ini);
+  return html.slice(ini, sig > 0 ? sig : html.length);
+}
+// El recibo recién emitido se identifica por DIFERENCIA de ids, nunca por max(numero_recibo):
+// el sandbox 9999 tiene los recibos 9001/9002, que ganan cualquier orden por número.
+const fotoRecibos = async () => new Set((((await sb.from('recibos').select('id').eq('club_id', CLUB_ID)).data) || []).map(r => r.id));
+const reciboNuevo = async (antes) => (((await sb.from('recibos').select('*').eq('club_id', CLUB_ID)).data) || []).find(r => !antes.has(r.id));
 
 (async () => {
-  let liqId = null, lineas = [], snapSeq = null, recIds = [], phase = 'init';
+  let liqId = null, lineas = [], recIds = [], phase = 'init';
   try {
     // ── sandbox con el código REAL del archivo ──────────────────────────────
     phase = 'sandbox';
     const src = [
+      extractFn(HTML, 'function closeModal(id)'),
       extractFn(HTML, 'function escapeHtml(s)'),
       extractFn(HTML, 'function formatMonto(num)'),
       extractFn(HTML, 'function rolDeLinea(l)'),
@@ -102,28 +120,30 @@ const chk = (id, monto) => ({ value: id, dataset: { monto: String(monto) }, chec
       extractFn(HTML, 'async function cobrosConfirmarEmision()'),
       extractFn(HTML, 'async function imprimirReciboCobro(recibo, lineaIds, opts)'),
     ].join('\n\n');
-    const mkSandbox = (cobBenef, cobApoderados, document, toast) => new AsyncFunction(
+    const mkSandbox = (cobBenef, cobApoderados, document, toast, profMap) => new AsyncFunction(
       'sb','CLUB_ID','document','window','toast','propietariosMap','profesionales',
-      'precargarLogo','ROL_POR_BENEFICIARIO','cobBenef','cobApoderados','cobrosBuscar','closeModal',
+      'precargarLogo','ROL_POR_BENEFICIARIO','cobBenef','cobApoderados','cobrosBuscar',
       `let cobEmitirIds = [];
        const fmt = formatMonto;
        ${src}
        return { cobrosEmitir, cobrosQuienCambio, cobrosFormaCambio, cobrosConfirmarEmision,
                 imprimirReciboCobro, getIds: () => cobEmitirIds };`
-    )(sb, CLUB_ID, document, { print(){} }, toast, {}, PROF_MAP, async()=>{},
+    )(sb, CLUB_ID, document, { print(){} }, toast, {}, profMap, async()=>{},
       { propietario:'Propietario', profesional:'Profesional', club:'Club' },
-      cobBenef, cobApoderados, async()=>{}, ()=>{});
+      cobBenef, cobApoderados, async()=>{});
 
     // (a) CSS de impresión ───────────────────────────────────────────────────
     phase = 'a';
     const mp = extractMediaPrint(HTML);
     ok('a1 .recibo-copia ya NO declara min-height:100vh',
        !/\.recibo-copia\s*\{[^}]*min-height\s*:\s*100vh/.test(mp));
+    const jsFirma = HTML.slice(HTML.indexOf('const firma'), HTML.indexOf('const copia'));
     ok('a2 la firma ya NO usa margin-top:auto (no queda anclada al fondo de la caja)',
-       !/margin-top\s*:\s*auto/.test(mp) && !/margin-top:auto/.test(HTML.slice(HTML.indexOf('const firma'), HTML.indexOf('const copia'))));
+       !/margin-top\s*:\s*auto/.test(mp) && !/margin-top\s*:\s*auto/.test(jsFirma));
     ok('a3 .recibo-pie tiene break-inside: avoid', cssProp(mp, '.recibo-pie', 'break-inside') === 'avoid');
     ok('a4 .recibo-pie tiene page-break-inside: avoid (legacy)', cssProp(mp, '.recibo-pie', 'page-break-inside') === 'avoid');
-    ok('a5 body resetea margin en impresión', px(cssProp(mp, 'body', 'margin')) === 0 && /margin\s*:\s*0/.test(cssProp(mp,'body','margin')||''));
+    ok('a5 body resetea margin en impresión', (cssProp(mp, 'body', 'margin') || '').trim() === '0',
+       `margin="${cssProp(mp,'body','margin')}"`);
     ok('a6 las copias se separan con break-after: page', /\.recibo-copia:not\(:last-child\)\s*\{[^}]*break-after\s*:\s*page/.test(mp));
 
     // (b) presupuesto en mm con valores PARSEADOS del CSS ────────────────────
@@ -146,16 +166,17 @@ const chk = (id, monto) => ({ value: id, dataset: { monto: String(monto) }, chec
 
     // ── fixtures ────────────────────────────────────────────────────────────
     phase = 'fixtures';
-    const { data: seq } = await sb.from('club_secuencias').select('*').eq('club_id',CLUB_ID).eq('tipo','recibo').maybeSingle();
-    snapSeq = seq;
-    const { data: cars } = await sb.from('carreras').select('id').eq('reunion_id',R5).limit(3);
+    // club_secuencias NO se snapshotea ni se restaura: los números de recibo son ilimitados y
+    // quemar algunos en pruebas no es problema (decisión del usuario, 2026-08-28). El probe deja
+    // el correlativo adelantado en 2, a propósito.
+    const { data: cars } = await sb.from('carreras').select('id').eq('reunion_id',SANDBOX).limit(3);
     const { data: ins } = await sb.from('inscripciones').select('id,carrera_id').in('carrera_id',(cars||[]).map(c=>c.id)).limit(8);
-    if ((ins||[]).length < 3) throw new Error('R5 sin inscripciones suficientes');
+    if ((ins||[]).length < 3) throw new Error('la reunión 9999 no tiene inscripciones suficientes');
     const { data: liq, error: eL } = await sb.from('liquidaciones')
-      .insert({club_id:CLUB_ID, reunion_id:R5, profesional_id:BENEF, estado:'borrador', total_bruto:0, total_descuentos:0}).select().single();
+      .insert({club_id:CLUB_ID, reunion_id:SANDBOX, profesional_id:BENEF, estado:'borrador', total_bruto:0, total_descuentos:0}).select().single();
     if (eL) throw new Error('crear liq: ' + eL.message); liqId = liq.id;
     const base = { liquidacion_id: liqId, beneficiario_tipo:'profesional', beneficiario_id:BENEF,
-                   reunion_id: R5, monto_descuento: 0, estado_linea: 'impago' };
+                   reunion_id: SANDBOX, monto_descuento: 0, estado_linea: 'impago' };
     const mk = async (concepto, bruto, tipo, pos, insc) => {
       const { data, error } = await sb.from('liquidacion_detalle')
         .insert({ ...base, concepto, monto_bruto: bruto, concepto_tipo: tipo, posicion: pos, inscripcion_id: insc })
@@ -185,8 +206,7 @@ const chk = (id, monto) => ({ value: id, dataset: { monto: String(monto) }, chec
     ];
     const toasts = [];
     const dom = makeDom();
-    globalThis.PROF_MAP = PROF_MAP_LOCAL;
-    const M = await mkSandbox(cobBenef, APOS, dom.document, (m,k)=>toasts.push([k,m]));
+    const M = await mkSandbox(cobBenef, APOS, dom.document, (m,k)=>toasts.push([k,m]), PROF_MAP_LOCAL);
 
     dom.setChecked(seis.map((id,i) => chk(id, [12200,10500,10000,10000,10000,10000][i])));
     M.cobrosEmitir();
@@ -229,9 +249,9 @@ const chk = (id, monto) => ({ value: id, dataset: { monto: String(monto) }, chec
     dom.els['cobr-doc'].value    = '11222333';
     dom.els['cobr-forma'].value  = 'efectivo';
     dom.els['cobr-comprobante'].value = '';
+    const fotoA = await fotoRecibos();
     await M.cobrosConfirmarEmision();
-    const { data: recA } = await sb.from('recibos').select('*').eq('club_id',CLUB_ID)
-      .order('numero_recibo',{ascending:false}).limit(1).single();
+    const recA = await reciboNuevo(fotoA);
     if (recA) recIds.push(recA.id);
     ok('f1 se emitió el recibo con un cobrador que NO estaba en la lista', !!recA);
     ok('f2 cobrador_nombre persistido NO es null', recA?.cobrador_nombre === 'SERENO SIN APODERADO', `="${recA?.cobrador_nombre}"`);
@@ -251,9 +271,7 @@ const chk = (id, monto) => ({ value: id, dataset: { monto: String(monto) }, chec
     ok('c3 cada copia trae las 6 filas', (out.match(/<tr><td>/g)||[]).length === 12);
     ok('c4 hay 2 bloques .recibo-pie', (out.match(/class="recibo-pie"/g)||[]).length === 2);
     // el pie tiene que CONTENER total + retira + firma: se verifica por posición dentro del bloque
-    const pieIni = out.indexOf('class="recibo-pie"');
-    const pieFin = out.indexOf('</div>\n  </div>', pieIni);
-    const pie = out.slice(pieIni, pieFin > 0 ? pieFin : out.indexOf('class="recibo-copia"', pieIni + 1));
+    const pie = primerPie(out);
     ok('c5 el TOTAL está dentro del pie', pie.includes('NETO A COBRAR'));
     ok('c6 "Retira" está dentro del pie', pie.includes('Retira:'));
     ok('c7 la FIRMA está dentro del pie (no suelta al final de la copia)',
@@ -267,7 +285,7 @@ const chk = (id, monto) => ({ value: id, dataset: { monto: String(monto) }, chec
     await M.imprimirReciboCobro({ ...recA, cobrador_nombre: cobBenef.nombre, cobrador_documento: '55666777' }, seis, { origen: 'titular' });
     const outT = dom.els['recibo-print'].innerHTML;
     ok('h1 si cobra el titular, el pie dice "el titular"', outT.includes('Retira:</strong> el titular'));
-    const pieT = outT.slice(outT.indexOf('class="recibo-pie"'));
+    const pieT = primerPie(outT);
     ok('h2 y NO repite el nombre del titular en el pie', !pieT.includes(cobBenef.nombre));
     ok('h3 el nombre del titular sigue estando arriba, en "A nombre de"', outT.includes('A nombre de') && outT.includes(cobBenef.nombre));
 
@@ -283,9 +301,9 @@ const chk = (id, monto) => ({ value: id, dataset: { monto: String(monto) }, chec
     ok('g1 en transferencia se muestra el campo de comprobante', dom.els['cobr-comprobante-row'].style.display === '');
     ok('g2 la nota del modal avisa que no hay firma', /SIN espacio de firma/.test(dom.els['cobr-nota-firma'].textContent));
     dom.els['cobr-comprobante'].value = 'https://banco.test/comp/123';
+    const fotoB = await fotoRecibos();
     await M.cobrosConfirmarEmision();
-    const { data: recB } = await sb.from('recibos').select('*').eq('club_id',CLUB_ID)
-      .order('numero_recibo',{ascending:false}).limit(1).single();
+    const recB = await reciboNuevo(fotoB);
     if (recB) recIds.push(recB.id);
     ok('g3 se emitió con forma_pago = transferencia', recB?.forma_pago === 'transferencia');
     ok('g4 el comprobante quedó persistido', recB?.comprobante_url === 'https://banco.test/comp/123');
@@ -304,17 +322,21 @@ const chk = (id, monto) => ({ value: id, dataset: { monto: String(monto) }, chec
     ok(`EXCEPCIÓN en fase '${phase}'`, false, e.message); console.error(e);
   } finally {
     try {
+      // Orden: soltar líneas → borrar líneas → borrar liquidación → borrar recibos. El FK
+      // liquidacion_detalle.recibo_id es NO ACTION: si quedara una línea apuntando, el DELETE del
+      // recibo falla en silencio y deja basura (pasó en la 1ª corrida del 2026-08-28).
+      for (const rid of recIds) await sb.from('liquidacion_detalle').update({ recibo_id: null }).eq('recibo_id', rid);
       for (const l of lineas) await sb.from('liquidacion_detalle').delete().eq('id', l.id);
       if (liqId) await sb.from('liquidaciones').delete().eq('id', liqId);
       for (const rid of recIds) await sb.from('recibos').delete().eq('id', rid);
-      if (snapSeq) await sb.from('club_secuencias').update({ ultimo_numero: snapSeq.ultimo_numero })
-        .eq('club_id', CLUB_ID).eq('tipo','recibo');
       const { data: liqFin } = await sb.from('liquidaciones').select('id').eq('id', liqId || '00000000-0000-0000-0000-000000000000');
       const { data: recFin } = await sb.from('recibos').select('id').in('id', recIds.length ? recIds : ['00000000-0000-0000-0000-000000000000']);
-      const { data: seqFin } = await sb.from('club_secuencias').select('ultimo_numero').eq('club_id',CLUB_ID).eq('tipo','recibo').maybeSingle();
-      ok('R1 cleanup: fixtures borradas', !liqFin?.length && !recFin?.length);
-      ok('R2 cleanup: secuencia de recibos restaurada', !snapSeq || seqFin?.ultimo_numero === snapSeq.ultimo_numero,
-         `${seqFin?.ultimo_numero} vs ${snapSeq?.ultimo_numero}`);
+      ok('R1 cleanup: fixtures borradas (liquidación, líneas y recibos de prueba)',
+         !liqFin?.length && !recFin?.length);
+      // El sandbox tiene que quedar como estaba: las fixtures son propias, no se toca lo que ya vivía ahí.
+      const { data: sobra } = await sb.from('liquidacion_detalle').select('id')
+        .eq('liquidacion_id', liqId || '00000000-0000-0000-0000-000000000000');
+      ok('R2 cleanup: no quedan líneas huérfanas de la liquidación de prueba', !sobra?.length);
     } catch (e) { ok('CLEANUP FALLÓ — revisar manualmente', false, e.message); console.error('[cleanup]', e); }
     console.log('\n──────── RESULTADO ────────');
     for (const r of results) console.log(`${r.s} ${r.t}${r.n ? '  (' + r.n + ')' : ''}`);
