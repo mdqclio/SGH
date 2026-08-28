@@ -110,21 +110,28 @@
     /* RECIBO PRINT */
     .recibo-print { display: none; }
     @media print {
-      body { background: #fff !important; color: #000 !important; font-family: Arial, sans-serif; }
+      /* margin:0 — el default del browser (8px) se sumaba ARRIBA de una caja que ya medía una
+         página entera y empujaba el pie fuera de la hoja. El margen de la hoja lo pone @page. */
+      body { background: #fff !important; color: #000 !important; font-family: Arial, sans-serif; margin: 0; padding: 0; }
       .topbar, .tabs, .selector-bar, .liq-acciones, #toast-container { display: none !important; }
       .recibo-print { display: block; }
       .content { display: none; }
       .recibo-container { max-width: 700px; margin: 0 auto; padding: 20px; min-height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; }
       /* Recibo de Pagos — el pie (total + quién retira + firma) NUNCA se separa de las líneas.
-         Antes: .recibo-copia era min-height:100vh + flex, con la firma anclada abajo de todo por
-         margin-top:auto. En impresión `vh` NO resuelve contra el área imprimible (A4 menos el
-         @page margin de 15mm = 267mm) sino contra el page box (297mm), así que la caja quedaba
-         ~30mm más alta que la hoja y el pie se iba a la hoja siguiente. Con original + duplicado
-         eso daba 4 hojas en vez de 2 (caso Fede: entrenador con 3 incentivos + 3°/4°/5°).
-         Ahora: la copia fluye con alto natural y el pie es un bloque atómico (break-inside:avoid).
-         `break-before/after: avoid` NO sirve acá — Chrome no lo implementa en impresión; el único
-         control de corte que respeta es break-inside. Con 20 líneas la tabla parte por hoja (el
-         thead se repite solo: display:table-header-group por defecto) y el pie cae entero al final. */
+         Antes: .recibo-copia era min-height:100vh + flex column, con la firma anclada al fondo
+         por margin-top:auto. Esa caja mide UNA PÁGINA ENTERA por diseño, así que cualquier mm
+         de más la desborda y lo primero que se va a la hoja siguiente es justamente el pie.
+         Tres cosas la desbordaban, y sin browser acá no se puede medir cuál pesa más en cada
+         impresión (ver el informe): (1) el margin:8px del body, que se sumaba afuera de la caja;
+         (2) `vh` en impresión no resuelve contra el área imprimible (A4 menos el @page margin de
+         15mm = 267mm) sino contra el page box, según el motor; (3) el padding:20px propio.
+         Con original + duplicado el resultado eran 4 hojas en vez de 2 (caso Fede: entrenador con
+         3 incentivos + 3°/4°/5°). El fix elimina la clase entera de falla en vez de una causa:
+         la copia fluye con alto natural (sin min-height, sin flex, sin margin-top:auto) y el pie
+         es un bloque atómico. `break-before/after: avoid` NO sirve acá — Chrome no lo implementa
+         en impresión; el único control de corte que respeta es break-inside. Con 20 líneas la
+         tabla parte por hoja (el thead se repite solo: display:table-header-group por defecto) y
+         el pie cae entero al final de las líneas. */
       .recibo-copia { width: 100%; box-sizing: border-box; }
       .recibo-copia:not(:last-child) { break-after: page; page-break-after: always; }
       .recibo-pie { break-inside: avoid; page-break-inside: avoid; margin-top: 10px; }
