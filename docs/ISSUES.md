@@ -419,3 +419,94 @@ Nota de implementación para cuando se decida: el dato ya está cargado. `ratifi
 
 Módulo: `ratificacion.html` (`ratificar`, `volverInscripto`, `marcarEstado`) + eventualmente `validar_inscripcion` y el RPC del Gate 4. Relacionado: ISSUE-048 (la otra mitad de la misma regla), GOTCHA #69.
 Estado: ⏳ Abierto — **esperando definición de producto de Fede**. Las 3 filas colgadas no requieren saneamiento urgente. Prioridad: Media hoy, **Alta cuando se abra el portal del Gate 4**.
+
+---
+
+### ISSUE-054: El guard de `desoficializar_carrera` dice "anulá los recibos primero" cuando no hay recibos que anular
+
+Detectado el **2026-08-28**, al saldar administrativamente R6 y R8
+(`docs/diagnosticos/2026-08-28_ejecucion-saldado-r6-r8.md`). **Registrado por decisión explícita:
+se anota, NO se arregla ahora.**
+
+El guard del RPC bloquea con un **OR**, pero el mensaje sólo habla de una de las dos ramas:
+
+```sql
+SELECT count(*) INTO v_pagas
+  FROM liquidacion_detalle d
+ WHERE (d.recibo_id IS NOT NULL OR d.estado_linea = 'pagado')   -- ← OR
+   AND ( d.carrera_id = p_carrera_id
+      OR d.inscripcion_id IN (SELECT i.id FROM inscripciones i WHERE i.carrera_id = p_carrera_id) );
+
+IF v_pagas > 0 THEN
+  RAISE EXCEPTION 'carrera con pagos emitidos, anulá los recibos primero';   -- ← asume recibo
+END IF;
+```
+
+Una línea con `estado_linea='pagado'` y `recibo_id IS NULL` dispara el guard igual, y el operador
+recibe una instrucción imposible de cumplir: no hay recibo que anular.
+
+**Ya está pasando en producción.** Tras el saldado del 28/08, **7 de las 11 carreras de R6 y 8 de
+las 12 de R8** disparan el guard **sin un solo recibo asociado** (las 332 líneas regularizadas
+quedaron `pagado` con `recibo_id` NULL a propósito — no se emitieron recibos). Quien intente
+des-oficializar una de esas carreras va a ir a buscar recibos que no existen.
+
+- **Impacto**: pérdida de tiempo y diagnóstico errado. **Sin riesgo de datos** — el guard hace lo
+  correcto, sólo lo explica mal.
+- **Que R6 y R8 queden trabadas para des-oficializar SE ACEPTA** (decisión de Fede vía el usuario,
+  28/08): están cerradas y la plata salió por fuera del sistema; corregir una monta vieja no cambia
+  nada financiero. El costo es teórico y el beneficio —congelar el histórico— era el objetivo.
+- **Arreglo sugerido (no aplicado)**: distinguir las dos ramas en el mensaje, contando cada una por
+  separado. Algo del tipo *"carrera con N línea(s) pagada(s) con recibo y M por saldado
+  administrativo; anulá los recibos o revertí el saldado"*. Es sólo el `RAISE EXCEPTION`, la lógica
+  del guard no cambia.
+- **Cómo reconocer una línea de saldado administrativo**: `estado_linea='pagado' AND recibo_id IS
+  NULL`, combinación que el sistema nunca produce por sí solo (`emitir_recibo` siempre asigna
+  `recibo_id`). Además llevan el sufijo `[REGULARIZACION 2026-08-28: …]` en `descripcion`.
+
+Módulo: RPC `desoficializar_carrera` (SECURITY DEFINER, en DB) · consumido por `resultados.html`.
+Relacionado: `docs/diagnosticos/2026-08-28_plan-saldado-r6-r8.md` §5.2.
+Estado: ⏳ Abierto — **anotado a propósito, sin arreglar**. Prioridad: Baja (cosmético), sube a
+Media si alguien necesita des-oficializar una carrera de R6/R8.
+
+---
+
+### ISSUE-055: La reunión de prueba 9999 aparece en el buscador de Pagos junto a la plata real
+
+Detectado el **2026-08-28**, en la verificación del saldado de R6/R8.
+
+`cobrosBuscar` (`liquidaciones.html:810-814`) **no filtra por reunión salvo que el operador elija
+una**:
+
+```javascript
+let qy = sb.from('liquidacion_detalle')
+  .select('…')
+  .eq('estado_linea','impago').neq('beneficiario_tipo','club').is('recibo_id', null);
+if (rid) qy = qy.eq('reunion_id', rid);   // ← opcional
+```
+
+Con R6 y R8 ya saldadas, medido el 28/08 sobre prod, lo único que queda en la lista pagable es la
+**reunión de prueba 9999**: **36 líneas por $488.000,00**. El 20/09 esa plata de sandbox le va a
+aparecer a Valeria en la misma lista que las líneas reales de R9.
+
+**La 9999 no se borra** (decisión del usuario, 28/08): es el único banco de pruebas seguro que hay
+y ya demostró su valor en el probe de recuperación de montas
+(`tests/probe_recuperacion_monta.mjs`). El `teardown_prueba_resumen_9999.sql` queda sin usar.
+
+Tres salidas posibles, ninguna obviamente correcta — **es decisión de producto de Fede**:
+
+1. **Disciplina de proceso**: Valeria elige siempre la reunión antes de pagar. Gratis, pero depende
+   de que nadie se olvide una vez.
+2. **Marcar las 36 líneas de 9999 como pagadas** (misma técnica que R6/R8). Las saca de la lista,
+   pero **rompe el sandbox**: el probe de recuperación necesita líneas impagas para correr.
+3. **Excluir las reuniones de prueba en `cobrosBuscar`** por código. Es la que escala: un flag
+   `reuniones.es_prueba` excluido del circuito de cobro resolvería esto para cualquier sandbox
+   futuro, no sólo la 9999. Requiere DDL (una columna) + el filtro en la query.
+
+La 3 parece la buena a mediano plazo. Filtrar por `numero=9999` a mano sería un parche que no
+sobrevive al próximo sandbox.
+
+Módulo: `liquidaciones.html` (`cobrosBuscar`) · eventualmente `reuniones` (columna nueva).
+Relacionado: `docs/diagnosticos/2026-08-28_ejecucion-saldado-r6-r8.md` §6.2.
+Estado: ⏳ Abierto — **esperando definición de Fede**. Prioridad: **Alta antes del 20/09** — es
+exactamente el riesgo de doble pago que el saldado de R6/R8 vino a eliminar, sobreviviendo por otra
+puerta.
