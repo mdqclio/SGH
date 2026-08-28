@@ -110,20 +110,47 @@
     /* RECIBO PRINT */
     .recibo-print { display: none; }
     @media print {
-      body { background: #fff !important; color: #000 !important; font-family: Arial, sans-serif; }
+      /* margin:0 — el default del browser (8px) se sumaba ARRIBA de una caja que ya medía una
+         página entera y empujaba el pie fuera de la hoja. El margen de la hoja lo pone @page. */
+      body { background: #fff !important; color: #000 !important; font-family: Arial, sans-serif; margin: 0; padding: 0; }
       .topbar, .tabs, .selector-bar, .liq-acciones, #toast-container { display: none !important; }
       .recibo-print { display: block; }
       .content { display: none; }
       .recibo-container { max-width: 700px; margin: 0 auto; padding: 20px; min-height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; }
-      /* Recibo de Pagos: cada copia es una página entera; firma al pie via margin-top:auto. */
-      .recibo-copia { max-width: 700px; margin: 0 auto; padding: 20px; min-height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; }
-      .recibo-copia:not(:last-child) { page-break-after: always; }
-      .recibo-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 16px; }
-      .recibo-header h2 { font-size: 20px; }
-      .recibo-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-      .recibo-table th, .recibo-table td { border: 1px solid #ccc; padding: 7px 10px; font-size: 12px; }
+      /* Recibo de Pagos — el pie (total + quién retira + firma) NUNCA se separa de las líneas.
+         Antes: .recibo-copia era min-height:100vh + flex column, con la firma anclada al fondo
+         por margin-top:auto. Esa caja mide UNA PÁGINA ENTERA por diseño, así que cualquier mm
+         de más la desborda y lo primero que se va a la hoja siguiente es justamente el pie.
+         Tres cosas la desbordaban, y sin browser acá no se puede medir cuál pesa más en cada
+         impresión (ver el informe): (1) el margin:8px del body, que se sumaba afuera de la caja;
+         (2) `vh` en impresión no resuelve contra el área imprimible (A4 menos el @page margin de
+         15mm = 267mm) sino contra el page box, según el motor; (3) el padding:20px propio.
+         Con original + duplicado el resultado eran 4 hojas en vez de 2 (caso Fede: entrenador con
+         3 incentivos + 3°/4°/5°). El fix elimina la clase entera de falla en vez de una causa:
+         la copia fluye con alto natural (sin min-height, sin flex, sin margin-top:auto) y el pie
+         es un bloque atómico. `break-before/after: avoid` NO sirve acá — Chrome no lo implementa
+         en impresión; el único control de corte que respeta es break-inside. Con 20 líneas la
+         tabla parte por hoja (el thead se repite solo: display:table-header-group por defecto) y
+         el pie cae entero al final de las líneas. */
+      .recibo-copia { width: 100%; box-sizing: border-box; }
+      .recibo-copia:not(:last-child) { break-after: page; page-break-after: always; }
+      .recibo-pie { break-inside: avoid; page-break-inside: avoid; margin-top: 10px; }
+      .recibo-rotulo { text-align: right; font-size: 11px; font-weight: bold; letter-spacing: 1px; }
+      .recibo-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 8px; }
+      .recibo-header h2 { font-size: 17px; }
+      .recibo-header h3 { font-size: 15px; margin-top: 8px; }
+      .recibo-header p { margin: 2px 0; font-size: 11px; }
+      .recibo-logo { height: 64px; object-fit: contain; flex-shrink: 0; }
+      .recibo-benef { font-size: 12px; margin: 6px 0; }
+      .recibo-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+      .recibo-table th, .recibo-table td { border: 1px solid #ccc; padding: 3px 6px; font-size: 11px; }
       .recibo-table th { background: #f0f0f0; }
-      .recibo-total { font-weight: 700; font-size: 14px; text-align: right; margin-top: 12px; }
+      .recibo-total { font-weight: 700; font-size: 13px; text-align: right; margin-top: 8px; }
+      .recibo-total p { margin: 1px 0; }
+      .recibo-cobrador { font-size: 12px; margin-top: 10px; }
+      .recibo-cobrador p { margin: 2px 0; }
+      .recibo-firma { display: flex; justify-content: center; gap: 30px; text-align: center; font-size: 11px; margin-top: 24px; }
+      .recibo-firma div { border-top: 1px solid #000; padding-top: 5px; }
       @page { size: A4; margin: 15mm; }
     }
     #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
@@ -357,6 +384,49 @@
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeModal('modal-comision')">Cancelar</button>
       <button class="btn-primary" onclick="saveComision()" id="btn-save-com">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL COBRADOR (Fase 4 v1.2) — quién retira el pago + forma de pago.
+     Fede revirtió la decisión de no capturar cobrador: "se lleva una copia firmada, aclarada y
+     con número de documento por la persona que cobre". El select PRE-CARGA titular/apoderado,
+     pero los campos quedan editables: hoy `apoderados` tiene 0 filas y hay 21 caballerizas cuyo
+     titular es un provisorio sin persona real detrás — con un desplegable cerrado esos recibos
+     no se podrían emitir, y ése es el caso más frecuente, no la excepción. -->
+<div class="modal-overlay" id="modal-cobrador">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <h2>🧾 Emitir recibo</h2>
+      <button class="btn-close" onclick="closeModal('modal-cobrador')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="cobr-resumen" style="font-size:13px;margin-bottom:14px;"></div>
+      <div class="form-group full">
+        <label>¿Quién cobra?</label>
+        <select id="cobr-quien" onchange="cobrosQuienCambio()"></select>
+      </div>
+      <div class="form-grid" style="margin-top:10px;">
+        <div class="form-group"><label>Nombre y apellido</label><input type="text" id="cobr-nombre" placeholder="Quien retira el pago"></div>
+        <div class="form-group"><label>Documento (DNI)</label><input type="text" id="cobr-doc" placeholder="Sin puntos"></div>
+      </div>
+      <div class="form-grid" style="margin-top:10px;">
+        <div class="form-group">
+          <label>Forma de pago</label>
+          <select id="cobr-forma" onchange="cobrosFormaCambio()">
+            <option value="efectivo">Efectivo</option>
+            <option value="transferencia">Transferencia</option>
+          </select>
+        </div>
+        <div class="form-group" id="cobr-comprobante-row" style="display:none;">
+          <label>Comprobante (URL / referencia)</label><input type="text" id="cobr-comprobante" placeholder="Opcional">
+        </div>
+      </div>
+      <div id="cobr-nota-firma" style="font-size:12px;color:var(--muted);margin-top:12px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-cobrador')">Cancelar</button>
+      <button class="btn-primary" onclick="cobrosConfirmarEmision()" id="btn-cobr-emitir">Emitir e imprimir</button>
     </div>
   </div>
 </div>
@@ -737,6 +807,8 @@ async function loadResumen(){
 // PAGOS — Pagable = estado_linea='impago' (la retención se libera A MANO con liberar_linea).
 let cobLineas = [];        // líneas pagables del beneficiario seleccionado
 let cobBenef = null;       // {tipo, id, nombre}
+let cobApoderados = [];    // apoderados vigentes del beneficiario abierto (alimenta el select de cobrador)
+let cobEmitirIds = [];     // líneas tildadas al abrir el modal de cobrador
 let cobCaballerizas = [];  // {nombre, propietario_id} para resolver búsqueda por caballeriza
 // Mapas de carrera cacheados: no dependen del texto tipeado (el filtro por q es client-side y va
 // al final), sólo del scope de reunión. Sin esto cobrosBuscar pegaba 3 viajes al servidor por cada
@@ -751,6 +823,13 @@ function cobrosBuscarDebounced(){ clearTimeout(_cobDebounce); _cobDebounce=setTi
 function nombreBenef(tipo, id){
   if (tipo==='propietario') return propietariosMap[id]?.nombre || '(propietario)';
   const p = profesionales[id]; return p ? `${p.apellido}, ${p.nombre}` : '(profesional)';
+}
+// Documento del titular del beneficiario, para pre-cargar el campo del cobrador. Puede venir
+// vacío (21 caballerizas tienen titular provisorio sin persona real detrás) — por eso el campo
+// del modal es editable y no se valida contra este valor.
+function docBenef(tipo, id){
+  const p = (tipo==='propietario' ? propietariosMap[id] : profesionales[id]) || {};
+  return p.documento_nro || '';
 }
 // string de búsqueda por beneficiario: nombre/apellido/DNI (+ nombre_stud en propietarios)
 function benefSearch(tipo, id){
@@ -899,6 +978,7 @@ async function cobrosDetalle(tipo, id){
   ]);
   if (ePag) { toast(ePag.message,'error'); return; }
   const apoderados = apos||[];
+  cobApoderados = apoderados;   // los reusa el modal de cobrador al emitir
   cobLineas = pag||[];
   const retLineas = ret||[];
   // enriquecer: fecha de reunión + caballo/carrera (via inscripcion → carreras + spcs)
@@ -967,22 +1047,68 @@ async function habilitarLinea(lineaId, tipo, id){
   cobrosDetalle(tipo, id);   // refresca el detalle (pasa de retenida a pagable)
 }
 
-async function cobrosEmitir(){
-  const ids = [...document.querySelectorAll('.cob-chk:checked')].map(c=>c.value);
+// Emisión en 2 pasos: paso 1 junta las líneas tildadas y abre el modal de cobrador / forma de
+// pago; paso 2 (cobrosConfirmarEmision) llama al RPC. Fede revirtió la decisión previa de no
+// capturar cobrador: la copia se la lleva firmada, aclarada y con documento quien cobra.
+function cobrosEmitir(){
+  const chks = [...document.querySelectorAll('.cob-chk:checked')];
+  const ids = chks.map(c=>c.value);
   if (!ids.length) { toast('Seleccioná al menos una línea','error'); return; }
-  const forma = 'efectivo';   // todo efectivo (decisión Fede)
-  const comprobante = null;
-  if (!confirm(`Emitir recibo para ${cobBenef.nombre} por ${ids.length} línea(s)? Marca las líneas como pagadas.`)) return;
-  // Ya no se captura cobrador (decisión Fede). El RPC mantiene su firma; nombre/documento van null
-  // (recibos.cobrador_nombre/documento son TEXT nullable).
+  cobEmitirIds = ids;
+  const total = chks.reduce((t,c)=>t+(parseFloat(c.dataset.monto)||0),0);
+  document.getElementById('cobr-resumen').innerHTML =
+    `<strong>${escapeHtml(cobBenef.nombre)}</strong> · ${ids.length} línea(s) · <span style="color:var(--success)">${fmt(total)}</span>`;
+  // Titular + apoderados vigentes + "Otro". Es un pre-cargador, no un desplegable cerrado:
+  // los inputs quedan editables siempre (ver comentario del modal).
+  document.getElementById('cobr-quien').innerHTML =
+    [`<option value="titular">Titular — ${escapeHtml(cobBenef.nombre)}</option>`]
+    .concat(cobApoderados.map((a,i)=>`<option value="apo:${i}">Apoderado — ${escapeHtml(a.autorizado_nombre)}</option>`))
+    .concat([`<option value="otro">Otro — cargar a mano</option>`]).join('');
+  document.getElementById('cobr-forma').value = 'efectivo';
+  document.getElementById('cobr-comprobante').value = '';
+  cobrosQuienCambio();
+  cobrosFormaCambio();
+  document.getElementById('modal-cobrador').classList.add('open');
+}
+
+// El select sólo PRE-CARGA los campos; nunca los bloquea. 'otro' los deja en blanco para tipear.
+function cobrosQuienCambio(){
+  const v = document.getElementById('cobr-quien').value;
+  const nom = document.getElementById('cobr-nombre'), doc = document.getElementById('cobr-doc');
+  if (v === 'titular')      { nom.value = cobBenef?.nombre || ''; doc.value = docBenef(cobBenef.tipo, cobBenef.id); }
+  else if (v === 'otro')    { nom.value = ''; doc.value = ''; }
+  else { const a = cobApoderados[Number(v.split(':')[1])] || {}; nom.value = a.autorizado_nombre || ''; doc.value = a.autorizado_documento || ''; }
+}
+
+// Transferencia: no hay firma, se abrocha el comprobante (Fede). Sólo ahí se pide comprobante.
+function cobrosFormaCambio(){
+  const esTransfer = document.getElementById('cobr-forma').value === 'transferencia';
+  document.getElementById('cobr-comprobante-row').style.display = esTransfer ? '' : 'none';
+  document.getElementById('cobr-nota-firma').textContent = esTransfer
+    ? 'Transferencia: el recibo se imprime SIN espacio de firma — se abrocha el comprobante.'
+    : 'Efectivo: el recibo imprime firma, aclaración y documento de quien retira.';
+}
+
+async function cobrosConfirmarEmision(){
+  const nombre    = (document.getElementById('cobr-nombre').value||'').trim();
+  const documento = (document.getElementById('cobr-doc').value||'').trim();
+  const forma     = document.getElementById('cobr-forma').value;
+  const comprobante = (document.getElementById('cobr-comprobante').value||'').trim() || null;
+  if (!nombre)    { toast('Falta el nombre de quien cobra','error'); return; }
+  if (!documento) { toast('Falta el documento de quien cobra','error'); return; }
+  const origen = document.getElementById('cobr-quien').value;
+  const btn = document.getElementById('btn-cobr-emitir'); btn.disabled = true;
   const { data, error } = await sb.rpc('emitir_recibo', {
     p_club_id: CLUB_ID, p_beneficiario_tipo: cobBenef.tipo, p_beneficiario_id: cobBenef.id,
-    p_linea_ids: ids, p_forma_pago: forma, p_cobrador_nombre: null, p_cobrador_documento: null, p_comprobante_url: comprobante,
+    p_linea_ids: cobEmitirIds, p_forma_pago: forma,
+    p_cobrador_nombre: nombre, p_cobrador_documento: documento, p_comprobante_url: comprobante,
   });
+  btn.disabled = false;
   if (error) { toast(error.message,'error'); return; }
+  closeModal('modal-cobrador');
   const recibo = Array.isArray(data)?data[0]:data;
   toast(`Recibo N° ${recibo.numero_recibo} emitido`);
-  imprimirReciboCobro(recibo, ids);
+  imprimirReciboCobro(recibo, cobEmitirIds, { origen });
   cobrosBuscar();   // refresca la lista (las líneas pagadas ya no aparecen)
 }
 
@@ -1000,7 +1126,7 @@ function rolDeLinea(l){
   return ROL_POR_BENEFICIARIO[l.beneficiario_tipo] || '';
 }
 
-async function imprimirReciboCobro(recibo, lineaIds){
+async function imprimirReciboCobro(recibo, lineaIds, opts){
   // re-leer las líneas marcadas para el print
   const { data: lns, error: eLns } = await sb.from('liquidacion_detalle')
     .select('concepto,descripcion,concepto_tipo,beneficiario_tipo,monto_neto,posicion,reunion_id,inscripcion_id,carrera_id').eq('recibo_id',recibo.id);
@@ -1026,36 +1152,56 @@ async function imprimirReciboCobro(recibo, lineaIds){
     return `<tr><td>${fecha}</td><td>${carrera}</td><td>${caballo}</td><td>${puesto}</td><td>${rolDeLinea(l)||'—'}</td><td>${l.concepto||''}</td><td style="text-align:right">${fmt(l.monto_neto)}</td></tr>`;}).join('');
   // Fetch del club con logo_url (el global `club` puede no tenerlo en el flujo de Pagos).
   const { data: cl } = await sb.from('clubs').select('nombre,domicilio,localidad,provincia,logo_url').eq('id', CLUB_ID).single();
-  // Recibo siempre en efectivo (decisión Fede) → siempre bloque de firma.
-  const firma = '<div style="margin-top:auto;display:flex;justify-content:center;gap:36px;text-align:center;font-size:11px;"><div style="border-top:1px solid #000;width:200px;padding-top:6px;">Firma</div><div style="border-top:1px solid #000;width:240px;padding-top:6px;">Aclaración</div><div style="border-top:1px solid #000;width:140px;padding-top:6px;">DNI</div></div>';
-  // Bloque reutilizable: UNA copia = contenedor de página entera (.recibo-copia: flex columna,
-  // min-height:100vh) con la firma al pie (margin-top:auto). Se imprimen 2 copias rotuladas
+  // Pie: quién retira + firma. Los datos salen del recibo recién creado (RETURNING del RPC),
+  // no del estado del modal — así el pie imprime exactamente lo que quedó persistido.
+  const cobNombre = recibo.cobrador_nombre || '';
+  const cobDoc    = recibo.cobrador_documento || '';
+  const norm = v => String(v||'').trim().toLowerCase().replace(/\s+/g,' ');
+  // Si cobra el titular no se repite el nombre (ya está arriba en "A nombre de"). Se compara por
+  // origen del select y también por texto: alguien puede tipear al titular desde la opción 'Otro'.
+  const esTitular = opts?.origen === 'titular' || (!!cobNombre && norm(cobNombre) === norm(cobBenef?.nombre));
+  const quienRetira = cobNombre
+    ? `<p><strong>Retira:</strong> ${esTitular ? 'el titular' : escapeHtml(cobNombre)} — Doc. ${escapeHtml(cobDoc)||'—'}</p>`
+    : '';
+  // Transferencia: no se firma, se abrocha el comprobante (Fede). Efectivo: firma/aclaración/DNI.
+  const esTransfer = recibo.forma_pago === 'transferencia';
+  const firma = esTransfer
+    ? `<p><strong>Forma de pago:</strong> TRANSFERENCIA — no requiere firma; se adjunta el comprobante.</p>`
+      + (recibo.comprobante_url ? `<p style="font-size:10px;">Comprobante: ${escapeHtml(recibo.comprobante_url)}</p>` : '')
+    : '<div class="recibo-firma"><div style="width:200px;">Firma</div><div style="width:240px;">Aclaración</div><div style="width:140px;">DNI</div></div>';
+  // Bloque reutilizable: UNA copia con alto natural. Se imprimen 2 copias rotuladas
   // ORIGINAL / DUPLICADO (pedido Fede) — mismo contenido, distinto rótulo —, separadas por
-  // page-break-after:always (CSS .recibo-copia:not(:last-child)), con un solo window.print().
+  // break-after:page (CSS .recibo-copia:not(:last-child)), con un solo window.print().
+  // El pie (total + retira + firma) va en `.recibo-pie` con break-inside:avoid para que NUNCA
+  // se despegue de las líneas: sin eso, un recibo de 6 líneas mandaba el pie a la hoja 2 y las
+  // 2 copias salían en 4 hojas.
   const copia = (rotulo) => `<div class="recibo-copia">
-    <div style="text-align:right;font-size:12px;font-weight:bold;letter-spacing:1px;">${rotulo}</div>
+    <div class="recibo-rotulo">${rotulo}</div>
     <div class="recibo-header">
       <div style="display:flex;align-items:center;justify-content:center;gap:18px;">
-        ${cl?.logo_url ? `<img src="${cl.logo_url}" alt="${cl.nombre||''}" style="height:100px;object-fit:contain;flex-shrink:0;">` : ''}
+        ${cl?.logo_url ? `<img class="recibo-logo" src="${cl.logo_url}" alt="${cl.nombre||''}">` : ''}
         <div>
           <h2>${cl?.nombre||'SGH'}</h2>
           <p>${cl?.domicilio||''} — ${cl?.localidad||''}, ${cl?.provincia||''}</p>
         </div>
       </div>
-      <h3 style="margin-top:10px;">RECIBO DE PAGO N° ${recibo.numero_recibo}</h3>
+      <h3>RECIBO DE PAGO N° ${recibo.numero_recibo}</h3>
       <p>Fecha: ${new Date().toLocaleDateString('es-AR')}</p>
     </div>
-    <p><strong>Beneficiario:</strong> ${cobBenef?.nombre||'—'}${rolesLineas.length?` — <strong>${rolesLineas.join(' / ')}</strong>`:''}</p>
+    <p class="recibo-benef"><strong>A nombre de:</strong> ${cobBenef?.nombre||'—'}${rolesLineas.length?` — <strong>${rolesLineas.join(' / ')}</strong>`:''}</p>
     <table class="recibo-table">
       <thead><tr><th>Fecha</th><th>Carrera</th><th>Caballo</th><th>Puesto</th><th>Rol</th><th>Concepto</th><th>Neto</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <div class="recibo-total">
-      <p>Total premios: ${fmt(recibo.total_premios)}</p>
-      <p>Descuentos: -${fmt(recibo.total_descuentos)}</p>
-      <p style="font-size:16px;">NETO A COBRAR: ${fmt(recibo.neto_a_cobrar)}</p>
+    <div class="recibo-pie">
+      <div class="recibo-total">
+        <p>Total premios: ${fmt(recibo.total_premios)}</p>
+        <p>Descuentos: -${fmt(recibo.total_descuentos)}</p>
+        <p style="font-size:15px;">NETO A COBRAR: ${fmt(recibo.neto_a_cobrar)}</p>
+      </div>
+      <div class="recibo-cobrador">${quienRetira}${esTransfer?firma:''}</div>
+      ${esTransfer?'':firma}
     </div>
-    ${firma}
   </div>`;
   // 2 copias rotuladas (mismo contenido). Original primero, duplicado en la 2ª hoja.
   document.getElementById('recibo-print').innerHTML = copia('ORIGINAL') + copia('DUPLICADO');
