@@ -286,7 +286,8 @@ const reciboNuevo = async (antes) => (((await sb.from('recibos').select('*').eq(
     const outT = dom.els['recibo-print'].innerHTML;
     ok('h1 si cobra el titular, el pie dice "el titular"', outT.includes('Retira:</strong> el titular'));
     const pieT = primerPie(outT);
-    ok('h2 y NO repite el nombre del titular en el pie', !pieT.includes(cobBenef.nombre));
+    ok('h2 y NO repite el nombre del titular en el pie',
+       pieT.length > 0 && !pieT.includes(cobBenef.nombre), `pie=${pieT.length}b`);
     ok('h3 el nombre del titular sigue estando arriba, en "A nombre de"', outT.includes('A nombre de') && outT.includes(cobBenef.nombre));
 
     // ── (g) transferencia: sin firma ────────────────────────────────────────
