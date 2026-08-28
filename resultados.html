@@ -2003,7 +2003,13 @@ function closeMontas() {
 // profesionales entre el 05 y el 07/08 — mes y medio después. Sin esta salida, el gate duro
 // deja al operador trabado cuando corre un jockey que todavía no está en la base.
 // Payload mínimo, mismo shape que jockeys.html:384. El resto de la ficha (matrícula, DNI,
-// categoría, patente) se completa después en jockeys.html.
+// categoría, patente) queda en null.
+// MARCA EN notas: es el mismo mecanismo que dejó 40 propietarios provisorios a medio cargar.
+// Medido el 2026-08-28 sobre los 4 jockeys creados así en agosto (GUZMAN, MARCHANT, DE MAIO,
+// GONZALEZ): tres semanas después ninguno tiene matrícula, categoría, teléfono ni patente —
+// no se completan solos. La marca los hace encontrables después:
+//   SELECT * FROM profesionales WHERE notas LIKE 'ALTA RAPIDA%';
+const ALTA_RAPIDA_MARCA = 'ALTA RAPIDA desde Montas';
 async function altaJockeyRapida() {
   const apellido = document.getElementById('mo-alta-apellido').value.trim();
   const nombre   = document.getElementById('mo-alta-nombre').value.trim();
@@ -2013,7 +2019,10 @@ async function altaJockeyRapida() {
     (p.nombre   || '').toLowerCase() === nombre.toLowerCase());
   if (dup) { toast(`Ya existe: ${dup.apellido}, ${dup.nombre}`, 'error'); return; }
   const { data, error } = await sb.from('profesionales')
-    .insert({ club_id: CLUB_ID, tipo: 'jockey', nombre, apellido, estado: 'activo', activo: true })
+    .insert({ club_id: CLUB_ID, tipo: 'jockey', nombre, apellido, estado: 'activo', activo: true,
+              notas: `${ALTA_RAPIDA_MARCA} (resultados.html) el ${new Date().toISOString().slice(0,10)}`
+                   + ` por ${currentUser?.nombre_completo || currentUser?.email || '?'}.`
+                   + ` FICHA INCOMPLETA: faltan matrícula, DNI, categoría y patente — completar en jockeys.html.` })
     .select('id,nombre,apellido,tipo').single();
   if (error) { console.error('[altaJockeyRapida]', error); toast(error.message, 'error'); return; }
   profsMap[data.id] = data;
@@ -2030,7 +2039,7 @@ async function altaJockeyRapida() {
   });
   document.getElementById('mo-alta-apellido').value = '';
   document.getElementById('mo-alta-nombre').value   = '';
-  toast(`Jockey creado: ${apellido}, ${nombre}`);
+  toast(`Jockey creado: ${apellido}, ${nombre} — ficha incompleta, completala en Jockeys`, 'success');
 }
 
 async function saveMontas() {

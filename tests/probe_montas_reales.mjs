@@ -25,6 +25,8 @@
  * M3) sin suplente: "Sin asignar" primero y después alfabético por apellido
  * M4) sólo entran profesionales tipo jockey|ambos
  * M5) contra R8 real, montasFaltantes coincide con lo que dice la base
+ * A1) la alta rápida marca el registro en notas (asserts sobre el texto del archivo: correr el
+ *     INSERT crearía un profesional en prod, y este probe es read-only)
  */
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
@@ -286,6 +288,27 @@ const ratsDeEsa = inscsReal.filter(i => i.carrera_id === carreraCompleta && i.es
      totalCodigo === totalBase, `código ${totalCodigo} vs base ${totalBase}`);
   ok('M5b · R8 hoy no tiene ratificados que largaron sin jockey', totalBase === 0,
      `si esto falla, R8 quedaría bloqueada al re-oficializar`);
+}
+
+/* ── A1 — la alta rápida deja marca en notas ───────────────────────────────── */
+{
+  const iAlta = SRC.indexOf('async function altaJockeyRapida()');
+  const bloque = SRC.slice(iAlta, SRC.indexOf('async function saveMontas()', iAlta));
+  ok('A1 · el INSERT de la alta rápida escribe notas', /notas:\s*`/.test(bloque));
+  ok('A1b · la marca es greppable y constante',
+     SRC.includes("const ALTA_RAPIDA_MARCA = 'ALTA RAPIDA desde Montas'") &&
+     bloque.includes('${ALTA_RAPIDA_MARCA}'));
+  ok('A1c · la nota dice que la ficha está incompleta',
+     /FICHA INCOMPLETA/.test(bloque));
+  ok('A1d · registra quién y cuándo', bloque.includes('currentUser') && bloque.includes('toISOString'));
+  ok('A1e · el toast avisa que la ficha quedó incompleta',
+     /toast\(`Jockey creado[^`]*ficha incompleta/.test(bloque));
+  // La marca tiene que servir para encontrarlos: verificar contra la base que el patrón
+  // no colisiona con notas que ya existan por otro motivo.
+  const { data: yaMarcados } = await sb.from('profesionales')
+    .select('id,apellido,nombre').like('notas', 'ALTA RAPIDA%');
+  ok('A1f · el patrón LIKE no colisiona con notas preexistentes',
+     Array.isArray(yaMarcados), `${(yaMarcados||[]).length} marcados hoy`);
 }
 
 /* ── Salida ────────────────────────────────────────────────────────────────── */
