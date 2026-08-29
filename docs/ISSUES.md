@@ -667,6 +667,16 @@ un hipódromo y cobra líneas de otro.
 | `emitido_por` | NULL (ISSUE-057 — no hay a quién preguntarle) |
 | líneas | **9, todas de la reunión 9999 de Dolores** |
 
+**Reproducción — confirmada por el autor (2026-08-29), no es hipótesis.** Lo emitió el propio
+usuario haciendo la verificación visual del recibo:
+
+1. `liquidaciones.html`, con el **club-switcher parado en Mi Club Hípico**.
+2. El tab **Pagos siguió mostrando las líneas de la 9999 de Dolores** (ISSUE-060).
+3. Tocar **🧾 Pagar** → emitir → imprimir.
+
+`emitido_por` es NULL (ISSUE-057), así que la base no lo sabe, pero el autor está identificado y el
+camino es determinístico. **No hay misterio que investigar: hay dos validaciones que faltan.**
+
 Datos revertidos el 2026-08-29 con `migrations/fix_recibo_fantasma_mch.sql` (líneas devueltas a
 `impago`, recibo borrado, rollback incluido en el mismo archivo). Verificado después:
 `0` líneas con `recibos.club_id <> liquidaciones.club_id` en toda la base.
@@ -701,6 +711,10 @@ Funciona porque en la práctica sólo Dolores tiene liquidaciones. Pero `club-sw
 `super_admin` cambiar de hipódromo en 16 páginas, y `liquidaciones.html` es una de ellas: parado en
 Mi Club Hípico, el tab Pagos sigue listando las líneas de Dolores, y el botón Pagar emite con el
 `CLUB_ID` del club activo. Esa es la mecánica exacta del recibo fantasma de ISSUE-059.
+
+**Reproducción confirmada** (2026-08-29, reportada por el autor del recibo fantasma): switchear a
+Mi Club Hípico → abrir Pagos → la plata de Dolores está toda ahí. No hace falta ninguna condición
+rara. Es el paso 2 de la repro de ISSUE-059.
 
 El fix es un `.eq('club_id', CLUB_ID)`, pero `liquidacion_detalle` **no tiene** `club_id` — está en
 `liquidaciones`. Hay que resolverlo por embed (`liquidaciones!inner(club_id)`) o por lista de
