@@ -54,7 +54,11 @@ function extractFn(src, firma) {
 // ── DOM stub: sólo los ids que toca el tab Pagos ────────────────────────────
 function mkDocument(campos) {
   const nodos = {};
-  const get = id => (nodos[id] ||= { value: campos[id] ?? '', innerHTML: '', textContent: '' });
+  const get = id => (nodos[id] ||= {
+    value: campos[id] ?? '', innerHTML: '', textContent: '',
+    style: {}, classList: { add(){}, remove(){}, toggle(){} },
+    scrollIntoView(){}, focus(){}, click(){},
+  });
   Object.keys(campos).forEach(get);
   ['cob-detalle', 'cob-beneficiarios', 'cob-ret-wrap', 'cob-total', 'cob-apoderados'].forEach(get);
   return { getElementById: id => get(id) || null, _n: nodos,

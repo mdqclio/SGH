@@ -27,6 +27,7 @@ import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { snapshotLineas, diffLineas, restaurarLineas, describir } from './lib/estado_lineas.mjs';
 
 const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
 const KEY = process.env.SUPABASE_SECRET_KEY;
@@ -156,6 +157,10 @@ const detsDe = (rows, carreraId, inscIdsDe) =>
 
 const snapDets = await dets();
 const snapLiqs = (await sb.from('liquidaciones').select('*').eq('reunion_id', R9999)).data;
+// Foto por ESTADO, además de la de filas enteras. snapDets alcanza para reinsertar, pero la
+// verificación de abajo comparaba sólo IDS: los ids pueden coincidir y los estados no. Es la
+// misma clase de error que dio verde el restore del recibo del 2026-08-28.
+const snapEstados = await snapshotLineas(sb, R9999);
 const snapRes  = resAll.map(r => ({ id: r.id, estado: r.estado }));
 const snapInsc = inscAll.map(i => ({ id: i.id, jockey_titular_id: i.jockey_titular_id }));
 
@@ -283,6 +288,14 @@ try {
     ok('R1 · restore liquidacion_detalle (mismos ids)',
        JSON.stringify(finalDets.map(d=>d.id).sort()) === JSON.stringify(snapDets.map(d=>d.id).sort()),
        `${finalDets.length} vs ${snapDets.length}`);
+    // R1 sola no alcanza: compara IDS. Que las filas estén no dice nada de su estado_linea ni de
+    // su recibo_id, que es exactamente lo que se movió sin que nadie lo viera el 2026-08-28.
+    const arregladas = await restaurarLineas(sb, snapEstados, await snapshotLineas(sb, R9999));
+    const verif = diffLineas(snapEstados, await snapshotLineas(sb, R9999));
+    ok('R1b · restore por ESTADO (estado_linea, recibo_id, montos), no sólo por ids',
+       verif.limpio, describir(verif));
+    ok('R1c · no hubo que restaurar nada de emergencia', arregladas === 0,
+       `${arregladas} línea(s) devueltas a su estado`);
     ok('R2 · restore jockeys de inscripciones',
        snapInsc.every(s => finalInsc.find(f=>f.id===s.id)?.jockey_titular_id === s.jockey_titular_id));
     ok('R3 · restore estados de resultados',

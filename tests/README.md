@@ -203,3 +203,37 @@ node tests/smoke_full.mjs
 - Genera magic links de autenticación reales.
 
 No ejecutar en CI sin una base de datos de staging separada.
+
+## Restore: verificar por ESTADO, no contando filas
+
+`tests/lib/estado_lineas.mjs` es el helper compartido para esto. Existe porque el 2026-08-28 un
+restore se dio por bueno contando filas —76 líneas en el sandbox, 0 recibos de prueba, 0
+huérfanas, todo verde— mientras 9 de esas líneas quedaban en `estado_linea='pagado'` colgadas de un
+recibo de otro club. Las filas estaban; el estado no.
+
+```javascript
+import { snapshotLineas, diffLineas, restaurarLineas, describir, recibosDesde } from './lib/estado_lineas.mjs';
+
+const T0 = new Date(Date.now() - 1000).toISOString();
+const antes = await snapshotLineas(sb, REUNION);
+try {
+  // … el probe hace lo suyo …
+} finally {
+  // … borrar las fixtures propias …
+  const arregladas = await restaurarLineas(sb, antes, await snapshotLineas(sb, REUNION));
+  const verif = diffLineas(antes, await snapshotLineas(sb, REUNION));
+  ok('restore por ESTADO', verif.limpio, describir(verif));
+  ok('no se pisó nada ajeno', arregladas === 0, `${arregladas} línea(s) restauradas`);
+  const sobra = (await recibosDesde(sb, T0)).filter(r => !misRecibos.includes(r.id));
+  ok('sin recibos colgados en NINGÚN club', sobra.length === 0);
+}
+```
+
+Los dos primeros asserts son distintos a propósito: uno dice si quedó bien, el otro si el probe
+pisó algo que no era suyo. Haber podido arreglarlo no lo vuelve aceptable.
+
+`recibosDesde()` **no filtra por club** a propósito: el recibo fantasma del 2026-08-28 sobrevivió
+porque la foto de recibos del probe hacía `.eq('club_id', CLUB_ID)` y el recibo había salido con el
+`club_id` de Mi Club Hípico. Ver GOTCHA #76 / ISSUE-059.
+
+`monto_neto` y `total_neto` no van en el snapshot: son columnas GENERATED (GOTCHA #9).

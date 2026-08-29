@@ -505,11 +505,23 @@ Tres salidas posibles, ninguna obviamente correcta — **es decisión de product
 La 3 parece la buena a mediano plazo. Filtrar por `numero=9999` a mano sería un parche que no
 sobrevive al próximo sandbox.
 
-Módulo: `liquidaciones.html` (`cobrosBuscar`) · eventualmente `reuniones` (columna nueva).
-Relacionado: `docs/diagnosticos/2026-08-28_ejecucion-saldado-r6-r8.md` §6.2.
-Estado: ⏳ Abierto — **esperando definición de Fede**. Prioridad: **Alta antes del 20/09** — es
-exactamente el riesgo de doble pago que el saldado de R6/R8 vino a eliminar, sobreviviendo por otra
-puerta.
+**Nota sobre el número (2026-08-29)**: en la planificación del fix se midió **27 líneas por
+$396.000** y se creyó que el 36/$488.000 del párrafo de arriba estaba desactualizado. Estaba mal la
+medición, no el issue: 9 líneas del sandbox habían quedado colgadas de un recibo fantasma emitido a
+las 21:20 UTC del 28/08 (ver ISSUE-059). Devueltas a `impago`, la 9999 volvió a **36 líneas por
+$488.000,00** — el número original. **No corregir esta cifra.**
+
+**Resuelto el 2026-08-29** con la opción 3: columna `reuniones.es_prueba` + filtro en
+`cobrosBuscar` **y en `cobrosDetalle`** (que no está acotado por reunión y traería las líneas del
+sandbox ya tildadas). La 9999 no se esconde: se rotula `⚗ PRUEBA` en el selector y sigue elegible
+a mano, que es lo que mantiene usable el banco de pruebas sin inventar un rol ni un parámetro de
+URL. Migración `migrations/reuniones_es_prueba.sql`, rollback
+`migrations/rollback_reuniones_es_prueba.sql`, probe `tests/probe_reunion_es_prueba.mjs` (16/16).
+
+Módulo: `liquidaciones.html` (`cobrosBuscar`, `cobrosDetalle`) · `reuniones.es_prueba`.
+Relacionado: `docs/diagnosticos/2026-08-28_ejecucion-saldado-r6-r8.md` §6.2 ·
+`docs/diagnosticos/2026-08-29_issue-055-es-prueba-plan.md` · ISSUE-059 · ISSUE-060.
+Estado: ✅ **CERRADO** (2026-08-29).
 
 ---
 
@@ -586,3 +598,154 @@ Módulo: RPC `emitir_recibo` (DB).
 Relacionado: ISSUE-056, `docs/diagnosticos/2026-08-28_ejecucion-revert-recibo-4.md`.
 Estado: ⏳ Abierto. Prioridad: **Alta antes del 20/09** — es una línea de código y cierra un
 agujero de auditoría sobre dinero.
+
+---
+
+### ISSUE-058: El restore de los probes se verificaba contando filas, no comparando estados
+
+Detectado el **2026-08-29**, al investigar de dónde salían 9 líneas del sandbox en `pagado`.
+
+`probe_recibo_pie_cobrador.mjs` cerraba su `finally` con dos checks:
+
+```javascript
+ok('R1 cleanup: fixtures borradas', !liqFin?.length && !recFin?.length);
+ok('R2 cleanup: no quedan líneas huérfanas', !sobra?.length);
+```
+
+Los dos **cuentan filas**. El 28/08 dieron verde —76 líneas en la 9999, 0 recibos de prueba, 0
+huérfanas— mientras 9 líneas del sandbox quedaban en `estado_linea='pagado'` colgadas de un recibo
+ajeno. Las filas estaban; lo que había cambiado era su estado. Es la misma clase de error que el
+recibo #4: **contar filas no es verificar estado**.
+
+`probe_recuperacion_monta.mjs` tenía la variante suave del mismo defecto: su restore SÍ era
+correcto (borra y reinserta las filas enteras, con `estado_linea` y `recibo_id` adentro), pero su
+verificación comparaba **sólo los ids** (`finalDets.map(d=>d.id).sort()`). Ids iguales, estados sin
+mirar.
+
+**Resuelto** con `tests/lib/estado_lineas.mjs`: `snapshotLineas` (id → campos), `diffLineas`
+(comparación campo por campo), `restaurarLineas` (devuelve lo que cambió) y `recibosDesde`
+(recibos creados durante la corrida, **sin filtro de club** — el recibo fantasma sobrevivió
+justamente porque la foto filtraba por Dolores y el recibo había salido con el club_id de Mi Club
+Hípico). Los dos probes ahora asertan por estado y reportan aparte si tuvieron que restaurar algo:
+haber podido arreglarlo no lo vuelve aceptable.
+
+Checks nuevos: `R3`/`R4`/`R5` en `probe_recibo_pie_cobrador.mjs` (56 checks, todos verdes),
+`R1b`/`R1c` en `probe_recuperacion_monta.mjs` (19 checks, todos verdes).
+
+Módulo: `tests/`. Estado: ✅ **CERRADO** (2026-08-29).
+
+---
+
+### ISSUE-059: `emitir_recibo` no valida que las líneas pertenezcan a `p_club_id` — fuga entre hipódromos
+
+Detectado el **2026-08-29**, con un caso **real en producción**.
+
+La RPC marca las líneas así:
+
+```sql
+UPDATE liquidacion_detalle d
+   SET estado_linea = 'pagado', recibo_id = v_recibo.id, pagado_at = now()
+ WHERE d.id = ANY(p_linea_ids)
+   AND d.beneficiario_id = p_beneficiario_id
+   AND d.recibo_id IS NULL
+   AND d.estado_linea = 'impago';
+```
+
+Chequea beneficiario, que esté impaga y que no tenga recibo. **No chequea que la línea sea del club
+que emite.** El número sale de `fn_siguiente_recibo(p_club_id)`, o sea que el recibo se numera en
+un hipódromo y cobra líneas de otro.
+
+**Lo que efectivamente pasó** (`recibos.id = 2d89fb7d-3cc5-43da-ad26-28a15203f4f9`):
+
+| campo | valor |
+|---|---|
+| `club_id` | `a6da7e40-…` — **Mi Club Hípico** (club inactivo) |
+| `numero_recibo` | 1 |
+| `profesional_id` | `6361df8c-…` — ACHINGO, entrenador de **Dolores** |
+| `neto_a_cobrar` | $92.000 |
+| `emitido_at` | 2026-08-28 21:20:30 UTC |
+| `emitido_por` | NULL (ISSUE-057 — no hay a quién preguntarle) |
+| líneas | **9, todas de la reunión 9999 de Dolores** |
+
+Datos revertidos el 2026-08-29 con `migrations/fix_recibo_fantasma_mch.sql` (líneas devueltas a
+`impago`, recibo borrado, rollback incluido en el mismo archivo). Verificado después:
+`0` líneas con `recibos.club_id <> liquidaciones.club_id` en toda la base.
+
+**La causa no está arreglada.** El fix sería agregar a la RPC:
+
+```sql
+AND EXISTS (SELECT 1 FROM liquidaciones l WHERE l.id = d.liquidacion_id AND l.club_id = p_club_id)
+```
+
+No se aplicó en la misma pasada porque toca la RPC de cobro con Valeria operando, y merece su
+propio probe. Ver también ISSUE-060: el otro extremo del mismo agujero.
+
+Módulo: RPC `emitir_recibo`. Estado: ⏳ **Abierto**. Prioridad: **Alta** — es multi-tenant, y hoy
+hay 3 clubes en la base.
+
+---
+
+### ISSUE-060: `cobrosBuscar` no filtra por `club_id` — con el club-switcher muestra plata ajena
+
+Detectado el **2026-08-29**, investigando ISSUE-059.
+
+La query del buscador de Pagos no menciona `club_id` en ninguna parte:
+
+```javascript
+sb.from('liquidacion_detalle')
+  .select('…')
+  .eq('estado_linea','impago').neq('beneficiario_tipo','club').is('recibo_id', null);
+```
+
+Funciona porque en la práctica sólo Dolores tiene liquidaciones. Pero `club-switcher.js` deja al
+`super_admin` cambiar de hipódromo en 16 páginas, y `liquidaciones.html` es una de ellas: parado en
+Mi Club Hípico, el tab Pagos sigue listando las líneas de Dolores, y el botón Pagar emite con el
+`CLUB_ID` del club activo. Esa es la mecánica exacta del recibo fantasma de ISSUE-059.
+
+El fix es un `.eq('club_id', CLUB_ID)`, pero `liquidacion_detalle` **no tiene** `club_id` — está en
+`liquidaciones`. Hay que resolverlo por embed (`liquidaciones!inner(club_id)`) o por lista de
+`liquidacion_id` del club, y en ambos casos hay que cuidar el NULL-safe (GOTCHA #5). Por eso no
+entró en el fix de ISSUE-055: es un cambio de query con su propia forma de romperse.
+
+Módulo: `liquidaciones.html` (`cobrosBuscar`, `cobrosDetalle`). Estado: ⏳ **Abierto**.
+Prioridad: **Alta**, junto con ISSUE-059.
+
+---
+
+### ISSUE-061: Caballos de prueba en `spcs` — el guard de 181 no es el padrón real
+
+Detectado el **2026-08-29** (sale del relevamiento de ISSUE-055 §2).
+
+`spcs` es una tabla **global sin `club_id`** (GOTCHA #13). Los ejemplares de prueba de
+"Mi Club Hípico" viven ahí y **cuentan contra el padrón de Dolores**:
+
+| id | nombre |
+|---|---|
+| `a37acadd-89e9-47ca-8741-1e8c871f196c` | Pampa Libre |
+| `29fc7bef-7ec1-4f44-81b8-3baaf9de4d79` | Don Facundo |
+
+Consecuencia: el **guard de sesión de `CLAUDE.md` (`SELECT count(*) FROM spcs` → 181)** incluye
+caballos falsos. Sigue sirviendo para lo que se usa —detectar que uno se conectó al proyecto
+equivocado— pero **no es el padrón real de Dolores**, y no hay que citarlo como tal. Ver GOTCHA #75.
+
+`es_prueba` **no los toca**: es un flag de `reuniones`, y estos ejemplares no cuelgan de ninguna.
+Limpiarlos es del mismo orden que `docs/PLAN_DUPLICADOS_SPC.md` y necesita saber antes si algún
+`inscripciones`/`resultado_posiciones` los referencia.
+
+Módulo: `spcs`. Estado: ⏳ **Abierto**. Prioridad: **Baja** — no mueve plata.
+
+---
+
+### ISSUE-062: El contador de reuniones de `index.html` incluye la reunión de prueba
+
+Detectado el **2026-08-29**. Menor, anotado a pedido.
+
+`index.html:238` cuenta las reuniones del club para el panel de `super_admin` sin excluir la
+sandbox, así que dice **13** donde hay 12 reales. El contador de `secretario_carreras`
+(`index.html:251`) **no** está afectado: filtra por año en curso y la 9999 es 2099.
+
+Se dejó afuera del fix de ISSUE-055 a propósito: ese diff ya toca dos funciones de la pantalla de
+pagos y no conviene desparramarlo por algo cosmético. El arreglo es una línea:
+`.eq('es_prueba', false)`.
+
+Módulo: `index.html`. Estado: ⏳ **Abierto**. Prioridad: **Cosmética**.

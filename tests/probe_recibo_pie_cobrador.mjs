@@ -29,6 +29,7 @@ import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { snapshotLineas, diffLineas, restaurarLineas, describir, recibosDesde } from './lib/estado_lineas.mjs';
 
 const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
@@ -105,6 +106,11 @@ const reciboNuevo = async (antes) => (((await sb.from('recibos').select('*').eq(
 
 (async () => {
   let liqId = null, lineas = [], recIds = [], phase = 'init';
+  // Restore verificado por ESTADO, no por conteo de filas: contar filas dio verde el 2026-08-28
+  // mientras 9 líneas del sandbox quedaban en 'pagado' colgadas de un recibo ajeno.
+  const T0 = new Date(Date.now() - 1000).toISOString();
+  const snapAntes = await snapshotLineas(sb, SANDBOX);
+  console.log(`[snapshot] ${Object.keys(snapAntes).length} líneas del sandbox fotografiadas por estado`);
   try {
     // ── sandbox con el código REAL del archivo ──────────────────────────────
     phase = 'sandbox';
@@ -338,6 +344,23 @@ const reciboNuevo = async (antes) => (((await sb.from('recibos').select('*').eq(
       const { data: sobra } = await sb.from('liquidacion_detalle').select('id')
         .eq('liquidacion_id', liqId || '00000000-0000-0000-0000-000000000000');
       ok('R2 cleanup: no quedan líneas huérfanas de la liquidación de prueba', !sobra?.length);
+
+      // ── R3/R4/R5 — verificación por ESTADO ────────────────────────────────
+      // Las fixtures propias ya se borraron; lo que queda tiene que ser, línea por línea y campo
+      // por campo, lo mismo que había antes de arrancar. Si algo cambió se restaura Y se reporta:
+      // haber podido arreglarlo no lo vuelve aceptable, significa que el probe pisó algo ajeno.
+      const arregladas = await restaurarLineas(sb, snapAntes, await snapshotLineas(sb, SANDBOX));
+      const verif = diffLineas(snapAntes, await snapshotLineas(sb, SANDBOX));
+      ok('R3 restore por ESTADO: el sandbox quedó campo por campo como estaba',
+         verif.limpio, describir(verif));
+      ok('R4 el probe no pisó ninguna línea ajena (0 restauraciones de emergencia)',
+         arregladas === 0, `${arregladas} línea(s) hubo que devolver a su estado`);
+      // Sin filtro de club: el recibo fantasma del 2026-08-28 sobrevivió porque fotoRecibos()
+      // filtraba por el club de Dolores y el recibo había salido con el de Mi Club Hípico.
+      const recSobra = (await recibosDesde(sb, T0)).filter(r => !recIds.includes(r.id));
+      ok('R5 no quedó ningún recibo creado durante la corrida, en NINGÚN club',
+         recSobra.length === 0,
+         recSobra.map(r => `#${r.numero_recibo} club=${r.club_id.slice(0,8)}`).join(', '));
     } catch (e) { ok('CLEANUP FALLÓ — revisar manualmente', false, e.message); console.error('[cleanup]', e); }
     console.log('\n──────── RESULTADO ────────');
     for (const r of results) console.log(`${r.s} ${r.t}${r.n ? '  (' + r.n + ')' : ''}`);

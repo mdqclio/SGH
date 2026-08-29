@@ -253,6 +253,11 @@ SELECT count(*) FROM spcs    → 181        (baseline al 2026-08-23)
 ref del proyecto             → unlhcuanfrtpatoipwve
 ```
 
+⚠️ El 181 **incluye caballos de prueba**: `spcs` es global sin `club_id` (GOTCHA #13) y los
+ejemplares de test de "Mi Club Hípico" (`Pampa Libre`, `Don Facundo`) suman al conteo. Sirve para lo
+que se usa —detectar proyecto equivocado— pero **no es el padrón real de Dolores**. GOTCHA #75,
+ISSUE-061.
+
 El baseline de `spcs` **cambia cada vez que se dan de alta o de baja ejemplares** — actualizarlo acá
 cuando pase. Historial: 179 → 183 (tanda 5) → **181** (2026-08-23, se unificaron los dos pares de
 duplicados: se borraron `Fist Queen` y `Malenuchi`, ver `docs/PLAN_DUPLICADOS_SPC.md`).
@@ -280,11 +285,19 @@ set -a; . ./.env; set +a                  # exporta SUPABASE_SECRET_KEY
 node tests/probe_pagos_rol_carrera.mjs    # rol y nº de carrera en el tab Pagos (48 asserts)
 node tests/probe_edad_reglamentaria.mjs   # la regla del 1° de julio en el gate de inscripción
 node tests/probe_no_largo.mjs             # "No corrió" persiste {posicion:null,no_largo:true}
+node tests/probe_reunion_es_prueba.mjs    # ISSUE-055: reuniones.es_prueba fuera del circuito de cobro
 ```
 
 **El patrón es código real sin browser.** Chromium no corre en este Ubuntu (`"Playwright does not support chromium on ubuntu26.04-x64"` — ver `docs/SERVER.md`), así que el probe **extrae del propio HTML** la función o el bloque a probar —por ancla, con balance de llaves—, lo corre con `new AsyncFunction(...)` inyectando dependencias reales (cliente Supabase con `SUPABASE_SECRET_KEY`, más stubs de DOM si hacen falta) y assertea contra la base. Nunca reimplementar la lógica dentro del test: si el archivo cambia, el probe corre el archivo cambiado. Para lo que escribe: **snapshot → run → assert → restore** en el `finally`.
 
 Los pasos completos y los ejemplos de referencia están en **`tests/README.md`** (sección *Browser NO disponible — patrón de harness de código real*). No duplicar eso acá.
+
+**Restore: verificar por ESTADO, no contando filas.** Un probe que borra sus fixtures y después
+chequea "quedan N filas / 0 huérfanas" no verifica nada: las filas pueden estar todas y el
+`estado_linea`/`recibo_id` estar todo mal (pasó el 2026-08-28, GOTCHA #77 / ISSUE-058). Usar
+`tests/lib/estado_lineas.mjs`: `snapshotLineas` antes, `restaurarLineas` + `diffLineas` en el
+`finally`, y **dos** asserts — uno de que quedó limpio, otro de que no hubo que restaurar nada.
+Para recibos, `recibosDesde()` **sin filtro de club** (GOTCHA #76).
 
 **Por qué así**: las variables internas de los módulos (`currentCarreraId`, `inscripciones`, `posicionesMap`, etc.) son `let` de módulo y no están expuestas en `window.*` — no hay estado interno que inspeccionar desde afuera. Los asserts van contra lo que el código **persiste en la DB** o contra el **texto del archivo**, no contra variables.
 
@@ -358,7 +371,7 @@ Todo informe, diagnóstico o análisis va a un archivo, nunca al chat.
 14. **`propietarios.nombre`** — NO `nombre_completo` ni `razon_social`.
 15. **`comisariato` está en `clubs`, NO en `reuniones`** (esa columna fue dropeada).
 
-Ver `docs/GOTCHAS.md` para la lista completa (40 entradas).
+Ver `docs/GOTCHAS.md` para la lista completa (77 entradas).
 
 ---
 

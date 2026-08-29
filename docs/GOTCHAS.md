@@ -389,3 +389,77 @@ WHERE estado_linea='pagado' AND recibo_id IS NULL
 -- pendiente de cobro
 WHERE estado_linea IN ('impago','retenido')
 ```
+
+## 75. El guard de `spcs` = 181 incluye caballos de prueba — no es el padrón real (2026-08-29)
+
+`spcs` es **global, sin `club_id`** (GOTCHA #13). Los ejemplares de prueba que se cargaron para
+"Mi Club Hípico" —`Pampa Libre`, `Don Facundo`— viven en la misma tabla que los SPC reales de
+Dolores y **suman al conteo**.
+
+O sea: el guard de sesión de `CLAUDE.md`
+
+```sql
+SELECT count(*) FROM spcs;   -- 181
+```
+
+**incluye caballos falsos**. Para lo que se usa está bien y hay que seguir usándolo: detecta al
+instante que uno se conectó al proyecto equivocado, que es todo lo que se le pide. Lo que **no** es:
+el padrón de ejemplares de Dolores. No citarlo como tal en informes, ni sacarle porcentajes.
+
+No hay forma barata de separar unos de otros hoy: sin `club_id` en la tabla, la única pista es el
+nombre. Ver ISSUE-061.
+
+## 76. `emitir_recibo` no valida el club de las líneas — un hipódromo puede cobrar plata de otro (2026-08-29)
+
+Verificado con un caso real en producción el 2026-08-29: un recibo con `club_id` de **Mi Club
+Hípico** cobrando **9 líneas de la reunión 9999 de Dolores**, a un entrenador de Dolores, por
+$92.000.
+
+Dos agujeros que se encadenan:
+
+1. **La RPC** filtra por `beneficiario_id` + `impago` + `recibo_id IS NULL`, pero **no** por el club
+   dueño de la línea. El número sale de `fn_siguiente_recibo(p_club_id)`.
+2. **`cobrosBuscar` no filtra por `club_id`** (`liquidacion_detalle` no tiene esa columna; está en
+   `liquidaciones`). Con el club-switcher parado en otro hipódromo, el tab Pagos sigue mostrando
+   las líneas de Dolores.
+
+Al escribir un probe o un teardown que mire recibos, **NO filtrar por `club_id`**: así se le escapó
+este recibo a `probe_recibo_pie_cobrador.mjs`, cuya foto de recibos hacía
+`.eq('club_id', CLUB_ID)`. Usar `recibosDesde()` de `tests/lib/estado_lineas.mjs`, que
+deliberadamente no filtra.
+
+Query de control (tiene que dar 0):
+
+```sql
+SELECT count(*) FROM liquidacion_detalle ld
+JOIN recibos r ON r.id = ld.recibo_id
+JOIN liquidaciones l ON l.id = ld.liquidacion_id
+WHERE r.club_id <> l.club_id;
+```
+
+Ver ISSUE-059 y ISSUE-060.
+
+## 77. Verificar un restore contando filas no verifica nada (2026-08-29)
+
+El restore de `probe_recibo_pie_cobrador.mjs` se dio por bueno el 28/08 con tres conteos: 76 líneas
+en la 9999, 0 recibos de prueba, 0 huérfanas. Todo verde. Nueve de esas 76 líneas estaban en
+`estado_linea='pagado'` colgadas de un recibo ajeno.
+
+**Las filas pueden estar todas y el estado estar todo mal.** Un restore se verifica comparando un
+snapshot campo por campo contra el estado final:
+
+```javascript
+import { snapshotLineas, diffLineas, restaurarLineas } from './lib/estado_lineas.mjs';
+const antes = await snapshotLineas(sb, REUNION);
+// … el probe hace lo suyo …
+const arregladas = await restaurarLineas(sb, antes, await snapshotLineas(sb, REUNION));
+const verif = diffLineas(antes, await snapshotLineas(sb, REUNION));
+ok('restore por estado', verif.limpio, describir(verif));
+ok('no hubo que restaurar nada', arregladas === 0);
+```
+
+Los dos checks son distintos a propósito: el primero dice si quedó bien, el segundo si el probe
+pisó algo que no era suyo. Haber podido arreglarlo no lo vuelve aceptable.
+
+Comparar sólo los **ids** (lo que hacía `probe_recuperacion_monta.mjs`) es la variante suave del
+mismo error. Ver ISSUE-058.
