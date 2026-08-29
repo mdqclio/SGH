@@ -763,3 +763,64 @@ pagos y no conviene desparramarlo por algo cosmético. El arreglo es una línea:
 `.eq('es_prueba', false)`.
 
 Módulo: `index.html`. Estado: ⏳ **Abierto**. Prioridad: **Cosmética**.
+
+---
+
+### ISSUE-063: `probe_pagos_rol_carrera.mjs` queda en 44/46 — se quedó sin datos que probar
+
+Detectado el **2026-08-29**, en la regresión post-merge de ISSUE-055.
+
+Dos asserts fallan, y **los dos son guardas de precondición funcionando como fueron diseñadas**:
+
+```
+❌ 1c) hay al menos un beneficiario con más de un rol (si no, el test no prueba nada)
+❌ 2c) los beneficiarios sin ninguna carrera son incentivo de jockey y quedan rotulados
+```
+
+**No es una regresión.** Verificado:
+
+- `rolDeLinea`, `etiquetaRoles` y `etiquetaCarreras` son **byte a byte idénticas** entre `323ad85`
+  (pre-merge) y `3852eaf` (post-merge) — md5 de cada bloque comparado.
+- El probe **no ejecuta** `cobrosBuscar`: arma la query por su cuenta y sólo extrae las tres
+  funciones y el bloque de cache. El cambio de ISSUE-055 no lo alcanza.
+- Los asserts frágiles que sí dependían del diff (regex del `.select`, bloque
+  `CACHE MAPAS CARRERA`, distancia `cobCaballerizas`→`cobInscCarrera` ≤600) **pasan los tres**.
+
+La causa es de datos: con R6 y R8 saldadas (2026-08-28), **el universo pagable de toda la base es
+la reunión 9999 y nada más** — 8 beneficiarios, 36 líneas:
+
+| apellido | tipo | concepto_tipo | n |
+|---|---|---|---:|
+| ACHINGO | entrenador | premio, incentivo_entrenador | 9 |
+| ALDAY | entrenador | premio, incentivo_entrenador | 5 |
+| ALDAY | entrenador | premio, incentivo_entrenador | 4 |
+| ALDECOA | entrenador | premio, incentivo_entrenador | 6 |
+| CAÑETE | jockey | premio, incentivo_jockey | 4 |
+| FERRARI | jockey | premio, incentivo_jockey | 4 |
+| GATICA | jockey | premio | 2 |
+| IBARRA | jockey | premio, incentivo_jockey | 2 |
+
+- **1c** necesita un beneficiario con más de un rol. Los 8 son mono-rol: 4 entrenadores, 4 jockeys,
+  ninguno `tipo='ambos'`. El caso multi-rol vivía en R8, hoy en `pagado`.
+- **2c** necesita un beneficiario cuyo set de carreras esté **vacío**. Los 3 `incentivo_jockey` del
+  sandbox pertenecen a jockeys que **también** tienen líneas de premio con carrera, así que su
+  tarjeta dice `C1, C2, C3 · + incentivo por reunión` y su set no está vacío.
+
+Sacar del universo las 9 líneas de ACHINGO (las que estuvieron colgadas del recibo fantasma) deja
+7 beneficiarios, igual de mono-rol: **los dos asserts ya venían fallando desde el saldado del
+28/08**, antes de todo este trabajo.
+
+**Qué NO hacer**: aflojar los asserts. La guarda "si no, el test no prueba nada" es correcta y es
+lo único que impide que 1c y 2c den verde sin verificar nada.
+
+**Fix propuesto**: `etiquetaRoles` y `etiquetaCarreras` son funciones puras — los datos sólo tienen
+que **existir**, no ser pagables. Alimentar esos dos casos desde el universo completo
+(sin `.eq('estado_linea','impago')`), donde R6/R8 sí tienen beneficiarios multi-rol, y dejar los
+asserts que miden la pantalla contra el universo pagable. Alternativa peor: `skip` explícito con
+motivo, que al menos no pinta rojo permanente.
+
+Riesgo de no arreglarlo: un probe que vive en 44/46 es un probe que se aprende a ignorar, y
+entonces deja de avisar cuando el rojo es de verdad.
+
+Módulo: `tests/probe_pagos_rol_carrera.mjs`. Estado: ⏳ **Abierto**. Prioridad: **Media** — no hay
+bug de producto detrás, pero es deuda de señal.
