@@ -543,7 +543,7 @@ async function saveReparto() {
 
 async function init() {
   const [{ data: reuns }, { data: profs }, { data: clubData }, { data: props }, { data: liqCfgData }] = await Promise.all([
-    sb.from('reuniones').select('id,numero,fecha,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
+    sb.from('reuniones').select('id,numero,fecha,es_prueba,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
     sb.from('profesionales').select('id,nombre,apellido,tipo,documento_nro').eq('club_id', CLUB_ID).order('apellido'),
     sb.from('clubs').select('*').eq('id', CLUB_ID).single(),
     sb.from('propietarios').select('id,nombre,nombre_stud,documento_nro').eq('activo', true),
@@ -554,7 +554,10 @@ async function init() {
   (props||[]).forEach(p=>{ propietariosMap[p.id]=p; });
   club = clubData;
   const sel = document.getElementById('sel-reunion');
-  sel.innerHTML = '<option value="">— Todas —</option>' + (reuns||[]).map(r=>`<option value="${r.id}">Reunión ${r.numero||''} — ${new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR')} — ${r.hipodromos?.nombre||''}</option>`).join('');
+  // ISSUE-055 — la reunión sandbox se rotula, no se esconde: sigue elegible a mano (es lo que
+  // mantiene usable el banco de pruebas). El rótulo viaja por textContent a los selects de Pagos
+  // y Resumen, que copian estas mismas opciones.
+  sel.innerHTML = '<option value="">— Todas —</option>' + (reuns||[]).map(r=>`<option value="${r.id}">Reunión ${r.numero||''} — ${new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR')} — ${r.hipodromos?.nombre||''}${r.es_prueba?' ⚗ PRUEBA':''}</option>`).join('');
   const rid = ActiveReunion.resolve(reuns||[]);
   if (rid) { sel.value = rid; }
   loadLiquidaciones();
@@ -817,6 +820,25 @@ let cobInscCarrera = {};   // inscripcion_id → carrera_id
 let cobNroCarrera  = {};   // carrera_id → numero_carrera_programa ?? numero_turno
 let cobMapsScope   = null; // reunión de la que son los mapas; al cambiar se invalidan
 let cobReunInit = false;
+// ISSUE-055 — reuniones sandbox (es_prueba). Sus líneas salen del circuito de cobro.
+// NO se filtra por estado='cancelada': en el turf una reunión se suspende de verdad, a veces con
+// carreras ya corridas, y esa reunión queda cancelada CON plata legítima para pagar. Esconderla
+// sería el bug opuesto al que este filtro viene a cerrar.
+let cobReunPrueba = null;   // Set de reunion_id con es_prueba=true; se carga una vez por sesión
+async function cobCargarReunPrueba(){
+  if (cobReunPrueba) return true;
+  const { data, error } = await sb.from('reuniones')
+    .select('id').eq('club_id', CLUB_ID).eq('es_prueba', true);
+  // Falla CERRADA: sin la lista no se puede saber qué es sandbox, y mostrar de más es justamente
+  // el riesgo de doble pago. Se corta el render en vez de listar sin filtrar.
+  if (error) { console.error('[cobros/reuniones-prueba]', error); toast(error.message,'error'); return false; }
+  cobReunPrueba = new Set((data||[]).map(r=>r.id));
+  return true;
+}
+// Una línea se ve si no es de sandbox, o si el operador eligió la reunión sandbox a mano en el
+// selector. Sin rol nuevo ni parámetro de URL: elegirla es el acto explícito.
+// NULL-safe por construcción: Set.has(null) es false → una línea sin reunion_id nunca se esconde.
+function cobVisible(l, rid){ return (!!rid && cobReunPrueba.has(rid)) || !cobReunPrueba.has(l.reunion_id); }
 let _cobDebounce = null;
 function cobrosBuscarDebounced(){ clearTimeout(_cobDebounce); _cobDebounce=setTimeout(cobrosBuscar, 300); }
 
@@ -893,6 +915,8 @@ async function cobrosBuscar(){
   if (rid) qy = qy.eq('reunion_id', rid);
   const { data, error } = await qy;
   if (error) { toast(error.message,'error'); document.getElementById('cob-beneficiarios').innerHTML=''; return; }
+  // ISSUE-055 — reuniones sandbox fuera de la vista agregada (ver cobCargarReunPrueba).
+  if (!await cobCargarReunPrueba()) { document.getElementById('cob-beneficiarios').innerHTML=''; return; }
   // caballerizas → propietario titular (para búsqueda por caballeriza)
   if (!cobCaballerizas.length) {
     const { data: cab, error: eCab } = await sb.from('caballeriza_responsables')
@@ -906,7 +930,8 @@ async function cobrosBuscar(){
   // premio/bono que quedaron sin inscripción. Se prueba inscripción primero y carrera_id de
   // respaldo. El incentivo de jockey no tiene ninguno de los dos y eso es correcto: es por
   // reunión, no por carrera — se rotula en la tarjeta, no se deja en blanco.
-  const lineas = (data||[]).filter(l => !inscFiltro || inscFiltro.has(l.inscripcion_id));
+  const lineas = (data||[]).filter(l => (!inscFiltro || inscFiltro.has(l.inscripcion_id))
+                                     && cobVisible(l, rid));
   // ═══ CACHE MAPAS CARRERA — INICIO (el probe extrae este bloque por estas anclas) ═══
   // Se pide sólo lo que falta: el universo de líneas puede crecer dentro de la misma reunión
   // cuando liberar_linea suelta una retenida. Tipeando en el buscador no falta nada → 0 consultas.
@@ -962,6 +987,11 @@ async function cobrosBuscar(){
 
 async function cobrosDetalle(tipo, id){
   cobBenef = {tipo, id, nombre:nombreBenef(tipo,id)};
+  // ISSUE-055 — cobrosDetalle NO está acotado por reunión (a propósito: se paga todo lo adeudado).
+  // Por eso el filtro de sandbox tiene que repetirse acá: si no, un beneficiario que entra a la
+  // lista por una reunión real abre el detalle con las líneas de la 9999 mezcladas y ya tildadas.
+  const ridSel = document.getElementById('cob-reunion')?.value || '';
+  if (!await cobCargarReunPrueba()) return;
   // pagables = SOLO impago; retenidas aparte
   const [{ data: pag, error: ePag }, { data: ret }, { data: apos }] = await Promise.all([
     sb.from('liquidacion_detalle')
@@ -979,8 +1009,8 @@ async function cobrosDetalle(tipo, id){
   if (ePag) { toast(ePag.message,'error'); return; }
   const apoderados = apos||[];
   cobApoderados = apoderados;   // los reusa el modal de cobrador al emitir
-  cobLineas = pag||[];
-  const retLineas = ret||[];
+  cobLineas = (pag||[]).filter(l => cobVisible(l, ridSel));
+  const retLineas = (ret||[]).filter(l => cobVisible(l, ridSel));
   // enriquecer: fecha de reunión + caballo/carrera (via inscripcion → carreras + spcs)
   const all = [...cobLineas, ...retLineas];
   const reunIds=[...new Set(all.map(l=>l.reunion_id).filter(Boolean))];
