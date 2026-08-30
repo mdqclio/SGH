@@ -24,8 +24,12 @@
  * selector en el HTML.
  *
  *   set -a; . ./.env; set +a
- *   node tests/probe_filtro_concepto_pagos.mjs              # corrida normal
- *   node tests/probe_filtro_concepto_pagos.mjs --mutantes   # mutation testing
+ *   node tests/probe_filtro_concepto_pagos.mjs                      # corrida normal (~13 s)
+ *   node tests/probe_filtro_concepto_pagos.mjs --mutantes=M1,M2,M3  # mutation testing por tanda
+ *   node tests/probe_filtro_concepto_pagos.mjs --mutantes           # los 17 · ~4 min
+ *
+ * Los 17 de un saque tardan ~4 min y pasan el timeout de 120 s del harness (llega como SIGKILL,
+ * exit 137 — NO es OOM: el pico medido es ~100 MB). Correrlos en tandas de 4-5 con --mutantes=…
  */
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
@@ -218,13 +222,27 @@ const MUTANTES = [
     archivo: 'probe' },
 ];
 
-if (process.argv.includes('--mutantes')) {
+// Los mutantes se corren en TANDAS y no todos de un saque. Cada mutante es una corrida completa
+// del probe (fixtures reales contra la base): ~13 s cada una, así que las 17 seguidas pasan los
+// 120 s de timeout del harness y llegan como SIGKILL (exit 137). No es OOM — el pico de memoria
+// medido es ~100 MB y execFileSync ya corre de a un hijo por vez.
+//   node tests/probe_filtro_concepto_pagos.mjs --mutantes=M1,M2,M3,M4,M5
+//   node tests/probe_filtro_concepto_pagos.mjs --mutantes          (los 17; necesita ~4 min)
+const argMut = process.argv.find(a => a === '--mutantes' || a.startsWith('--mutantes='));
+if (argMut) {
+  const pedidos = argMut.includes('=')
+    ? argMut.split('=')[1].split(',').map(s => s.trim()).filter(Boolean) : null;
+  if (pedidos) {
+    const desconocidos = pedidos.filter(p => !MUTANTES.some(m => m.id === p));
+    if (desconocidos.length) { console.error(`mutantes inexistentes: ${desconocidos.join(', ')}`); process.exit(2); }
+  }
+  const tanda = pedidos ? MUTANTES.filter(m => pedidos.includes(m.id)) : MUTANTES;
   const SELF = fileURLToPath(import.meta.url);
   const SELF_SRC = readFileSync(SELF, 'utf8');
   const dir = mkdtempSync(join(tmpdir(), 'mut-filtro-concepto-'));
-  console.log(`\n═══ MUTATION TESTING · ${MUTANTES.length} mutantes ═══\n(copias en ${dir} — el repo no se toca)\n`);
+  console.log(`\n═══ MUTATION TESTING · ${tanda.length}/${MUTANTES.length} mutantes${pedidos ? ` (tanda: ${pedidos.join(',')})` : ''} ═══\n(copias en ${dir} — el repo no se toca)\n`);
   let vivos = 0;
-  for (const m of MUTANTES){
+  for (const m of tanda){
     const esProbe = m.archivo === 'probe';
     const src = esProbe ? SELF_SRC : HTML;
     if (!src.includes(m.from)) {
@@ -248,7 +266,7 @@ if (process.argv.includes('--mutantes')) {
     console.log(`${vivo?'❌':'✅'} ${m.id} ${vivo?'SOBREVIVE':'muere'} — ${m.desc}`
       + `  [esperaba matar ${m.mata.join(',')}${muertos.length?`; murieron ${muertos.join(',')}`:''}]`);
   }
-  console.log(`\n${vivos===0 ? '✅ TODOS LOS MUTANTES MUEREN' : `❌ ${vivos} mutante(s) sobreviven`} — ${MUTANTES.length} probados\n`);
+  console.log(`\n${vivos===0 ? '✅ TODOS LOS MUTANTES DE LA TANDA MUEREN' : `❌ ${vivos} mutante(s) sobreviven`} — ${tanda.length} probados\n`);
   process.exit(vivos === 0 ? 0 : 1);
 }
 
@@ -258,6 +276,19 @@ if (process.argv.includes('--mutantes')) {
   let antesB = {}, REUNION_B = null;
   let phase = 'init';
   try {
+    phase = 'preflight';
+    // Un SIGKILL (timeout del harness, Ctrl-C) NO corre el `finally`, así que una corrida cortada
+    // deja sus fixtures plantadas y la siguiente arranca con 14 líneas donde esperaba 9. Pasó el
+    // 2026-08-30 y bajó el probe a 26/32 sin que nada estuviera roto. La limpieza va acá, al
+    // arranque, y no sólo al final: el `finally` cubre la salida ordenada, esto cubre la brusca.
+    // Acotado al TAG, que es exclusivo de este probe.
+    const { data: restos } = await sb.from('liquidacion_detalle')
+      .select('id,liquidacion_id').ilike('concepto', `${TAG}%`);
+    if (restos?.length){
+      console.log(`[preflight] ${restos.length} línea(s) de una corrida anterior cortada — se limpian`);
+      await sb.from('liquidacion_detalle').delete().in('id', restos.map(r => r.id));
+      await sb.from('liquidaciones').delete().in('id', [...new Set(restos.map(r => r.liquidacion_id))]);
+    }
     phase = 'setup';
     const { data: rB } = await sb.from('reuniones').select('id,numero').eq('club_id', CLUB_B).limit(1);
     REUNION_B = rB?.[0]?.id;
