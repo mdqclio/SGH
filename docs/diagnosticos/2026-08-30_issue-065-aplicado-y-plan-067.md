@@ -566,4 +566,47 @@ elijas sería adivinar.
 
 # VERIFICACIÓN DE PUBLICACIÓN
 
-Se completa abajo con la salida real.
+## `main` — ISSUE-065 mergeado
+
+```
+$ git push origin main
+   dc978c0..ceccda2  main -> main
+
+$ git ls-remote origin main
+ceccda2d79c4a356179904260db15aaa5c026595	refs/heads/main
+
+$ git rev-parse HEAD          # estando en main
+ceccda2d79c4a356179904260db15aaa5c026595
+```
+
+## `reports` — este informe
+
+```
+$ git push origin reports
+   7576974..2994845  reports -> reports
+
+$ git ls-remote origin reports
+299484540c6eaad39e28499585358ea056148568	refs/heads/reports
+
+$ git rev-parse HEAD          # estando en reports
+299484540c6eaad39e28499585358ea056148568
+```
+
+## Estado de producción al cierre
+
+```sql
+SELECT (SELECT count(*) FROM pg_policy
+          WHERE polrelid='recibos'::regclass AND polcmd='d') AS policies_delete_recibos,
+       (SELECT string_agg(grantee, ', ' ORDER BY grantee)
+          FROM information_schema.role_table_grants
+         WHERE table_name='recibos' AND privilege_type='DELETE') AS grantees;
+```
+```json
+[{"policies_delete_recibos":0,"grantees":"postgres, service_role"}]
+```
+
+ISSUE-065 cerrado en la base y en el repo. **ISSUE-067 sin tocar**: la FK
+`liquidacion_detalle_liquidacion_id_fkey` sigue en `CASCADE`, no hay trigger nuevo, y
+`eliminarLiq` está como estaba.
+
+*(Esta sección se agregó en un commit posterior — su propio SHA queda en el `git log` de la rama.)*
