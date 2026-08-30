@@ -667,6 +667,27 @@ async function loadLiquidaciones() {
   renderLiquidaciones();
 }
 
+// ═══════════ ISSUE-067 · no borrar liquidaciones con plata ya cobrada ═══════════
+// El botón 🗑️ se escondía con `l.estado !== 'pagada'` — el estado de la CABECERA. Pero una
+// liquidación en 'borrador' puede tener líneas ya cobradas: medido el 2026-08-30, las 177
+// liquidaciones con líneas comprometidas están TODAS en 'borrador', o sea que el botón estaba
+// visible para las 346 líneas comprometidas del sistema — $23.023.740,85, el 70% de las líneas.
+// Y `eliminarLiq` borra el detalle con su propia sentencia, así que se las llevaba puestas sin
+// dejar rastro: `liquidacion_detalle` no tiene trigger de auditoría.
+//
+// "Comprometida" son DOS cosas, y omitir la segunda era el grueso del agujero:
+//   · recibo_id IS NOT NULL        → cobrada con recibo emitido
+//   · estado_linea === 'pagado'    → saldado administrativo, sin recibo (GOTCHA #74). Son 346 de
+//                                    las 346; contar sólo la primera daba 8.
+//
+// Esto es UI y NO es un guard (GOTCHA #80): un `curl` lo saltea. El guard de verdad es el trigger
+// BEFORE DELETE que va esta semana (ISSUE-067, opción 3). Esto saca el botón de la vista hoy, que
+// es donde está el riesgo real — un click apurado con gente esperando.
+function comprometidasDe(l){
+  return (l?.liquidacion_detalle || [])
+    .filter(d => d.recibo_id != null || d.estado_linea === 'pagado').length;
+}
+
 function renderLiquidaciones() {
   if (!liquidaciones.length) {
     document.getElementById('liq-container').innerHTML = '<div class="empty-state"><div class="icon">💰</div><h3>Sin liquidaciones</h3><p style="color:var(--muted);font-size:13px;margin-top:8px;">Generá liquidaciones automáticamente desde los resultados oficializados.</p></div>';
@@ -694,17 +715,40 @@ function renderLiquidaciones() {
           <span class="badge badge-${l.estado}">${l.estado}</span>
         </div>
       </div>
-      <div style="padding:0 18px 14px;display:flex;gap:8px;flex-wrap:wrap;">
+      <div style="padding:0 18px 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <button class="btn-sm btn-det" onclick="verDetalle('${l.id}')">📋 Ver detalle</button>
-        ${l.estado!=='pagada'?`<button class="btn-sm btn-delete" onclick="eliminarLiq('${l.id}')">🗑️</button>`:''}
+        ${l.estado==='pagada' ? '' : (comprometidasDe(l)
+          ? `<span class="badge badge-pagada" title="No se puede eliminar: tiene líneas ya cobradas. Para revertir un cobro se usa Anular recibo, en el tab Pagos.">🔒 ${comprometidasDe(l)} cobrada(s)</span>`
+          : `<button class="btn-sm btn-delete" onclick="eliminarLiq('${l.id}')">🗑️</button>`)}
       </div>
     </div>`;
   }).join('')}</div>`;
 }
 
 async function eliminarLiq(id) {
+  // Re-chequeo contra la BASE, no contra `liquidaciones` en memoria: entre que se pintó la tarjeta
+  // y el click pudo emitirse un recibo desde el tab Pagos, y la pantalla no se entera. El render ya
+  // esconde el botón (comprometidasDe), pero eso es la vista; esto es la decisión.
+  const { data: comps, error: eChk } = await sb.from('liquidacion_detalle')
+    .select('id,concepto,monto_neto,estado_linea,recibo_id')
+    .eq('liquidacion_id', id)
+    .or('recibo_id.not.is.null,estado_linea.eq.pagado');
+  if (eChk) { console.error('[eliminarLiq/chequeo]', eChk); toast(eChk.message,'error'); return; }
+  if (comps?.length) {
+    const total = comps.reduce((s,d)=>s+(parseFloat(d.monto_neto)||0), 0);
+    toast(`No se puede eliminar: tiene ${comps.length} línea(s) ya cobrada(s) por ${fmt(total)}. `
+        + `Para revertir un cobro, anulá el recibo desde el tab Pagos.`, 'error', 9000);
+    loadLiquidaciones();   // la tarjeta estaba vieja: repintar para que aparezca el candado
+    return;
+  }
+
   if (!confirm('¿Eliminar esta liquidación?')) return;
-  await sb.from('liquidacion_detalle').delete().eq('liquidacion_id', id);
+
+  // El error de ESTE delete se ignoraba. La función seguía de largo y sólo miraba el de la
+  // cabecera, así que un rechazo acá —RLS, o el trigger de ISSUE-067 cuando esté— se perdía en
+  // silencio y el usuario veía "Liquidación eliminada" sobre un borrado que no ocurrió.
+  const { error: eDet } = await sb.from('liquidacion_detalle').delete().eq('liquidacion_id', id);
+  if (eDet) { console.error('[eliminarLiq/detalle]', eDet); toast(eDet.message,'error',9000); return; }
   const { error } = await sb.from('liquidaciones').delete().eq('id', id);
   if (error) { toast(error.message,'error'); return; }
   toast('Liquidación eliminada');

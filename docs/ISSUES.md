@@ -1156,7 +1156,46 @@ Diagnóstico: `docs/diagnosticos/2026-08-30_plan-revocar-recibos-delete.md` (bra
 
 ### ISSUE-067: `eliminarLiq` puede destruir líneas ya cobradas — y es un botón de la UI
 
-**Estado**: 🔴 **ABIERTO**. Detectado el 2026-08-30 relevando ISSUE-065. **Más urgente que ISSUE-065.**
+**Estado**: 🟠 **PARCIAL** — opción 1 (guard de UI) lista en `fix/issue-067-guard-eliminar-liq`,
+sin mergear. Faltan la opción 3 (trigger `BEFORE DELETE`) y la auditoría acotada.
+Detectado el 2026-08-30 relevando ISSUE-065. **Más urgente que ISSUE-065.**
+
+#### Corrección a la exposición que se publicó primero
+
+La cifra original de este issue (**$1.100.000**) estaba mal: contaba sólo las líneas con
+`recibo_id IS NOT NULL` y omitía las que tienen `estado_linea='pagado'` **sin** recibo — el saldado
+administrativo de GOTCHA #74, que también es plata comprometida y también desaparece con el botón.
+
+```json
+[{"estado_liq":"borrador","liquidaciones_con_boton":177,"lineas_totales":493,"con_recibo":8,
+  "pagadas":346,"comprometidas":346,"plata_comprometida_borrable":"23023740.85"}]
+```
+
+**$23.023.740,85 en 346 líneas — el 70% de las líneas del sistema**, en 177 liquidaciones que
+muestran el botón. Veinte veces lo reportado.
+
+#### Corrección al mecanismo
+
+El `ON DELETE CASCADE` **no es** el camino del bug. `eliminarLiq` borra las líneas en su **propia
+sentencia** antes de tocar la cabecera, así que el cascade nunca se ejercita por ahí. Cambiar la FK
+(opción 2) es higiene del otro camino —un `DELETE FROM liquidaciones` pelado— pero **no arregla el
+botón**.
+
+#### Lo que entró en la opción 1 (2026-08-30)
+
+- `comprometidasDe(l)` cuenta las **dos** formas de comprometida, sobre el detalle que
+  `loadLiquidaciones` ya trae embebido (`liquidacion_detalle(*)`): sin consulta extra.
+- En vez del botón va un **badge `🔒 N cobrada(s)`** con el motivo en el `title` — se decidió badge
+  y no ausencia: dice por qué no se puede.
+- `eliminarLiq` **re-chequea contra la base** antes de borrar (la tarjeta puede estar vieja: entre
+  el render y el click pudo emitirse un recibo desde el tab Pagos) y avisa con conteo e importe.
+- **El error del primer `delete` ya no se ignora.** Antes sólo se miraba el de la cabecera, así que
+  un rechazo en el borrado del detalle se perdía y el usuario veía "Liquidación eliminada" sobre un
+  borrado que no ocurrió. Es el arreglo que hay que hacer igual, con trigger o sin él.
+
+Probe: `tests/probe_no_borrar_liq_cobrada.mjs` — 19/19, 8 mutantes, todos mueren.
+
+**Sigue faltando el guard de verdad**: esto es UI y un `curl` lo saltea (GOTCHA #80).
 
 `liquidaciones` y `liquidacion_detalle` tienen policies de DELETE equivalentes a la de `recibos`.
 Pero acá el agujero es peor por tres razones que se suman:
@@ -1201,3 +1240,30 @@ sostenga del lado del servidor — un guard de UI solo no alcanza (GOTCHA #80).
 
 Módulo: `liquidaciones.html` + policies de `liquidaciones` / `liquidacion_detalle`.
 Relacionado: ISSUE-065, GOTCHA #80.
+
+
+---
+
+### ISSUE-068: las policies de DELETE de `liquidaciones` y `liquidacion_detalle` siguen abiertas
+
+**Estado**: 🟡 ABIERTO. Separado de ISSUE-065 y de ISSUE-067 a pedido, el 2026-08-30.
+
+ISSUE-065 cerró el DELETE de `recibos`. Las dos tablas de liquidaciones conservan sus policies
+equivalentes para `{authenticated}`:
+
+```sql
+liquidaciones_delete       → (NOT fn_is_portal_user()) AND (fn_is_super_admin() OR club_id = fn_get_user_club_id())
+liquidacion_detalle_delete → (NOT fn_is_portal_user()) AND (fn_is_super_admin() OR fn_club_de_liquidacion(liquidacion_id) = fn_get_user_club_id())
+```
+
+Con el trigger de ISSUE-067 puesto, las **líneas comprometidas** quedan protegidas por el camino que
+importa. Lo que sigue abierto es borrar por API una liquidación entera de líneas impagas: no destruye
+plata cobrada, pero borra trabajo del motor sin dejar rastro en `liquidacion_detalle`.
+
+A diferencia de `recibos`, acá **sí hay borrado legítimo desde la aplicación**: el motor
+(`liquidaciones-engine.js:286` y `:367`) borra líneas no comprometidas y cabeceras vacías en cada
+recálculo, y `eliminarLiq` borra liquidaciones sin comprometer. O sea que **no se puede revocar sin
+más**, como se hizo con `recibos` — habría que mover esos borrados a un RPC `SECURITY DEFINER`, o
+restringir la policy a las líneas no comprometidas.
+
+Módulo: policies de `liquidaciones` / `liquidacion_detalle`. Relacionado: ISSUE-065, ISSUE-067.
