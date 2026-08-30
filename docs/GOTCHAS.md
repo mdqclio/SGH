@@ -463,3 +463,40 @@ pisó algo que no era suyo. Haber podido arreglarlo no lo vuelve aceptable.
 
 Comparar sólo los **ids** (lo que hacía `probe_recuperacion_monta.mjs`) es la variante suave del
 mismo error. Ver ISSUE-058.
+
+## 78. `curl` sigue el 301; el navegador cancela por CSP antes del redirect (2026-08-30)
+
+Fede reportó "no se ve el logo". `clubs.logo_url` de Dolores valía
+`https://mdqclio.github.io/SGH/logo-dolores-verde.png`. Verificado con `curl`:
+
+```
+$ curl -s -o /dev/null -w '%{http_code} redir=%{redirect_url}' https://mdqclio.github.io/SGH/logo-dolores-verde.png
+301 redir=https://sigh.com.ar/logo-dolores-verde.png
+$ curl -s -o /dev/null -w '%{http_code} ct=%{content_type} sz=%{size_download}' https://sigh.com.ar/logo-dolores-verde.png
+200 ct=image/png sz=28957
+```
+
+Todo verde. El archivo está, el redirect funciona, la imagen llega. **Y el logo igual no se ve.**
+
+Todas las páginas llevan `img-src 'self' data: blob: https://*.supabase.co
+https://raw.githubusercontent.com`. Mientras el sitio vivía en `mdqclio.github.io/SGH/`, ese host
+**era** `'self'`. Desde el pase a `sigh.com.ar` dejó de serlo y no está en la allowlist, así que el
+navegador **cancela el pedido antes de emitirlo** — el 301 nunca se sigue. `curl` no tiene CSP: sigue
+el redirect y devuelve la imagen. Los dos miran la misma URL y ven cosas opuestas.
+
+**La lección de método, que vale más que el bug**: el protocolo de verificación de deploy de
+`CLAUDE.md` es `curl` + `md5sum` contra el archivo del commit. Eso es **ciego a toda esta clase de
+fallo**. Un md5 que coincide prueba que el archivo llegó al CDN — no prueba que el navegador lo pueda
+usar. Entre "el byte está en el servidor" y "el usuario lo ve" hay una capa entera que `curl` no
+ejecuta: CSP, CORS, mixed content, canvas tainting, service worker.
+
+Regla: cuando el síntoma es **"no se ve"** y no **"da 404"**, `curl` no es evidencia. Hay que abrir el
+navegador y mirar la consola. Un 200 por `curl` frente a un "no se ve" reportado no desmiente el
+reporte — lo confirma, y además dice que la causa es de capa navegador.
+
+Corolario: la CSP no se abre para acomodar un dato viejo. El fix fue corregir `clubs.logo_url` al
+host propio (`https://sigh.com.ar/logo-dolores-verde.png`), no agregar `mdqclio.github.io` a
+`img-src`. Hosts válidos hoy para `logo_url`: `sigh.com.ar`, `*.supabase.co`,
+`raw.githubusercontent.com` — documentado en el hint del campo en `admin.html`.
+
+Ver `docs/diagnosticos/2026-08-30_logo-roto-dominio.md`.

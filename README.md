@@ -10,7 +10,7 @@ Sistema web para la administración operativa de hipódromos: reuniones, inscrip
 
 ## URLs
 
-- **App en vivo**: https://mdqclio.github.io/SGH/
+- **App en vivo**: https://sigh.com.ar/
 - **Repositorio**: https://github.com/mdqclio/SGH
 
 ## Desarrollo

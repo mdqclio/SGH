@@ -50,9 +50,9 @@ const PUBLISHABLE_KEY = Deno.env.get('INVITE_PUBLISHABLE_KEY')
 // Esta URL DEBE estar en la allowlist de Redirect URLs del Dashboard de Auth,
 // si no Auth redirige al Site URL y el token se pierde.
 const REDIRECT_URL = Deno.env.get('INVITE_REDIRECT_URL')
-  ?? 'https://mdqclio.github.io/SGH/reset-password.html';
+  ?? 'https://sigh.com.ar/reset-password.html';
 
-const ALLOWED_ORIGINS = (Deno.env.get('INVITE_ALLOWED_ORIGINS') ?? 'https://mdqclio.github.io')
+const ALLOWED_ORIGINS = (Deno.env.get('INVITE_ALLOWED_ORIGINS') ?? 'https://sigh.com.ar')
   .split(',').map((s) => s.trim()).filter(Boolean);
 
 // Enum rol_usuario en prod (verificado 22/07/2026 contra pg_enum).
