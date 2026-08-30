@@ -40,7 +40,7 @@ Totales de la base: 38 carreras, 142 inscripciones, **0 carreras huérfanas y 0 
 ### Dos observaciones que salen de esta tabla
 
 1. **R1–R5 tienen 0 carreras y 0 inscripciones.** `CLAUDE.md` documenta a R5 (17/05) como la reunión de prueba con "11 turnos, ~81 inscripciones". Eso **ya no está en la base**: las 142 inscripciones vivas son 125 de R6 + 17 de la reunión de prueba 9999. Si algún probe o instructivo todavía apunta a R5 como reunión activa de testing, va a encontrarla vacía. (Solo se reporta; no se tocó nada.)
-2. **La reunión de prueba 9999 (PRUEBA RESUMEN) sigue viva**, con 3 carreras y 17 inscripciones. `CLAUDE.md` marcaba borrarla con `teardown_prueba_resumen_9999.sql` antes del 20/06. Sigue pendiente, 39 días después.
+2. **La reunión de prueba 9999 (PRUEBA RESUMEN) sigue viva**, con 3 carreras y 17 inscripciones. `CLAUDE.md` marcaba borrarla con `teardown_prueba_resumen_9999.sql` antes del 20/06. **Nota agregada el 2026-08-30**: eso ya no aplica — **Decisión revertida el 2026-08-29: la 9999 NO se borra.** Es el único sandbox seguro que tenemos —ya sirvió para verificar el camino de recuperación de montas— y en vez de borrarla se la marcó con `reuniones.es_prueba` y se la filtró del buscador de Pagos (`docs/diagnosticos/2026-08-29_issue-055-merge.md`). `teardown_prueba_resumen_9999.sql` queda sin usar, disponible por si alguna vez hace falta.
 
 ---
 

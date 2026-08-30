@@ -59,11 +59,11 @@
 
 ### Datos de prueba 9999 — seed de resultados completos
 - `tools/seed_9999_resultados.sql`: agrega caballerizas + profesionales **ficticios** (`PRUEBA 9999 — BORRAR`) y re-apunta jockey/entrenador/caballeriza de las inscripciones para tener resultados completos que alimenten el generador end-to-end.
-- `teardown_prueba_resumen_9999.sql` extendido: borra esos fakes en orden FK (profesionales antes que caballerizas). Sigue cubriendo todo por `reunion_id`. **Correr antes del 20/6.**
+- `teardown_prueba_resumen_9999.sql` extendido: borra esos fakes en orden FK (profesionales antes que caballerizas). Sigue cubriendo todo por `reunion_id`. ~~Correr antes del 20/6.~~ **Decisión revertida el 2026-08-29: la 9999 NO se borra.** Es el único sandbox seguro que tenemos —ya sirvió para verificar el camino de recuperación de montas— y en vez de borrarla se la marcó con `reuniones.es_prueba` y se la filtró del buscador de Pagos (`docs/diagnosticos/2026-08-29_issue-055-merge.md`). `teardown_prueba_resumen_9999.sql` queda sin usar, disponible por si alguna vez hace falta.
 
 ### Pendientes (ver ISSUE-030)
 - ⚠️ **Rotar `STUDBOOK_API_TOKEN` antes del 20/6** (se expuso durante el setup; hoy solo protege la 9999 fake).
-- Correr el teardown de 9999 antes del 20/6.
+- ~~Correr el teardown de 9999 antes del 20/6.~~ **No corresponde**: la 9999 se conserva como sandbox (2026-08-29, ver `docs/diagnosticos/2026-08-29_issue-055-merge.md`).
 - Confirmar con Diego el **doble-anidado** (`premios`/`competidores` `[[…]]`: a propósito o se aplana del lado de él).
 - Diego prueba el endpoint con `fecha=990101`.
 
@@ -103,11 +103,11 @@
 - `resultados.html` usa `sb.rpc('desoficializar_carrera', { p_carrera_id })` (SECURITY DEFINER): guard de pagos (RAISE si hay recibos) + `estado→provisional` + limpieza `oficializado_*`. Reemplaza el UPDATE directo. `migrations/desoficializar_carrera.sql`.
 - **Seguridad RPCs de plata (verificado hoy):** `emitir_recibo`, `liberar_linea`, `desoficializar_carrera` → `authenticated` EXECUTE; `anon`/`public` SIN EXECUTE.
 
-### Datos de prueba — reunión ficticia 9999 VIVA (⚠️ borrar antes del 20/6)
+### Datos de prueba — reunión ficticia 9999 VIVA (se conserva como sandbox — NO borrar)
 - Sembrada hoy para que Leo pruebe la pestaña Resumen end-to-end: **`a0000000-0000-0000-0000-000000009999`** (numero **9999**, fecha 2099-01-01, `observaciones='PRUEBA RESUMEN — BORRAR'`, Dolores). En el selector: `Reunión 9999 — 01/01/2099 — Hipódromo de Dolores`.
 - 3 carreras + 17 inscripciones (gente real) + 3 resultados oficiales + 2 `no_largo` (montas perdidas) + `liquidacion_detalle` con los 6 `concepto_tipo` + 2 recibos ficticios (numero **9001/9002** insertados a mano, **NO** vía `emitir_recibo` → `club_secuencias.recibo` queda en **0**). Buckets, desglose y montas reconcilian.
 - **Nota:** el motor de liquidación ya corrió sobre esta reunión (Recalcular en el browser, paid-safe): preservó las líneas `pagado` (recibos 9001/9002) y regeneró `retenido`/`impago` desde los resultados reales → ahora hay líneas/headers generados por el engine, no solo el seed manual. El teardown borra por `reunion_id`, así que cubre todo.
-- **Teardown listo y recuperable:** `teardown_prueba_resumen_9999.sql` (raíz del repo). FK-order, borra recibos por id → NO toca `club_secuencias`. **Correr antes de la reunión real del 20/6.**
+- **Teardown listo y recuperable:** `teardown_prueba_resumen_9999.sql` (raíz del repo). FK-order, borra recibos por id → NO toca `club_secuencias`. ~~Correr antes de la reunión real del 20/6.~~ **Decisión revertida el 2026-08-29: la 9999 NO se borra.** Es el único sandbox seguro que tenemos —ya sirvió para verificar el camino de recuperación de montas— y en vez de borrarla se la marcó con `reuniones.es_prueba` y se la filtró del buscador de Pagos (`docs/diagnosticos/2026-08-29_issue-055-merge.md`). `teardown_prueba_resumen_9999.sql` queda sin usar, disponible por si alguna vez hace falta.
 
 ### Liquidaciones — Fase 5 Resumen de reunión VIVO (v1, read-only)
 - **Pestaña "📊 Resumen"** en `liquidaciones.html` junto a Pagos (selector propio). Agrega `liquidacion_detalle` por estado para la reunión: **Total / Pagado (+N recibos) / Pendiente (impago) / Retenido (anti-doping) / Fondo solidario (club, 2%)**. Reconciliación `pagado+impago+retenido+fondo=total`. Lista de **pendientes por beneficiario** (impago/retenido, orden desc), agrupada igual que Pagos (sub-roles bajo el entrenador). **Read-only, no escribe.**

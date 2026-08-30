@@ -122,7 +122,7 @@ Relacionado: `abuela_materna` (damsire vs abuela real) a aclarar contra el model
 
 **Pendientes nuevos:**
 - ⚠️ **Rotar `STUDBOOK_API_TOKEN` antes del 20/6** — se expuso durante el setup; hoy solo protege la reunión 9999 fake. Re-setear vía dashboard (o CLI/Management API con PAT) y avisar a Diego.
-- Correr el teardown de 9999 antes del 20/6 (`teardown_prueba_resumen_9999.sql`).
+- ~~Correr el teardown de 9999 antes del 20/6~~ — **no corresponde**: la 9999 se conserva como sandbox (2026-08-29). Ver ISSUE-035.
 - Confirmar con Diego el **doble-anidado** `[[…]]` de `premios`/`competidores`: a propósito o se aplana de su lado.
 - Diego prueba el endpoint con `fecha=990101`.
 
@@ -245,8 +245,12 @@ Descripción: falta backfillear tomo/folio del registro de Stud Book en los ejem
 Módulo: `spcs` / integración Stud Book. Estado: ⏳ Abierto. Prioridad: Baja.
 
 ### ISSUE-035: Teardown de la reunión de prueba 9999
-Descripción: la reunión 9999 (datos de prueba) sigue viva; su teardown está **gateado a que Fede termine las pruebas de pagos**. Correr `teardown_prueba_resumen_9999.sql` cuando libere.
-Módulo: datos de prueba. Estado: ⏳ Abierto (gated). Prioridad: Media.
+Descripción: la reunión 9999 (datos de prueba) sigue viva. El teardown estaba gateado a que Fede terminara las pruebas de pagos.
+
+**Decisión revertida el 2026-08-29: la 9999 NO se borra.** Es el único sandbox seguro que tenemos —ya sirvió para verificar el camino de recuperación de montas— y en vez de borrarla se la marcó con `reuniones.es_prueba` y se la filtró del buscador de Pagos (`docs/diagnosticos/2026-08-29_issue-055-merge.md`). `teardown_prueba_resumen_9999.sql` queda sin usar, disponible por si alguna vez hace falta.
+
+Si alguien vuelve a leer esta issue buscando qué ejecutar: **no hay nada que ejecutar.**
+Módulo: datos de prueba. Estado: ✅ **CERRADO — no se borra** (2026-08-29). Prioridad: —.
 
 ### ISSUE-036: Propagación de certificado SPC → inscripción
 Descripción: bug de propagación del certificado desde el SPC hacia la inscripción (el estado del certificado no se refleja correctamente en la inscripción).
