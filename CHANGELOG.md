@@ -1,5 +1,48 @@
 # Changelog
 
+## [2026-08-30] — ISSUE-056 segunda entrega: la UI de anulación (SIN MERGEAR)
+
+> Rama `feat/ui-anular-recibo`. El RPC ya estaba vivo (`34f6e83`); lo que faltaba era el botón.
+> Plan y decisiones en la branch `reports`:
+> `docs/diagnosticos/2026-08-30_issue-056-ui-anulacion-plan.md`.
+
+- **El punto de anclaje que el plan daba por existente no existía.** No hay bloque post-emisión ni
+  botón "Imprimir": `imprimirReciboCobro` escribe en `#recibo-print` (`display:none` fuera de
+  `@media print`) y dispara `window.print()` directo. Hubo que **crear la superficie** antes de poder
+  colgarle un botón.
+- **Panel `#cob-recibo-emitido`** con **Imprimir de nuevo** y **Anular recibo**. Va fuera de
+  `#cob-detalle` porque `cobrosBuscar()` lo vacía en cada búsqueda. De paso, "Imprimir de nuevo"
+  tapa un agujero que hoy no tiene ninguna solución: cancelar el diálogo de impresión dejaba el
+  recibo emitido y sin forma de volver a sacarlo.
+- **Motivo obligatorio primero, confirmación después.** Al revés, el operador confirma y recién ahí
+  le piden justificar, y el motivo termina siendo cualquier cosa para pasar el trámite. La
+  validación del cliente **no es un guard**: el RPC rechaza el motivo vacío igual (GOTCHA #80).
+- **La confirmación dice qué se pierde**: número, importe, beneficiario, las N líneas que vuelven a
+  pendientes, el número que no se reutiliza, y *"Si ya imprimiste el recibo, ese impreso queda sin
+  valor."* — frase de Fede, textual. Enuncia un hecho del sistema; qué se hace con ese papel no lo
+  define el software.
+- **`toast()` ahora acepta duración.** El aviso de líneas que vuelven a `retenido` por doping dura
+  15 s: es una **instrucción de trabajo**, no un acuse. Que una línea con `fecha_liberacion` futura
+  vuelva a retenida es consecuencia del `CASE` del RPC y nadie tiene por qué deducirlo desde la
+  pantalla.
+- **El panel sobrevive a la anulación** (`Recibo N° X — ANULADO`, sin el botón): si desapareciera, la
+  pantalla no dejaría rastro de que alguien acaba de anular un recibo.
+- **Ventana de 5 días con `currentUser.rol`**, el mecanismo que `initAuth` ya usa. `puedeAnularUI` es
+  pura y está aparte para que el probe pueda llamarla con un `emitido_at` fabricado, sin browser.
+- **Probe nuevo `tests/probe_anular_recibo_ui.mjs` — 26/26 — y 8/8 mutantes muertos** (`--mutantes`,
+  sobre copias del HTML en tmpdir; el repo no se toca). **Dos mutantes destaparon asserts débiles**:
+  el del motivo vacío pasaba con el guard neutralizado porque el RPC rechazaba igual — se arregló
+  espiando `sb.rpc` para verificar que la llamada no sale. El otro era un falso positivo del arnés
+  (`❌ U4\b` no matchea `❌ U4b)`).
+- **4 probes existentes ajustados**: `cobrosDetalle` ahora llama a `cobLimpiarPanelRecibo` y
+  `cobrosConfirmarEmision` a `cobrosRenderRecibo`, así que los harness que las extraen tienen que
+  llevarse también los helpers. Sin eso reventaban con `is not defined` — que es exactamente lo que
+  el patrón "el probe corre el archivo cambiado" tiene que hacer notar.
+- **Corrección de instrucciones viejas: la reunión 9999 NO se borra.** La decisión se revirtió el
+  2026-08-29 —es el único sandbox seguro, y en vez de borrarla se la marcó con `reuniones.es_prueba`
+  y se la filtró del buscador de Pagos— pero quedaban **9 lugares** diciendo lo contrario, `CLAUDE.md`
+  incluido. ISSUE-035 pasa a CERRADO: no hay nada que ejecutar.
+
 ## [2026-08-30] — ISSUE-056: `anular_recibo` (RPC vivo, UI pendiente)
 
 > El 28/08 Valeria emitió el recibo **#4** probando (R8, 6 líneas, $62.700) y revertirlo costó un

@@ -134,7 +134,7 @@ Toda la base (38 carreras, incluida la reunión de prueba 9999):
 | ✅ | ❌ | ONC | 28 | 3 |
 | ❌ | ❌ | CC | 3 | 1 (la de prueba **9999**) |
 
-**Sólo 3 de las 4 categorías aparecen en carreras reales.** Ninguna carrera `NO` (No Oficial) existe en la base. Las 3 `CC` son de la reunión de prueba `9999` / 2099-01-01 (la que hay que borrar con `teardown_prueba_resumen_9999.sql`), y son justamente la reunión que el sample del JSON usa como fixture — ojo: **si el filtro de oficiales entra en producción, el sample 9999 pasa a devolver 0 carreras**.
+**Sólo 3 de las 4 categorías aparecen en carreras reales.** Ninguna carrera `NO` (No Oficial) existe en la base. Las 3 `CC` son de la reunión de prueba `9999` / 2099-01-01 (que **se conserva** como sandbox — ver `docs/diagnosticos/2026-08-29_issue-055-merge.md`; el teardown quedó sin usar), y son justamente la reunión que el sample del JSON usa como fixture — ojo: **si el filtro de oficiales entra en producción, el sample 9999 pasa a devolver 0 carreras**.
 
 ---
 
