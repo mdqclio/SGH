@@ -808,3 +808,160 @@ alcanzables. Para M7 se corrieron **las 343 combinaciones de 3 operaciones de UI
 estado con `cobFiltro==='todo'` **y** filas ocultas → **0 encontrados**.
 
 Ver `tests/probe_filtro_concepto_pagos.mjs`, sección MUTATION TESTING.
+
+---
+
+## 85. Un probe que STUBBEA la función bajo prueba no la prueba (2026-08-30)
+
+El bug: `imprimirReciboCobro(recibo, lineaIds, opts)` tenía `lineaIds` en la firma **desde el
+principio y no lo usaba** — releía las líneas con `.eq('recibo_id', recibo.id)`, que para un recibo
+**anulado** es `NULL`. Reimprimir un anulado salía con encabezado, total y firma correctos, y **la
+tabla de líneas vacía**.
+
+El probe del historial stubbeaba la función para espiar qué se le mandaba:
+
+```javascript
+// ❌ el espía: sirve para ver QUÉ se le manda, no QUÉ HACE con eso
+const impresiones = [];
+const imprimirReciboCobro = (recibo, lineaIds, opts) => { impresiones.push({ recibo, lineaIds, opts }); };
+```
+
+y el assert miraba `impresiones.at(-1).lineaIds`. **El mutante que reintroduce el bug sobrevivió:**
+
+```
+❌ M13 SOBREVIVE — imprimirReciboCobro vuelve a ignorar lineaIds y opts.lineas  [esperaba matar I2]
+```
+
+Obvio en retrospectiva: **el bug vive adentro de la función, y el probe nunca la corría.** El
+assert probaba que el LLAMADOR arma bien la lista — cierto, útil, y otra cosa.
+
+**La regla**: si el mutante muta la función X, el probe tiene que **ejecutar X**. Un stub de X hace
+que ese mutante sea invisible por construcción, y el probe reporta verde sobre código que no tocó.
+
+Se arregló extrayendo la función real y corriéndola con las dependencias stubbeadas —no la función:
+
+```javascript
+extractFn(HTML, 'async function imprimirReciboCobro(recibo, lineaIds, opts){')
+  .replace('imprimirReciboCobro(', 'imprimirReciboCobroREAL('),
+// … y en el preludio:
+const precargarLogo = async () => {};
+const window = { print(){ window._impreso = (window._impreso||0) + 1; } };
+```
+
+El assert nuevo cuenta las filas del impreso: `8 <tr>` = 2 copias × (1 encabezado + 3 líneas). Con
+el bug serían 2. **El mutante ahora muere.**
+
+**Espiar el borde y ejecutar la función son dos cosas distintas y hacen falta las dos**: el espía
+(`I2`) prueba el contrato del llamador; la ejecución (`I4`) prueba la implementación. Emparentado
+con GOTCHA #81 —espiar el borde del RPC para saber si un guard corrió— pero es el caso simétrico:
+ahí sobraba estado final, acá sobra borde.
+
+Ver `tests/probe_historial_recibos.mjs`, asserts `I2` e `I4`.
+
+---
+
+## 86. Un post-filtro de cliente TAPA la falta del guard principal — y el mutante sobrevive (2026-08-30)
+
+Patrón de aislamiento por club, dos capas, como manda ISSUE-060:
+
+```javascript
+let qy = sb.from('recibos').select(REC_SELECT).eq('club_id', CLUB_ID);   // capa 1: el servidor
+…
+recResultados = filas.filter(r => r.club_id === CLUB_ID);                // capa 2: el cliente
+```
+
+En la primera tanda de mutantes **sobrevivieron los dos**:
+
+```
+❌ M1 SOBREVIVE — la búsqueda no acota por club (se saca el .eq(club_id))  [esperaba matar C1,C1b]
+❌ M2 SOBREVIVE — el cinturón de club del post-filtro se afloja           [esperaba matar C1c]
+```
+
+**Cada capa tapaba a la otra.** Sacar el `.eq` lo compensaba el post-filtro; sacar el post-filtro
+no se notaba porque el `.eq` ya no dejaba pasar nada. Los asserts miraban **el estado final**, y el
+estado final es correcto con cualquiera de las dos.
+
+La protección estaba bien. **Lo que fallaba era el test: no distinguía quién la estaba
+sosteniendo.** Y eso importa — si el `.eq` se rompe y nadie se entera, el día que alguien agregue
+un camino de consulta sin post-filtro se filtra plata ajena.
+
+**El arreglo: instrumentar la capa, no el resultado.** Un contador de cuánto tuvo que descartar el
+cliente, que con el guard del servidor puesto vale **siempre 0**:
+
+```javascript
+const ajenos = filas.filter(r => r.club_id !== CLUB_ID).length;
+recAjenosDescartados = ajenos;
+if (ajenos) console.warn(`[recibosBuscar] ${ajenos} recibo(s) de otro club descartados EN EL CLIENTE — ` +
+  `el .eq('club_id') del servidor no está filtrando (ISSUE-060)`);
+```
+
+```javascript
+ok('C1d) el filtro de club actúa en el SERVIDOR: el cliente no tuvo que descartar ninguna fila',
+   api.estado().recAjenosDescartados === 0, …);
+```
+
+Con `C1d`, M1 muere. Y **M2 queda declarado equivalente** (GOTCHA #84): con el `.eq` puesto el
+post-filtro es la identidad y ningún test puede distinguirlo. Se deja igual — es la red que atrapa
+un camino de consulta futuro.
+
+**Regla general: defensa en profundidad y mutation testing se pelean.** Dos capas que hacen lo
+mismo hacen que cada mutante individual sobreviva, y el resultado se lee como agujero de cobertura
+cuando en realidad es redundancia funcionando. La salida NO es sacar una capa —eso es optimizar la
+métrica— sino **exponer un observable por capa**: un contador, un flag, un log verificable. Si una
+capa no tiene forma de decir "yo actué", tampoco hay forma de saber cuándo dejó de actuar.
+
+---
+
+## 87. `recibos.neto_a_cobrar` es GENERATED — se corrigen los totales y la calculada sola (2026-08-30)
+
+Los recibos seed 9001 y 9002 tenían los totales en `0.00` con líneas que sumaban 170.000 y 700.000.
+El `UPDATE` obvio falla:
+
+```sql
+UPDATE recibos SET total_premios = …, total_descuentos = …, neto_a_cobrar = …  -- ❌
+```
+```
+ERROR: 428C9: column "neto_a_cobrar" can only be updated to DEFAULT
+DETAIL: Column "neto_a_cobrar" is a generated column.
+```
+
+Es GOTCHA #9 otra vez, en una columna que no estaba en la lista. Las conocidas eran
+`liquidaciones.total_neto` y `liquidacion_detalle.monto_neto`; **`recibos.neto_a_cobrar` es la
+tercera**:
+
+```sql
+SELECT column_name, generation_expression FROM information_schema.columns
+WHERE table_name='recibos' AND is_generated='ALWAYS';
+```
+```
+neto_a_cobrar → ((total_premios - total_descuentos) - COALESCE(retencion_dgi, (0)::numeric))
+```
+
+**Se corrigen los insumos y la calculada se acomoda sola:**
+
+```sql
+UPDATE recibos r
+   SET total_premios = s.bruto, total_descuentos = s.desc_    -- neto_a_cobrar NO va
+  FROM (SELECT ld.recibo_id,
+               COALESCE(sum(ld.monto_bruto),     0) AS bruto,
+               COALESCE(sum(ld.monto_descuento), 0) AS desc_
+          FROM liquidacion_detalle ld GROUP BY ld.recibo_id) s
+ WHERE s.recibo_id = r.id AND …;
+```
+
+Y es **mejor** que poder escribirla: arreglar los insumos garantiza que el recibo **cierre
+internamente**, mientras que escribir el neto a mano permitiría dejar `total_premios = 0` con
+`neto = 170.000` — que es exactamente el estado inconsistente del que se venía.
+
+Corolario de producto: **corregir sólo el neto habría sido peor que no tocar nada.** El impreso
+muestra "Total premios / Descuentos / NETO A COBRAR", así que un recibo con `Total premios: $0`
+arriba de `NETO A COBRAR: $170.000` parece un error de cálculo del sistema, no un dato viejo.
+
+**Antes de un UPDATE sobre una tabla con plata, chequear qué columnas son GENERATED:**
+
+```sql
+SELECT table_name, column_name, generation_expression
+FROM information_schema.columns WHERE is_generated='ALWAYS' ORDER BY 1,2;
+```
+
+Ver `migrations/fix_seeds_recibos_9001_9002.sql`.
