@@ -352,6 +352,10 @@ Con eso contestado sale el diff a branch, pusheado y sin mergear, como pediste.
   duración, hay que agregársela.
 - **El probe emite recibos reales** y mueve correlativos. Va con snapshot/restore de
   `club_secuencias` de los dos clubes desde la primera versión, no agregado después.
-- **La reunión de prueba 9999 sigue viva en Dolores** y hay que borrarla antes del 20/09
-  (`teardown_prueba_resumen_9999.sql`). Los probes la usan de sandbox: cuando se borre, este probe
-  nuevo también se queda sin ella.
+- ~~**La reunión de prueba 9999 sigue viva en Dolores** y hay que borrarla antes del 20/09
+  (`teardown_prueba_resumen_9999.sql`).~~ **CORREGIDO el 2026-08-30: la 9999 NO se borra.** Esa
+  decisión se revirtió el 2026-08-29 — es el único sandbox seguro que hay, ya sirvió para verificar
+  el camino de recuperación de montas, y en vez de borrarla se la marcó con `reuniones.es_prueba` y
+  se la filtró del buscador de Pagos (`docs/diagnosticos/2026-08-29_issue-055-merge.md`). Yo repetí
+  acá la instrucción vieja; quedaban 9 lugares más diciendo lo mismo, `CLAUDE.md` incluido, y se
+  corrigieron en `10c16d4`.
