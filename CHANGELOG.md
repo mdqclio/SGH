@@ -1,5 +1,67 @@
 # Changelog
 
+## [2026-08-30] — Historial de recibos + `anular_recibo` v2 (merge `82484e5`)
+
+> La opción B de ISSUE-056, pedida tres veces: Fede el 27/08 (*"si vas al histórico de esa persona…
+> podés buscar el recibo y mostrar el recibo de quién lo firmó"*), Valeria el 30/08 (*"¿aparece que
+> ya fue pagado? así me queda diferenciado"*) y Fede otra vez el 30/08 (*"que haya una manera de que
+> sea más fácil buscarlos"*). El número ya existía y es correlativo: lo que faltaba no era numerar,
+> era **buscar**. Plan y resultados en `reports`:
+> `docs/diagnosticos/2026-08-30_plan-historial-recibos.md` y `…_historial-recibos-implementado.md`.
+
+- **Solapa propia 📄 Recibos**, entre Pagos y Resumen — no una segunda vista dentro de Pagos. Los
+  paneles son `display:none`, así que **el cobro en curso sobrevive intacto** a la consulta:
+  selección tildada, filtro por concepto y panel del recibo emitido quedan como estaban. El caso
+  real es Valeria pagándole a alguien cuando llega otro y pregunta *"¿yo ya cobré?"*.
+- **Una sola caja de búsqueda, con el modo inferido.** Numérico corto → N° de recibo exacto (pega
+  `uq_recibo_por_club`, así que el aislamiento por club viaja **dentro de la clave de búsqueda**).
+  Cualquier otra cosa → persona. Un numérico de 6+ dígitos busca **las dos cosas**, recibo y
+  documento. El corte en 6 apareció probando: buscar `3` traía el recibo #3 **más todos los recibos
+  de cualquiera cuyo DNI contuviera un 3**.
+- **Búsqueda por quien retiró.** `cobrador_nombre` y `cobrador_documento` son columnas de la propia
+  tabla: dos términos más en el mismo `.or()`, cero joins. Es lo que pedía Fede. **Sólo encuentra
+  recibos emitidos desde el 28/08** — antes no se registraba, y eso está escrito en la solapa.
+- **Los anulados aparecen**, en orden cronológico, atenuados pero **no escondidos**: un anulado que
+  hay que ir a buscar a otra pestaña es un anulado que no se encuentra cuando hace falta. Con
+  motivo, quién anuló y cuándo (`usuarios.nombre_completo`, GOTCHA #79 + #3).
+- **`anular_recibo` v2** — `migrations/anular_recibo_v2_snapshot.sql`. `lineas_anuladas` pasa de
+  `jsonb_agg(d.id)` a `jsonb_agg(to_jsonb(d))`: de los ids sueltos a **la foto de las filas**.
+  Guardar sólo ids convertía el detalle de un anulado en una *reconstrucción*, y un recálculo
+  posterior le cambiaba el importe a la línea — el detalle dejaba de coincidir con el papel.
+  **Se hizo ahora porque había cero recibos anulados en la base**: la ventana se cerraba con la
+  primera anulación, porque `liquidacion_detalle` no tiene trigger de auditoría y ese monto no se
+  recupera de ningún lado. El lector entiende los dos formatos.
+- **Bug latente cerrado: `imprimirReciboCobro` ignoraba `lineaIds`.** El parámetro estaba en la
+  firma desde el principio; la función releía por `.eq('recibo_id')`, que para un anulado es `NULL`.
+  **Reimprimir un anulado salía con el cuerpo vacío.** No se notaba porque hasta ahora sólo se
+  imprimía desde el panel post-emisión.
+- **Aislamiento por club en las dos capas** (ISSUE-060): `.eq('club_id')` en toda consulta a
+  `recibos` —la RLS empieza con `fn_is_super_admin() OR …`, o sea que **no acota al rol que usa el
+  club-switcher**— más `cobDelClub` en las líneas del detalle. Ojo: `cobDelClub` **no** aplica a
+  `recibos`, que tiene columna `club_id` propia.
+- **Seeds 9001/9002 corregidos** — `migrations/fix_seeds_recibos_9001_9002.sql`. Tenían los totales
+  en 0 con líneas que sumaban 870.000. `neto_a_cobrar` es GENERATED (**GOTCHA #87**): se corrigen
+  los insumos y la calculada se acomoda sola. **No se borraron**: son el bucket pagado del que
+  depende el Resumen.
+- **Probe** `tests/probe_historial_recibos.mjs` — **39/39**, y **39/39 contra el HTML servido por
+  `sigh.com.ar`** (md5 `fa8cf1cdd8bc6e0af92ff3f64eed400d` idéntico en working tree, commit y prod).
+  El anulado se fabrica con los **RPC reales**: si el probe armara el jsonb, probaría la vista
+  contra su propia suposición sobre el formato. El "otro club" del listado son los **5 recibos
+  reales de Dolores**, sin escribir una fila allá.
+- **Mutantes 17/17** en 4 tandas: 15 mueren, 2 equivalentes declarados. Cuatro sobrevivieron en el
+  camino y **dos eran agujeros reales**: el probe stubbeaba la función que contenía el bug
+  (**GOTCHA #85**) y no había fixture con beneficiario propietario. Otro destapó que el post-filtro
+  de cliente tapaba la falta del guard del servidor (**GOTCHA #86**).
+- **Corrige una afirmación del plan**: PostgREST **no** rompe con un `in.()` vacío — devuelve 0
+  filas y **no anula los demás términos del `.or()`**. Medido, no razonado.
+- **Regresión preexistente arreglada**: el merge del filtro (`2821c7c`) cambió la firma de
+  `cobrosDetalle` y dejó **cuatro probes rotos** sin detectarse (`probe_anular_recibo`, `_ui`,
+  `aislamiento_club_cobros`, `reunion_es_prueba`). Los cuatro vuelven a verde: 31/31, 26/26, 27/27
+  y 17/17.
+- **ISSUE-066** anotado: `switchTab` mapea botón→panel **por posición** en un array literal. Se
+  agregó la solapa al array (cambio mínimo) y el refactor a `data-tab` queda pendiente — tocar las
+  cuatro solapas que ya andan a 20 días de la reunión es la mejora que rompe algo.
+
 ## [2026-08-30] — ISSUE-056 CERRADO: la UI de anulación (merge `0a3a2ac`)
 
 > El RPC ya estaba vivo (`34f6e83`); lo que faltaba era el botón. Con este merge **ISSUE-056 queda

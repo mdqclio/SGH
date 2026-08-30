@@ -647,10 +647,15 @@ working tree, `git show 0a3a2ac:liquidaciones.html` y lo que sirve `https://sigh
 
 #### Lo que queda fuera, a propósito
 
-- **Buscador de recibos / vista de historial** (opción B). Con la opción A el recibo se anula
-  mientras está en pantalla, que es el caso real; anular uno de la semana pasada todavía necesita
-  consola. Es la próxima pieza natural.
-- **Reimprimir el anulado con sello ANULADO** — decidido: va después.
+- ~~**Buscador de recibos / vista de historial** (opción B).~~ ✅ **HECHO** el 2026-08-30, merge
+  `82484e5`. Solapa 📄 Recibos: búsqueda por número, por beneficiario y por quien retiró; los
+  anulados aparecen marcados con motivo, quién y cuándo; reimpresión desde el historial. De paso
+  cerró dos cosas que la opción A había dejado abiertas: **anular un recibo de la semana pasada ya
+  no necesita consola** (se lo busca y se lo ve), y **`anular_recibo` pasó a v2** guardando la foto
+  de las líneas en vez de sólo los ids.
+- **Reimprimir el anulado con sello ANULADO** — decidido: va después. ⚠️ Ahora pesa más: con el
+  historial, reimprimir un anulado **funciona de verdad**, así que sale un papel idéntico al
+  original de un recibo que ya no vale.
 - **La policy `recibos_delete`** — migración aparte, ISSUE-065.
 
 Módulo: RPC nuevo (DB) ✅ + `liquidaciones.html` (tab Pagos) ❌.
@@ -1058,7 +1063,8 @@ Estado: ✅ **RESUELTO** (2026-08-30).
 
 ### ISSUE-066: `switchTab` mapea botón→panel por POSICIÓN en un array literal
 
-**Estado**: 🟡 ABIERTO — deuda técnica conocida, sin síntoma hoy.
+**Estado**: 🟡 ABIERTO — deuda técnica conocida, sin síntoma hoy. La solapa 📄 Recibos se agregó
+al array (merge `82484e5`), así que el resaltado está bien; lo que queda es el refactor.
 **Detectado**: 2026-08-30, al agregar la solapa 📄 Recibos (historial, opción B de ISSUE-056).
 
 `liquidaciones.html`:
