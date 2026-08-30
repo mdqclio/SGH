@@ -634,4 +634,44 @@ corrida.
 
 # 11. VERIFICACIÓN DE PUBLICACIÓN
 
-Se completa abajo con la salida real.
+## `chore/revocar-recibos-delete` (el SQL y el probe, sin aplicar ni mergear)
+
+```
+$ git push -u origin chore/revocar-recibos-delete
+ * [new branch]      chore/revocar-recibos-delete -> chore/revocar-recibos-delete
+branch 'chore/revocar-recibos-delete' set up to track 'origin/chore/revocar-recibos-delete'.
+
+$ git ls-remote origin chore/revocar-recibos-delete
+c5bcdb96b65c73b68b3e2cb2b1550f5f5b6494f2	refs/heads/chore/revocar-recibos-delete
+
+$ git rev-parse HEAD          # estando en chore/revocar-recibos-delete
+c5bcdb96b65c73b68b3e2cb2b1550f5f5b6494f2
+```
+
+## `reports` (este informe)
+
+```
+$ git push origin reports
+   7fcca2a..0363409  reports -> reports
+
+$ git ls-remote origin reports
+036340932af5fb6aad50872276fd805b8881d0b4	refs/heads/reports
+
+$ git rev-parse HEAD          # estando en reports
+036340932af5fb6aad50872276fd805b8881d0b4
+```
+
+Los SHA de `ls-remote` coinciden con los de `rev-parse HEAD` en las dos ramas.
+
+## Estado de producción al cierre — el gate
+
+```sql
+SELECT polname FROM pg_policy WHERE polrelid='recibos'::regclass AND polcmd='d';
+```
+```json
+[{"polname":"recibos_delete"}]
+```
+
+**La policy sigue viva. No se aplicó nada.** `main` sigue en `dc978c0`, sin la migración.
+
+*(Esta sección se agregó en un commit posterior — su propio SHA queda en el `git log` de la rama.)*
