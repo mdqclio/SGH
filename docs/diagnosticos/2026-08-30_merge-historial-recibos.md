@@ -375,4 +375,38 @@ regresión preexistente de los cuatro probes.
 
 # 11. VERIFICACIÓN DE PUBLICACIÓN
 
-Se completa abajo con la salida real.
+## `main` — los dos merges
+
+```
+$ git push origin main
+To github.com:mdqclio/SGH.git
+   2821c7c..82484e5  main -> main          # la feature
+   82484e5..dc978c0  main -> main          # docs y GOTCHAS
+
+$ git ls-remote origin main
+dc978c092848629831e59ed912430ee021e97c60	refs/heads/main
+
+$ git rev-parse HEAD          # estando en main
+dc978c092848629831e59ed912430ee021e97c60
+```
+
+## `reports` — este informe
+
+```
+$ git push origin reports
+   5424382..1cb51df  reports -> reports
+
+$ git ls-remote origin reports
+1cb51df0dfc793503ab6d119963565f6430e8d44	refs/heads/reports
+
+$ git rev-parse HEAD          # estando en reports
+1cb51df0dfc793503ab6d119963565f6430e8d44
+```
+
+Los SHA de `ls-remote` coinciden con los de `rev-parse HEAD` en las dos ramas.
+
+Pero la verificación que de verdad importa es la de §4 y §5: **prod sirve el `liquidaciones.html`
+de `82484e5`** (md5 `fa8cf1cdd8bc6e0af92ff3f64eed400d`) y **el probe da 39/39 contra ese archivo
+servido**. El commit no sólo está en `origin`: llegó al navegador y funciona ahí.
+
+*(Esta sección se agregó en un commit posterior — su propio SHA queda en el `git log` de la rama.)*
