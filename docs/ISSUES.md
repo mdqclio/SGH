@@ -601,7 +601,7 @@ porque es `SECURITY DEFINER` y las policies de las tablas no se evalúan adentro
 **Probe**: `tests/probe_anular_recibo.mjs` — candado de club, la ventana de 5 días por sus dos
 lados, motivo obligatorio, idempotencia, el jsonb, y el correlativo que no vuelve.
 
-#### La UI (2026-08-30, segunda entrega — en `feat/ui-anular-recibo`, SIN MERGEAR)
+#### La UI (2026-08-30, segunda entrega — mergeada en `0a3a2ac`, VIVA en prod)
 
 **Opción A: se anula desde el recibo recién emitido**, no desde un buscador de recibos (que sigue
 fuera de alcance). Es el caso real: el #4 se emitió probando y se detectó al instante — la ventana
@@ -641,11 +641,16 @@ Así que primero hubo que crear la superficie.
 antes de quedar así: uno de ellos, el del motivo vacío, pasaba con el guard neutralizado porque el
 RPC rechazaba igual — se arregló espiando `sb.rpc` para verificar que la llamada **no sale**.
 
-#### Lo que falta
+Verificado contra producción, no razonado: `md5sum` de `liquidaciones.html` coincide entre el
+working tree, `git show 0a3a2ac:liquidaciones.html` y lo que sirve `https://sigh.com.ar`
+(`0189ecbe749cde1bf4cfa0528162f329`), y el probe corrido **contra el HTML servido** da **26/26**.
 
-- **El merge.** La rama `feat/ui-anular-recibo` está pusheada y sin mergear, esperando revisión.
-- **Buscador de recibos / vista de historial** (opción B) — sigue fuera de alcance.
-- **Reimprimir el anulado con sello ANULADO** — decidido: va después, no ahora.
+#### Lo que queda fuera, a propósito
+
+- **Buscador de recibos / vista de historial** (opción B). Con la opción A el recibo se anula
+  mientras está en pantalla, que es el caso real; anular uno de la semana pasada todavía necesita
+  consola. Es la próxima pieza natural.
+- **Reimprimir el anulado con sello ANULADO** — decidido: va después.
 - **La policy `recibos_delete`** — migración aparte, ISSUE-065.
 
 Módulo: RPC nuevo (DB) ✅ + `liquidaciones.html` (tab Pagos) ❌.
@@ -654,8 +659,8 @@ Relacionado: `migrations/anular_recibo_v1.sql`, `migrations/emitir_recibo_v1_1.s
 `docs/diagnosticos/2026-08-30_anular-recibo-plan.md` ·
 `docs/diagnosticos/2026-08-30_anular-recibo-resultados.md` ·
 `docs/diagnosticos/2026-08-30_anular-recibo-estado-post-corte.md`.
-Estado: 🟡 **PARCIAL** (2026-08-30) — **RPC vivo en prod; UI construida y probada, sin
-mergear** (`feat/ui-anular-recibo`). Pasa a CERRADO con el merge.
+Estado: ✅ **CERRADO** (2026-08-30) — RPC (`34f6e83`) + UI (`0a3a2ac`), los dos vivos en
+producción y verificados contra `sigh.com.ar`. Anular un recibo dejó de requerir SQL a mano.
 
 ---
 

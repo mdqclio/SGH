@@ -394,7 +394,7 @@ salidas de queries, `git status`, `git log`, los diffs, y cualquier cosa pedida 
 14. **`propietarios.nombre`** — NO `nombre_completo` ni `razon_social`.
 15. **`comisariato` está en `clubs`, NO en `reuniones`** (esa columna fue dropeada).
 
-Ver `docs/GOTCHAS.md` para la lista completa (77 entradas).
+Ver `docs/GOTCHAS.md` para la lista completa (82 entradas).
 
 ---
 

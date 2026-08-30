@@ -586,3 +586,89 @@ cuando la emisión ya es válida.
 Regla general: **si la función es `SECURITY DEFINER`, asumí que no hay ninguna red debajo.** Todo lo
 que quieras impedir, escribilo adentro. Ver ISSUE-059, ISSUE-060, GOTCHA #10 (recursión de RLS) y
 `migrations/emitir_recibo_v1_2_aislamiento_club.sql`.
+
+---
+
+## 81. Un assert de UI que pasa igual sin la UI está midiendo el servidor (2026-08-30)
+
+El probe de la UI de anulación tenía este assert para "el motivo vacío se rechaza del lado del
+cliente":
+
+```js
+// ❌ pasa con el guard de la UI neutralizado
+const { data: r } = await sb.from('recibos').select('estado').eq('id', recibo.id).maybeSingle();
+malos.push(r?.estado === 'emitido' && toasts.some(t => /motivo/i.test(t.m) && t.t === 'error'));
+```
+
+Parece razonable: el recibo no se anuló y hubo un toast de error hablando del motivo. **Pasaba igual
+con la validación del cliente borrada**, y el mutation test lo destapó (M1 sobrevivía).
+
+Por qué: el RPC `anular_recibo` **también** valida el motivo (`RAISE EXCEPTION 'anular_recibo: el
+motivo de anulación es obligatorio'`). Sacado el `if (!motivo)` del handler, la llamada sale, el
+servidor la rechaza, el recibo sigue en `emitido` y el `catch` muestra un toast de error que dice
+"motivo". Los dos lados del assert se cumplen — pero por el guard del servidor, no por el de la UI.
+
+**El síntoma observable era el mismo; lo que cambiaba era quién lo producía.** Y como el guard de la
+UI existe justamente para no gastar el viaje al servidor, medir el efecto final no lo prueba nunca.
+
+Lo que hay que observar es **la ausencia de la llamada**. Un `Proxy` sobre el cliente alcanza:
+
+```js
+let rpcAnular = 0;
+const sbSpy = new Proxy(sb, {
+  get(t, prop){
+    if (prop === 'rpc') return (name, args) => { if (name === 'anular_recibo') rpcAnular++; return t.rpc(name, args); };
+    const v = t[prop];
+    return typeof v === 'function' ? v.bind(t) : v;   // sb.from() sigue funcionando
+  }
+});
+...
+ok('U2) motivo vacío rechazado ANTES de llegar al RPC', malos.every(Boolean) && rpcAnular === 0);
+```
+
+**Regla general**: cuando el cliente y el servidor validan lo mismo —que es lo correcto, GOTCHA
+#80— el assert de la capa de arriba **no puede** verificarse por el resultado final, porque la capa
+de abajo produce el mismo resultado. Hay que asserter sobre la frontera: la llamada que no sale, la
+query que no se arma, el request que no se manda. Y la única forma de enterarse de que el assert
+está midiendo la capa equivocada es **neutralizar el guard y ver si el test sigue verde**: sin
+mutation testing esto pasa desapercibido para siempre.
+
+Ver `tests/probe_anular_recibo_ui.mjs` (U2, mutante M1) y GOTCHA #77 (la variante de esto en los
+restores: verificar por estado, no por conteo).
+
+---
+
+## 82. `\b` no separa `U4` de `U4b` — trampa de regex en los rótulos de assert (2026-08-30)
+
+El runner de mutation testing decide si un mutante murió buscando el rótulo del assert que tenía que
+fallar en la salida del hijo:
+
+```js
+// ❌ reporta vivos mutantes que sí matan su assert
+const muertos = m.mata.filter(a => new RegExp(`❌ ${a}\\b`).test(out));
+```
+
+Con `mata: ['U4']` eso **no** matchea `❌ U4b)`. `\b` es un borde entre `\w` y `\W`, y `4` y `b` son
+los dos `\w`: no hay borde. Al revés también engaña — con `mata: ['U4']`, un `❌ U4b)` **sí** se
+tomaría como muerte de `U4` si el patrón fuera sin `\b`, que es el error espejo.
+
+En una corrida real esto reportó **2 de 8 mutantes como sobrevivientes** cuando en realidad morían.
+Peor que un falso negativo cualquiera: manda a "arreglar" asserts que ya estaban bien, y encima
+convive con un falso positivo genuino (GOTCHA #81) en la misma tabla de resultados, así que no se
+distingue a ojo cuál de los dos es.
+
+Los rótulos de assert de este repo son `U1)`, `U4b)`, `P11b)`, `R6` — **numeración con sufijos de
+letra**. Nunca son un token delimitado. Hay que anclar en el separador real:
+
+```js
+const muertos = m.mata.filter(a => out.includes(`❌ ${a})`));   // ancla en el ")" del rótulo
+```
+
+Y listar el rótulo **exacto** que tiene que morir (`['U4b']`, no `['U4']`), porque un mutante que
+mata `U4b` no necesariamente mata `U4`.
+
+Regla general: **cuando el identificador puede tener sufijos alfanuméricos, `\b` no lo delimita.**
+Vale para rótulos de assert, ids de issue (`ISSUE-05` vs `ISSUE-056`), números de gotcha y nombres
+de columna. Anclar en el carácter que realmente separa, o comparar strings completos.
+
+Ver `tests/probe_anular_recibo_ui.mjs`, sección MUTATION TESTING.
