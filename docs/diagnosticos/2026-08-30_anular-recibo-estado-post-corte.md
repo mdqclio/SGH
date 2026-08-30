@@ -424,3 +424,41 @@ Lo que estaba en staging cuando se cortó la sesión (los 3 archivos de ISSUE-05
    `liquidaciones.html` no está construida todavía.
 5. **`chore/protocolo-informes-salidas`** tiene el cambio de CLAUDE.md pedido. También
    espera OK para mergear.
+
+---
+
+## 9 · Push a origin — verificación
+
+La primera vez que se pasó la ruta de este doc, el commit estaba **sólo local**: la ruta
+daba 404 en `reports`, `main`, `chore/protocolo-informes-salidas` y `feat/anular-recibo`.
+Ninguna de las tres ramas estaba pusheada. Corregido; y la regla quedó escrita en el
+protocolo de `CLAUDE.md` (`chore/protocolo-informes-salidas`).
+
+```
+$ git remote -v
+origin	git@github.com:mdqclio/SGH.git (fetch)
+origin	git@github.com:mdqclio/SGH.git (push)
+
+$ git push -u origin reports
+To github.com:mdqclio/SGH.git
+   a06f7de..cb89efa  reports -> reports
+branch 'reports' set up to track 'origin/reports'.
+
+$ git push -u origin feat/anular-recibo
+To github.com:mdqclio/SGH.git
+ * [new branch]      feat/anular-recibo -> feat/anular-recibo
+branch 'feat/anular-recibo' set up to track 'origin/feat/anular-recibo'.
+
+$ git push -u origin chore/protocolo-informes-salidas
+To github.com:mdqclio/SGH.git
+ * [new branch]      chore/protocolo-informes-salidas -> chore/protocolo-informes-salidas
+branch 'chore/protocolo-informes-salidas' set up to track 'origin/chore/protocolo-informes-salidas'.
+
+$ git ls-remote origin reports feat/anular-recibo chore/protocolo-informes-salidas
+d6e6ebac0a09effd8c47e36ab0b7010213c7f1d5	refs/heads/chore/protocolo-informes-salidas
+f19919e1301324bde19fa424a5119afa32b10791	refs/heads/feat/anular-recibo
+cb89efa0006346d4e0a565ccc5cd4257754833fb	refs/heads/reports
+```
+
+Las tres ramas están en `origin`. Esta sección agrega un commit más sobre `reports`; la
+verificación de ese commit final va abajo, corrida después de pushearlo.
