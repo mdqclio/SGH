@@ -656,7 +656,7 @@ working tree, `git show 0a3a2ac:liquidaciones.html` y lo que sirve `https://sigh
 - **Reimprimir el anulado con sello ANULADO** — decidido: va después. ⚠️ Ahora pesa más: con el
   historial, reimprimir un anulado **funciona de verdad**, así que sale un papel idéntico al
   original de un recibo que ya no vale.
-- **La policy `recibos_delete`** — migración aparte, ISSUE-065.
+- ~~**La policy `recibos_delete`** — migración aparte, ISSUE-065.~~ ✅ **CERRADO** el 2026-08-30 (merge `ceccda2`): revocado el DELETE para `authenticated` y `anon`.
 
 Módulo: RPC nuevo (DB) ✅ + `liquidaciones.html` (tab Pagos) ❌.
 Relacionado: `migrations/anular_recibo_v1.sql`, `migrations/emitir_recibo_v1_1.sql`,
@@ -1108,7 +1108,12 @@ Módulo: `liquidaciones.html`. El mismo patrón conviene revisarlo en otros mód
 
 ### ISSUE-065: `recibos_delete` deja borrar un recibo por PostgREST, sin pasar por `anular_recibo`
 
-**Estado**: 🟠 **PLAN LISTO, SIN APLICAR** (2026-08-30). SQL y probe en `chore/revocar-recibos-delete`.
+**Estado**: ✅ **CERRADO** (2026-08-30, merge `ceccda2`). Aplicado y verificado en producción:
+`0` policies de DELETE sobre `recibos` y los grantees quedaron en `postgres, service_role`. Probe
+`tests/probe_recibos_delete_revocado.mjs` **17/17** contra la policy real — antes de aplicar daba
+13/17, y esos 4 rojos eran la demostración del agujero. Los 4 probes que borran recibos en su
+cleanup siguen verdes (31/31, 26/26, 39/39, 27/27), y no quedaron usuarios residuales del probe ni
+en `auth.users` ni en `usuarios`.
 
 Un usuario autenticado puede hacer `DELETE /rest/v1/recibos?id=eq.<uuid>` y la fila desaparece.
 Las dos operaciones no son equivalentes:
@@ -1156,8 +1161,12 @@ Diagnóstico: `docs/diagnosticos/2026-08-30_plan-revocar-recibos-delete.md` (bra
 
 ### ISSUE-067: `eliminarLiq` puede destruir líneas ya cobradas — y es un botón de la UI
 
-**Estado**: 🟠 **PARCIAL** — opción 1 (guard de UI) lista en `fix/issue-067-guard-eliminar-liq`,
-sin mergear. Faltan la opción 3 (trigger `BEFORE DELETE`) y la auditoría acotada.
+**Estado**: 🟠 **ABIERTO — PARCIALMENTE RESUELTO.** Opción 1 (guard de UI) **mergeada y viva en
+producción** el 2026-08-30, merge `ea92795`, verificada contra `sigh.com.ar` (md5
+`c8e2cdc12e19926e727cbf87ebe3a545`, probe 19/19 contra el HTML servido).
+**Falta lo que lo cierra**: la opción 3 (trigger `BEFORE DELETE` con `WHEN`) y la auditoría acotada.
+Hasta que eso esté, **el agujero sigue abierto por API**: lo de hoy es UI y un `curl` lo saltea
+(GOTCHA #80).
 Detectado el 2026-08-30 relevando ISSUE-065. **Más urgente que ISSUE-065.**
 
 #### Corrección a la exposición que se publicó primero
@@ -1193,9 +1202,24 @@ botón**.
   un rechazo en el borrado del detalle se perdía y el usuario veía "Liquidación eliminada" sobre un
   borrado que no ocurrió. Es el arreglo que hay que hacer igual, con trigger o sin él.
 
-Probe: `tests/probe_no_borrar_liq_cobrada.mjs` — 19/19, 8 mutantes, todos mueren.
+Probe: `tests/probe_no_borrar_liq_cobrada.mjs` — 19/19, también contra el HTML servido por prod.
+8 mutantes, todos mueren.
 
 **Sigue faltando el guard de verdad**: esto es UI y un `curl` lo saltea (GOTCHA #80).
+
+#### Lo que falta, en orden
+
+1. **Opción 3 — trigger `BEFORE DELETE` con `WHEN (OLD.recibo_id IS NOT NULL OR OLD.estado_linea =
+   'pagado')`.** Es el guard real: cubre `service_role`, las funciones `SECURITY DEFINER` y el
+   CASCADE, cosa que una policy RLS no hace. Antes hay que tocar ~4 probes (agregar
+   `estado_linea:'impago'` al `update` que ya hacen antes de borrar).
+2. **Auditoría acotada** — `AFTER DELETE … WHEN (…)` reusando `fn_auditoria_log`. Cero disparos en
+   operación normal, porque el motor nunca borra líneas comprometidas.
+3. **Opción 2 — FK a `NO ACTION`.** No arregla el botón (ver arriba); cierra el camino
+   `DELETE FROM liquidaciones` pelado. Higiene.
+
+Lección transversal que salió de acá: **GOTCHA #88** — contar plata comprometida por `recibo_id`
+solo pierde el saldado administrativo.
 
 `liquidaciones` y `liquidacion_detalle` tienen policies de DELETE equivalentes a la de `recibos`.
 Pero acá el agujero es peor por tres razones que se suman:
