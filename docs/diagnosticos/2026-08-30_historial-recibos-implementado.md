@@ -676,4 +676,34 @@ mergear pronto, o para que yo suba sólo ese fix a `main` si preferís esperar.
 
 # 14. VERIFICACIÓN DE PUBLICACIÓN
 
-Se completa abajo con la salida real.
+## Rama de trabajo `feat/historial-recibos` (el código, SIN mergear)
+
+```
+$ git push -u origin feat/historial-recibos
+ * [new branch]      feat/historial-recibos -> feat/historial-recibos
+branch 'feat/historial-recibos' set up to track 'origin/feat/historial-recibos'.
+
+$ git ls-remote origin feat/historial-recibos
+616ab9d62f6d48e418d1f204aaa2c47e80bb82a7	refs/heads/feat/historial-recibos
+
+$ git rev-parse HEAD          # estando en feat/historial-recibos
+616ab9d62f6d48e418d1f204aaa2c47e80bb82a7
+```
+
+## Rama `reports` (este informe)
+
+```
+$ git push origin reports
+   f57f86f..bbbf579  reports -> reports
+
+$ git ls-remote origin reports
+bbbf57966c91dea002731fd9c16309a8b9e4d385	refs/heads/reports
+
+$ git rev-parse HEAD          # estando en reports
+bbbf57966c91dea002731fd9c16309a8b9e4d385
+```
+
+Los SHA de `ls-remote` coinciden con los de `rev-parse HEAD` en las dos ramas. `main` sigue en
+`2821c7c`: **no se mergeó nada**.
+
+*(Esta sección se agregó en un commit posterior — su propio SHA queda en el `git log` de la rama.)*
