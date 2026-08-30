@@ -32,7 +32,7 @@
  * exit 137 — NO es OOM: el pico medido es ~100 MB). Correrlos en tandas de 4-5 con --mutantes=…
  */
 import { createClient } from '@supabase/supabase-js';
-import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, symlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -186,7 +186,15 @@ const MUTANTES = [
   { id:'M6', desc:'el aviso de tildadas fuera del filtro nunca se renderiza', mata:['F5'],
     from:`  if (cobFiltro === 'todo' || !ocultas.length) { fila.innerHTML = ''; return; }`,
     to:  `  if (true) { fila.innerHTML = ''; return; }` },
+  // EQUIVALENTE DECLARADO (verificado el 2026-08-30 enumerando las 343 combinaciones de 3
+  // operaciones de UI: cero estados con cobFiltro==='todo' Y filas ocultas). cobrosFiltrar('todo')
+  // saca la clase de TODAS las filas, así que `cobFiltro === 'todo'` implica `!ocultas.length` y
+  // las dos mitades del guard son redundantes entre sí. Se deja la cláusula: no cuesta nada y
+  // cubre el caso —hoy inalcanzable— de que algo marque una fila oculta sin pasar por
+  // cobrosFiltrar. Sacarla para que el mutante muera sería optimizar la métrica, no el código.
   { id:'M7', desc:'el aviso se renderiza también sin filtro', mata:['F5b'],
+    equivalente: "cobFiltro==='todo' implica 0 filas ocultas en todo estado alcanzable, así que "
+               + "`!ocultas.length` ya corta solo — ningún test puede distinguir las dos versiones",
     from:`  if (cobFiltro === 'todo' || !ocultas.length) { fila.innerHTML = ''; return; }`,
     to:  `  if (!ocultas.length) { fila.innerHTML = ''; return; }` },
   { id:'M8', desc:'tildar/destildar visibles pierde el :not(.cob-row-oculta) y pisa las ocultas', mata:['F6','F6b'],
@@ -240,34 +248,74 @@ if (argMut) {
   const SELF = fileURLToPath(import.meta.url);
   const SELF_SRC = readFileSync(SELF, 'utf8');
   const dir = mkdtempSync(join(tmpdir(), 'mut-filtro-concepto-'));
+  // Un mutante del PROBE se ejecuta desde el tmpdir, y desde ahí node no resuelve
+  // '@supabase/supabase-js' ni './lib/estado_lineas.mjs': el proceso moría en el import, antes de
+  // la primera línea, y el runner lo leía como sobreviviente (era M17, 2026-08-30). Dos symlinks
+  // lo arreglan sin copiar nada ni escribir dentro del repo.
+  try {
+    symlinkSync(join(HERE, '..', 'node_modules'), join(dir, 'node_modules'), 'dir');
+    symlinkSync(join(HERE, 'lib'), join(dir, 'lib'), 'dir');
+  } catch (e) { console.warn(`[runner] no pude symlinkear deps al tmpdir: ${e.message}`); }
   console.log(`\n═══ MUTATION TESTING · ${tanda.length}/${MUTANTES.length} mutantes${pedidos ? ` (tanda: ${pedidos.join(',')})` : ''} ═══\n(copias en ${dir} — el repo no se toca)\n`);
-  let vivos = 0;
+  let vivos = 0, arnes = 0, equivalentes = 0;
   for (const m of tanda){
     const esProbe = m.archivo === 'probe';
     const src = esProbe ? SELF_SRC : HTML;
     if (!src.includes(m.from)) {
-      console.log(`❌ ${m.id} NO APLICABLE — el ancla no existe. ${m.desc}`);
-      vivos++; continue;
+      console.log(`⚠ ${m.id} ERROR DE ARNÉS — el ancla no existe en el fuente. ${m.desc}`);
+      arnes++; continue;
     }
     const path = join(dir, `${m.id}.${esProbe ? 'mjs' : 'html'}`);
     writeFileSync(path, src.replace(m.from, m.to));
     // El mutante del arnés corre el PROBE mutado contra el HTML sano; el resto corre el probe sano
-    // contra el HTML mutado.
+    // contra el HTML mutado. En los dos casos LIQ_HTML apunta explícitamente al HTML que toca: el
+    // default (join(HERE,'..','liquidaciones.html')) no sirve para una copia que vive en /tmp.
     const script = esProbe ? path : SELF;
-    const env = esProbe ? { ...process.env } : { ...process.env, LIQ_HTML: path };
+    const env = { ...process.env, LIQ_HTML: esProbe ? HTML_PATH : path };
     let out = '';
     try { out = execFileSync(process.execPath, [script], { env, encoding:'utf8', stdio:['ignore','pipe','pipe'] }); }
     catch (e) { out = (e.stdout||'') + (e.stderr||''); }
+
+    // ── "murió por assert" vs "murió al arrancar" ────────────────────────────
+    // El probe siempre cierra con una línea "NN/NN OK". Si no está, el hijo no llegó a correr los
+    // asserts (import roto, fixture que no se pudo plantar, la base caída) y NO se sabe nada sobre
+    // el mutante. Reportar eso como SOBREVIVE es mentir: se lee como agujero de cobertura cuando
+    // es un fallo del arnés. Es la segunda vez que pasa —la primera fue el \b entre 4 y b, GOTCHA
+    // #82—, así que ahora el runner tiene un tercer estado y puede decir "no sé".
+    const corrio = /^\d+\/\d+ OK$/m.test(out);
+    if (!corrio) {
+      const causa = (out.split('\n').find(l => /Error|error:/.test(l)) || '(sin línea de error)').trim();
+      console.log(`⚠ ${m.id} ERROR DE ARNÉS — el probe no llegó a correr los asserts. ${m.desc}`
+        + `\n     ↳ ${causa.slice(0, 160)}`);
+      arnes++; continue;
+    }
+
     // GOTCHA #82 — anclar en el ")" del rótulo. `❌ F1\b` NO delimita `❌ F1b)` (1 y b son ambos
     // \w), así que un mutante que mata F1b se reportaría como sobreviviente.
     const muertos = m.mata.filter(a => out.includes(`❌ ${a})`));
     const vivo = muertos.length === 0;
+
+    // Mutante EQUIVALENTE declarado: no cambia el comportamiento en ningún estado alcanzable, así
+    // que ningún test puede matarlo. Sobrevivir es el resultado correcto y no cuenta como falla.
+    // Si algún día MUERE, es que el código cambió y la equivalencia dejó de valer: eso sí se
+    // reporta como problema.
+    if (m.equivalente) {
+      equivalentes++;
+      if (vivo) console.log(`✅ ${m.id} EQUIVALENTE (sobrevive por diseño) — ${m.desc}\n     ↳ ${m.equivalente}`);
+      else { vivos++; console.log(`❌ ${m.id} declarado EQUIVALENTE pero MURIÓ (${muertos.join(',')}) — la equivalencia ya no vale, revisar. ${m.desc}`); }
+      continue;
+    }
+
     if (vivo) vivos++;
     console.log(`${vivo?'❌':'✅'} ${m.id} ${vivo?'SOBREVIVE':'muere'} — ${m.desc}`
       + `  [esperaba matar ${m.mata.join(',')}${muertos.length?`; murieron ${muertos.join(',')}`:''}]`);
   }
-  console.log(`\n${vivos===0 ? '✅ TODOS LOS MUTANTES DE LA TANDA MUEREN' : `❌ ${vivos} mutante(s) sobreviven`} — ${tanda.length} probados\n`);
-  process.exit(vivos === 0 ? 0 : 1);
+  const partes = [`${tanda.length - vivos - arnes} muertos o equivalentes`];
+  if (equivalentes) partes.push(`${equivalentes} equivalente(s) declarado(s)`);
+  if (vivos) partes.push(`${vivos} SOBREVIVEN`);
+  if (arnes) partes.push(`${arnes} ERROR DE ARNÉS`);
+  console.log(`\n${vivos===0 && arnes===0 ? '✅ TANDA LIMPIA' : '❌ TANDA CON HALLAZGOS'} — ${tanda.length} probados · ${partes.join(' · ')}\n`);
+  process.exit(vivos === 0 && arnes === 0 ? 0 : 1);
 }
 
 // ══════════════════════════════ CORRIDA NORMAL ══════════════════════════════
