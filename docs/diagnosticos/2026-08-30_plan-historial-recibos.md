@@ -810,4 +810,31 @@ Con el OK —y con las respuestas a las preguntas 1 a 6, o las que quieras conte
 
 # 12. VERIFICACIÓN DE PUBLICACIÓN
 
-Se completa abajo con la salida real.
+```
+$ git push origin reports
+To github.com:mdqclio/SGH.git
+   0bf6fb5..2f37843  reports -> reports
+
+$ git ls-remote origin reports
+2f37843e1e5c383ac114724adc8ea3a6dc3e4092	refs/heads/reports
+
+$ git rev-parse HEAD
+2f37843e1e5c383ac114724adc8ea3a6dc3e4092
+```
+
+El SHA de `ls-remote` coincide con el de `rev-parse HEAD`: el commit está en `origin`.
+
+Estado del working tree al momento del plan — **nada tocado fuera de este informe**:
+
+```
+$ git status --short          # en main
+(vacío)
+
+$ git log --oneline -1 main
+2821c7c merge: filtro por tipo de concepto en el detalle de Pagos
+
+$ ls tests/probe_historial_recibos.mjs
+ls: cannot access 'tests/probe_historial_recibos.mjs': No such file or directory
+```
+
+*(Esta sección se agregó en un commit posterior — su propio SHA queda en el `git log` de la rama.)*
