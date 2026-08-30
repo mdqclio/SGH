@@ -594,10 +594,33 @@ tampoco tienen `cobrador_nombre` / `cobrador_documento` — se emitieron cuando 
 a propósito (decisión previa de Fede, revertida el 28/08 en `fix/recibo-pie-cobrador`). No se
 tocan: son históricos y la plata ya se pagó. Pero quedan sin registro de quién retiró.
 
+**RESUELTO (2026-08-30)** — `migrations/emitir_recibo_v1_2_aislamiento_club.sql`, aplicada en prod
+como `20260830014105_emitir_recibo_v1_2_aislamiento_club`. Salió junto con ISSUE-059, en el mismo
+`CREATE OR REPLACE`.
+
+No era una línea: la obvia (`emitido_por = auth.uid()`) **viola la FK**. `recibos.emitido_por`
+apunta a `usuarios(id)`, no a `auth.users`, así que hay que resolver el usuario de la app:
+
+```sql
+SELECT u.id INTO v_usuario_id
+  FROM usuarios u
+ WHERE u.auth_user_id = auth.uid() AND u.activo
+ LIMIT 1;
+```
+
+Bajo `service_role` (probes, MCP, jobs) `auth.uid()` es NULL y `emitido_por` **queda NULL a
+propósito**: la columna sigue nullable y no se inventa un autor. Los probes existentes no se rompen.
+
+Los 5 recibos históricos siguen con `emitido_por` NULL — son de antes del fix y no se tocan.
+
+Verificado por `tests/probe_aislamiento_club_cobros.mjs`, asserts 17/19/20. El 17 compara los dos
+ids a propósito (`emitido_por=706c4e2c… usuarios.id=706c4e2c… auth.uid=917cfe09…`): assertear sólo
+`IS NOT NULL` habría dejado pasar la versión con `auth.uid()`.
+
 Módulo: RPC `emitir_recibo` (DB).
-Relacionado: ISSUE-056, `docs/diagnosticos/2026-08-28_ejecucion-revert-recibo-4.md`.
-Estado: ⏳ Abierto. Prioridad: **Alta antes del 20/09** — es una línea de código y cierra un
-agujero de auditoría sobre dinero.
+Relacionado: ISSUE-056, ISSUE-059, GOTCHA #79,
+`docs/diagnosticos/2026-08-28_ejecucion-revert-recibo-4.md`.
+Estado: ✅ **RESUELTO** (2026-08-30).
 
 ---
 
@@ -690,8 +713,40 @@ AND EXISTS (SELECT 1 FROM liquidaciones l WHERE l.id = d.liquidacion_id AND l.cl
 No se aplicó en la misma pasada porque toca la RPC de cobro con Valeria operando, y merece su
 propio probe. Ver también ISSUE-060: el otro extremo del mismo agujero.
 
-Módulo: RPC `emitir_recibo`. Estado: ⏳ **Abierto**. Prioridad: **Alta** — es multi-tenant, y hoy
-hay 3 clubes en la base.
+**RESUELTO (2026-08-30)** — `migrations/emitir_recibo_v1_2_aislamiento_club.sql`, aplicada en prod
+como `20260830014105_emitir_recibo_v1_2_aislamiento_club`.
+
+El fix son **dos guards con criterios distintos**, y hacen falta los dos:
+
+- **Guard 1 (permiso)** — un usuario de club no emite con `p_club_id` ajeno. Depende de la sesión:
+  `service_role` (`fn_get_user_club_id()` NULL) y `super_admin` pasan, porque el super_admin
+  legítimamente opera cualquier club con el club-switcher.
+- **Guard 2 (invariante del dato)** — toda línea del array cuelga de una liquidación del **mismo**
+  club que el recibo. **No** está condicionado a la sesión: corre igual bajo `service_role`. Es el
+  que ataja el recibo fantasma. Va dos veces: pre-chequeo que cuenta las ajenas y aborta (todo o
+  nada, con el conteo en el mensaje) y `AND EXISTS` dentro del `UPDATE` (carrera entre chequeo y
+  escritura). Sólo el `EXISTS` habría dejado las ajenas afuera **en silencio**, emitiendo el recibo
+  con menos líneas — el peor modo de falla cuando hay plata.
+
+Las validaciones van **antes** de `fn_siguiente_recibo()`: el número correlativo se consume recién
+cuando la emisión ya es válida. De paso se agregó `AND d.beneficiario_tipo = p_beneficiario_tipo` al
+`UPDATE` (v1.1 comparaba sólo el id); verificado sobre las 493 líneas: 0 recibos con tipo distinto
+al de sus líneas, así que no rompe nada existente.
+
+Por qué la RLS no alcanzaba: `emitir_recibo` es `SECURITY DEFINER` y **las policies no se evalúan
+adentro**. Ver GOTCHA #80.
+
+Verificado por `tests/probe_aislamiento_club_cobros.mjs` — **27/27** contra el RPC real (asserts
+1, 1b, 2, 3, 3b, 14, 15, 16, 18). El 2 y el 3 son los que importan: la mezcla propia+ajena se
+rechaza **entera** y no queda escritura parcial ni recibo colgado en ningún club.
+
+Regresión sin novedades: `probe_recibos_emision` 3 fallos previos, `probe_cobros_v11` 1 previo,
+`probe_recibo_pie_cobrador` 56/56, `probe_reunion_es_prueba` 17/17.
+
+Rollback disponible: `migrations/rollback_emitir_recibo_v1_2.sql` (vuelve a v1.1 exacta).
+
+Módulo: RPC `emitir_recibo`. Relacionado: ISSUE-057, ISSUE-060, GOTCHA #79, GOTCHA #80.
+Estado: ✅ **RESUELTO** (2026-08-30).
 
 ---
 
@@ -721,8 +776,28 @@ El fix es un `.eq('club_id', CLUB_ID)`, pero `liquidacion_detalle` **no tiene** 
 `liquidacion_id` del club, y en ambos casos hay que cuidar el NULL-safe (GOTCHA #5). Por eso no
 entró en el fix de ISSUE-055: es un cambio de query con su propia forma de romperse.
 
-Módulo: `liquidaciones.html` (`cobrosBuscar`, `cobrosDetalle`). Estado: ⏳ **Abierto**.
-Prioridad: **Alta**, junto con ISSUE-059.
+**RESUELTO (2026-08-30)** — merge de `fix/aislamiento-club-cobros`, junto con ISSUE-059.
+
+`liquidacion_detalle` no tiene `club_id` propio, así que el club llega **por embed**
+`liquidaciones(club_id)` — **sin `!inner`**, respetando la regla NULL-safe de GOTCHA #5 / ISSUE-038:
+un `!inner` habría descartado filas en silencio. El filtro se aplica con un helper único:
+
+```javascript
+function cobDelClub(l){ return l?.liquidaciones?.club_id === CLUB_ID; }
+```
+
+Se aplica en **el listado y en el detalle**, no sólo en el listado. Filtrar únicamente el listado
+movía el agujero un click más adentro (lección de ISSUE-055): un beneficiario que entra a la lista
+por plata propia abría el detalle con las líneas del otro club mezcladas **y tildadas**.
+
+Verificado por `tests/probe_aislamiento_club_cobros.mjs`, asserts 4a, 4b, 5-13 — incluidos los
+casos inversos (11, 12, 13), que son los que impiden que el filtro pase por ser demasiado
+restrictivo. El 4b fija que el embed va sin `!inner`. `probe_reunion_es_prueba` suma el **4c**, que
+verifica el filtro de club dentro de `cobrosDetalle`.
+
+Módulo: `liquidaciones.html` (`cobrosBuscar`, `cobrosDetalle`).
+Relacionado: ISSUE-059, ISSUE-055, GOTCHA #5, GOTCHA #80.
+Estado: ✅ **RESUELTO** (2026-08-30).
 
 ---
 

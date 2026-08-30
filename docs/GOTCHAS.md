@@ -411,6 +411,10 @@ nombre. Ver ISSUE-061.
 
 ## 76. `emitir_recibo` no valida el club de las líneas — un hipódromo puede cobrar plata de otro (2026-08-29)
 
+> **Cerrado el 2026-08-30** por `emitir_recibo` v1.2 (`20260830014105_emitir_recibo_v1_2_aislamiento_club`).
+> Se deja la entrada porque el modo de falla sigue siendo la lección: la RLS no cubre `SECURITY
+> DEFINER` (GOTCHA #80). Ver ISSUE-059.
+
 Verificado con un caso real en producción el 2026-08-29: un recibo con `club_id` de **Mi Club
 Hípico** cobrando **9 líneas de la reunión 9999 de Dolores**, a un entrenador de Dolores, por
 $92.000.
@@ -500,3 +504,85 @@ host propio (`https://sigh.com.ar/logo-dolores-verde.png`), no agregar `mdqclio.
 `raw.githubusercontent.com` — documentado en el hint del campo en `admin.html`.
 
 Ver `docs/diagnosticos/2026-08-30_logo-roto-dominio.md`.
+
+## 79. `recibos.emitido_por` es FK a `usuarios(id)`, NO a `auth.users` — `auth.uid()` a secas viola la FK (2026-08-30)
+
+ISSUE-057: los 5 recibos de la base tenían `emitido_por` en NULL porque `emitir_recibo` nunca lo
+seteaba. El arreglo obvio —`emitido_por = auth.uid()`— **no compila contra el dato**: revienta la FK.
+
+```sql
+-- ✗ MAL: auth.uid() devuelve el id de auth.users, no el de public.usuarios
+INSERT INTO recibos (..., emitido_por) VALUES (..., auth.uid());
+--   ERROR: insert or update on table "recibos" violates foreign key constraint
+
+-- ✓ BIEN: resolver el usuario de la app a partir del de Auth
+SELECT u.id INTO v_usuario_id
+  FROM usuarios u
+ WHERE u.auth_user_id = auth.uid() AND u.activo
+ LIMIT 1;
+```
+
+Son **dos identidades distintas** y la confusión es fácil porque las dos son UUID y las dos "son el
+usuario". `public.usuarios` tiene su propio `id` y una columna `auth_user_id` que apunta a
+`auth.users`. Todo lo que en el schema de la app referencia a una persona apunta al primero.
+
+Lo mide el assert 17 de `tests/probe_aislamiento_club_cobros.mjs`, que compara los dos a propósito:
+
+```
+✅ 17) ISSUE-057 — emitido_por = el usuario de la sesión (no NULL, no auth.uid())
+   → emitido_por=706c4e2c… usuarios.id=706c4e2c… auth.uid=917cfe09…
+```
+
+Si el probe sólo hubiera chequeado `emitido_por IS NOT NULL`, la versión con `auth.uid()` habría
+pasado en cualquier base donde los dos ids coincidan por casualidad. **Assertear contra el id
+correcto, no contra "no es NULL".**
+
+Corolario: `emitido_por` **queda NULL bajo `service_role`** (probes, MCP, jobs), porque ahí
+`auth.uid()` es NULL y no hay usuario detrás. Es correcto y la columna sigue nullable: inventar un
+autor sería peor que no tenerlo. Los asserts 19 y 20 del probe fijan justamente eso.
+
+## 80. La RLS no protege una función `SECURITY DEFINER` — los guards van escritos adentro (2026-08-30)
+
+El recibo fantasma del 28/08 (ISSUE-059) pasó **con RLS activa y bien configurada**. No fue un agujero
+de RLS: fue que la RLS no aplica ahí.
+
+Una función `SECURITY DEFINER` corre con los permisos del dueño (normalmente `postgres`), que es
+`BYPASSRLS`. Las policies de las tablas que toca **no se evalúan**. `emitir_recibo`, `liberar_linea`,
+`fn_siguiente_recibo`, `desoficializar_carrera` y las `fn_*` de auth son todas `SECURITY DEFINER` — o
+sea que toda la lógica de cobro corre en un contexto donde la RLS está apagada.
+
+Por eso `emitir_recibo` aceptaba un `p_club_id` de un club y `p_linea_ids` de otro: no había una sola
+comparación de club adentro, y afuera no había nada que la hiciera por ella.
+
+**El patrón, tal como quedó en v1.2 — dos guards distintos, con criterios distintos:**
+
+```sql
+-- guard 1: PERMISO. Depende de la sesión. service_role y super_admin pasan.
+IF fn_get_user_club_id() IS NOT NULL AND NOT fn_is_super_admin()
+   AND p_club_id IS DISTINCT FROM fn_get_user_club_id() THEN
+  RAISE EXCEPTION '…' USING ERRCODE = '42501';
+END IF;
+
+-- guard 2: INVARIANTE DEL DATO. NO depende de la sesión — corre igual para service_role.
+SELECT count(*) INTO v_ajenas FROM liquidacion_detalle d
+  JOIN liquidaciones l ON l.id = d.liquidacion_id
+ WHERE d.id = ANY(p_linea_ids) AND l.club_id IS DISTINCT FROM p_club_id;
+IF v_ajenas > 0 THEN RAISE EXCEPTION '…'; END IF;
+```
+
+No alcanza con uno solo. El guard 1 se apoya en `fn_get_user_club_id()`, que es NULL bajo
+`service_role` — así que por sí solo deja pasar todo lo que entre por MCP o por un probe. El guard 2
+es el que ataja el recibo fantasma de verdad, y por eso **no** está condicionado a la sesión.
+
+Y el guard 2 va **dos veces**: como pre-chequeo que cuenta las ajenas y aborta (falla fuerte, todo o
+nada, con un mensaje que dice cuántas), y como `AND EXISTS` dentro del `UPDATE` (red ante una carrera
+entre el chequeo y la escritura). Sólo el `EXISTS` no alcanzaba: las líneas ajenas quedarían afuera
+**en silencio** y, si venía aunque sea una propia, el recibo se emitía igual con menos líneas. En
+plata, el modo de falla silencioso es el peor de todos.
+
+Las validaciones van **antes** de `fn_siguiente_recibo()`: el número correlativo se consume recién
+cuando la emisión ya es válida.
+
+Regla general: **si la función es `SECURITY DEFINER`, asumí que no hay ninguna red debajo.** Todo lo
+que quieras impedir, escribilo adentro. Ver ISSUE-059, ISSUE-060, GOTCHA #10 (recursión de RLS) y
+`migrations/emitir_recibo_v1_2_aislamiento_club.sql`.
