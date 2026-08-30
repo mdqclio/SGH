@@ -562,10 +562,57 @@ que abrir la consola de Supabase mientras la cola espera.
 sentencia**. Por eso el `UPDATE` que suelta las líneas y el `DELETE`/`UPDATE` del recibo entran en
 una sola sentencia con CTEs modificantes, sin violar el FK. Verificado en prod el 28/08.
 
-Módulo: RPC nuevo (DB) + `liquidaciones.html` (tab Pagos).
-Relacionado: `migrations/emitir_recibo_v1_1.sql`, `migrations/liberar_linea.sql`.
-Estado: ⏳ Abierto — **no construido a propósito** (quedó fuera del alcance de
-`fix/recibo-pie-cobrador`). Prioridad: **Alta antes del 20/09**.
+#### Lo que se construyó (2026-08-30) — RPC sí, UI no
+
+**`anular_recibo(p_recibo_id uuid, p_motivo text)`** — `migrations/anular_recibo_v1.sql`, aplicada
+en prod como `20260830025830_anular_recibo_v1`. Rollback: `migrations/rollback_anular_recibo_v1.sql`.
+
+Contra la lista de arriba, punto por punto:
+
+1. ✅ Suelta las líneas (`recibo_id = NULL`, `pagado_at = NULL`).
+2. ✅ Restaura el estado **derivándolo de la propia línea**, no siempre a `impago`: si
+   `fecha_liberacion` es futura vuelve a `retenido`. La retención por anti-doping es una
+   restricción reglamentaria — devolver a `impago` una línea que el reglamento retiene haría que
+   el sistema declare pagable plata que no lo es. Se descartó persistir el estado previo en una
+   columna nueva: la regla ya es derivable y `fecha_liberacion` sobrevive tanto a `liberar_linea`
+   como a `emitir_recibo`.
+3. ✅ Marca `estado='anulado'` + `anulado_at`, **sin borrar**. El motivo va en
+   `recibos.motivo_anulacion` (columna propia, no en `notas`) y es **obligatorio**, validado en el
+   RPC y no con `NOT NULL` en la columna: las 5 filas históricas quedarían inválidas.
+4. ✅ No devuelve el correlativo — `club_secuencias` no se toca. El probe lo assertea igual: "se
+   cumple solo" es justo lo que deja de cumplirse en silencio.
+5. ✅ `anulado_por` → **`usuarios(id)`, NO `auth.users`** (GOTCHA #79). NULL bajo `service_role`.
+
+**Agregado que no estaba en la lista: `recibos.lineas_anuladas jsonb`.** Fotografía los
+`liquidacion_detalle.id` del recibo **antes** de soltarlos. Sin eso el vínculo se pierde para
+siempre: al poner `recibo_id = NULL` el recibo ya no las nombra, y `liquidacion_detalle` **no tiene
+trigger de auditoría** (a diferencia de `recibos`, que sí). Reconstruir el #4 hoy exige leer un
+informe de diagnóstico; con esto es un `SELECT`.
+
+**Permisos**: mismo club y dentro de 5 días corridos de emitido → puede anular; pasados los 5 días,
+sólo `super_admin`. La ventana no está para darle tiempo a Valeria: separa el caso rutinario (el
+error se ve el mismo día, como el #4) del excepcional. Los guards van **escritos en la función**
+porque es `SECURITY DEFINER` y las policies de las tablas no se evalúan adentro (GOTCHA #80).
+
+**Probe**: `tests/probe_anular_recibo.mjs` — candado de club, la ventana de 5 días por sus dos
+lados, motivo obligatorio, idempotencia, el jsonb, y el correlativo que no vuelve.
+
+#### Lo que falta
+
+**La UI no está construida.** El tab Pagos de `liquidaciones.html` no tiene botón de anular ni
+formulario de motivo: hoy el RPC sólo se puede invocar desde la consola. Queda para la entrega
+siguiente (decisión del usuario, 2026-08-30). Hasta entonces ISSUE-056 **no está cerrado del todo**:
+el agujero operativo del 20/09 —Valeria anulando un recibo sola, con gente en la ventanilla— sigue
+abierto, aunque ya no requiera escribir SQL a mano.
+
+Módulo: RPC nuevo (DB) ✅ + `liquidaciones.html` (tab Pagos) ❌.
+Relacionado: `migrations/anular_recibo_v1.sql`, `migrations/emitir_recibo_v1_1.sql`,
+`migrations/liberar_linea.sql`, ISSUE-057, GOTCHA #79, GOTCHA #80 ·
+`docs/diagnosticos/2026-08-30_anular-recibo-plan.md` ·
+`docs/diagnosticos/2026-08-30_anular-recibo-resultados.md` ·
+`docs/diagnosticos/2026-08-30_anular-recibo-estado-post-corte.md`.
+Estado: 🟡 **PARCIAL** (2026-08-30) — **RPC vivo en prod, UI pendiente**. Prioridad de la UI:
+**Alta antes del 20/09**.
 
 ---
 

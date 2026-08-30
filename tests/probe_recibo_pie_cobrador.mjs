@@ -110,7 +110,11 @@ const reciboNuevo = async (antes) => (((await sb.from('recibos').select('*').eq(
   // mientras 9 líneas del sandbox quedaban en 'pagado' colgadas de un recibo ajeno.
   const T0 = new Date(Date.now() - 1000).toISOString();
   const snapAntes = await snapshotLineas(sb, SANDBOX);
-  console.log(`[snapshot] ${Object.keys(snapAntes).length} líneas del sandbox fotografiadas por estado`);
+  // club_secuencias también se fotografía: el probe emite recibos REALES contra Dolores y
+  // fn_siguiente_recibo incrementa el correlativo del club. Se devuelve en el finally (R6).
+  const seqAntes = (await sb.from('club_secuencias')
+    .select('ultimo_numero').eq('club_id', CLUB_ID).eq('tipo', 'recibo').maybeSingle()).data?.ultimo_numero ?? null;
+  console.log(`[snapshot] ${Object.keys(snapAntes).length} líneas del sandbox fotografiadas por estado · club_secuencias=${seqAntes}`);
   try {
     // ── sandbox con el código REAL del archivo ──────────────────────────────
     phase = 'sandbox';
@@ -172,9 +176,10 @@ const reciboNuevo = async (antes) => (((await sb.from('recibos').select('*').eq(
 
     // ── fixtures ────────────────────────────────────────────────────────────
     phase = 'fixtures';
-    // club_secuencias NO se snapshotea ni se restaura: los números de recibo son ilimitados y
-    // quemar algunos en pruebas no es problema (decisión del usuario, 2026-08-28). El probe deja
-    // el correlativo adelantado en 2, a propósito.
+    // El probe emite 2 recibos reales, así que mueve el correlativo de Dolores. Se snapshotea
+    // arriba y se restaura en el finally (R6). Antes no se restauraba —"los números de recibo son
+    // ilimitados"— y el drift se acumulaba corrida a corrida: 28 → 32 en una sola noche
+    // (2026-08-30). El número no lo ve nadie, pero era el único probe del set que no lo devolvía.
     const { data: cars } = await sb.from('carreras').select('id').eq('reunion_id',SANDBOX).limit(3);
     const { data: ins } = await sb.from('inscripciones').select('id,carrera_id').in('carrera_id',(cars||[]).map(c=>c.id)).limit(8);
     if ((ins||[]).length < 3) throw new Error('la reunión 9999 no tiene inscripciones suficientes');
@@ -361,6 +366,20 @@ const reciboNuevo = async (antes) => (((await sb.from('recibos').select('*').eq(
       ok('R5 no quedó ningún recibo creado durante la corrida, en NINGÚN club',
          recSobra.length === 0,
          recSobra.map(r => `#${r.numero_recibo} club=${r.club_id.slice(0,8)}`).join(', '));
+
+      // ── R6 — club_secuencias ──────────────────────────────────────────────
+      // Borrar los recibos NO devuelve el correlativo: fn_siguiente_recibo es un contador
+      // monótono en club_secuencias, no un MAX+1. Hay que reponerlo a mano.
+      if (seqAntes === null) {
+        await sb.from('club_secuencias').delete().eq('club_id', CLUB_ID).eq('tipo', 'recibo');
+      } else {
+        await sb.from('club_secuencias').update({ ultimo_numero: seqAntes })
+          .eq('club_id', CLUB_ID).eq('tipo', 'recibo');
+      }
+      const seqDespues = (await sb.from('club_secuencias')
+        .select('ultimo_numero').eq('club_id', CLUB_ID).eq('tipo', 'recibo').maybeSingle()).data?.ultimo_numero ?? null;
+      ok('R6 club_secuencias de Dolores devuelto a donde estaba',
+         seqDespues === seqAntes, `antes=${seqAntes} después=${seqDespues}`);
     } catch (e) { ok('CLEANUP FALLÓ — revisar manualmente', false, e.message); console.error('[cleanup]', e); }
     console.log('\n──────── RESULTADO ────────');
     for (const r of results) console.log(`${r.s} ${r.t}${r.n ? '  (' + r.n + ')' : ''}`);

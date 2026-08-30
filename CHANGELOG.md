@@ -1,5 +1,62 @@
 # Changelog
 
+## [2026-08-30] — ISSUE-056: `anular_recibo` (RPC vivo, UI pendiente)
+
+> El 28/08 Valeria emitió el recibo **#4** probando (R8, 6 líneas, $62.700) y revertirlo costó un
+> plan, una ejecución y una verificación en tres documentos, con SQL a mano contra producción. Con
+> gente en la ventanilla el 20/09 eso no es viable. Regla de Valeria que lo hace urgente: **recibo
+> impreso = pago hecho** — el papel existe apenas se imprime, así que anular tiene que ser una
+> operación normal del sistema. Plan y resultados en la branch `reports`:
+> `docs/diagnosticos/2026-08-30_anular-recibo-plan.md`.
+
+- **`anular_recibo(p_recibo_id, p_motivo)`** — migración `20260830025830_anular_recibo_v1`, aplicada
+  en prod antes del merge. `SECURITY DEFINER`, `plpgsql`. Rollback versionado en
+  `migrations/rollback_anular_recibo_v1.sql` (dropea la función y **deja las columnas**: son
+  aditivas y nullable, y borrarlas perdería el único registro de qué contenía un recibo anulado).
+- **El estado al que vuelve cada línea se deriva de la línea, no se asume `impago`.** Si
+  `fecha_liberacion` es futura, la línea vuelve a **`retenido`**. La retención por anti-doping es una
+  restricción reglamentaria, no una comodidad del flujo: devolver a `impago` una línea que el
+  reglamento retiene haría que el sistema declare **pagable plata que no lo es**. Un click de más
+  (volver a apretar Habilitar) es barato; eso no.
+- **`recibos.lineas_anuladas jsonb`** — fotografía los `liquidacion_detalle.id` **antes** de
+  soltarlos. Sin eso el vínculo se pierde para siempre: al poner `recibo_id = NULL` el recibo ya no
+  las nombra y `liquidacion_detalle` **no tiene trigger de auditoría** (a diferencia de `recibos`).
+  Se agregaron también `anulado_por` (FK → **`usuarios(id)`**, no `auth.users` — GOTCHA #79) y
+  `motivo_anulacion`. Las tres nullable a propósito: con `NOT NULL` las 5 filas históricas quedarían
+  inválidas y habría que backfillear con un motivo inventado.
+- **El recibo se marca `anulado`, no se borra**, así el hueco de numeración se documenta solo. El
+  correlativo **no vuelve**: `fn_siguiente_recibo` es un contador monótono en `club_secuencias`, no
+  un `MAX+1`, así que alcanza con no tocarlo — y el probe lo assertea igual, porque "se cumple solo"
+  es justo lo que deja de cumplirse en silencio.
+- **Permisos**: mismo club y dentro de 5 días corridos → puede anular; pasados los 5 días, sólo
+  `super_admin`. La ventana separa el caso rutinario (el error se ve el mismo día, como el #4) del
+  excepcional. Los guards van **escritos en la función**, no delegados a la RLS: es `SECURITY
+  DEFINER` y las policies de las tablas no se evalúan adentro (GOTCHA #80).
+- **Probe nuevo `tests/probe_anular_recibo.mjs`** — candado de club, la ventana de 5 días por sus
+  dos lados, motivo obligatorio (NULL, vacío y sólo-espacios), idempotencia, el jsonb y el
+  correlativo que no vuelve.
+- **`tests/probe_recibo_pie_cobrador.mjs` ahora restaura `club_secuencias`** (assert R6). Era el
+  único probe del set que no lo devolvía, por una decisión explícita —"los números de recibo son
+  ilimitados"— que resultó cara: el correlativo de Dolores se fue de **28 a 32 en una sola noche**,
+  +2 por corrida. Borrar los recibos no alcanza, porque el contador es monótono. El número en sí no
+  importa (queda en 32 por decisión del usuario, y Valeria nunca vio los recibos 4 a 32: para ella
+  la numeración arranca en 33), pero el drift crecía hasta el 20/09. Reconstrucción del salto, por
+  auditoría, en `docs/diagnosticos/2026-08-30_anular-recibo-estado-post-corte.md` §5.
+- **Comentario corregido en `probe_anular_recibo.mjs`**: decía que el probe emite sólo contra Mi
+  Club Hípico "para no correr el correlativo de Dolores". Es falso — el fixture `detClubA` emite un
+  recibo **contra Dolores** porque el candado de club necesita un recibo ajeno de verdad para
+  verificar que un usuario del otro club no lo puede anular. El código estaba bien; el comentario
+  decía lo contrario de lo que hace, que es peor que no tener comentario.
+- **Falta la UI.** El tab Pagos no tiene botón de anular ni formulario de motivo: hoy el RPC sólo se
+  invoca desde la consola. Queda para la entrega siguiente. ISSUE-056 pasa a **🟡 PARCIAL**, no a
+  cerrado.
+- **Protocolo de informes ampliado** (`CLAUDE.md`): cubre toda salida que el usuario tenga que leer
+  —verificaciones sueltas, resultados de probes, salidas de queries, `git status`/`git log`—, no sólo
+  los diagnósticos. "Pegame la salida cruda" significa escribirla en el archivo y pasar la ruta: la
+  pantalla trunca. Y **un informe no está entregado hasta que está pusheado a `origin`**, verificado
+  con `git ls-remote` antes de pasar la ruta — un commit local da 404 y, para el que lo tiene que
+  leer, no existe.
+
 ## [2026-08-30] — ISSUE-059/060/057: aislamiento entre clubes en el circuito de cobro
 
 > El 28/08 un super_admin parado en Mi Club Hípico con el club-switcher emitió un recibo con
