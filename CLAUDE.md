@@ -309,13 +309,21 @@ Fijarla: `localStorage.setItem('sgh_active_reunion_id', 'UUID_REUNION_5')` o des
 
 ## Protocolo de informes
 
-Todo informe, diagnóstico o análisis va a un archivo, nunca al chat.
+**Todo lo que yo tenga que leer va a un archivo, nunca al chat.** No sólo los informes,
+diagnósticos y análisis: también las verificaciones sueltas, los resultados de probes, las
+salidas de queries, `git status`, `git log`, los diffs, y cualquier cosa pedida como
+"pegame la salida cruda".
 
+- **"Pegame X" significa: escribí X en el archivo y pasame la ruta.** No es una excepción
+  al protocolo, es el caso que lo motiva. La pantalla trunca siempre: lo que se pega en el
+  chat llega cortado o se pierde, así que el chat no sirve como canal para salida cruda.
+  Vale aunque el pedido diga literalmente "pegame", "mostrame" o "acá en el chat".
 - Branch fija: `reports`. No se mergea ni se borra. Sin barra en el nombre.
 - Ruta: `docs/diagnosticos/YYYY-MM-DD_slug.md`
 - Encabezado del doc: fecha, SHA del commit, guards verificados.
-- El doc es autocontenido: incluye queries, salida cruda, conclusión,
-  números de resumen y preguntas abiertas.
+- El doc es autocontenido: incluye el comando o la query **tal como se corrió**, la salida
+  cruda **completa y sin recortar**, la conclusión, los números de resumen y las preguntas
+  abiertas. Nada de `[...]` ni "(salida truncada)": si es larga, va larga.
 - La respuesta en el chat es UNA línea: la ruta del archivo. Nada más.
   Ni resumen, ni conclusión, ni recomendaciones, ni "¿querés que...?".
 - Si algo no está en el archivo, no existe.
