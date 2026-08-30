@@ -560,4 +560,35 @@ Arreglo posible: en `F6`, dejar las ocultas **destildadas** antes de `tildarVisi
 
 # 11. VERIFICACIÓN DE PUBLICACIÓN
 
-Se completa abajo con la salida real.
+## Rama de trabajo `feat/filtro-concepto-pagos` (el código)
+
+```
+$ git push origin feat/filtro-concepto-pagos
+To github.com:mdqclio/SGH.git
+   6249a6a..b698874  feat/filtro-concepto-pagos -> feat/filtro-concepto-pagos
+
+$ git ls-remote origin feat/filtro-concepto-pagos
+b6988749917bd3213db0f6454d54bf1c95dd7b30	refs/heads/feat/filtro-concepto-pagos
+
+$ git rev-parse HEAD          # estando en feat/filtro-concepto-pagos
+b6988749917bd3213db0f6454d54bf1c95dd7b30
+```
+
+## Rama `reports` (este informe)
+
+```
+$ git push origin reports
+To github.com:mdqclio/SGH.git
+   0cb9d05..35905f6  reports -> reports
+
+$ git ls-remote origin reports
+35905f6be571c4e49469a2a94a8cdeabcdd8c75c	refs/heads/reports
+
+$ git rev-parse HEAD          # estando en reports
+35905f6be571c4e49469a2a94a8cdeabcdd8c75c
+```
+
+Los SHA de `ls-remote` coinciden con los de `rev-parse HEAD` en las dos ramas: las dos están en
+`origin`. Ninguna se mergeó a `main`.
+
+*(Esta sección se agregó en un commit posterior — su propio SHA queda en el `git log` de la rama.)*
