@@ -456,4 +456,47 @@ $ grep -c "^## " docs/GOTCHAS.md
 
 # 10. VERIFICACIÓN DE PUBLICACIÓN
 
-Se completa abajo con la salida real.
+## `main` (el código, mergeado)
+
+```
+$ git push origin main
+To github.com:mdqclio/SGH.git
+   cb5b77c..2821c7c  main -> main
+
+$ git ls-remote origin main
+2821c7c223a00d6f9bb53c8ea389a145f0efb424	refs/heads/main
+
+$ git rev-parse HEAD          # estando en main
+2821c7c223a00d6f9bb53c8ea389a145f0efb424
+```
+
+## `feat/filtro-concepto-pagos` (la rama de trabajo, ya mergeada, no borrada)
+
+```
+$ git push origin feat/filtro-concepto-pagos
+To github.com:mdqclio/SGH.git
+   b698874..e5a02bd  feat/filtro-concepto-pagos -> feat/filtro-concepto-pagos
+
+$ git ls-remote origin feat/filtro-concepto-pagos
+e5a02bdf39486149aab5c745cb97edc8859a59d6	refs/heads/feat/filtro-concepto-pagos
+```
+
+## `reports` (este informe)
+
+```
+$ git push origin reports
+To github.com:mdqclio/SGH.git
+   ab19d06..461089d  reports -> reports
+
+$ git ls-remote origin reports
+461089d0007cfaf70a16040b53caa193462610d9	refs/heads/reports
+
+$ git rev-parse HEAD          # estando en reports
+461089d0007cfaf70a16040b53caa193462610d9
+```
+
+Los SHA de `ls-remote` coinciden con los de `rev-parse HEAD` en las tres ramas. Y prod sirve el
+`liquidaciones.html` de `2821c7c` (§5), que es la verificación que de verdad importa: el commit
+está en `origin` **y** llegó al navegador.
+
+*(Esta sección se agregó en un commit posterior — su propio SHA queda en el `git log` de la rama.)*
