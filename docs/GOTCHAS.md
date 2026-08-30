@@ -672,3 +672,139 @@ Vale para rótulos de assert, ids de issue (`ISSUE-05` vs `ISSUE-056`), números
 de columna. Anclar en el carácter que realmente separa, o comparar strings completos.
 
 Ver `tests/probe_anular_recibo_ui.mjs`, sección MUTATION TESTING.
+
+---
+
+## 83. El timeout del harness es POR INVOCACIÓN, no por mutante — y el SIGKILL se disfraza de OOM (2026-08-30)
+
+Correr los 17 mutantes de `probe_filtro_concepto_pagos.mjs` de un saque murió con **exit 137**.
+La lectura obvia —"OOM por lanzar 17 subprocesos"— es **falsa por dos lados**:
+
+```
+$ /usr/bin/time -f "%e s · %M KB max RSS" node tests/probe_filtro_concepto_pagos.mjs
+13.10 s · 101136 KB max RSS
+```
+
+1. **Pico de memoria: ~100 MB.** No hay presión de memoria en ningún momento.
+2. **Nunca hubo 17 procesos simultáneos.** El runner usa `execFileSync`, que es **sincrónico**:
+   lanza un hijo, espera, lanza el siguiente. Como mucho hay dos node vivos a la vez.
+
+Lo que pasa de verdad: **13,1 s × 17 ≈ 223 s**, contra un timeout de **120 s del harness que
+ejecuta el comando**. El timeout se cobra con `SIGKILL`, y `128 + 9 = 137` — el mismo exit code
+que deja el OOM killer. **Los dos síntomas son idénticos desde afuera.** Distinguirlos requiere
+medir: si el RSS es chico y el tiempo total ronda el límite del harness, es timeout.
+
+Corolario: el arreglo NO es bajar el paralelismo (no había paralelismo que bajar), es **acortar
+cada invocación**. Por eso el runner acepta tandas:
+
+```bash
+node tests/probe_filtro_concepto_pagos.mjs --mutantes=M1,M2,M3,M4,M5   # ~65 s, entra holgado
+node tests/probe_filtro_concepto_pagos.mjs --mutantes                  # los 17, ~4 min: NO entra
+```
+
+### El daño colateral: una corrida matada deja fixtures plantadas
+
+**`SIGKILL` no ejecuta el bloque `finally`.** La corrida cortada había plantado `premio 1..5` y
+murió antes de `premio 6`, así que esas 5 líneas quedaron en la base. La corrida siguiente arrancó
+con **14 líneas donde esperaba 9** y dio **26/32** — con el código intacto:
+
+```
+❌ F1d) … → 14 filas · grupos=[…11 premios…, "incentivo","incentivo","incentivo"]
+❌ F0)  el fixture es el esperado … → pagables=14 premios=210000 incentivos=600000
+❌ R4)  no quedaron líneas del probe en la base → [5 ids]
+```
+
+Un probe que baja de golpe después de una corrida interrumpida: **mirar primero si hay residuo**,
+antes de sospechar del código. Los asserts de fixture (`F0`) y de restore (`R4`) son los que lo
+delatan — otra razón para tenerlos.
+
+El fix estructural es una **limpieza preflight al arranque**, acotada al `TAG` del probe: el
+`finally` cubre la salida ordenada, el preflight cubre la brusca.
+
+```javascript
+phase = 'preflight';
+const { data: restos } = await sb.from('liquidacion_detalle')
+  .select('id,liquidacion_id').ilike('concepto', `${TAG}%`);
+if (restos?.length){
+  await sb.from('liquidacion_detalle').delete().in('id', restos.map(r => r.id));
+  await sb.from('liquidaciones').delete().in('id', [...new Set(restos.map(r => r.liquidacion_id))]);
+}
+```
+
+Ver `tests/probe_filtro_concepto_pagos.mjs`.
+
+---
+
+## 84. Un mutante que muere al ARRANCAR no es un sobreviviente — el runner tiene que poder decir "no sé" (2026-08-30)
+
+Segunda vez en la misma semana que **un fallo del arnés se disfraza de agujero de cobertura**
+(la primera fue GOTCHA #82, el `\b` entre `4` y `b`). Vale la pena la regla general.
+
+El runner de mutantes concluye "sobrevive" cuando no encuentra `❌ <assert>)` en la salida del
+hijo. Pero esa ausencia tiene **dos causas distintas** que no se parecen en nada:
+
+| Causa | Qué significa | Qué hay que hacer |
+|---|---|---|
+| El hijo corrió y ningún assert falló | El mutante **sobrevive**: hay un agujero de cobertura | escribir o arreglar un assert |
+| El hijo **no llegó a correr los asserts** | No se sabe **nada** sobre el mutante | arreglar el arnés |
+
+El caso real: el mutante que muta el **probe** (no el HTML) se ejecuta desde un tmpdir, y desde
+`/tmp` node no resuelve `@supabase/supabase-js` ni `./lib/estado_lineas.mjs`. El proceso moría en
+el import, antes de la primera línea de código, y se reportaba como `SOBREVIVE`:
+
+```
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@supabase/supabase-js'
+  imported from /tmp/mut-filtro-concepto-iCoGxw/M17.mjs
+```
+
+Dos arreglos, y el segundo importa más:
+
+**(1) Que corra** — symlinkear las dependencias al tmpdir, y pasar `LIQ_HTML` explícito (el
+default `join(HERE,'..','liquidaciones.html')` apunta a `/tmp/liquidaciones.html` desde ahí):
+
+```javascript
+symlinkSync(join(HERE, '..', 'node_modules'), join(dir, 'node_modules'), 'dir');
+symlinkSync(join(HERE, 'lib'),               join(dir, 'lib'),          'dir');
+const env = { ...process.env, LIQ_HTML: esProbe ? HTML_PATH : path };
+```
+
+**(2) Que el runner distinga las dos causas.** El probe siempre cierra con `NN/NN OK`; si esa
+línea no está, el hijo no llegó a los asserts:
+
+```javascript
+const corrio = /^\d+\/\d+ OK$/m.test(out);
+if (!corrio) {
+  const causa = (out.split('\n').find(l => /Error|error:/.test(l)) || '(sin línea de error)').trim();
+  console.log(`⚠ ${m.id} ERROR DE ARNÉS — el probe no llegó a correr los asserts.\n     ↳ ${causa}`);
+  arnes++; continue;
+}
+```
+
+**Sin (2), el próximo fallo de arnés se vuelve a leer como agujero de cobertura** y manda a
+"arreglar" asserts que ya estaban bien. Un tercer estado —muere / sobrevive / **no sé**— cuesta
+cinco líneas y es la diferencia entre un resultado y una conjetura. Los dos estados de falla
+cuentan para el exit code: `process.exit(vivos === 0 && arnes === 0 ? 0 : 1)`.
+
+### Mutantes EQUIVALENTES: declararlos, no "arreglarlos"
+
+Relacionado: un mutante puede sobrevivir porque **no cambia el comportamiento en ningún estado
+alcanzable**. Es un *mutante equivalente* y, por definición, ningún test puede matarlo. La única
+forma de "matarlo" sería sacar del código la cláusula redundante — **optimizar la métrica en vez
+del código**. Se declaran, con la prueba de por qué son equivalentes:
+
+```javascript
+{ id:'M7', mata:['F5b'],
+  equivalente: "cobFiltro==='todo' implica 0 filas ocultas en todo estado alcanzable, así que "
+             + "`!ocultas.length` ya corta solo — ningún test puede distinguir las dos versiones",
+  from: …, to: … },
+```
+
+El runner los reporta como `✅ EQUIVALENTE (sobrevive por diseño)` y no los cuenta como falla —
+pero **si alguna vez MUEREN avisa**, porque eso significa que el código cambió y la equivalencia
+dejó de valer.
+
+Cómo se prueba la equivalencia (no alcanza con argumentarla): enumerar el espacio de estados
+alcanzables. Para M7 se corrieron **las 343 combinaciones de 3 operaciones de UI** buscando un
+estado con `cobFiltro==='todo'` **y** filas ocultas → **0 encontrados**.
+
+Ver `tests/probe_filtro_concepto_pagos.mjs`, sección MUTATION TESTING.
