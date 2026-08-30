@@ -1,5 +1,61 @@
 # Changelog
 
+## [2026-08-30] — ISSUE-059/060/057: aislamiento entre clubes en el circuito de cobro
+
+> El 28/08 un super_admin parado en Mi Club Hípico con el club-switcher emitió un recibo con
+> `club_id` de MCH sobre 9 líneas de la reunión 9999 de **Dolores**, por $92.000. El recibo se
+> revirtió al día siguiente, pero **no era un caso borde: era el comportamiento normal del RPC**, que
+> no tenía una sola comparación de club adentro. Plan y validación en la branch `reports`:
+> `docs/diagnosticos/2026-08-29_aislamiento-club-cobros-plan.md`.
+
+- **`emitir_recibo` v1.2** — migración `20260830014105_emitir_recibo_v1_2_aislamiento_club`, aplicada
+  antes del merge para cerrar el agujero server-side primero. Dos guards con criterios distintos:
+  **guard 1 (permiso)**, que depende de la sesión y deja pasar a `service_role` y `super_admin`; y
+  **guard 2 (invariante del dato)**, que **no** depende de la sesión y exige que toda línea cuelgue
+  de una liquidación del mismo club que el recibo. Hacen falta los dos: el guard 1 solo es inerte
+  bajo `service_role`, y el guard 2 es el que ataja el recibo fantasma.
+- **El guard 2 va dos veces**: pre-chequeo que cuenta las ajenas y aborta (todo o nada, con el
+  conteo en el mensaje) y `AND EXISTS` dentro del `UPDATE` como red ante una carrera. Sólo el
+  `EXISTS` habría dejado las ajenas afuera **en silencio**, emitiendo el recibo con menos líneas —
+  el peor modo de falla cuando hay plata de por medio.
+- **Las validaciones corren antes de `fn_siguiente_recibo()`**: el número correlativo se consume
+  recién cuando la emisión ya es válida. De paso se agregó `AND d.beneficiario_tipo =
+  p_beneficiario_tipo` al `UPDATE` (v1.1 comparaba sólo el id); verificado sobre las 493 líneas de la
+  base: 0 recibos con tipo distinto al de sus líneas.
+- **ISSUE-060 — el otro extremo del mismo agujero.** `cobrosBuscar` y `cobrosDetalle` no filtraban
+  por club: con el club-switcher la pantalla de Pagos mostraba plata ajena. `liquidacion_detalle` no
+  tiene `club_id` propio, así que el club llega **por embed** `liquidaciones(club_id)` **sin
+  `!inner`** (un `!inner` habría descartado filas en silencio — GOTCHA #5), y se aplica con un helper
+  único, `cobDelClub()`, **en el listado y en el detalle**. Filtrar sólo el listado movía el agujero
+  un click más adentro: un beneficiario que entra por plata propia abría el detalle con las líneas
+  del otro club mezcladas y **tildadas**.
+- **ISSUE-057 — `emitido_por` funciona por primera vez.** Los 5 recibos de la base lo tenían en NULL.
+  El arreglo obvio (`emitido_por = auth.uid()`) **viola la FK**: apunta a `usuarios(id)`, no a
+  `auth.users`. Se resuelve el usuario de la app por `auth_user_id`. Bajo `service_role` queda NULL a
+  propósito — no se inventa un autor. Los 5 históricos no se tocan.
+- **Probe nuevo `tests/probe_aislamiento_club_cobros.mjs` — 27/27** contra el RPC real (no contra la
+  sombra de mutation testing, que ya no existe en la base). Incluye los **casos inversos** (7, 8, 11,
+  12, 13, 16), que son los que impiden que un filtro pase por ser demasiado restrictivo, y cuatro
+  asserts de restore por estado. Cada fix fue validado por mutation testing: neutralizado de a uno,
+  cada uno mata sus propios asserts.
+- **Regresión sin novedades**: `probe_recibos_emision` 3 fallos previos (liberación manual del
+  doping, v1.1), `probe_cobros_v11` 1 previo (precondición de datos de R5),
+  `probe_recibo_pie_cobrador` 56/56, `probe_reunion_es_prueba` 17/17.
+- **`probe_reunion_es_prueba` se adaptó al cambio** (`380ea72`): quedaba en 5/7 por dos roturas de
+  harness, ninguna de producto — el sandbox no extraía el helper `cobDelClub` nuevo, y el assert 4b
+  comparaba un literal exacto de una línea que ISSUE-060 modificó. Ahora pide los dos guardas por
+  separado y suma el **4c**, que verifica el filtro de club dentro de `cobrosDetalle`: cobertura que
+  antes no existía.
+- **Verificado que `club_id` está cargado en los 7 usuarios de la base** — incluida Valeria. Si
+  estuviera NULL, el guard 1 quedaría inerte para ese usuario (el guard 2 igual lo ataja).
+- **GOTCHA #79** — `recibos.emitido_por` es FK a `usuarios(id)`, no a `auth.users`. **GOTCHA #80** —
+  la RLS **no** protege una función `SECURITY DEFINER`: las policies no se evalúan adentro, así que
+  los guards van escritos en la función. El recibo fantasma pasó con RLS activa y bien configurada.
+- **Rollback**: `migrations/rollback_emitir_recibo_v1_2.sql` (vuelve a v1.1 exacta).
+- **Sin cambios en los datos**: 5 recibos, 493 líneas, **0 líneas con club distinto al de su
+  recibo**, antes y después.
+
+
 ## [2026-08-30] — ISSUE-064: el logo del club volvió a verse (roto desde el pase a sigh.com.ar)
 
 > Fede reportó "no se ve el logo" y sospechó de la migración a dominio propio. Tenía razón en la

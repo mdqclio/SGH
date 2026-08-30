@@ -149,13 +149,22 @@ function mkDocument(campos) {
       extractFn(HTML, 'function etiquetaCarreras(g)'),
       extractFn(HTML, 'async function cobCargarReunPrueba()'),
       extractFn(HTML, 'function cobVisible(l, rid)'),
+      // ISSUE-060 agregó este helper y cobrosBuscar/cobrosDetalle lo llaman. En la página vive en
+      // scope de módulo; acá hay que extraerlo o el sandbox tira `cobDelClub is not defined`.
+      extractFn(HTML, 'function cobDelClub(l)'),
       extractFn(HTML, 'async function cobrosBuscar()'),
       extractFn(HTML, 'async function cobrosDetalle(tipo, id)'),
     ].join('\n\n');
     ok('4a) el archivo trae cobVisible y cobCargarReunPrueba (el filtro está conectado)',
        src.includes('cobReunPrueba.has') && src.includes(".eq('es_prueba', true)"));
-    ok('4b) cobrosDetalle también aplica el filtro (no sólo el listado)',
-       /cobLineas = \(pag\|\|\[\]\)\.filter\(l => cobVisible\(l, ridSel\)\)/.test(HTML));
+    // El literal exacto se rompió con ISSUE-060, que antepuso `cobDelClub(l) &&`. Se pide que la
+    // asignación de cobLineas exista y que dentro del filter estén los dos guardas, en vez de una
+    // sola cadena de texto: sobrevive a que se agregue otro conjunto y verifica más que antes.
+    const mCobLineas = HTML.match(/cobLineas = \(pag\|\|\[\]\)\.filter\(([^;]*)\);/);
+    ok('4b) cobrosDetalle también aplica el filtro de reunión de prueba (no sólo el listado)',
+       !!mCobLineas && /cobVisible\(l, ridSel\)/.test(mCobLineas[1]), mCobLineas?.[1]);
+    ok('4c) y cobrosDetalle acota además por club (ISSUE-060, no sólo el listado)',
+       !!mCobLineas && /cobDelClub\(l\)/.test(mCobLineas[1]), mCobLineas?.[1]);
 
     const correr = async (ridSel, q = '') => {
       const document = mkDocument({ 'cob-q': q, 'cob-reunion': ridSel, 'cob-carrera': '' });

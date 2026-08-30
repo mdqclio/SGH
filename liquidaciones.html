@@ -839,6 +839,19 @@ async function cobCargarReunPrueba(){
 // selector. Sin rol nuevo ni parámetro de URL: elegirla es el acto explícito.
 // NULL-safe por construcción: Set.has(null) es false → una línea sin reunion_id nunca se esconde.
 function cobVisible(l, rid){ return (!!rid && cobReunPrueba.has(rid)) || !cobReunPrueba.has(l.reunion_id); }
+// ISSUE-060 — aislamiento por club del circuito de cobro. El recibo fantasma del 2026-08-28 salió
+// por acá: parado en Mi Club Hípico con el club-switcher, el tab Pagos listaba plata de Dolores.
+// `liquidacion_detalle` NO tiene club_id: cuelga de `liquidaciones.club_id`. Se trae el club por
+// EMBED y se filtra en JS. Los dos caminos descartados y por qué:
+//   · `liquidaciones!inner(club_id)` + `.eq('liquidaciones.club_id', …)`: el `!inner` vuelve el embed
+//     un INNER JOIN y las filas se caen EN SILENCIO del lado del servidor — la misma razón por la que
+//     se descartó en ISSUE-055, agravada porque acá el front no puede ni contar lo que se cayó.
+//   · dos pasos (ids de `liquidaciones` del club → `.in('liquidacion_id', ids)`): son 189 UUIDs hoy
+//     en la query string de cada tecla del buscador, y crecen con la vida del club.
+// El embed es LEFT JOIN: si el padre no vuelve (RLS de otro club, o dato roto) `club_id` queda
+// undefined y la línea NO se muestra. Falla CERRADA — con plata ajena en juego, esconder de más es
+// preferible a mostrar de más.
+function cobDelClub(l){ return l?.liquidaciones?.club_id === CLUB_ID; }
 let _cobDebounce = null;
 function cobrosBuscarDebounced(){ clearTimeout(_cobDebounce); _cobDebounce=setTimeout(cobrosBuscar, 300); }
 
@@ -910,7 +923,7 @@ async function cobrosBuscar(){
   }
   // líneas pagables (SOLO impago), persona (no club), sin recibo. Scope opcional por reunión.
   let qy = sb.from('liquidacion_detalle')
-    .select('beneficiario_tipo,beneficiario_id,monto_neto,reunion_id,inscripcion_id,carrera_id,descripcion,concepto_tipo')
+    .select('beneficiario_tipo,beneficiario_id,monto_neto,reunion_id,inscripcion_id,carrera_id,descripcion,concepto_tipo,liquidaciones(club_id)')
     .eq('estado_linea','impago').neq('beneficiario_tipo','club').is('recibo_id', null);
   if (rid) qy = qy.eq('reunion_id', rid);
   const { data, error } = await qy;
@@ -930,7 +943,11 @@ async function cobrosBuscar(){
   // premio/bono que quedaron sin inscripción. Se prueba inscripción primero y carrera_id de
   // respaldo. El incentivo de jockey no tiene ninguno de los dos y eso es correcto: es por
   // reunión, no por carrera — se rotula en la tarjeta, no se deja en blanco.
-  const lineas = (data||[]).filter(l => (!inscFiltro || inscFiltro.has(l.inscripcion_id))
+  // ISSUE-060 — el club va PRIMERO: nada de otro hipódromo llega ni siquiera a agruparse.
+  const ajenas = (data||[]).filter(l => !cobDelClub(l)).length;
+  if (ajenas) console.warn(`[cobrosBuscar] ${ajenas} línea(s) de otro club descartadas (ISSUE-060)`);
+  const lineas = (data||[]).filter(l => cobDelClub(l)
+                                     && (!inscFiltro || inscFiltro.has(l.inscripcion_id))
                                      && cobVisible(l, rid));
   // ═══ CACHE MAPAS CARRERA — INICIO (el probe extrae este bloque por estas anclas) ═══
   // Se pide sólo lo que falta: el universo de líneas puede crecer dentro de la misma reunión
@@ -995,10 +1012,10 @@ async function cobrosDetalle(tipo, id){
   // pagables = SOLO impago; retenidas aparte
   const [{ data: pag, error: ePag }, { data: ret }, { data: apos }] = await Promise.all([
     sb.from('liquidacion_detalle')
-      .select('id,concepto,descripcion,concepto_tipo,beneficiario_tipo,monto_neto,posicion,reunion_id,inscripcion_id,carrera_id')
+      .select('id,concepto,descripcion,concepto_tipo,beneficiario_tipo,monto_neto,posicion,reunion_id,inscripcion_id,carrera_id,liquidaciones(club_id)')
       .eq('beneficiario_tipo',tipo).eq('beneficiario_id',id).is('recibo_id',null).eq('estado_linea','impago'),
     sb.from('liquidacion_detalle')
-      .select('id,concepto,descripcion,concepto_tipo,beneficiario_tipo,monto_neto,posicion,reunion_id,inscripcion_id,carrera_id,fecha_liberacion')
+      .select('id,concepto,descripcion,concepto_tipo,beneficiario_tipo,monto_neto,posicion,reunion_id,inscripcion_id,carrera_id,fecha_liberacion,liquidaciones(club_id)')
       .eq('beneficiario_tipo',tipo).eq('beneficiario_id',id).is('recibo_id',null).eq('estado_linea','retenido'),
     // ISSUE-028 v1.1 — apoderados vigentes del beneficiario (read-only, solo display).
     sb.from('apoderados')
@@ -1009,8 +1026,12 @@ async function cobrosDetalle(tipo, id){
   if (ePag) { toast(ePag.message,'error'); return; }
   const apoderados = apos||[];
   cobApoderados = apoderados;   // los reusa el modal de cobrador al emitir
-  cobLineas = (pag||[]).filter(l => cobVisible(l, ridSel));
-  const retLineas = (ret||[]).filter(l => cobVisible(l, ridSel));
+  // ISSUE-060 — el filtro de club se repite acá por la misma razón que el de sandbox: cobrosDetalle
+  // busca sólo por beneficiario_id, sin acotar por club ni por reunión. Filtrar únicamente el
+  // listado movía el agujero un click más adentro (lección de ISSUE-055): un beneficiario que entra
+  // a la lista por plata propia abría el detalle con las líneas del otro club mezcladas y TILDADAS.
+  cobLineas = (pag||[]).filter(l => cobDelClub(l) && cobVisible(l, ridSel));
+  const retLineas = (ret||[]).filter(l => cobDelClub(l) && cobVisible(l, ridSel));
   // enriquecer: fecha de reunión + caballo/carrera (via inscripcion → carreras + spcs)
   const all = [...cobLineas, ...retLineas];
   const reunIds=[...new Set(all.map(l=>l.reunion_id).filter(Boolean))];
