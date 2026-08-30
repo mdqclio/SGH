@@ -1,10 +1,10 @@
 # Changelog
 
-## [2026-08-30] — ISSUE-056 segunda entrega: la UI de anulación (SIN MERGEAR)
+## [2026-08-30] — ISSUE-056 CERRADO: la UI de anulación (merge `0a3a2ac`)
 
-> Rama `feat/ui-anular-recibo`. El RPC ya estaba vivo (`34f6e83`); lo que faltaba era el botón.
-> Plan y decisiones en la branch `reports`:
-> `docs/diagnosticos/2026-08-30_issue-056-ui-anulacion-plan.md`.
+> El RPC ya estaba vivo (`34f6e83`); lo que faltaba era el botón. Con este merge **ISSUE-056 queda
+> cerrado**: anular un recibo dejó de requerir SQL a mano sobre producción. Plan y decisiones en la
+> branch `reports`: `docs/diagnosticos/2026-08-30_issue-056-ui-anulacion-plan.md`.
 
 - **El punto de anclaje que el plan daba por existente no existía.** No hay bloque post-emisión ni
   botón "Imprimir": `imprimirReciboCobro` escribe en `#recibo-print` (`display:none` fuera de
@@ -38,6 +38,16 @@
   `cobrosConfirmarEmision` a `cobrosRenderRecibo`, así que los harness que las extraen tienen que
   llevarse también los helpers. Sin eso reventaban con `is not defined` — que es exactamente lo que
   el patrón "el probe corre el archivo cambiado" tiene que hacer notar.
+- **Verificado en producción**: `md5sum` de `liquidaciones.html` coincide entre el working tree,
+  `git show 0a3a2ac:` y lo que sirve `https://sigh.com.ar`
+  (`0189ecbe749cde1bf4cfa0528162f329`), y el probe corrido **contra el HTML servido** da 26/26.
+- **GOTCHAS #81 y #82**, los dos salidos del mutation testing de esta entrega. **#81 — un assert de
+  UI que pasa igual sin la UI está midiendo el servidor**: cuando cliente y servidor validan lo
+  mismo (que es lo correcto, GOTCHA #80), el assert de la capa de arriba no puede verificarse por el
+  resultado final, porque la de abajo produce el mismo resultado; hay que asserter sobre la
+  frontera, la llamada que no sale. **#82 — `\b` no separa `U4` de `U4b`**: `4` y `b` son los dos
+  `\w`, así que no hay borde, y el runner reportó 2 mutantes vivos que en realidad morían. Vale para
+  cualquier identificador con sufijo alfanumérico: rótulos de assert, `ISSUE-05` vs `ISSUE-056`.
 - **Corrección de instrucciones viejas: la reunión 9999 NO se borra.** La decisión se revirtió el
   2026-08-29 —es el único sandbox seguro, y en vez de borrarla se la marcó con `reuniones.es_prueba`
   y se la filtró del buscador de Pagos— pero quedaban **9 lugares** diciendo lo contrario, `CLAUDE.md`
