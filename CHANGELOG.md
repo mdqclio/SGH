@@ -1,5 +1,65 @@
 # Changelog
 
+## [2026-08-30] — ISSUE-065 cerrado + ISSUE-067 opción 1 (merges `ceccda2` y `ea92795`)
+
+> Dos agujeros del circuito de pagos, en el orden equivocado y corregido a mitad de camino: se fue a
+> arreglar el privilegio que nunca se usó y apareció el botón que sí se puede apretar.
+
+### `recibos`: el DELETE revocado (ISSUE-065 · merge `ceccda2`)
+
+- Un usuario autenticado podía hacer `DELETE /rest/v1/recibos?id=eq.<uuid>` y **saltear
+  `anular_recibo`**. Mientras estuvo abierto, todo el circuito de anulación era opcional: había un
+  camino más corto que no dejaba el rastro que el circuito existe para dejar.
+- **Dos capas**: `DROP POLICY recibos_delete` (la RLS rechaza, pero **en silencio** — 204 con 0
+  filas) + `REVOKE DELETE … FROM authenticated, anon` (el rechazo pasa a ser **42501**). Se testean
+  por separado: sin el segundo assert, media revocación se leería como revocación completa.
+- **Ni siquiera para `super_admin`**: `anular_recibo` ya tiene esa excepción pasados los 5 días, y lo
+  único que agrega el DELETE es destruir el rastro. Se revisó caso por caso: ninguno queda sin salida.
+- **Nunca se había usado desde una sesión de usuario** — los 387 DELETE de `auditoria` tienen
+  `usuario_id = NULL` (service_role). Pero el 2026-06-09 se borraron **6 recibos reales de Dolores
+  por \$570.649,99** en una sola transacción, por consola. El precedente existía.
+- Probe `tests/probe_recibos_delete_revocado.mjs` — **17/17**. Antes de aplicar daba 13/17, y esos 4
+  rojos **eran** la demostración del agujero: el mutation test salió gratis, porque la base sin
+  revocar es la revocación neutralizada.
+- Matiz que corrigió la premisa: **`recibos` sí tiene trigger de auditoría**, así que borrar deja
+  `datos_antes` con la fila entera. Lo que se pierde son **las líneas** — `liquidacion_detalle` no
+  tiene trigger.
+
+### `liquidaciones`: el botón que borraba plata cobrada (ISSUE-067 opción 1 · merge `ea92795`)
+
+- El 🗑️ se escondía con `l.estado !== 'pagada'` — el estado de la **cabecera**. Pero las **177**
+  liquidaciones con líneas comprometidas están **todas en `borrador`**, así que el botón estaba
+  visible para las **346 líneas comprometidas** del sistema: **\$23.023.740,85, el 70% de las
+  líneas**. Y `eliminarLiq` borra el detalle con su propia sentencia, así que se las llevaba puestas
+  **sin dejar rastro**.
+- **`comprometidasDe(l)` cuenta las dos formas de comprometida** (`recibo_id` **o**
+  `estado_linea='pagado'`), sobre el detalle que `loadLiquidaciones` ya trae embebido — sin consulta
+  extra. Contar sólo la primera daba 8 líneas en vez de 346 (**GOTCHA #88**).
+- **Badge `🔒 N cobrada(s)` en lugar del botón**, con el motivo en el `title`: un botón ausente deja
+  al operador buscándolo; el candado dice qué pasa y adónde ir.
+- **Re-chequeo contra la base** antes de borrar: entre el render y el click pudo emitirse un recibo
+  desde el tab Pagos, que ahora es una solapa aparte y por diseño no refresca ésta.
+- **El error del primer `delete` ya no se ignora.** Antes sólo se miraba el de la cabecera, así que
+  un rechazo en el borrado del detalle se perdía y el usuario veía *"Liquidación eliminada"* sobre un
+  borrado que no ocurrió. **Sin esto, el trigger de la opción 3 rechazaría el borrado y la UI mentiría
+  igual** — por eso fue primero.
+- Probe `tests/probe_no_borrar_liq_cobrada.mjs` — **19/19**, y 19/19 contra el HTML servido por
+  `sigh.com.ar`. **8 mutantes, todos mueren.**
+- **ISSUE-067 sigue abierto**: esto es UI y un `curl` lo saltea (GOTCHA #80). Falta el trigger
+  `BEFORE DELETE` con `WHEN` y la auditoría acotada.
+
+### Lecciones
+
+- **GOTCHA #88** — "plata comprometida" no es `recibo_id IS NOT NULL`. El mismo error apareció dos
+  veces en dos días: primero en la medición (\$1.100.000 en vez de \$23.023.740,85) y después en los
+  asserts del probe, donde el mutante que rompía el guard **sobrevivió**.
+- **GOTCHA #86, otra vez.** Dos capas que hacen lo mismo hacen que cada mutante individual sobreviva.
+  Pasó el 29 con el post-filtro de club tapando la falta del `.eq`, y volvió a pasar acá con el
+  re-chequeo del servidor tapando el guard del render. Se arregló igual: **un observable por capa**.
+- **ISSUE-068** nuevo: las policies de DELETE de `liquidaciones` / `liquidacion_detalle`. A
+  diferencia de `recibos`, ahí **sí hay borrado legítimo desde la app** (el motor, en cada
+  recálculo), así que no se puede revocar sin más.
+
 ## [2026-08-30] — Historial de recibos + `anular_recibo` v2 (merge `82484e5`)
 
 > La opción B de ISSUE-056, pedida tres veces: Fede el 27/08 (*"si vas al histórico de esa persona…

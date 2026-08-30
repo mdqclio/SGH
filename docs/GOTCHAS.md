@@ -965,3 +965,75 @@ FROM information_schema.columns WHERE is_generated='ALWAYS' ORDER BY 1,2;
 ```
 
 Ver `migrations/fix_seeds_recibos_9001_9002.sql`.
+
+---
+
+## 88. "Plata comprometida" NO es `recibo_id IS NOT NULL` — el saldado administrativo queda afuera (2026-08-30)
+
+**El mismo error, dos veces en dos días, en dos capas distintas.** Por eso está acá.
+
+Una línea de `liquidacion_detalle` está comprometida —hay plata que ya se movió— de **dos** formas,
+y sólo una tiene recibo:
+
+```sql
+recibo_id IS NOT NULL         -- cobrada con recibo emitido
+estado_linea = 'pagado'       -- SALDADO ADMINISTRATIVO, sin recibo (GOTCHA #74)
+```
+
+La segunda es el caso mayoritario. Medido el 2026-08-30 sobre las 493 líneas del sistema:
+
+| criterio | líneas | plata |
+|---|---|---|
+| `recibo_id IS NOT NULL` | **8** | \$1.100.000 |
+| `recibo_id IS NOT NULL OR estado_linea = 'pagado'` | **346** | **\$23.023.740,85** |
+
+**Contar sólo por recibo pierde el 97,7% de las líneas y el 95,2% del dinero.**
+
+### Las dos veces que mordió
+
+**1. En una medición de exposición.** Al reportar ISSUE-067 se publicó "\$1.100.000 borrables con un
+click". El número real era **\$23.023.740,85** — veinte veces más. La conclusión (*"hay que arreglar
+esto ya"*) no cambiaba, pero la magnitud sí, y era la magnitud lo que decidía la prioridad frente a
+ISSUE-065.
+
+**2. En los asserts de un probe.** El guard de UI se escribió bien —contaba las dos— pero el mutante
+que lo rompía a `recibo_id` solo **sobrevivió**, porque los asserts que debían atraparlo probaban la
+*otra* capa (el re-chequeo contra la base, que también contaba las dos). Hizo falta un assert del
+render, solo, para el caso `pagado`-sin-recibo:
+
+```javascript
+ok('U1e) el RENDER también tapa el saldado administrativo (pagado SIN recibo)',
+   !tieneBoton(liqB.id) && badgeDe(liqB.id) === '1 cobrada(s)', …);
+```
+
+### La regla
+
+**Cualquier consulta, guard, assert o informe que hable de plata comprometida usa las dos
+condiciones.** En SQL:
+
+```sql
+WHERE ld.recibo_id IS NOT NULL OR ld.estado_linea = 'pagado'
+```
+
+En PostgREST (ojo: `.not.is.null` dentro del `.or()`, no `.not()` encadenado, que sería un AND):
+
+```javascript
+.or('recibo_id.not.is.null,estado_linea.eq.pagado')
+```
+
+En JS sobre filas ya traídas:
+
+```javascript
+d => d.recibo_id != null || d.estado_linea === 'pagado'
+```
+
+### Por qué se olvida
+
+Porque `recibo_id` es el que se ve. El circuito de recibos —emitir, anular, historial— gira alrededor
+de esa columna, y `estado_linea='pagado'` sin recibo es el caso *raro* al leer el código… y el caso
+*normal* al mirar los datos. La intuición y la base dicen cosas distintas.
+
+Corolario para probes: **una fixture de "línea comprometida" tiene que existir en las dos variantes.**
+Con una sola, la mitad del guard queda sin probar y el mutante correspondiente sobrevive.
+
+Ver `tests/probe_no_borrar_liq_cobrada.mjs` (fixtures `liqA` y `liqB`) y GOTCHA #74.
