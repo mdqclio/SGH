@@ -327,6 +327,21 @@ salidas de queries, `git status`, `git log`, los diffs, y cualquier cosa pedida 
 - La respuesta en el chat es UNA línea: la ruta del archivo. Nada más.
   Ni resumen, ni conclusión, ni recomendaciones, ni "¿querés que...?".
 - Si algo no está en el archivo, no existe.
+- **El archivo no cuenta como entregado hasta que está pusheado a `origin`.** Un commit
+  local es invisible: la ruta da 404 y el informe, para mí, no existe. Una ruta que no
+  puedo leer es lo mismo que no tener informe.
+- **Antes de pasarme la ruta, verificar con `git ls-remote` que ese commit está en
+  `origin`** — no alcanza con que `git push` no haya tirado error:
+
+  ```bash
+  git push -u origin reports
+  git ls-remote origin reports          # el SHA tiene que ser el de HEAD local
+  git rev-parse HEAD                    # y coincidir con este
+  ```
+
+  La verificación va también en el archivo, como cualquier otra salida cruda.
+- Lo mismo vale para las ramas de trabajo (`feat/`, `fix/`, `chore/`): si te paso una rama
+  como referencia de algo que tengo que leer, pushearla primero.
 - No mergear a `main` sin OK explícito.
 
 ---
