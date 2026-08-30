@@ -739,12 +739,26 @@ pusheado, sin mergear.
 
 # VERIFICACIÓN DE PUBLICACIÓN
 
+Commit del plan: `d31dfb3a82826df047b5de15e7c297a41b1a316c` en `reports`.
+
 ```
 $ git push -u origin reports
+To github.com:mdqclio/SGH.git
+   1b824a4..d31dfb3  reports -> reports
+branch 'reports' set up to track 'origin/reports'.
+
 $ git ls-remote origin reports
-<SHA>	refs/heads/reports
+d31dfb3a82826df047b5de15e7c297a41b1a316c	refs/heads/reports
+
 $ git rev-parse HEAD
-<SHA>
+d31dfb3a82826df047b5de15e7c297a41b1a316c
+
+$ curl -s -o /dev/null -w "HTTP %{http_code} · %{size_download} bytes\n" \
+    "https://raw.githubusercontent.com/mdqclio/SGH/reports/docs/diagnosticos/2026-08-30_plan-filtro-concepto-pagos.md"
+HTTP 200 · 44922 bytes
 ```
 
-Salida real abajo — se completa al pushear.
+El SHA de `git ls-remote` coincide con el de `git rev-parse HEAD`, y el archivo se sirve por raw
+con 200. El commit está en `origin`.
+
+*(Esta sección se agregó en un commit posterior — su propio SHA queda en el `git log` de la rama.)*
