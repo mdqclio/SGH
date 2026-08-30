@@ -1,5 +1,41 @@
 # Changelog
 
+## [2026-08-30] — ISSUE-064: el logo del club volvió a verse (roto desde el pase a sigh.com.ar)
+
+> Fede reportó "no se ve el logo" y sospechó de la migración a dominio propio. Tenía razón en la
+> causa y no en el mecanismo: no era un 404, era CSP. Diagnóstico completo en la branch `reports`:
+> `docs/diagnosticos/2026-08-30_logo-roto-dominio.md` y `…_logo-fix-aplicado.md`.
+
+- **La URL vieja no estaba caída.** `clubs.logo_url` de Dolores apuntaba a
+  `https://mdqclio.github.io/SGH/logo-dolores-verde.png`, que respondía `301 → sigh.com.ar` y la
+  imagen `200`. Por `curl` todo daba verde mientras el logo estaba roto.
+- **Lo que fallaba es que el navegador nunca emitía el pedido.** Las 30 páginas llevan `img-src
+  'self' data: blob: https://*.supabase.co https://raw.githubusercontent.com`. Con el sitio en
+  `mdqclio.github.io/SGH/`, ese host **era** `'self'`; desde el pase a `sigh.com.ar` dejó de serlo y
+  no está en la allowlist, así que la CSP cancela el pedido **antes** de seguir el 301.
+- **Fix: un `UPDATE` de una fila** — `clubs.logo_url` de DOL a
+  `https://sigh.com.ar/logo-dolores-verde.png`. **0 archivos servidos modificados**, así que no
+  dependió del deploy: quedó activo al instante. Los otros dos clubes seguían en NULL y quedaron así.
+- **Destrabó 9 pantallas/documentos** de una: sidebar del dashboard, carta de llamados, programa,
+  programa oficial B&N y color, recibo de Pagos, PDF de inscriptos, PDF de ratificación y el preview
+  de Admin. El del recibo era el más silencioso — `precargarLogo()` tiene timeout de 1000 ms y
+  `onerror` disparaba al instante, así que salía sin logo, sin error y sin demora.
+- **No se tocó la CSP.** Agregar el host viejo a `img-src` habría sido resolverlo al revés.
+- **Se verificó que `logo_url` no se consume fuera del navegador** antes de decidir el formato de la
+  URL: `reunion-json` no lee `clubs` (sólo `hipodromos(id, nombre)`), y la columna no aparece en
+  ninguna vista, función ni Edge Function. Se mantuvo la URL absoluta por decisión explícita.
+- **Limpieza del mismo defecto en el repo**: defaults de `invite-user/index.ts` (`REDIRECT_URL` y
+  `ALLOWED_ORIGINS`) — hoy los tapa el env, verificado por preflight CORS, pero un redeploy sin esas
+  variables mandaba los mails de invitación al host viejo; **la función no se redeployó**, es cambio
+  de fuente. Más el hint del campo de logo en `admin.html`, que ahora nombra los hosts que la CSP
+  acepta, y `README.md:13`.
+- **GOTCHA #78 — la lección de método, que vale más que el bug**: nuestra verificación de deploy es
+  `curl` + `md5sum`, o sea **ciega a toda esta clase de fallo**. Un md5 que coincide confirma que el
+  archivo llegó al CDN, no que el navegador lo pueda usar. Cuando el síntoma es "no se ve" y no "da
+  404", `curl` no es evidencia.
+- **Confirmado por Fede en navegador.**
+
+
 ## [2026-08-28] — Saldado administrativo de R6 y R8: el histórico deja de ser cobrable
 
 > R6 (20/06) y R8 (16/08) se pagaron **por fuera del sistema**, antes de que el circuito de Pagos

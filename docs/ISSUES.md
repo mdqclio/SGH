@@ -824,3 +824,62 @@ entonces deja de avisar cuando el rojo es de verdad.
 
 Módulo: `tests/probe_pagos_rol_carrera.mjs`. Estado: ⏳ **Abierto**. Prioridad: **Media** — no hay
 bug de producto detrás, pero es deuda de señal.
+
+---
+
+### ISSUE-064: El logo del club no se ve — `clubs.logo_url` apunta al host viejo y la CSP lo bloquea
+
+Reportado por **Fede el 2026-08-30** ("no se ve el logo"), con la sospecha correcta: la migración a
+dominio propio. El mecanismo, sin embargo, **no era el que parecía**.
+
+`clubs.logo_url` de Dolores valía `https://mdqclio.github.io/SGH/logo-dolores-verde.png`. Esa URL
+**seguía funcionando**: GitHub Pages mantiene un 301 al dominio nuevo preservando el path, y la
+imagen respondía 200.
+
+```
+$ curl -s -o /dev/null -w '%{http_code} redir=%{redirect_url}' https://mdqclio.github.io/SGH/logo-dolores-verde.png
+301 redir=https://sigh.com.ar/logo-dolores-verde.png
+$ curl -s -o /dev/null -w '%{http_code} sz=%{size_download}' https://sigh.com.ar/logo-dolores-verde.png
+200 sz=28957
+```
+
+Las 30 páginas llevan `img-src 'self' data: blob: https://*.supabase.co
+https://raw.githubusercontent.com` (introducida en `b890f57`). Mientras el sitio vivía en
+`mdqclio.github.io/SGH/`, ese host **era** `'self'`. Desde el pase a `sigh.com.ar` dejó de serlo y no
+está en la allowlist → **el navegador cancela el pedido antes de emitirlo** y el 301 nunca se sigue.
+`curl` no tiene CSP: sigue el redirect y devuelve la imagen. **No era un 404, era CSP.**
+
+Afectaba 9 pantallas/documentos, todos por el mismo dato único: sidebar de `index.html`, carta de
+llamados, `programa.html`, programa oficial B&N y color, recibo de Pagos, PDF de inscriptos, PDF de
+ratificación y el preview de `admin.html`. El más silencioso era el recibo: `precargarLogo()`
+(`liquidaciones.html:666-672`) espera `onload`/`onerror` con timeout de 1000 ms, así que con la CSP
+bloqueando disparaba `onerror` al instante y el recibo salía sin logo, sin error y sin demora.
+
+**Fix aplicado (2026-08-30)** — un `UPDATE` de una fila:
+
+```sql
+UPDATE clubs SET logo_url = 'https://sigh.com.ar/logo-dolores-verde.png'
+WHERE id = '0649e9c5-9e87-4aad-842f-101458e6b33c';
+```
+
+Los otros dos clubes tenían `logo_url` NULL y quedaron así. **No se tocó la CSP**: agregar
+`mdqclio.github.io` a `img-src` habría sido resolver el problema al revés.
+
+Se verificó que `logo_url` no se consume fuera del navegador antes de descartar la ruta relativa:
+`reunion-json` no lee `clubs` (sólo `hipodromos(id, nombre)`), y la columna no aparece en ninguna
+vista, función ni otro Edge Function. La relativa sería viable e inmune a un futuro cambio de
+dominio; se mantuvo la absoluta por decisión explícita. Costo de cambiarla algún día: `admin.html`
+declara el campo como `<input type="url">`, que rechaza valores relativos.
+
+En el mismo trabajo se limpió lo que quedaba apuntando al host viejo: los defaults de
+`invite-user/index.ts` (`REDIRECT_URL` y `ALLOWED_ORIGINS` — hoy los tapa el env, verificado por
+preflight CORS, pero un redeploy sin esas variables mandaba los mails de invitación al host viejo),
+el hint del campo de logo en `admin.html` (ahora dice qué hosts acepta la CSP, para que San Francisco
+no choque con lo mismo) y `README.md:13`.
+
+**Confirmado por Fede en navegador el 2026-08-30**: el logo se ve.
+
+Módulo: dato en `clubs` + `admin.html` + `supabase/functions/invite-user/index.ts`.
+Diagnósticos: `docs/diagnosticos/2026-08-30_logo-roto-dominio.md` y `…_logo-fix-aplicado.md` (branch
+`reports`). Lección de método: **GOTCHA #78**.
+Estado: ✅ **RESUELTO** (2026-08-30).
