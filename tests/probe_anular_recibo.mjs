@@ -413,8 +413,12 @@ function mkDocument(campos) {
       const { error } = await sb.auth.admin.deleteUser(id);
       if (error) console.error('  ⚠️  auth.users: ' + error.message);
     }
-    // El probe emite contra el club B (Mi Club Hípico) a propósito, para no correr el
-    // correlativo de Dolores. Igual se devuelven las dos secuencias a donde estaban.
+    // El grueso de los recibos sale contra el club B (Mi Club Hípico) para no mover el
+    // correlativo de Dolores, PERO el fixture detClubA emite uno contra Dolores: el candado
+    // de club (P6/P7) necesita un recibo ajeno de verdad para verificar que un usuario del
+    // club B no lo puede anular. O sea: el probe toca las DOS secuencias, y por eso las
+    // snapshotea y las devuelve a las dos. No decir acá que "sólo emite contra el club B":
+    // era falso y el que lo leyera iba a confiar.
     for (const [c, n] of Object.entries(secuencias)) {
       if (n === null) await sb.from('club_secuencias').delete().eq('club_id', c).eq('tipo', 'recibo');
       else await sb.from('club_secuencias').update({ ultimo_numero: n }).eq('club_id', c).eq('tipo', 'recibo');
