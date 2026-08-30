@@ -56,8 +56,12 @@ const T0 = new Date(Date.now() - 5000).toISOString();
 function extractFn(src, firma) {
   const i = src.indexOf(firma);
   if (i < 0) throw new Error(`no encontré: ${firma}`);
+  // El scan arranca en la llave FINAL de la firma cuando el ancla la incluye. Con
+  // `async function cobrosDetalle(tipo, id, opts = {}){` hay un `{}` en la lista de parámetros:
+  // arrancar por el primer `{` devolvía la firma sola, truncada. (2026-08-30)
   let d = 0;
-  for (let k = src.indexOf('{', i); k < src.length; k++) {
+  const desde = firma.endsWith('{') ? i + firma.length - 1 : src.indexOf('{', i);
+  for (let k = desde; k < src.length; k++) {
     if (src[k] === '{') d++;
     else if (src[k] === '}') { d--; if (d === 0) return src.slice(i, k + 1); }
   }
@@ -244,24 +248,40 @@ function mkDocument(campos) {
     ok('P4c) el conteo total de recibos no bajó (anular no es borrar)',
        nRecDespues >= nRecAntes, `antes=${nRecAntes} después=${nRecDespues}`);
 
-    // ── P4d · el jsonb con los ids de las líneas ───────────────────────────
+    // ── P4d · el jsonb con la FOTO de las líneas ───────────────────────────
+    // anular_recibo v2 (2026-08-30) guarda `jsonb_agg(to_jsonb(d))`: la fila ENTERA, no el id
+    // suelto. El motivo es que la reconstrucción por id deja de ser fiel si alguien recalcula la
+    // reunión después de anular — el monto_neto de la línea cambia y el detalle del recibo anulado
+    // deja de coincidir con el papel. Con la foto, el importe queda congelado.
     phase = 'P4d';
-    ok('P4d) lineas_anuladas guardó los ids EXACTOS que tenía el recibo',
-       JSON.stringify(rSimpleDB?.lineas_anuladas) === JSON.stringify([detSimple.id]),
-       JSON.stringify(rSimpleDB?.lineas_anuladas));
+    const fotoSimple = rSimpleDB?.lineas_anuladas;
+    ok('P4d) lineas_anuladas guardó la FOTO de la línea EXACTA que tenía el recibo',
+       Array.isArray(fotoSimple) && fotoSimple.length === 1
+       && typeof fotoSimple[0] === 'object' && fotoSimple[0].id === detSimple.id,
+       JSON.stringify(fotoSimple?.map?.(l => l?.id)));
+    ok('P4d2) y la foto congela el importe y el estado que la línea tenía al anularse',
+       Number(fotoSimple?.[0]?.monto_neto) === Number(detSimple.monto_neto)
+       && fotoSimple?.[0]?.estado_linea === 'pagado'
+       && fotoSimple?.[0]?.recibo_id === recSimple.id,
+       `monto=${fotoSimple?.[0]?.monto_neto} estado=${fotoSimple?.[0]?.estado_linea}`);
     // un recibo de 2 líneas: que no guarde sólo la primera
     const recDos = reg((await emitir(sesB.cli, CLUB_B, BENEF_B, [detViejo.id, detPasada.id])).data);
     let idsEsperados = [detViejo.id, detPasada.id].sort();
     if (recDos?.id) {
       await anular(sesB.cli, recDos.id, 'probe 056 — dos líneas');
       const rDosDB = await recibo(recDos.id);
-      const guardados = [...(rDosDB?.lineas_anuladas || [])].sort();
+      const guardados = [...(rDosDB?.lineas_anuladas || [])].map(l => l?.id).sort();
       ok('P4e) con 2 líneas guarda las DOS, no sólo la primera',
          JSON.stringify(guardados) === JSON.stringify(idsEsperados),
          JSON.stringify(guardados));
       ok('P4f) el jsonb permite reconstruir el recibo: las líneas existen y ya no lo apuntan',
          (await Promise.all(guardados.map(linea))).every(l => l && l.recibo_id === null),
          `${guardados.length} línea(s) reconstruidas`);
+      // La foto NO depende de la tabla: aunque la línea ya no apunte al recibo, el jsonb sigue
+      // teniendo su importe. Es la diferencia entre guardar ids y guardar la fila.
+      ok('P4g) y la foto conserva los importes aunque las líneas ya no apunten al recibo',
+         (rDosDB?.lineas_anuladas || []).every(l => Number(l?.monto_neto) > 0),
+         JSON.stringify((rDosDB?.lineas_anuladas || []).map(l => l?.monto_neto)));
     } else {
       ok('P4e) con 2 líneas guarda las DOS, no sólo la primera', false, 'no se pudo emitir');
       ok('P4f) el jsonb permite reconstruir el recibo', false, 'no se pudo emitir');
@@ -355,16 +375,33 @@ function mkDocument(campos) {
       extractFn(HTML, 'async function cobCargarReunPrueba()'),
       extractFn(HTML, 'function cobVisible(l, rid)'),
       extractFn(HTML, 'function cobDelClub(l)'),
+      // Helpers del filtro por concepto (merge 2821c7c). cobrosDetalle los llama, así que sin
+      // extraerlos el arnés tira "cobrosGruposPresentes is not defined" — el probe no prueba la
+      // función bajo test, se cae antes. (2026-08-30)
+      extractFn(HTML, 'function grupoDeTipo(t){'),
+      extractFn(HTML, 'function rotuloGrupo(grupo, tipos){'),
+      extractFn(HTML, 'function cobrosGruposPresentes(){'),
+      extractFn(HTML, 'function cobChecked(l, selPrevia, idsPrevios, filtro){'),
+      extractFn(HTML, 'function cobrosFiltrar(grupo){'),
+      extractFn(HTML, 'function cobrosRenderChips(){'),
+      extractFn(HTML, 'function cobrosTildarVisibles(valor){'),
+      extractFn(HTML, 'function cobrosRenderAvisoOculto(){'),
+      extractFn(HTML, 'function cobrosRecalc(){'),
       extractFn(HTML, 'async function cobrosBuscar()'),
       // ISSUE-056 — cobrosDetalle limpia el panel del recibo emitido; el helper viaja con ella.
       extractFn(HTML, 'function cobLimpiarPanelRecibo()'),
-      extractFn(HTML, 'async function cobrosDetalle(tipo, id)'),
+      extractFn(HTML, 'async function cobrosDetalle(tipo, id, opts = {}){'),
     ].join('\n\n');
     const document = mkDocument({ 'cob-q': '', 'cob-reunion': '', 'cob-carrera': '' });
     const api = await new AsyncFunction(
       'sb', 'CLUB_ID', 'document', 'toast', 'fmt', 'propietariosMap', 'profesionales',
       `let cobCaballerizas = [], cobInscCarrera = {}, cobNroCarrera = {}, cobMapsScope = null;
        let cobReunPrueba = null, cobBenef = null, cobApoderados = [], cobLineas = [];
+       // Estado y constantes del filtro por concepto (merge 2821c7c), que cobrosDetalle usa.
+       const GRUPO_DE_TIPO_COB = { premio:'premio', bono:'bono', actuacion:'actuacion',
+                                   incentivo_jockey:'incentivo', incentivo_entrenador:'incentivo' };
+       const ORDEN_GRUPOS_COB = ['premio','incentivo','bono','actuacion','otros'];
+       let cobFiltro = 'todo';
        let cobUltimoRecibo = null;   // ISSUE-056
        ${src}
        return { cobrosBuscar, cobrosDetalle, get lineas(){ return cobLineas; } };`
