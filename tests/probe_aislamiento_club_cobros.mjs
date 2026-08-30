@@ -80,8 +80,12 @@ const T0 = new Date(Date.now() - 5000).toISOString();
 function extractFn(src, firma) {
   const i = src.indexOf(firma);
   if (i < 0) throw new Error(`no encontré: ${firma}`);
+  // El scan arranca en la llave FINAL de la firma cuando el ancla la incluye. Con
+  // `async function cobrosDetalle(tipo, id, opts = {}){` hay un `{}` en la lista de parámetros:
+  // arrancar por el primer `{` devolvía la firma sola, truncada. (2026-08-30)
   let d = 0;
-  for (let k = src.indexOf('{', i); k < src.length; k++) {
+  const desde = firma.endsWith('{') ? i + firma.length - 1 : src.indexOf('{', i);
+  for (let k = desde; k < src.length; k++) {
     if (src[k] === '{') d++;
     else if (src[k] === '}') { d--; if (d === 0) return src.slice(i, k + 1); }
   }
@@ -207,10 +211,22 @@ function mkDocument(campos) {
       extractFn(HTML, 'async function cobCargarReunPrueba()'),
       extractFn(HTML, 'function cobVisible(l, rid)'),
       extractFn(HTML, 'function cobDelClub(l)'),
+      // Helpers del filtro por concepto (merge 2821c7c). cobrosDetalle los llama, así que sin
+      // extraerlos el arnés tira "cobrosGruposPresentes is not defined" — el probe no prueba la
+      // función bajo test, se cae antes. (2026-08-30)
+      extractFn(HTML, 'function grupoDeTipo(t){'),
+      extractFn(HTML, 'function rotuloGrupo(grupo, tipos){'),
+      extractFn(HTML, 'function cobrosGruposPresentes(){'),
+      extractFn(HTML, 'function cobChecked(l, selPrevia, idsPrevios, filtro){'),
+      extractFn(HTML, 'function cobrosFiltrar(grupo){'),
+      extractFn(HTML, 'function cobrosRenderChips(){'),
+      extractFn(HTML, 'function cobrosTildarVisibles(valor){'),
+      extractFn(HTML, 'function cobrosRenderAvisoOculto(){'),
+      extractFn(HTML, 'function cobrosRecalc(){'),
       extractFn(HTML, 'async function cobrosBuscar()'),
       // ISSUE-056 — cobrosDetalle limpia el panel del recibo emitido; el helper viaja con ella.
       extractFn(HTML, 'function cobLimpiarPanelRecibo()'),
-      extractFn(HTML, 'async function cobrosDetalle(tipo, id)'),
+      extractFn(HTML, 'async function cobrosDetalle(tipo, id, opts = {}){'),
     ].join('\n\n');
 
     ok('4a) el archivo trae cobDelClub y lo aplica en el listado y en el detalle',
@@ -233,6 +249,11 @@ function mkDocument(campos) {
         'sb', 'CLUB_ID', 'document', 'toast', 'fmt', 'escapeHtml', 'propietariosMap', 'profesionales',
         `let cobCaballerizas = [], cobInscCarrera = {}, cobNroCarrera = {}, cobMapsScope = null;
          let cobReunPrueba = null, cobBenef = null, cobApoderados = [], cobLineas = [];
+       // Estado y constantes del filtro por concepto (merge 2821c7c), que cobrosDetalle usa.
+       const GRUPO_DE_TIPO_COB = { premio:'premio', bono:'bono', actuacion:'actuacion',
+                                   incentivo_jockey:'incentivo', incentivo_entrenador:'incentivo' };
+       const ORDEN_GRUPOS_COB = ['premio','incentivo','bono','actuacion','otros'];
+       let cobFiltro = 'todo';
        let cobUltimoRecibo = null;   // ISSUE-056
          ${src}
          return { cobrosBuscar, cobrosDetalle, get lineas(){ return cobLineas; } };`

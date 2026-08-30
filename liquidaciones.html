@@ -86,6 +86,11 @@
     .cob-chip.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
     .cob-acciones { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 0 0 8px; }
     .cob-aviso-oculto td { color: var(--danger); font-weight: 600; font-size: 12px; border-top: none !important; padding-top: 0 !important; }
+    /* HISTORIAL DE RECIBOS — el anulado se atenúa, NO se esconde ni se manda al final: un anulado
+       que hay que ir a buscar a otro lado es un anulado que no se encuentra cuando hace falta. */
+    .rec-row:hover { background: rgba(201,168,76,0.06); }
+    .rec-anulado td { opacity: 0.62; }
+    .rec-anulado td:first-child { text-decoration: line-through; }
     .text-right { text-align: right; }
     .text-accent { color: var(--accent); }
     .text-danger { color: var(--danger); }
@@ -196,6 +201,7 @@
 <div class="tabs">
   <button class="tab active" onclick="switchTab('liquidaciones')">💰 Liquidaciones</button>
   <button class="tab" onclick="switchTab('cobros')">🧾 Pagos</button>
+  <button class="tab" onclick="switchTab('recibos')">📄 Recibos</button>
   <button class="tab" onclick="switchTab('resumen')">📊 Resumen</button>
   <button class="tab" onclick="switchTab('comisiones')">⚙️ Config. Comisiones</button>
 </div>
@@ -248,6 +254,35 @@
          sobrevivir al refresco que sigue a la emisión. -->
     <div id="cob-recibo-emitido"></div>
     <div id="cob-detalle"></div>
+  </div>
+</div>
+
+<!-- RECIBOS PANEL — historial de recibos (opción B de ISSUE-056).
+     Solapa PROPIA y no una segunda vista dentro de Pagos, a propósito: los paneles son
+     display:none, así que el cobro en curso (selección tildada, filtro por concepto, panel del
+     recibo emitido) SOBREVIVE INTACTO a la consulta. El caso real es Valeria pagándole a alguien
+     cuando llega otro y pregunta "¿yo ya cobré?": tiene que poder responder y volver sin perder
+     nada de lo que tenía armado. -->
+<div class="tab-panel" id="panel-recibos">
+  <div class="selector-bar">
+    <label>Buscar:</label>
+    <input id="rec-q" type="text" placeholder="N° de recibo, o nombre / apellido / DNI (beneficiario o quien retiró)…"
+           style="flex:1;min-width:260px;" oninput="recibosBuscarDebounced()">
+    <select id="rec-estado" onchange="recibosBuscar()" style="min-width:140px;">
+      <option value="">— Todos —</option>
+      <option value="emitido">Emitidos</option>
+      <option value="anulado">Anulados</option>
+    </select>
+    <button class="btn-primary" onclick="recibosBuscar()">🔍 Buscar</button>
+  </div>
+  <div class="content">
+    <p style="color:var(--muted);font-size:12px;margin-bottom:10px;">
+      Recibos emitidos por este hipódromo. Los <strong>anulados aparecen</strong>, marcados, con su
+      motivo y sus líneas. Un número solo busca por N° de recibo <em>y</em> por documento.
+      La búsqueda por quien retiró sólo encuentra recibos emitidos desde el 28/08 — antes de esa
+      fecha no se registraba.</p>
+    <div id="rec-resultados"><div class="empty-state"><div class="icon">📄</div><h3>Buscá por número o por persona</h3></div></div>
+    <div id="rec-detalle"></div>
   </div>
 </div>
 
@@ -515,11 +550,18 @@ function fmtInput(el) {
   el.value = v ? formatMonto(v) : '';
 }
 
+// OJO — este array mapea botón→panel POR POSICIÓN. Agregar una solapa obliga a tocar el array Y a
+// insertar el botón en la posición que le corresponde; si se agrega el botón y no el array, el
+// resaltado del tab activo queda corrido y no falla ruidoso: se ve mal y nada más.
+// PENDIENTE (ISSUE-066): pasar a `data-tab` en el botón, que elimina la clase de bug para siempre.
+// No se hizo acá a propósito — tocar las cuatro solapas que ya andan para agregar la quinta, a 20
+// días de la reunión, es la mejora que rompe algo.
 function switchTab(name) {
-  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',['liquidaciones','cobros','resumen','comisiones'][i]===name));
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',['liquidaciones','cobros','recibos','resumen','comisiones'][i]===name));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id===`panel-${name}`));
   if (name==='comisiones') { loadReparto(); loadComisiones(); }
   if (name==='cobros') { cobInit(); }
+  if (name==='recibos') { recibosInit(); }
   if (name==='resumen') { resumenInit(); }
 }
 
@@ -1487,7 +1529,10 @@ async function cobrosAnularConfirmar(){
   // Cuántas volvieron a RETENIDO. Sale de lineas_anuladas, que el RPC llena ANTES de soltar las
   // líneas: es el único rastro de qué contenía el recibo, porque liquidacion_detalle no tiene
   // trigger de auditoría.
-  const ids = anuladoRow?.lineas_anuladas || [];
+  // Desde anular_recibo v2 ese jsonb trae la FOTO de las filas, no los ids sueltos — por eso pasa
+  // por idsLineasAnuladas, que entiende los dos formatos. Sin eso, este `.in('id', …)` recibiría
+  // objetos y el aviso de retenidas se rompería en silencio.
+  const ids = idsLineasAnuladas(anuladoRow);
   let retenidas = 0;
   if (ids.length){
     const { data: ret, error: eRet } = await sb.from('liquidacion_detalle')
@@ -1531,10 +1576,298 @@ function rolDeLinea(l){
   return ROL_POR_BENEFICIARIO[l.beneficiario_tipo] || '';
 }
 
+// ═══════════ HISTORIAL DE RECIBOS (opción B de ISSUE-056) — ANCLAS DEL PROBE ═══════════
+// Pedido tres veces: Fede el 27/08 ("si vas al histórico de esa persona… podés buscar el recibo y
+// mostrar el recibo de quién lo firmó"), Valeria el 30/08 ("¿aparece que ya fue pagado? así me
+// queda diferenciado") y Fede otra vez el 30/08 ("que haya una manera de que sea más fácil
+// buscarlos"). El número ya existía y es correlativo: lo que faltaba no era numerar, era BUSCAR.
+//
+// La razón de ser de la vista es el caso que describe Fede: alguien "vino a decir que ya cobró".
+// Por eso los ANULADOS aparecen — un anulado que hay que ir a buscar a otro lado es un anulado que
+// no se encuentra cuando hace falta.
+
+let recResultados = [];    // recibos de la última búsqueda
+let recLineasCache = {};   // recibo_id → líneas ya resueltas (las reusa la reimpresión)
+let recUsuarios = {};      // usuarios.id → nombre_completo, para "quién anuló"
+let recAbierto = null;     // id del recibo con el detalle abierto
+// Cuántos recibos de otro club tuvo que descartar el CLIENTE en la última búsqueda. Con el
+// .eq('club_id') del servidor puesto vale siempre 0; si deja de valer 0, el aislamiento pasó a
+// depender del post-filtro y eso es un bug aunque no se filtre plata.
+let recAjenosDescartados = 0;
+let _recDebounce = null;
+
+// Normaliza `recibos.lineas_anuladas` a una lista de ids, entienda el formato que entienda.
+//   · v1 (hasta 2026-08-30): array de strings  → ["uuid", "uuid"]
+//   · v2 (desde 2026-08-30): array de objetos  → [{id, concepto, monto_neto, …}, …]
+// El fallback a v1 se mantiene aunque hoy NO exista una sola fila con el formato viejo: el código
+// de lectura no puede depender de un conteo que cambia, y un backup anterior a la migración tiene
+// que seguir leyéndose.
+function idsLineasAnuladas(rec){
+  return (rec?.lineas_anuladas || []).map(l => (typeof l === 'string' ? l : l?.id)).filter(Boolean);
+}
+
+// ¿El jsonb es la FOTO (v2) o sólo ids (v1)? Se mira el primer elemento, no un flag de versión:
+// el dato se describe solo y no hay una columna de versión que pueda quedar desincronizada.
+function esFotoAnulado(rec){
+  const a = rec?.lineas_anuladas;
+  return Array.isArray(a) && a.length > 0 && typeof a[0] === 'object' && a[0] !== null;
+}
+
+// Beneficiario del recibo. `recibos` NO tiene un `beneficiario_id` genérico como
+// liquidacion_detalle: tiene profesional_id Y propietario_id, discriminados por beneficiario_tipo.
+function recBenef(r){
+  if (r?.beneficiario_tipo === 'propietario') return { tipo:'propietario', id:r.propietario_id };
+  if (r?.beneficiario_tipo === 'profesional') return { tipo:'profesional', id:r.profesional_id };
+  return { tipo:'club', id:null };
+}
+function recNombreBenef(r){
+  const b = recBenef(r);
+  return b.tipo === 'club' ? (club?.nombre || 'Club') : nombreBenef(b.tipo, b.id);
+}
+
+// El `.or()` de PostgREST usa coma y paréntesis como SINTAXIS. Un apellido con coma tipeado en el
+// buscador (“Pérez, Juan”) parte la expresión y la consulta vuelve un error incomprensible o, peor,
+// una condición distinta de la que se quiso. Se sacan los metacaracteres antes de interpolar.
+function recSanitizar(q){ return String(q ?? '').replace(/[,()*\\]/g, ' ').trim(); }
+
+const REC_SELECT = 'id,numero_recibo,club_id,estado,beneficiario_tipo,profesional_id,propietario_id,'
+  + 'forma_pago,total_premios,total_descuentos,retencion_dgi,neto_a_cobrar,cobrador_nombre,'
+  + 'cobrador_documento,comprobante_url,emitido_at,anulado_at,anulado_por,motivo_anulacion,lineas_anuladas';
+
+function recibosInit(){
+  // A propósito NO consulta nada al abrir la solapa: el día de la reunión, cada consulta que nadie
+  // pidió es latencia que alguien espera parado. La primera búsqueda la dispara el operador.
+  if (recResultados.length || document.getElementById('rec-q')?.value) return;
+  recibosBuscar();
+}
+
+function recibosBuscarDebounced(){ clearTimeout(_recDebounce); _recDebounce=setTimeout(recibosBuscar, 300); }
+
+async function recibosBuscar(){
+  const crudo  = (document.getElementById('rec-q').value || '').trim();
+  const q      = recSanitizar(crudo);
+  const estado = document.getElementById('rec-estado')?.value || '';
+  const cont   = document.getElementById('rec-resultados');
+  document.getElementById('rec-detalle').innerHTML = '';
+  recAbierto = null;
+  cont.innerHTML = '<div class="loading-state"><div class="spinner"></div></div>';
+
+  // ISSUE-060 — el filtro de club va en TODA consulta a `recibos`, no como defensa en profundidad
+  // sino como única defensa: la policy `recibos_select` empieza con `fn_is_super_admin() OR …`, o
+  // sea que a un super_admin la RLS NO le acota por club. Y super_admin es justo el rol que usa el
+  // club-switcher para operar como si fuera un hipódromo. En la búsqueda por número el `.eq` viaja
+  // además dentro del índice uq_recibo_por_club(club_id, numero_recibo): el aislamiento no es un
+  // filtro agregado que alguien pueda olvidar, es parte de la clave de búsqueda.
+  const base = () => {
+    let qy = sb.from('recibos').select(REC_SELECT).eq('club_id', CLUB_ID);
+    if (estado) qy = qy.eq('estado', estado);
+    return qy;
+  };
+
+  let filas = [];
+  if (!q) {
+    const { data, error } = await base().order('emitido_at', { ascending:false }).limit(50);
+    if (error) { console.error('[recibosBuscar/listado]', error); toast(error.message,'error'); cont.innerHTML=''; return; }
+    filas = data || [];
+  } else {
+    // Un término de sólo dígitos es ambiguo: puede ser el N° de recibo o un DNI. Se buscan LAS DOS
+    // COSAS y se muestran juntas — nunca hay que adivinar qué quiso decir el operador.
+    // PERO no cuando es corto: un DNI tiene 7 u 8 dígitos y un N° de recibo arranca en 1, así que
+    // un numérico de menos de 6 dígitos es inequívocamente un número de recibo. Buscar además por
+    // documento traería todos los recibos de cualquiera cuyo DNI CONTENGA ese dígito — tipear "3"
+    // devolvía el recibo #3 más media lista, que es justo lo contrario de lo que pidió Fede.
+    const esNumero = /^\d+$/.test(q);
+    const soloNumero = esNumero && q.length < 6;
+    const ql = q.toLowerCase();
+    // El beneficiario se resuelve EN MEMORIA con benefSearch, que es la misma función que usa el
+    // buscador de Pagos (nombre, apellido, DNI, nombre_stud). `recibos` no guarda el nombre: guarda
+    // profesional_id / propietario_id, y los nombres ya están cargados desde init().
+    const profIds = soloNumero ? [] : Object.keys(profesionales).filter(id => benefSearch('profesional', id).includes(ql));
+    const propIds = soloNumero ? [] : Object.keys(propietariosMap).filter(id => benefSearch('propietario', id).includes(ql));
+    const terminos = [];
+    if (esNumero) terminos.push(`numero_recibo.eq.${Number(q)}`);
+    // Guarda obligatoria: PostgREST rompe con un `in.()` vacío. Sin esto, buscar un nombre que no
+    // existe tira un error de sintaxis en vez de devolver cero resultados.
+    if (profIds.length) terminos.push(`profesional_id.in.(${profIds.join(',')})`);
+    if (propIds.length) terminos.push(`propietario_id.in.(${propIds.join(',')})`);
+    // Cobrador: dos columnas de texto de la PROPIA tabla, así que son dos términos más en el mismo
+    // .or() — cero joins, cero consultas extra. Es lo que pedía Fede: "mostrar el recibo de quién
+    // lo firmó". Ojo: los recibos anteriores al 28/08 no tienen cobrador cargado.
+    if (!soloNumero) {
+      terminos.push(`cobrador_nombre.ilike.*${q}*`);
+      terminos.push(`cobrador_documento.ilike.*${q}*`);
+    }
+    const { data, error } = await base().or(terminos.join(',')).order('emitido_at', { ascending:false }).limit(100);
+    if (error) { console.error('[recibosBuscar/busqueda]', error); toast(error.message,'error'); cont.innerHTML=''; return; }
+    filas = data || [];
+  }
+
+  // Cinturón y tirantes: si alguna vez se agrega un camino de consulta que olvide el .eq de arriba,
+  // esto lo corta igual. Cuesta un filter sobre 50 filas.
+  // El contador NO es cosmético: con el .eq puesto tiene que dar SIEMPRE 0, porque el servidor no
+  // devuelve nada ajeno. Que deje de dar 0 significa que el aislamiento se está sosteniendo del
+  // lado del cliente — sigue sin filtrarse plata, pero la primera línea de defensa se rompió y hay
+  // que enterarse. Es lo único que distingue "el servidor filtra" de "el cliente tapa".
+  const ajenos = filas.filter(r => r.club_id !== CLUB_ID).length;
+  recAjenosDescartados = ajenos;
+  if (ajenos) console.warn(`[recibosBuscar] ${ajenos} recibo(s) de otro club descartados EN EL CLIENTE — el .eq('club_id') del servidor no está filtrando (ISSUE-060)`);
+  recResultados = filas.filter(r => r.club_id === CLUB_ID);
+
+  // Nombres de quién anuló. FK a usuarios(id), NO a auth.users (GOTCHA #79), y el campo es
+  // nombre_completo, NO nombre (GOTCHA #3).
+  const faltan = [...new Set(recResultados.map(r => r.anulado_por).filter(u => u && !(u in recUsuarios)))];
+  if (faltan.length){
+    const { data: us, error: eU } = await sb.from('usuarios').select('id,nombre_completo').in('id', faltan);
+    if (eU) console.error('[recibosBuscar/usuarios]', eU);
+    faltan.forEach(id => { recUsuarios[id] = null; });
+    (us||[]).forEach(u => { recUsuarios[u.id] = u.nombre_completo; });
+  }
+  recibosRenderLista();
+}
+
+function recibosRenderLista(){
+  const cont = document.getElementById('rec-resultados');
+  if (!recResultados.length){
+    cont.innerHTML = '<div class="empty-state"><div class="icon">∅</div><h3>Sin recibos para esa búsqueda</h3></div>';
+    return;
+  }
+  cont.innerHTML = `<table class="detalle-table" id="rec-tabla">
+    <thead><tr><th>N°</th><th>Fecha y hora</th><th>Beneficiario</th><th>Retiró</th><th>Forma</th><th style="text-align:right">Neto</th><th>Estado</th><th></th></tr></thead>
+    <tbody>${recResultados.map(r => {
+      const anulado = r.estado === 'anulado';
+      const f = new Date(r.emitido_at);
+      return `<tr class="rec-row${anulado?' rec-anulado':''}" data-recibo="${r.id}" data-estado="${r.estado}">
+        <td style="font-weight:600;color:var(--accent);">#${r.numero_recibo}</td>
+        <td>${f.toLocaleDateString('es-AR')} ${f.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}</td>
+        <td>${escapeHtml(recNombreBenef(r))}</td>
+        <td>${escapeHtml(r.cobrador_nombre || '—')}</td>
+        <td>${r.forma_pago === 'transferencia' ? 'transf.' : 'efectivo'}</td>
+        <td style="text-align:right">${fmt(r.neto_a_cobrar)}</td>
+        <td>${anulado ? '<span class="badge badge-anulada">ANULADO</span>' : '<span class="badge badge-pagada">EMITIDO</span>'}</td>
+        <td><button class="btn-sm btn-pagar" onclick="recibosDetalle('${r.id}')">Ver</button></td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+// Las líneas del recibo. Es la bisagra de toda la vista:
+//   · EMITIDO → el vínculo está vivo: se leen por recibo_id.
+//   · ANULADO v2 → la FOTO que guardó anular_recibo. NO se vuelve a la tabla: el monto de la línea
+//     pudo cambiar si alguien recalculó la reunión después de anular, y lo que hay que mostrar es
+//     lo que decía el papel.
+//   · ANULADO v1 (formato viejo, hoy sin filas) → sólo hay ids: se reconstruye con .in('id', …).
+//     Es una reconstrucción, no una foto, y por eso el detalle lo avisa en pantalla.
+async function recLineasDeRecibo(rec){
+  if (rec.estado === 'anulado' && esFotoAnulado(rec)) return { lineas: rec.lineas_anuladas, foto: true };
+  const sel = 'id,concepto,descripcion,concepto_tipo,beneficiario_tipo,monto_neto,posicion,'
+            + 'reunion_id,inscripcion_id,carrera_id,liquidaciones(club_id)';
+  const ids = idsLineasAnuladas(rec);
+  const { data, error } = rec.estado === 'anulado'
+    ? (ids.length ? await sb.from('liquidacion_detalle').select(sel).in('id', ids) : { data: [], error: null })
+    : await sb.from('liquidacion_detalle').select(sel).eq('recibo_id', rec.id);
+  if (error) { console.error('[recLineasDeRecibo]', error); throw error; }
+  // ISSUE-060 en el detalle: las líneas NO tienen club_id propio, viene por el embed
+  // liquidaciones(club_id) — que es exactamente el caso para el que se escribió cobDelClub.
+  // Filtrar sólo el listado movía el agujero un click más adentro (lección de ISSUE-055).
+  return { lineas: (data || []).filter(cobDelClub), foto: false };
+}
+
+async function recibosDetalle(reciboId){
+  const rec = recResultados.find(r => r.id === reciboId);
+  if (!rec) return;
+  recAbierto = reciboId;
+  const cont = document.getElementById('rec-detalle');
+  cont.innerHTML = '<div class="loading-state"><div class="spinner"></div></div>';
+  let lineas = [], foto = false;
+  try { ({ lineas, foto } = await recLineasDeRecibo(rec)); }
+  catch (e) { cont.innerHTML = ''; toast(e.message, 'error'); return; }
+  recLineasCache[reciboId] = lineas;
+
+  // Enriquecido igual que en el impreso y en cobrosDetalle: fecha de reunión + caballo + nº de
+  // carrera. Vale también para la foto: la foto guarda los ids, no los nombres.
+  const reunIds=[...new Set(lineas.map(l=>l.reunion_id).filter(Boolean))];
+  const inscIds=[...new Set(lineas.map(l=>l.inscripcion_id).filter(Boolean))];
+  const carrIds=[...new Set(lineas.map(l=>l.carrera_id).filter(Boolean))];
+  const [{data:reuns},{data:inscs},{data:carrs}] = await Promise.all([
+    reunIds.length? sb.from('reuniones').select('id,fecha,numero').in('id',reunIds):Promise.resolve({data:[]}),
+    inscIds.length? sb.from('inscripciones').select('id,spcs(nombre),carreras(numero_turno,numero_carrera_programa)').in('id',inscIds):Promise.resolve({data:[]}),
+    carrIds.length? sb.from('carreras').select('id,numero_turno,numero_carrera_programa').in('id',carrIds):Promise.resolve({data:[]}),
+  ]);
+  const reunMap=Object.fromEntries((reuns||[]).map(r=>[r.id,r]));
+  const inscMap=Object.fromEntries((inscs||[]).map(i=>[i.id,i]));
+  const carrMap=Object.fromEntries((carrs||[]).map(c=>[c.id,c]));
+  const cellFecha=l=>{const r=reunMap[l.reunion_id];return r?new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR'):'—';};
+  const cellCarrera=l=>{const ins=inscMap[l.inscripcion_id]; const d=carrMap[l.carrera_id];
+    const n = ins?.carreras?.numero_carrera_programa ?? ins?.carreras?.numero_turno
+           ?? d?.numero_carrera_programa ?? d?.numero_turno;
+    return n!=null?`C${n}`:'—';};
+  const cellCaballo=l=>inscMap[l.inscripcion_id]?.spcs?.nombre||'—';
+  const suma = lineas.reduce((s,l)=>s+(parseFloat(l.monto_neto)||0),0);
+  const anulado = rec.estado === 'anulado';
+  const fEmi = new Date(rec.emitido_at);
+
+  const bloqueAnulado = !anulado ? '' : `
+    <div class="config-card" style="margin:6px 0 14px;border:1px solid var(--danger);background:rgba(224,82,82,0.07);">
+      <div class="config-card-title" style="color:var(--danger);">⛔ ANULADO el ${rec.anulado_at ? new Date(rec.anulado_at).toLocaleDateString('es-AR')+' '+new Date(rec.anulado_at).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}) : '—'}${rec.anulado_por ? ' por '+escapeHtml(recUsuarios[rec.anulado_por] || '—') : ''}</div>
+      <div style="font-size:13px;padding:3px 0;"><strong>Motivo:</strong> ${escapeHtml(rec.motivo_anulacion || '—')}</div>
+      <div style="font-size:12px;color:var(--muted);padding:2px 0;">Las ${lineas.length} línea(s) volvieron a quedar pendientes de cobro. El número ${rec.numero_recibo} no se reutiliza.</div>
+      ${foto ? '' : `<div style="font-size:11px;color:var(--muted);padding-top:5px;">⚠ Este recibo se anuló antes de que el sistema guardara la foto de las líneas: los importes se reconstruyen desde la liquidación y pueden no coincidir con el papel si la reunión se recalculó después.</div>`}
+    </div>`;
+
+  cont.innerHTML = `
+    <div class="config-card" style="margin-top:16px;${anulado?'border-left:4px solid var(--danger);':''}">
+      <h2 style="font-size:18px;color:var(--accent);margin-bottom:6px;">Recibo N° ${rec.numero_recibo} — ${escapeHtml(recNombreBenef(rec))}</h2>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">
+        Emitido el ${fEmi.toLocaleDateString('es-AR')} a las ${fEmi.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}
+        · ${rec.forma_pago === 'transferencia' ? 'Transferencia' : 'Efectivo'}
+        · Retiró: ${escapeHtml(rec.cobrador_nombre || '—')}${rec.cobrador_documento ? ' (Doc. '+escapeHtml(rec.cobrador_documento)+')' : ''}
+        ${rec.comprobante_url ? '· Comprobante: '+escapeHtml(rec.comprobante_url) : ''}
+      </div>
+      ${bloqueAnulado}
+      <table class="detalle-table"><thead><tr><th>Fecha</th><th>Carrera</th><th>Caballo</th><th>Puesto</th><th>Rol</th><th>Concepto</th><th style="text-align:right">Neto</th></tr></thead>
+        <tbody>${lineas.map(l=>`<tr class="rec-linea" data-linea="${l.id}">
+          <td>${cellFecha(l)}</td><td>${cellCarrera(l)}</td><td>${cellCaballo(l)}</td>
+          <td>${l.posicion?l.posicion+'°':'—'}</td><td>${rolDeLinea(l)||'—'}</td><td>${escapeHtml(l.concepto||'')}</td>
+          <td style="text-align:right">${fmt(l.monto_neto)}</td></tr>`).join('')
+          || '<tr><td colspan="7" style="text-align:center;padding:14px;color:var(--muted)">Sin líneas registradas</td></tr>'}</tbody>
+        <tfoot><tr><td colspan="6">TOTAL DE LAS LÍNEAS</td><td style="text-align:right;color:var(--success)" id="rec-total">${fmt(suma)}</td></tr>
+        <tr><td colspan="6">NETO DEL RECIBO</td><td style="text-align:right;color:var(--accent)" id="rec-neto">${fmt(rec.neto_a_cobrar)}</td></tr></tfoot>
+      </table>
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <button class="btn-sm btn-aprobar" onclick="recibosReimprimir('${rec.id}')">🖨 Imprimir</button>
+      </div>
+    </div>`;
+  document.getElementById('rec-detalle').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+// Reimprimir desde el historial. Hasta ahora sólo se podía desde el panel post-emisión: si Valeria
+// cerraba la pantalla, el recibo era irrecuperable salvo por el papel — que es literalmente el
+// problema que esta vista viene a resolver.
+// Repone `cobBenef` porque imprimirReciboCobro lo usa para el "A nombre de" del encabezado, igual
+// que hace cobrosReimprimir. Y le pasa las líneas YA RESUELTAS: para un anulado salen de la foto,
+// que no está en la tabla y por lo tanto la función no podría encontrar sola.
+function recibosReimprimir(reciboId){
+  const rec = recResultados.find(r => r.id === reciboId);
+  if (!rec) return;
+  const b = recBenef(rec);
+  cobBenef = { tipo:b.tipo, id:b.id, nombre: recNombreBenef(rec) };
+  const lineas = recLineasCache[reciboId] || [];
+  imprimirReciboCobro(rec, lineas.map(l => l.id).filter(Boolean), { origen:'historial', lineas });
+}
+
 async function imprimirReciboCobro(recibo, lineaIds, opts){
-  // re-leer las líneas marcadas para el print
-  const { data: lns, error: eLns } = await sb.from('liquidacion_detalle')
-    .select('concepto,descripcion,concepto_tipo,beneficiario_tipo,monto_neto,posicion,reunion_id,inscripcion_id,carrera_id').eq('recibo_id',recibo.id);
+  // `lineaIds` estaba en la firma desde el principio y NO SE USABA: la función releía siempre por
+  // `recibo_id`, que para un recibo ANULADO es NULL — el cuerpo del impreso salía en blanco. No se
+  // notaba porque hasta ahora sólo se imprimía desde el panel post-emisión, donde el recibo recién
+  // creado siempre tiene sus líneas apuntándolo. El historial (que reimprime anulados) lo destapa.
+  // Cuando el llamador sabe qué líneas eran —y siempre lo sabe—, esa lista manda.
+  // `opts.lineas` corta antes todavía: el historial ya resolvió las filas (para un anulado salen
+  // de la FOTO en `lineas_anuladas`, no de la tabla) y no hay por qué volver a buscarlas.
+  const base = sb.from('liquidacion_detalle')
+    .select('concepto,descripcion,concepto_tipo,beneficiario_tipo,monto_neto,posicion,reunion_id,inscripcion_id,carrera_id');
+  let lns = opts?.lineas || null, eLns = null;
+  if (!lns) ({ data: lns, error: eLns } = lineaIds?.length
+    ? await base.in('id', lineaIds)
+    : await base.eq('recibo_id', recibo.id));
   if (eLns) console.error('[imprimirReciboCobro/lineas]', eLns);
   const reunIds=[...new Set((lns||[]).map(l=>l.reunion_id).filter(Boolean))];
   const inscIds=[...new Set((lns||[]).map(l=>l.inscripcion_id).filter(Boolean))];

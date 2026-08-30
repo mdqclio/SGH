@@ -1053,3 +1053,47 @@ Módulo: dato en `clubs` + `admin.html` + `supabase/functions/invite-user/index.
 Diagnósticos: `docs/diagnosticos/2026-08-30_logo-roto-dominio.md` y `…_logo-fix-aplicado.md` (branch
 `reports`). Lección de método: **GOTCHA #78**.
 Estado: ✅ **RESUELTO** (2026-08-30).
+
+---
+
+### ISSUE-066: `switchTab` mapea botón→panel por POSICIÓN en un array literal
+
+**Estado**: 🟡 ABIERTO — deuda técnica conocida, sin síntoma hoy.
+**Detectado**: 2026-08-30, al agregar la solapa 📄 Recibos (historial, opción B de ISSUE-056).
+
+`liquidaciones.html`:
+
+```javascript
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',
+    ['liquidaciones','cobros','recibos','resumen','comisiones'][i]===name));
+  …
+}
+```
+
+El resaltado del tab activo sale de cruzar el **índice del botón en el DOM** con un **array
+literal de nombres**. Las dos listas tienen que estar en el mismo orden y nada lo verifica.
+
+**Cómo falla**: alguien agrega un `<button class="tab">` y se olvida del array (o lo agrega al
+final en vez de en la posición correcta). El panel abre bien —`switchTab` lo busca por
+`id="panel-${name}"`, que es robusto— pero **el resaltado queda corrido**: se ve subrayada una
+solapa distinta de la que estás mirando. No tira error, no rompe nada funcional, y es de las cosas
+que se descubren en producción con alguien mirando la pantalla.
+
+**Arreglo**: `data-tab` en el botón y leerlo de ahí.
+
+```html
+<button class="tab" data-tab="recibos" onclick="switchTab('recibos')">📄 Recibos</button>
+```
+```javascript
+document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+```
+
+Elimina la clase de bug para siempre y saca el array.
+
+**Por qué NO se hizo ahora** (decisión explícita del 2026-08-30): tocar las cuatro solapas que ya
+andan para agregar la quinta, a 20 días de la reunión, es la mejora que rompe algo. Se agregó la
+solapa al array —cambio mínimo, una palabra— y queda anotado el refactor. Va cuando no haya una
+reunión encima.
+
+Módulo: `liquidaciones.html`. El mismo patrón conviene revisarlo en otros módulos con solapas.
