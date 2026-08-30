@@ -74,6 +74,18 @@
     .detalle-table tbody tr { border-top: 1px solid var(--border); }
     .detalle-table tbody td { padding: 9px 14px; font-size: 13px; }
     .detalle-table tfoot td { padding: 10px 14px; font-size: 13px; font-weight: 600; border-top: 2px solid var(--border); }
+    /* FILTRO POR CONCEPTO (Pagos) — ocultar filas, NUNCA sacarlas del DOM. Ver cobrosFiltrar().
+       Clase propia y no el atributo `hidden`: `[hidden]` pierde contra cualquier regla de autor
+       `tr { display: … }` que alguien agregue después, y ese modo de falla es invisible (filas que
+       tenían que estar ocultas se ven, o el operador cree que filtró y no filtró). */
+    .cob-row-oculta { display: none !important; }
+    .cob-chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 4px 0 10px; }
+    .cob-chip { background: transparent; color: var(--muted); border: 1px solid var(--border);
+                border-radius: 14px; padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .cob-chip:hover { border-color: var(--accent); color: var(--accent); }
+    .cob-chip.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+    .cob-acciones { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 0 0 8px; }
+    .cob-aviso-oculto td { color: var(--danger); font-weight: 600; font-size: 12px; border-top: none !important; padding-top: 0 !important; }
     .text-right { text-align: right; }
     .text-accent { color: var(--accent); }
     .text-danger { color: var(--danger); }
@@ -847,6 +859,11 @@ let cobLineas = [];        // líneas pagables del beneficiario seleccionado
 let cobBenef = null;       // {tipo, id, nombre}
 let cobApoderados = [];    // apoderados vigentes del beneficiario abierto (alimenta el select de cobrador)
 let cobEmitirIds = [];     // líneas tildadas al abrir el modal de cobrador
+// Filtro por tipo de concepto dentro del detalle (pedido Valeria 30/08). Es una VISTA: no forma
+// parte de la selección ni la toca. Arranca siempre en 'todo' y NO sobrevive al cambio de
+// beneficiario — mismo criterio que cobLimpiarPanelRecibo: un filtro pegajoso entre beneficiarios
+// distintos es la forma de emitir un recibo incompleto sin enterarse.
+let cobFiltro = 'todo';
 // ISSUE-056 — el último recibo emitido en esta sesión, con lo necesario para reimprimirlo y para
 // anularlo sin buscarlo. {recibo, lineaIds, origen, benef, anulado, retenidas}.
 let cobUltimoRecibo = null;
@@ -1040,7 +1057,138 @@ async function cobrosBuscar(){
     </div></div>`).join('')}</div>`;
 }
 
-async function cobrosDetalle(tipo, id){
+// ═══ FILTRO POR TIPO DE CONCEPTO — ANCLAS DEL PROBE ═══
+// Pedido de Valeria (30/08): cuando alguien viene a cobrar sólo un incentivo, hoy hay que
+// destildar las líneas de premio una por una.
+//
+// LA REGLA, y es la única que importa acá: FILTRAR OCULTA FILAS. No las saca del DOM, no las
+// re-renderiza, y no toca `checked`. Por eso cobrosEmitir() y la suma de cobrosRecalc() quedan
+// literalmente iguales que antes: leen `.cob-chk:checked`, que no sabe nada de visibilidad. Un
+// `<input>` dentro de un `<tr>` con display:none sigue en el documento y sigue matcheando
+// `:checked`. Emitir manda lo TILDADO, nunca lo visible, y no por disciplina sino porque no hay
+// forma de que sepa cuál es cuál.
+//
+// La alternativa —re-renderizar `rows` filtrando cobLineas— obliga a llevar un Set de ids
+// seleccionados en paralelo al DOM, volcarlo antes de renderizar y restaurarlo después. Esa
+// segunda copia del estado ES el bug ("filtré, tildé, saqué el filtro y se perdió"). Acá hay una
+// sola fuente de verdad de la selección: el DOM.
+
+// El eje es concepto_tipo (ENUM de 6 valores), NO el texto de `concepto`: medido el 30/08, hay 42
+// textos distintos para 'premio' ("Carrera N — P° puesto"), que es la carrera y el puesto con otro
+// nombre, y ya tienen columna propia en la tabla.
+// Los dos incentivos van en un grupo: un beneficiario es entrenador O jockey, nunca los dos, así
+// que separarlos daría siempre un chip vacío (ninguno de los 9 beneficiarios pagables tiene los
+// dos). El rótulo nombra cuál cuando hay uno solo — ver rotuloGrupo.
+// 'fondo_solidario' no está en el mapa a propósito: su beneficiario_tipo es 'club' y cobrosBuscar
+// filtra .neq('beneficiario_tipo','club'), así que nunca llega a un detalle.
+const GRUPO_DE_TIPO_COB = { premio:'premio', bono:'bono', actuacion:'actuacion',
+                            incentivo_jockey:'incentivo', incentivo_entrenador:'incentivo' };
+const ORDEN_GRUPOS_COB  = ['premio','incentivo','bono','actuacion','otros'];
+
+// Un concepto_tipo que no esté en el mapa cae en 'otros' y SIGUE VISIBLE Y TILDABLE. Si mañana se
+// agrega un valor al ENUM y nadie toca esto, la línea aparece con un rótulo feo — que es mucho
+// mejor que desaparecer de la vista. Plata que no se ve es plata que no se paga.
+function grupoDeTipo(t){ return GRUPO_DE_TIPO_COB[t] || 'otros'; }
+
+function rotuloGrupo(grupo, tipos){
+  if (grupo === 'incentivo') {
+    if (tipos.size === 1) return tipos.has('incentivo_jockey') ? 'Incentivo jockey' : 'Incentivo entrenador';
+    return 'Incentivos';
+  }
+  return { premio:'Premios', bono:'Bonos', actuacion:'Actuación', otros:'Otros' }[grupo] || grupo;
+}
+
+// Los chips se arman desde las líneas que HAY, no desde el ENUM: así no existe un chip que al
+// tocarlo deje la tabla vacía.
+function cobrosGruposPresentes(){
+  const acc = {};
+  for (const l of cobLineas){
+    const g = grupoDeTipo(l.concepto_tipo);
+    (acc[g] ||= { grupo:g, n:0, tipos:new Set() });
+    acc[g].n++; acc[g].tipos.add(l.concepto_tipo);
+  }
+  return ORDEN_GRUPOS_COB.filter(g => acc[g])
+    .map(g => ({ grupo:g, n:acc[g].n, rotulo:rotuloGrupo(g, acc[g].tipos) }));
+}
+
+// Estado inicial del tilde al renderizar una fila.
+//  · sin preservación (abrir un detalle): todo tildado, como siempre.
+//  · con preservación (habilitarLinea): la línea que YA ESTABA conserva su tilde exacto — incluido
+//    el destildado, que es justamente el trabajo que no hay que perder.
+//  · la línea NUEVA (la recién liberada) entra tildada sólo si el filtro vigente la deja a la
+//    vista. Invariante: la selección nunca gana una línea que el operador no puede ver. Pagar de
+//    más obliga a anular el recibo; pagar de menos deja la línea pendiente, que es recuperable.
+function cobChecked(l, selPrevia, idsPrevios, filtro){
+  if (!selPrevia) return true;
+  if (idsPrevios.has(l.id)) return selPrevia.has(l.id);
+  return filtro === 'todo' || grupoDeTipo(l.concepto_tipo) === filtro;
+}
+
+function cobrosFiltrar(grupo){
+  cobFiltro = grupo;
+  document.querySelectorAll('#cob-detalle tr.cob-row').forEach(tr => {
+    tr.classList.toggle('cob-row-oculta', !(grupo === 'todo' || tr.dataset.grupo === grupo));
+  });
+  cobrosRenderChips();
+  cobrosRecalc();
+}
+
+function cobrosRenderChips(){
+  const cont = document.getElementById('cob-chips');
+  const acc  = document.getElementById('cob-acciones');
+  if (!cont || !acc) return;
+  const grupos = cobrosGruposPresentes();
+  // Un solo grupo = nada que filtrar: no se dibuja el control.
+  cont.innerHTML = grupos.length < 2 ? '' :
+    [{ grupo:'todo', rotulo:'Todo', n:cobLineas.length }].concat(grupos).map(g =>
+      `<button class="cob-chip${cobFiltro === g.grupo ? ' on' : ''}" onclick="cobrosFiltrar('${g.grupo}')">${escapeHtml(g.rotulo)} (${g.n})</button>`
+    ).join('');
+  // El rótulo lleva la CANTIDAD, no un "(visibles)" genérico: es la diferencia entre leer una
+  // etiqueta y leer un número. Con filtro puesto, tildar/destildar operan sólo sobre lo visible.
+  const visibles = document.querySelectorAll('#cob-detalle tr.cob-row:not(.cob-row-oculta)').length;
+  const conFiltro = cobFiltro !== 'todo';
+  acc.innerHTML =
+      `<button class="btn-sm btn-aprobar" onclick="cobrosTildarVisibles(true)">${conFiltro ? `Tildar los ${visibles} visibles` : 'Tildar todo'}</button>`
+    + `<button class="btn-sm btn-delete" onclick="cobrosTildarVisibles(false)">${conFiltro ? `Destildar los ${visibles} visibles` : 'Destildar todo'}</button>`
+    + (conFiltro ? `<button class="btn-sm btn-pagar" onclick="cobrosTildarSoloVisibles()">Tildar sólo estos ${visibles}</button>` : '');
+}
+
+// El :not(.cob-row-oculta) es la única diferencia con un "tildar todo" común, y es la que hace que
+// la operación respete el filtro.
+function cobrosTildarVisibles(valor){
+  document.querySelectorAll('#cob-detalle tr.cob-row:not(.cob-row-oculta) .cob-chk')
+    .forEach(c => { c.checked = valor; });
+  cobrosRecalc();
+}
+
+// La frase de Valeria —"destildo los demás y tildo solamente el incentivo"— en un click. El rótulo
+// dice "sólo" porque el efecto incluye algo que pasa FUERA de la vista: destildar lo oculto.
+function cobrosTildarSoloVisibles(){
+  document.querySelectorAll('.cob-chk').forEach(c => { c.checked = false; });
+  cobrosTildarVisibles(true);
+}
+
+// Contrapeso del filtro: las filas nacen TILDADAS, así que filtrar y emitir sin más pagaría lo que
+// el operador nunca vio. El aviso es la única señal de eso antes de imprimir el recibo.
+function cobrosRenderAvisoOculto(){
+  const fila = document.getElementById('cob-aviso-row');
+  if (!fila) return;
+  const ocultas = [...document.querySelectorAll('#cob-detalle tr.cob-row.cob-row-oculta .cob-chk:checked')];
+  if (cobFiltro === 'todo' || !ocultas.length) { fila.innerHTML = ''; return; }
+  const suma = ocultas.reduce((s,c) => s + (parseFloat(c.dataset.monto) || 0), 0);
+  // "el recibo LAS INCLUYE": en presente y afirmativo. No "revisá" ni "atención" — se enuncia el
+  // hecho, que es lo que el operador necesita para decidir.
+  fila.innerHTML = `<td colspan="8">⚠ ${ocultas.length} línea(s) tildada(s) fuera del filtro · ${fmt(suma)} — el recibo LAS INCLUYE.`
+    + ` <button class="btn-sm btn-aprobar" style="margin-left:8px;" onclick="cobrosFiltrar('todo')">Ver todo</button></td>`;
+}
+
+async function cobrosDetalle(tipo, id, opts = {}){
+  // Selección y filtro vigentes, capturados ANTES de re-renderizar. Sólo habilitarLinea pide
+  // preservarlos: abrir otro detalle o volver de una anulación arrancan limpios, a propósito.
+  const preservar   = !!opts.preservar;
+  const selPrevia   = preservar ? new Set([...document.querySelectorAll('.cob-chk:checked')].map(c => c.value)) : null;
+  const idsPrevios  = preservar ? new Set(cobLineas.map(l => l.id)) : null;
+  const filtroPrevio = preservar ? cobFiltro : 'todo';
   // El panel del recibo emitido pertenece a la emisión anterior: abrir un detalle es empezar otra
   // cosa. Quien necesite que sobreviva (la anulación) lo repone después, explícitamente.
   cobLimpiarPanelRecibo();
@@ -1092,8 +1240,12 @@ async function cobrosDetalle(tipo, id){
            ?? d?.numero_carrera_programa ?? d?.numero_turno;
     return n!=null?`C${n}`:'—';};
   const cellCaballo=l=>inscMap[l.inscripcion_id]?.spcs?.nombre||'—';
+  // Un filtro que ya no existe (el beneficiario no tiene líneas de ese grupo) vuelve a 'todo':
+  // dejarlo puesto mostraría una tabla vacía sin ninguna explicación en pantalla.
+  const gruposPresentes = new Set(cobrosGruposPresentes().map(g => g.grupo));
+  cobFiltro = (filtroPrevio !== 'todo' && gruposPresentes.has(filtroPrevio)) ? filtroPrevio : 'todo';
   const total = cobLineas.reduce((s,l)=>s+(parseFloat(l.monto_neto)||0),0);
-  const rows = cobLineas.map(l=>`<tr><td><input type="checkbox" class="cob-chk" value="${l.id}" data-monto="${l.monto_neto}" checked onchange="cobrosRecalc()"></td>
+  const rows = cobLineas.map(l=>`<tr class="cob-row" data-grupo="${grupoDeTipo(l.concepto_tipo)}"><td><input type="checkbox" class="cob-chk" value="${l.id}" data-monto="${l.monto_neto}"${cobChecked(l, selPrevia, idsPrevios, cobFiltro) ? ' checked' : ''} onchange="cobrosRecalc()"></td>
       <td>${cellFecha(l)}</td><td>${cellCarrera(l)}</td><td>${cellCaballo(l)}</td><td>${l.posicion?l.posicion+'°':'—'}</td><td>${rolDeLinea(l)||'—'}</td><td>${l.concepto||''}</td>
       <td style="text-align:right">${fmt(l.monto_neto)}</td></tr>`).join('');
   const retRows = retLineas.map(l=>`<tr>
@@ -1112,9 +1264,12 @@ async function cobrosDetalle(tipo, id){
     <div class="config-card" style="margin-top:16px;">
       <h2 style="font-size:18px;color:var(--accent);margin-bottom:6px;">Pago — ${cobBenef.nombre}</h2>
       ${apoBlock}
+      <div id="cob-chips" class="cob-chips"></div>
+      <div id="cob-acciones" class="cob-acciones"></div>
       <table class="detalle-table"><thead><tr><th></th><th>Fecha</th><th>Carrera</th><th>Caballo</th><th>Puesto</th><th>Rol</th><th>Concepto</th><th style="text-align:right">Neto</th></tr></thead>
         <tbody>${rows||'<tr><td colspan="8" style="text-align:center;padding:14px;color:var(--muted)">Sin líneas pagables</td></tr>'}</tbody>
-        <tfoot><tr><td colspan="7">TOTAL SELECCIONADO</td><td style="text-align:right;color:var(--success)" id="cob-total">${fmt(total)}</td></tr></tfoot>
+        <tfoot><tr><td colspan="7">TOTAL SELECCIONADO</td><td style="text-align:right;color:var(--success)" id="cob-total">${fmt(total)}</td></tr>
+        <tr id="cob-aviso-row" class="cob-aviso-oculto"></tr></tfoot>
       </table>
       ${retLineas.length?`<h3 style="font-size:14px;color:var(--danger);margin:16px 0 6px;">🔒 Retenido por doping — habilitar para poder pagar</h3>
       <table class="detalle-table"><thead><tr><th>Fecha</th><th>Carrera</th><th>Caballo</th><th>Puesto</th><th>Rol</th><th>Concepto</th><th style="text-align:right">Neto</th><th>Liberación</th><th></th></tr></thead>
@@ -1123,20 +1278,39 @@ async function cobrosDetalle(tipo, id){
         <button class="btn-primary" onclick="cobrosEmitir()">🧾 Emitir recibo</button>
       </div>
     </div>`;
+  // El filtro se aplica DESPUÉS de inyectar el HTML: cobrosFiltrar trabaja sobre el DOM ya puesto.
+  // Es también lo que pinta los chips, los rótulos de las acciones y el aviso de tildadas ocultas.
+  cobrosFiltrar(cobFiltro);
   document.getElementById('cob-detalle').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
+// La suma NO cambió y no tiene que cambiar: sigue leyendo `.cob-chk:checked`, que ignora la
+// visibilidad. El total refleja lo TILDADO aunque esté oculto — el rótulo dice "SELECCIONADO",
+// no "VISIBLE", y sigue siendo cierto con el filtro puesto.
 function cobrosRecalc(){
   let t=0; document.querySelectorAll('.cob-chk:checked').forEach(c=>t+=parseFloat(c.dataset.monto)||0);
-  document.getElementById('cob-total').textContent = fmt(t);
+  const el = document.getElementById('cob-total');
+  if (el) el.textContent = fmt(t);
+  cobrosRenderAvisoOculto();
 }
 // Habilitar (liberar) una línea retenida por doping → pasa a impago (pagable). Liberación MANUAL.
 async function habilitarLinea(lineaId, tipo, id){
   if (!confirm('¿Habilitar esta línea retenida por doping? Pasa a pagable.')) return;
   const { error } = await sb.rpc('liberar_linea', { p_linea_id: lineaId });
   if (error) { toast(error.message,'error'); return; }
-  toast('Línea habilitada');
-  cobrosDetalle(tipo, id);   // refresca el detalle (pasa de retenida a pagable)
+  // Refresca el detalle PRESERVANDO selección y filtro. Antes del filtro esto era un
+  // `cobrosDetalle(tipo, id)` pelado, que devolvía todos los checkboxes a tildado: no se notaba
+  // porque sin filtro ya estaba todo tildado. Con filtro, ese reset deshace en silencio el
+  // destildado que el operador acaba de hacer, y no es un caso raro — 6 de los 9 beneficiarios con
+  // deuda pagable tienen además líneas retenidas (1° y 2° puesto, más peón/capataz/sereno).
+  await cobrosDetalle(tipo, id, { preservar: true });
+  // La línea liberada es nueva en la tabla: entra SIN tildar si el filtro vigente la deja fuera
+  // (ver cobChecked). Eso hay que decirlo — una línea que se acaba de habilitar y no aparece por
+  // ningún lado se lee como que la habilitación falló.
+  const nueva = cobLineas.find(l => l.id === lineaId);
+  const fuera = !!nueva && cobFiltro !== 'todo' && grupoDeTipo(nueva.concepto_tipo) !== cobFiltro;
+  if (fuera) toast('Línea habilitada — quedó FUERA del filtro actual y sin tildar. Cambiá el filtro para verla.', 'error', 9000);
+  else       toast('Línea habilitada');
 }
 
 // Emisión en 2 pasos: paso 1 junta las líneas tildadas y abre el modal de cobrador / forma de
