@@ -1103,3 +1103,101 @@ solapa al array —cambio mínimo, una palabra— y queda anotado el refactor. V
 reunión encima.
 
 Módulo: `liquidaciones.html`. El mismo patrón conviene revisarlo en otros módulos con solapas.
+
+---
+
+### ISSUE-065: `recibos_delete` deja borrar un recibo por PostgREST, sin pasar por `anular_recibo`
+
+**Estado**: 🟠 **PLAN LISTO, SIN APLICAR** (2026-08-30). SQL y probe en `chore/revocar-recibos-delete`.
+
+Un usuario autenticado puede hacer `DELETE /rest/v1/recibos?id=eq.<uuid>` y la fila desaparece.
+Las dos operaciones no son equivalentes:
+
+| | rastro que deja |
+|---|---|
+| `anular_recibo` | `estado='anulado'`, `anulado_at`, `anulado_por`, `motivo_anulacion`, `lineas_anuladas` (la foto de las filas), el número no se reutiliza, las líneas vuelven al estado que corresponde |
+| `DELETE` | la fila deja de existir |
+
+**Mientras esté abierto, todo el circuito de anulación es opcional**: hay un camino más corto que
+no deja el rastro que el circuito existe para dejar.
+
+**Matiz medido, que no estaba en la premisa**: `recibos` **sí** tiene trigger de auditoría
+(`trg_audit_recibos`), así que un DELETE escribe `auditoria.datos_antes` con la fila entera — el
+recibo es reconstruible. Lo que **no** queda es qué líneas tenía: `liquidacion_detalle` no tiene
+trigger, y `lineas_anuladas` sólo lo llena `anular_recibo`.
+
+**La FK no protege.** `liquidacion_detalle_recibo_id_fkey` es `NO ACTION`, así que un recibo *con*
+líneas no se borra de una — hay que soltarlas primero con un `UPDATE` que también está permitido.
+Es el revert manual del recibo #4 del 28/08, en dos pasos. Y un recibo **anulado** ya no tiene
+líneas apuntándolo: **se borra en uno solo**. El registro que existe para preservar el rastro es el
+más fácil de borrar.
+
+**Nunca se usó desde una sesión de usuario**: los 387 DELETE de `auditoria` tienen
+`usuario_id = NULL`, o sea `service_role` (probes y consola). Pero el 2026-06-09, en una sola
+transacción, se borraron **6 recibos reales de Dolores** por $570.649,99 con cobradores reales
+(MENDIBURU BRIAN ADRIAN, Federico heredia, gatica dario, contreras juan cruz). Fue durante el
+desarrollo temprano y por consola, no por la policy — pero es el precedente concreto.
+
+**El cambio propuesto**, dos capas acotadas a `recibos`:
+1. `DROP POLICY recibos_delete` → la RLS rechaza, pero **en silencio** (204, 0 filas).
+2. `REVOKE DELETE ... FROM authenticated, anon` → el rechazo pasa a ser un error duro 42501.
+
+Ni siquiera para `super_admin`: para eso está `anular_recibo`, que ya tiene la excepción de
+super_admin pasados los 5 días. Lo único que agrega el DELETE es destruir el rastro.
+
+**No rompe nada**: el front no borra recibos (la única referencia es un `.select()`), y los 8
+probes que borran usan `service_role`, que conserva el privilegio.
+
+Archivos: `migrations/revocar_recibos_delete.sql`, `migrations/rollback_revocar_recibos_delete.sql`,
+`tests/probe_recibos_delete_revocado.mjs`.
+Diagnóstico: `docs/diagnosticos/2026-08-30_plan-revocar-recibos-delete.md` (branch `reports`).
+
+---
+
+### ISSUE-067: `eliminarLiq` puede destruir líneas ya cobradas — y es un botón de la UI
+
+**Estado**: 🔴 **ABIERTO**. Detectado el 2026-08-30 relevando ISSUE-065. **Más urgente que ISSUE-065.**
+
+`liquidaciones` y `liquidacion_detalle` tienen policies de DELETE equivalentes a la de `recibos`.
+Pero acá el agujero es peor por tres razones que se suman:
+
+1. **`liquidacion_detalle_liquidacion_id_fkey` es `ON DELETE CASCADE`.**
+2. **Hay un camino desde la UI**: el botón 🗑️ del tab Liquidaciones (`liquidaciones.html`).
+3. **`liquidacion_detalle` no tiene trigger de auditoría** — las líneas desaparecen sin rastro.
+
+```javascript
+async function eliminarLiq(id) {
+  if (!confirm('¿Eliminar esta liquidación?')) return;
+  await sb.from('liquidacion_detalle').delete().eq('liquidacion_id', id);
+  const { error } = await sb.from('liquidaciones').delete().eq('id', id);
+  …
+}
+```
+
+El botón se esconde cuando `l.estado === 'pagada'` — pero ese es el estado de la **liquidación**, no
+el de sus líneas. Una liquidación en `borrador` puede contener líneas con `estado_linea='pagado'` y
+`recibo_id` apuntando a un recibo emitido.
+
+**Exposición medida hoy (2026-08-30):**
+
+```sql
+SELECT lq.estado, count(DISTINCT lq.id) AS liquidaciones,
+       count(ld.id) FILTER (WHERE ld.recibo_id IS NOT NULL) AS lineas_con_recibo,
+       sum(ld.monto_neto) FILTER (WHERE ld.recibo_id IS NOT NULL) AS plata_borrable
+FROM liquidaciones lq LEFT JOIN liquidacion_detalle ld ON ld.liquidacion_id=lq.id
+GROUP BY 1;
+```
+```json
+[{"estado":"borrador","liquidaciones":189,"lineas_con_recibo":8,"lineas_pagadas":346,"plata_borrable":"1100000.00"}]
+```
+
+**Los 5 recibos de Dolores cuelgan de liquidaciones en `borrador`**, así que el 🗑️ está visible
+para todos. Un click y un `confirm()` dejan el recibo con `neto_a_cobrar` de $X y un detalle vacío
+— irreconstruible, porque las líneas no dejan rastro.
+
+Fuera del alcance de ISSUE-065 a propósito (esa migración no toca otras tablas). Arreglo probable:
+que `eliminarLiq` verifique que ninguna línea tenga `recibo_id`, y una policy/constraint que lo
+sostenga del lado del servidor — un guard de UI solo no alcanza (GOTCHA #80).
+
+Módulo: `liquidaciones.html` + policies de `liquidaciones` / `liquidacion_detalle`.
+Relacionado: ISSUE-065, GOTCHA #80.
