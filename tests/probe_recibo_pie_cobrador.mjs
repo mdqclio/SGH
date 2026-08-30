@@ -127,6 +127,11 @@ const reciboNuevo = async (antes) => (((await sb.from('recibos').select('*').eq(
       extractFn(HTML, 'function cobrosEmitir()'),
       extractFn(HTML, 'function cobrosQuienCambio()'),
       extractFn(HTML, 'function cobrosFormaCambio()'),
+      // ISSUE-056 — cobrosConfirmarEmision guarda el recibo en memoria y pinta el panel
+      // (reimprimir / anular). Sus helpers viajan con ella.
+      extractFn(HTML, 'function puedeAnularUI(recibo, rol)'),
+      extractFn(HTML, 'function cobLimpiarPanelRecibo()'),
+      extractFn(HTML, 'function cobrosRenderRecibo()'),
       extractFn(HTML, 'async function cobrosConfirmarEmision()'),
       extractFn(HTML, 'async function imprimirReciboCobro(recibo, lineaIds, opts)'),
     ].join('\n\n');
@@ -134,6 +139,7 @@ const reciboNuevo = async (antes) => (((await sb.from('recibos').select('*').eq(
       'sb','CLUB_ID','document','window','toast','propietariosMap','profesionales',
       'precargarLogo','ROL_POR_BENEFICIARIO','cobBenef','cobApoderados','cobrosBuscar',
       `let cobEmitirIds = [];
+       let cobUltimoRecibo = null, currentUser = { rol: 'secretario_carreras' };   // ISSUE-056
        const fmt = formatMonto;
        ${src}
        return { cobrosEmitir, cobrosQuienCambio, cobrosFormaCambio, cobrosConfirmarEmision,

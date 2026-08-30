@@ -208,6 +208,8 @@ function mkDocument(campos) {
       extractFn(HTML, 'function cobVisible(l, rid)'),
       extractFn(HTML, 'function cobDelClub(l)'),
       extractFn(HTML, 'async function cobrosBuscar()'),
+      // ISSUE-056 — cobrosDetalle limpia el panel del recibo emitido; el helper viaja con ella.
+      extractFn(HTML, 'function cobLimpiarPanelRecibo()'),
       extractFn(HTML, 'async function cobrosDetalle(tipo, id)'),
     ].join('\n\n');
 
@@ -231,6 +233,7 @@ function mkDocument(campos) {
         'sb', 'CLUB_ID', 'document', 'toast', 'fmt', 'escapeHtml', 'propietariosMap', 'profesionales',
         `let cobCaballerizas = [], cobInscCarrera = {}, cobNroCarrera = {}, cobMapsScope = null;
          let cobReunPrueba = null, cobBenef = null, cobApoderados = [], cobLineas = [];
+       let cobUltimoRecibo = null;   // ISSUE-056
          ${src}
          return { cobrosBuscar, cobrosDetalle, get lineas(){ return cobLineas; } };`
       )(sb, clubId, document, () => {}, n => String(n), v => String(v ?? ''), {}, profMap);

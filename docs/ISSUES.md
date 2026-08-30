@@ -601,13 +601,52 @@ porque es `SECURITY DEFINER` y las policies de las tablas no se evalúan adentro
 **Probe**: `tests/probe_anular_recibo.mjs` — candado de club, la ventana de 5 días por sus dos
 lados, motivo obligatorio, idempotencia, el jsonb, y el correlativo que no vuelve.
 
+#### La UI (2026-08-30, segunda entrega — en `feat/ui-anular-recibo`, SIN MERGEAR)
+
+**Opción A: se anula desde el recibo recién emitido**, no desde un buscador de recibos (que sigue
+fuera de alcance). Es el caso real: el #4 se emitió probando y se detectó al instante — la ventana
+en la que el operador se da cuenta del error es la misma en la que todavía tiene el recibo en
+pantalla.
+
+Al planificarla apareció que **el punto de anclaje que este mismo doc daba por existente no
+existía**: no hay bloque post-emisión ni botón "Imprimir". `imprimirReciboCobro` escribe en
+`#recibo-print` (que es `display:none` fuera de `@media print`) y dispara `window.print()` directo.
+Así que primero hubo que crear la superficie.
+
+- **Panel `#cob-recibo-emitido`** — nº, beneficiario, cantidad de líneas, importe y hora, con
+  **Imprimir de nuevo** y **Anular recibo** (rojo `--danger`, separado por `gap:28px` para que no se
+  apriete de más). Va **fuera** de `#cob-detalle` a propósito: `cobrosBuscar()` vacía `#cob-detalle`
+  en cada búsqueda y el panel tiene que sobrevivir al refresco que sigue a la emisión.
+- **"Imprimir de nuevo" tapa un agujero que no tenía solución**: si el operador cancelaba el diálogo
+  de impresión, el recibo ya estaba emitido y no había forma de volver a sacarlo.
+- **Motivo obligatorio** en modal (`modal-anular`), validado en el cliente **además** del RPC. El
+  motivo va primero y la confirmación después: al revés, el operador confirma y recién ahí le piden
+  justificar, y el motivo termina siendo cualquier cosa para pasar el trámite.
+- **La confirmación dice qué se pierde**, no sólo pregunta: número, importe, beneficiario, "las N
+  líneas vuelven a quedar pendientes", "el número no se reutiliza" y —textual de Fede— *"Si ya
+  imprimiste el recibo, ese impreso queda sin valor."* Es un hecho del sistema, no un procedimiento:
+  qué se hace con ese papel no lo define el software.
+- **Después de anular**: `cobrosBuscar()` y después `cobrosDetalle()` (en ese orden: el primero
+  vacía `#cob-detalle`), y un aviso que **nombra las líneas que volvieron a `retenido`** por doping
+  y hay que habilitar de nuevo. Es consecuencia del `CASE` del RPC y no hay por qué deducirla
+  mirando la pantalla — por eso `toast()` ganó un parámetro de duración y ese aviso dura 15 s.
+- **El panel sobrevive a la anulación**: queda como `Recibo N° X — ANULADO`, sin el botón. Si
+  desapareciera, la pantalla no dejaría rastro de que alguien acaba de anular un recibo.
+- **Ventana de 5 días**: `puedeAnularUI(recibo, rol)` con `currentUser.rol` — el mecanismo que
+  `initAuth` ya usa, sin inventar nada. **No es un guard**: el RPC valida igual (GOTCHA #80). Usa el
+  reloj del cliente contra el `now()` del servidor del RPC; si discrepan, gana el RPC.
+
+**Probe**: `tests/probe_anular_recibo_ui.mjs` — **26/26**, más **8/8 mutantes muertos**
+(`--mutantes`, sobre copias del HTML en un tmpdir). Dos de los mutantes destaparon asserts débiles
+antes de quedar así: uno de ellos, el del motivo vacío, pasaba con el guard neutralizado porque el
+RPC rechazaba igual — se arregló espiando `sb.rpc` para verificar que la llamada **no sale**.
+
 #### Lo que falta
 
-**La UI no está construida.** El tab Pagos de `liquidaciones.html` no tiene botón de anular ni
-formulario de motivo: hoy el RPC sólo se puede invocar desde la consola. Queda para la entrega
-siguiente (decisión del usuario, 2026-08-30). Hasta entonces ISSUE-056 **no está cerrado del todo**:
-el agujero operativo del 20/09 —Valeria anulando un recibo sola, con gente en la ventanilla— sigue
-abierto, aunque ya no requiera escribir SQL a mano.
+- **El merge.** La rama `feat/ui-anular-recibo` está pusheada y sin mergear, esperando revisión.
+- **Buscador de recibos / vista de historial** (opción B) — sigue fuera de alcance.
+- **Reimprimir el anulado con sello ANULADO** — decidido: va después, no ahora.
+- **La policy `recibos_delete`** — migración aparte, ISSUE-065.
 
 Módulo: RPC nuevo (DB) ✅ + `liquidaciones.html` (tab Pagos) ❌.
 Relacionado: `migrations/anular_recibo_v1.sql`, `migrations/emitir_recibo_v1_1.sql`,
@@ -615,8 +654,8 @@ Relacionado: `migrations/anular_recibo_v1.sql`, `migrations/emitir_recibo_v1_1.s
 `docs/diagnosticos/2026-08-30_anular-recibo-plan.md` ·
 `docs/diagnosticos/2026-08-30_anular-recibo-resultados.md` ·
 `docs/diagnosticos/2026-08-30_anular-recibo-estado-post-corte.md`.
-Estado: 🟡 **PARCIAL** (2026-08-30) — **RPC vivo en prod, UI pendiente**. Prioridad de la UI:
-**Alta antes del 20/09**.
+Estado: 🟡 **PARCIAL** (2026-08-30) — **RPC vivo en prod; UI construida y probada, sin
+mergear** (`feat/ui-anular-recibo`). Pasa a CERRADO con el merge.
 
 ---
 

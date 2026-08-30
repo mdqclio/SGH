@@ -231,6 +231,10 @@
       Peón/capataz/sereno se pagan dentro del recibo del entrenador. La retención por doping se
       habilita a mano antes de pagar.</p>
     <div id="cob-beneficiarios"><div class="empty-state"><div class="icon">🧾</div><h3>Buscá una persona para ver su deuda</h3></div></div>
+    <!-- ISSUE-056 — panel del recibo recién emitido (reimprimir / anular). Va FUERA de #cob-detalle
+         a propósito: cobrosBuscar() vacía #cob-detalle en cada búsqueda, y el panel tiene que
+         sobrevivir al refresco que sigue a la emisión. -->
+    <div id="cob-recibo-emitido"></div>
     <div id="cob-detalle"></div>
   </div>
 </div>
@@ -431,6 +435,34 @@
   </div>
 </div>
 
+<!-- ISSUE-056 — anulación del recibo recién emitido. El motivo va PRIMERO y la confirmación
+     después: al revés, el operador confirma y recién ahí le piden justificar, y el motivo termina
+     siendo cualquier cosa para pasar el trámite. -->
+<div class="modal-overlay" id="modal-anular">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <h2>Anular recibo</h2>
+      <button class="btn-close" onclick="closeModal('modal-anular')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="anul-resumen" style="font-size:13px;margin-bottom:14px;"></div>
+      <div class="form-group full">
+        <label>Motivo de la anulación (obligatorio)</label>
+        <textarea id="anul-motivo" placeholder="Por qué se anula. Queda guardado en el recibo."></textarea>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:12px;">
+        Las líneas vuelven a quedar pendientes de cobro. El número de recibo no se reutiliza.
+        Si alguna línea estaba retenida por doping, vuelve a quedar retenida.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-anular')">Cancelar</button>
+      <button class="btn-delete" id="btn-anul-confirmar" onclick="cobrosAnularConfirmar()"
+              style="padding:9px 18px;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;">Anular recibo</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="liquidaciones-engine.js"></script>
 <script>
@@ -441,9 +473,12 @@ function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html
 let profesionales={}, propietariosMap={}, liquidaciones=[], detalles={}, club=null;
 let currentLiqId=null, liqConfig=null;
 
-function toast(msg,type='success') {
+// `ms` existe para los avisos que son una INSTRUCCIÓN DE TRABAJO y no un acuse. El caso que lo
+// pidió: al anular un recibo, las líneas con fecha_liberacion futura vuelven a 'retenido' y hay que
+// habilitarlas de nuevo — en 3,5 segundos eso no se lee ni se entiende.
+function toast(msg,type='success',ms=3500) {
   const t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg;
-  document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),3500);
+  document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),ms);
 }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 function formatMonto(num) {
@@ -812,6 +847,9 @@ let cobLineas = [];        // líneas pagables del beneficiario seleccionado
 let cobBenef = null;       // {tipo, id, nombre}
 let cobApoderados = [];    // apoderados vigentes del beneficiario abierto (alimenta el select de cobrador)
 let cobEmitirIds = [];     // líneas tildadas al abrir el modal de cobrador
+// ISSUE-056 — el último recibo emitido en esta sesión, con lo necesario para reimprimirlo y para
+// anularlo sin buscarlo. {recibo, lineaIds, origen, benef, anulado, retenidas}.
+let cobUltimoRecibo = null;
 let cobCaballerizas = [];  // {nombre, propietario_id} para resolver búsqueda por caballeriza
 // Mapas de carrera cacheados: no dependen del texto tipeado (el filtro por q es client-side y va
 // al final), sólo del scope de reunión. Sin esto cobrosBuscar pegaba 3 viajes al servidor por cada
@@ -1003,6 +1041,9 @@ async function cobrosBuscar(){
 }
 
 async function cobrosDetalle(tipo, id){
+  // El panel del recibo emitido pertenece a la emisión anterior: abrir un detalle es empezar otra
+  // cosa. Quien necesite que sobreviva (la anulación) lo repone después, explícitamente.
+  cobLimpiarPanelRecibo();
   cobBenef = {tipo, id, nombre:nombreBenef(tipo,id)};
   // ISSUE-055 — cobrosDetalle NO está acotado por reunión (a propósito: se paga todo lo adeudado).
   // Por eso el filtro de sandbox tiene que repetirse acá: si no, un beneficiario que entra a la
@@ -1159,8 +1200,147 @@ async function cobrosConfirmarEmision(){
   closeModal('modal-cobrador');
   const recibo = Array.isArray(data)?data[0]:data;
   toast(`Recibo N° ${recibo.numero_recibo} emitido`);
+  // ISSUE-056 — el recibo queda en memoria para el panel. Es lo que hace posible reimprimirlo si el
+  // operador cancela el diálogo de impresión (hoy no tiene solución: el recibo ya está emitido y no
+  // hay forma de volver a sacarlo) y anularlo sin tener que buscarlo.
+  cobUltimoRecibo = { recibo, lineaIds: [...cobEmitirIds], origen,
+                      benef: { ...cobBenef }, anulado: false, retenidas: 0 };
   imprimirReciboCobro(recibo, cobEmitirIds, { origen });
-  cobrosBuscar();   // refresca la lista (las líneas pagadas ya no aparecen)
+  await cobrosBuscar();   // refresca la lista (las líneas pagadas ya no aparecen)
+  cobrosRenderRecibo();   // DESPUÉS de cobrosBuscar: vacía #cob-detalle, no el panel
+}
+
+// ═══ ISSUE-056 · UI DE ANULACIÓN (opción A) — ANCLAS DEL PROBE ═══
+// El botón vive en el panel del recibo recién emitido, no en un buscador de recibos. El caso real
+// es el del recibo #4: se emitió probando y se detectó al instante. La ventana en la que el
+// operador se da cuenta del error es la misma en la que todavía tiene el recibo en pantalla.
+
+// Espejo en el front del guard de 5 días de anular_recibo. NO es un guard: el RPC valida igual y es
+// el único que manda (GOTCHA #80 — si no está escrito en la función, no existe). Acá sólo se evita
+// ofrecer un botón que va a fallar.
+// Pura y aparte a propósito: el probe corre sin browser y necesita llamarla con un `emitido_at`
+// fabricado, sin tener que emitir un recibo viejo de verdad.
+// Ojo: usa el reloj del cliente y el RPC usa now() del servidor. Si la máquina de la ventanilla
+// tiene la hora corrida pueden discrepar; gana el RPC y el error se muestra como toast.
+function puedeAnularUI(recibo, rol){
+  if (rol === 'super_admin') return true;
+  if (!recibo || !recibo.emitido_at) return false;
+  return (Date.now() - Date.parse(recibo.emitido_at)) < 5 * 24 * 60 * 60 * 1000;
+}
+
+// El texto del confirm() se arma acá, en una función pura, y no inline en el handler: inline, el
+// probe no puede verlo y "la confirmación nombra el número y el importe" deja de ser verificable.
+// Tiene que decir QUÉ SE PIERDE, no sólo preguntar.
+// La última línea es de Fede, textual. Enuncia un hecho del sistema — el impreso queda sin valor —
+// y no un procedimiento: qué se hace con ese papel no lo define el software.
+function textoConfirmAnular(recibo, benef, nLineas){
+  return `¿Anular el recibo #${recibo.numero_recibo} de ${fmt(recibo.neto_a_cobrar)} a ${benef?.nombre || '—'}?\n\n`
+       + `Las ${nLineas} línea(s) vuelven a quedar pendientes de cobro.\n`
+       + `El número ${recibo.numero_recibo} no se reutiliza: queda como recibo anulado.\n\n`
+       + `Si ya imprimiste el recibo, ese impreso queda sin valor.`;
+}
+
+function cobLimpiarPanelRecibo(){
+  cobUltimoRecibo = null;
+  const el = document.getElementById('cob-recibo-emitido');
+  if (el) el.innerHTML = '';
+}
+
+// El panel SOBREVIVE a la anulación: queda como "Recibo #N — ANULADO". Lo que desaparece es el
+// botón de anular, no el panel — si el panel se borrara, la pantalla no dejaría rastro de que
+// alguien acaba de anular un recibo.
+function cobrosRenderRecibo(){
+  const cont = document.getElementById('cob-recibo-emitido');
+  if (!cont) return;
+  if (!cobUltimoRecibo) { cont.innerHTML = ''; return; }
+  const { recibo, lineaIds, benef, anulado, retenidas } = cobUltimoRecibo;
+  const hora = recibo.emitido_at
+    ? new Date(recibo.emitido_at).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}) : '';
+  const accion = anulado
+    ? `<span class="badge badge-anulada">ANULADO</span>`
+    : (puedeAnularUI(recibo, currentUser?.rol)
+        ? `<button class="btn-sm btn-delete" onclick="cobrosAnular()">Anular recibo</button>`
+        : `<span style="font-size:12px;color:var(--muted);max-width:190px;display:inline-block;">Pasaron más de 5 días — sólo un super_admin puede anularlo</span>`);
+  cont.innerHTML = `<div class="config-card" style="margin-top:16px;border-left:4px solid var(--${anulado?'danger':'success'});">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <div>
+        <div style="font-size:15px;color:var(--accent);font-weight:600;">Recibo N° ${recibo.numero_recibo}${anulado?' — ANULADO':' emitido'}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">${escapeHtml(benef?.nombre||'—')} · ${lineaIds.length} línea(s) · ${fmt(recibo.neto_a_cobrar)}${hora?' · '+hora:''}</div>
+        ${anulado&&retenidas?`<div style="font-size:12px;color:var(--danger);margin-top:5px;">${retenidas} línea(s) volvieron a quedar RETENIDAS por doping — hay que habilitarlas de nuevo para poder pagarlas.</div>`:''}
+      </div>
+      <!-- gap grande a propósito: Anular no puede quedar pegado a Imprimir -->
+      <div style="margin-left:auto;display:flex;gap:28px;align-items:center;">
+        <button class="btn-sm btn-aprobar" onclick="cobrosReimprimir()">🖨 Imprimir de nuevo</button>
+        ${accion}
+      </div>
+    </div>
+  </div>`;
+}
+
+// Reimprimir. Tapa un agujero que hoy no tiene ninguna solución: si el operador cancela el diálogo
+// de impresión, el recibo ya está emitido y no hay forma de volver a sacarlo por pantalla.
+// Repone cobBenef porque imprimirReciboCobro lo usa para el "A nombre de" del encabezado.
+function cobrosReimprimir(){
+  if (!cobUltimoRecibo) return;
+  const { recibo, lineaIds, origen, benef } = cobUltimoRecibo;
+  if (benef) cobBenef = { ...benef };
+  imprimirReciboCobro(recibo, lineaIds, { origen });
+}
+
+function cobrosAnular(){
+  if (!cobUltimoRecibo || cobUltimoRecibo.anulado) return;
+  const { recibo, lineaIds, benef } = cobUltimoRecibo;
+  document.getElementById('anul-resumen').innerHTML =
+    `<strong>Recibo N° ${recibo.numero_recibo}</strong> · ${escapeHtml(benef?.nombre||'—')} · ${lineaIds.length} línea(s) · <span style="color:var(--danger)">${fmt(recibo.neto_a_cobrar)}</span>`;
+  document.getElementById('anul-motivo').value = '';
+  document.getElementById('modal-anular').classList.add('open');
+}
+
+async function cobrosAnularConfirmar(){
+  if (!cobUltimoRecibo) return;
+  const motivo = (document.getElementById('anul-motivo').value||'').trim();
+  // Validación de cliente. NO es un guard: el RPC rechaza el motivo vacío igual. Está para que el
+  // error se vea donde se tipea y para no gastar un viaje al servidor.
+  if (!motivo) { toast('El motivo de la anulación es obligatorio','error'); return; }
+  const { recibo, lineaIds, benef } = cobUltimoRecibo;
+  if (!confirm(textoConfirmAnular(recibo, benef, lineaIds.length))) return;
+  const btn = document.getElementById('btn-anul-confirmar'); if (btn) btn.disabled = true;
+  const { data, error } = await sb.rpc('anular_recibo', { p_recibo_id: recibo.id, p_motivo: motivo });
+  if (btn) btn.disabled = false;
+  if (error) { toast(error.message,'error',9000); return; }
+  closeModal('modal-anular');
+  const anuladoRow = Array.isArray(data) ? data[0] : data;
+  // Cuántas volvieron a RETENIDO. Sale de lineas_anuladas, que el RPC llena ANTES de soltar las
+  // líneas: es el único rastro de qué contenía el recibo, porque liquidacion_detalle no tiene
+  // trigger de auditoría.
+  const ids = anuladoRow?.lineas_anuladas || [];
+  let retenidas = 0;
+  if (ids.length){
+    const { data: ret, error: eRet } = await sb.from('liquidacion_detalle')
+      .select('id').in('id', ids).eq('estado_linea','retenido');
+    if (eRet) console.error('[cobrosAnularConfirmar/retenidas]', eRet);
+    else retenidas = (ret||[]).length;
+  }
+  // El aviso de retenidas es una instrucción de trabajo, no un acuse: que una línea con
+  // fecha_liberacion futura vuelva a 'retenido' es consecuencia del CASE del RPC, y no hay por qué
+  // deducirlo mirando la pantalla. Por eso va con duración larga.
+  if (retenidas) {
+    const q = retenidas === 1
+      ? '1 de ellas quedó RETENIDA por doping y hay que habilitarla de nuevo para poder pagarla.'
+      : `${retenidas} de ellas quedaron RETENIDAS por doping y hay que habilitarlas de nuevo para poder pagarlas.`;
+    toast(`Recibo #${recibo.numero_recibo} anulado — ${ids.length} línea(s) vuelven a pendientes, ${q}`,
+          'error', 15000);
+  } else {
+    toast(`Recibo #${recibo.numero_recibo} anulado — ${ids.length} línea(s) vuelven a quedar pendientes.`, 'success', 8000);
+  }
+  // Refresco. El orden importa: cobrosBuscar() vacía #cob-detalle, así que va PRIMERO; después
+  // cobrosDetalle, que es donde las líneas reaparecen (impagas arriba, retenidas en su tabla).
+  const panel = { ...cobUltimoRecibo, anulado: true, retenidas };
+  await cobrosBuscar();
+  if (benef?.tipo && benef?.id) await cobrosDetalle(benef.tipo, benef.id);
+  // cobrosDetalle limpia el panel; se repone acá porque el panel sobrevive a la anulación.
+  cobUltimoRecibo = panel;
+  cobrosRenderRecibo();
 }
 
 // Rol del beneficiario en cada línea del recibo. El dato ya existía en la base y el recibo
