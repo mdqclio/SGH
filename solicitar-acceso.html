@@ -233,6 +233,28 @@
       </p>
     </div>
 
+    <!-- ===== EL CORREO YA TIENE CUENTA ===== -->
+    <!-- GoTrue no devuelve error cuando el alta se repite sobre una cuenta ya
+         confirmada: responde 200 con un user obfuscado y NO manda ningún mail
+         (anti-enumeración, para no filtrar qué correos existen). Sin esta
+         pantalla la página mostraba "revisá tu correo" por un mail que nunca se
+         emitió — le pasó a un usuario real el 02/09/2026. El texto no dice nada
+         de la cuenta más allá de que el correo ya está registrado. -->
+    <div id="sec-existe" style="display:none;">
+      <div class="ok-icon">🔑</div>
+      <h2 class="card-title" style="text-align:center;">Ese correo ya está registrado</h2>
+      <p class="card-sub" style="text-align:center;">
+        Ya hay una cuenta con <strong id="existe-email"></strong>. No te mandamos
+        ningún mail: iniciá sesión con tu contraseña para continuar.
+      </p>
+      <a class="btn" id="lnk-login" href="login.html" style="display:block;text-align:center;text-decoration:none;padding:13px;">
+        Iniciar sesión
+      </a>
+      <a class="btn btn-sec" id="lnk-recuperar" href="login.html?recuperar=1" style="display:block;text-align:center;text-decoration:none;padding:13px;margin-top:10px;">
+        ¿Olvidaste tu contraseña?
+      </a>
+    </div>
+
     <!-- ===== SOLICITUD ENVIADA ===== -->
     <div id="sec-listo" style="display:none;">
       <div class="ok-icon">✅</div>
@@ -311,7 +333,7 @@ function showErr(m) { const e = document.getElementById('err'); e.textContent = 
 function hideMsgs() { document.getElementById('err').classList.remove('show');
                       document.getElementById('ok').classList.remove('show'); }
 function seccion(id) {
-  ['sec-form','sec-confirmar','sec-listo','sec-reintento'].forEach(s => {
+  ['sec-form','sec-confirmar','sec-existe','sec-listo','sec-reintento'].forEach(s => {
     document.getElementById(s).style.display = (s === id) ? '' : 'none';
   });
 }
@@ -475,6 +497,25 @@ document.getElementById('btn-enviar').onclick = async () => {
     } else {
       showErr(m || 'No se pudo crear la cuenta. Probá de nuevo.');
     }
+    return;
+  }
+
+  // Alta repetida: GoTrue NO tira error acá. Ante un correo que ya tiene cuenta
+  // confirmada responde 200 con un user obfuscado —id nuevo, metadata vacía y
+  // un confirmation_sent_at falso— y no emite ningún mail. La única marca es
+  // identities vacío. Verificado contra GoTrue de producción el 02/09/2026:
+  //   alta nueva               → identities.length === 1  (y manda el mail)
+  //   repetida, cuenta SIN confirmar → identities.length === 1  (reenvía el mail)
+  //   repetida, cuenta confirmada    → identities.length === 0  (no manda nada)
+  // Por eso el corte es === 0 y no "falsy": el reenvío a una cuenta sin
+  // confirmar tiene que seguir cayendo en "revisá tu correo".
+  // La rama de authErr de arriba queda igual: cubre el caso de que GoTrue
+  // devuelva "already registered" con la obfuscación apagada.
+  if (Array.isArray(authData.user?.identities) && authData.user.identities.length === 0) {
+    loading('btn-enviar', 'btn-txt', false, 'Enviar solicitud');
+    cfReset();
+    document.getElementById('existe-email').textContent = d.email;
+    seccion('sec-existe');
     return;
   }
 
