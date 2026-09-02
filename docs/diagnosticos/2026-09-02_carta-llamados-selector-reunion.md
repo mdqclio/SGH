@@ -704,3 +704,22 @@ todavía no está en prod.
 - La desalineación `usuarios.id` / `auth.users.id`: **no la toqué**. La verificación de
   `auth_user_id` que pediste va en informe aparte y todavía no la hice — queda pendiente y no está
   cubierta por este documento.
+
+---
+
+## Anexo — verificación de push de este informe
+
+Salida cruda de la verificación del commit anterior de este archivo (`7838caa`), registrada acá
+como se hace siempre: la verificación de un commit no puede ir adentro de ese mismo commit.
+
+```
+$ git push origin reports
+$ git ls-remote --heads origin reports
+7838caa04e8c197b3214fe4b1c9c65cc08cdea9d	refs/heads/reports
+
+$ git rev-parse HEAD
+7838caa04e8c197b3214fe4b1c9c65cc08cdea9d
+```
+
+Coinciden. El informe está en `origin/reports` y es legible desde
+`raw.githubusercontent.com`.
