@@ -319,6 +319,18 @@ salidas de queries, `git status`, `git log`, los diffs, y cualquier cosa pedida 
   chat llega cortado o se pierde, así que el chat no sirve como canal para salida cruda.
   Vale aunque el pedido diga literalmente "pegame", "mostrame" o "acá en el chat".
 - Branch fija: `reports`. No se mergea ni se borra. Sin barra en el nombre.
+- **`reports` se publica, `main` se lee.** Como `reports` nunca se mergea, SIEMPRE está atrás
+  de `main` — hoy, 62 commits. Estar parado ahí y grepear el repo es leer una foto vieja, y el
+  grep no avisa: devuelve cero resultados y parecen cero resultados. Entonces: el informe se
+  escribe y se commitea en `reports`, pero **todo grep, lectura de código, diagnóstico o
+  relevamiento se hace contra `main`** — `git checkout main`, o `git show main:archivo`, o
+  `git grep <patrón> main`.
+
+  El caso que lo motiva (2026-09-02): buscando `⚗ PRUEBA` y `es_prueba` desde `reports` no
+  aparecía nada, así que di por hecho que el rótulo de la sandbox no existía y estuve por
+  inventar la convención de cero. Está en `main` desde ISSUE-055, en `liquidaciones.html:649`,
+  y con otro formato del que iba a escribir. Lo agarré de casualidad. Si el relevamiento arranca
+  en `reports`, verificar contra `main` antes de concluir que algo **no** existe.
 - Ruta: `docs/diagnosticos/YYYY-MM-DD_slug.md`
 - Encabezado del doc: fecha, SHA del commit, guards verificados.
 - El doc es autocontenido: incluye el comando o la query **tal como se corrió**, la salida
