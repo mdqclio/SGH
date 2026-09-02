@@ -723,3 +723,130 @@ $ git rev-parse HEAD
 
 Coinciden. El informe está en `origin/reports` y es legible desde
 `raw.githubusercontent.com`.
+
+---
+
+## Merge a `main` y verificación en prod (2026-09-02)
+
+OK dado. Las dos preguntas abiertas 1 y 2 quedaron **cerradas por decisión, sin consultar a Fede**:
+
+- **`suspendida` queda afuera** de `ESTADOS_ABIERTOS`. El default conservador es el correcto: si
+  una reunión suspendida se retoma, vuelve a `programada` y entra sola.
+- **El cambio de `ActiveReunion` queda.** Consultar no es activar; el modo deliberado de fijar la
+  reunión activa sigue siendo el botón 📍 Activar de `reuniones.html`.
+
+Siguen abiertas la 3 (rótulo `interna <n>`), la 4 (impresión de la sandbox sin marca) y la 5
+(backport del selector a los programas oficiales).
+
+### Merge
+
+```
+$ git merge --no-ff feat/carta-llamados-selector-reunion
+Merge made by the 'ort' strategy.
+ carta-llamados.html                    | 125 +++++++++--
+ tests/README.md                        |   1 +
+ tests/probe_carta_selector_reunion.mjs | 398 +++++++++++++++++++++++++++++++++
+ 3 files changed, 501 insertions(+), 23 deletions(-)
+ create mode 100644 tests/probe_carta_selector_reunion.mjs
+
+$ git log --oneline -3
+7be6de0 merge: selector de reunión en la carta de llamados (feat/carta-llamados-selector-reunion)
+481b457 feat: selector de reunión en la carta de llamados + default que no cae en la más vieja
+2597ba0 merge: cierre de ISSUE-065, ISSUE-067 parcial y GOTCHA 88
+
+$ git ls-remote --heads origin main
+7be6de018188d90df0531897733aa1b48bd4e284	refs/heads/main
+
+$ git rev-parse HEAD
+7be6de018188d90df0531897733aa1b48bd4e284
+```
+
+**SHA del merge: `7be6de018188d90df0531897733aa1b48bd4e284`**
+
+### md5 contra `sigh.com.ar`
+
+Con `-L`: sin seguir el redirect se hashea el cuerpo del 301, no el archivo — el error que cometí
+en el relevamiento. Los dos primeros intentos dan el md5 VIEJO: el CDN todavía servía la versión
+anterior. Es la ventana de propagación de `docs/SERVER.md`, no un deploy fallido.
+
+```
+$ for i in $(seq 1 20); do
+    curl -s -L -o /tmp/prod2.html "https://sigh.com.ar/carta-llamados.html?v=$RANDOM"
+    P=$(md5sum /tmp/prod2.html | cut -d' ' -f1)
+    L=$(git show 7be6de018188d90df0531897733aa1b48bd4e284:carta-llamados.html | md5sum | cut -d' ' -f1)
+    echo "intento $i  prod=$P  local=$L"
+    [ "$P" = "$L" ] && { echo "MATCH"; break; }
+    sleep 20
+  done
+intento 1  prod=de4608bbf58d6f5e9503363b1cd3df6e  local=e8f0421e2705366bc2afeb0627d2282f
+intento 2  prod=de4608bbf58d6f5e9503363b1cd3df6e  local=e8f0421e2705366bc2afeb0627d2282f
+intento 3  prod=e8f0421e2705366bc2afeb0627d2282f  local=e8f0421e2705366bc2afeb0627d2282f
+MATCH
+```
+
+`de4608b…` es el archivo de antes del merge; `e8f0421…` es el del commit `7be6de0`. Prod sirve el
+merge.
+
+### Probe contra el HTML SERVIDO
+
+No contra el archivo local: `CARTA_HTML` apunta al que bajó `curl`, así que lo que corre son las
+funciones extraídas del HTML que Fede va a recibir en el browser.
+
+```
+$ set -a; . ./.env; set +a
+$ CARTA_HTML=/tmp/prod2.html node tests/probe_carta_selector_reunion.mjs
+
+── Probe · selector de reunión en carta-llamados ──
+   html=/tmp/claude-1000/-home-clio-dev-SGH/1fcfe00c-32a0-443f-ad00-f98626904cd0/scratchpad/prod2.html  ·  hoy=2026-09-02
+ ✅ A0) la query del selector no dio error
+ ✅ A1) el selector trae TODAS las reuniones del club, sin filtro de estado  → selector=13 · base=13
+ ✅ A2) R8 (16/08, finalizada) está en el selector  → 13 opciones
+ ✅ A3) la reunión de prueba 9999 está en el selector
+ ✅ A4) el rótulo de R8 usa el número PÚBLICO, con fecha y estado  → N° 7 — 16/8/2026 — finalizada
+ ✅ A5) la 9999 va rotulada ⚗ PRUEBA, igual que en Pagos  → interna 9999 — 1/1/2099 — cancelada ⚗ PRUEBA
+ ✅ A6) las opciones van de la más reciente a la más vieja  → 2099-01-01 > 2026-12-27 > 2026-11-22 > 2026-10-11 > 2026-09-20 > 2026-08-16 > 2026-07-19 > 2026-06-20 > 2026-05-17 > 2026-04-19 > 2026-03-22 > 2026-02-08 > 2026-01-18
+ ✅ A7) la opción seleccionada es la reunión mostrada
+ ✅ A8) aparecen TODOS los estados que existen en la base, finalizada incluida  → base=borrador,cancelada,finalizada,programada,publicada · selector=borrador,cancelada,finalizada,programada,publicada
+ ✅ B1) reunión finalizada → sin "+ Nuevo Turno" ni "Publicar carta"  → {"nuevo":"none","pub":"none"}
+ ✅ B2) reunión en borrador → los dos botones vuelven  → {"nuevo":"","pub":""}
+ ✅ B3) reunión publicada → tampoco es editable  → {"nuevo":"none","pub":"none"}
+ ✅ C1) sin activa, cae en la PRÓXIMA abierta (fecha >= hoy)  → eligió=cafa37d6-89f4-45cb-a0d9-835bc27407e9 · esperada=cafa37d6-89f4-45cb-a0d9-835bc27407e9 (2026-09-20)
+ ✅ C1b) y NO en R6 de junio, que es donde caía antes  → eligió=cafa37d6-89f4-45cb-a0d9-835bc27407e9
+ ✅ C2) con una activa vigente, gana la activa aunque esté finalizada  → 7b6e003e-22e2-4629-bf55-f18560b1260f
+ ✅ C3) una activa que ya no existe se ignora y cae en la próxima  → cafa37d6-89f4-45cb-a0d9-835bc27407e9
+ ✅ C4) sin ninguna próxima, cae en la MÁS RECIENTE, del estado que sea  → p2
+ ✅ C5) la sandbox no se elige por descarte, ni siendo la única próxima abierta  → p2
+ ✅ C6) pero sí se respeta si alguien la activó a mano  → sbx
+ ✅ C7) sin reuniones, devuelve null y la página muestra el vacío  → null
+ ✅ D1) elegir en el selector NO fija la reunión activa del sistema  → ActiveReunion.set llamado 0 vez/veces
+ ✅ D2) el default tampoco la fija: sólo la lee
+ ✅ D3) navega a la reunión elegida por ?reunion_id  → carta-llamados.html?reunion_id=7b6e003e-22e2-4629-bf55-f18560b1260f
+ ✅ D4) conserva el ?club= del club-switcher al saltar de reunión  → carta-llamados.html?club=abc&reunion_id=7b6e003e-22e2-4629-bf55-f18560b1260f
+ ✅ D5) no queda ninguna llamada a ActiveReunion.set() en la página
+ ✅ D6) ni una escritura suelta de sgh_active_reunion_id
+ ✅ D7) pero sí se sigue LEYENDO la activa para el default
+ ✅ E1) el dashboard sigue linkeando sin parámetros — ahora el default se hace cargo  → 4 links
+ ✅ E2) reuniones.html y calendario.html pasan ?reunion_id
+ ✅ E3) el selector quedó cableado en el topbar
+
+30/30 OK
+```
+
+**30/30 contra prod.** Mismos asserts que en local, incluido C1 (el default cae en la reunión del
+20/09, no en el borrador de junio) y A2/A4 (R8 en el selector, rotulada `N° 7 — 16/8/2026 —
+finalizada`).
+
+### Lección al protocolo de CLAUDE.md
+
+El hallazgo 1 de este informe quedó escrito en el protocolo de informes, commit `d67726b`:
+**`reports` se publica, `main` se lee.** `reports` nunca se mergea, así que siempre está atrás de
+`main`, y un grep desde ahí devuelve cero resultados que parecen cero resultados. El near-miss del
+`⚗ PRUEBA` quedó como el ejemplo.
+
+```
+$ git ls-remote --heads origin main
+d67726be41d17b140b8f14151558b4569b88ffb5	refs/heads/main
+
+$ git rev-parse HEAD
+d67726be41d17b140b8f14151558b4569b88ffb5
+```
