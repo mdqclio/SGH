@@ -23,6 +23,8 @@
     .btn-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 7px 14px; border-radius: 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s; }
     .btn-back:hover { border-color: var(--accent); color: var(--accent); }
     .topbar h1 { font-size: 18px; color: var(--accent); flex: 1; min-width: 200px; }
+    .sel-reunion-top { width: auto; max-width: 320px; padding: 7px 10px; font-size: 12.5px; cursor: pointer; }
+    .sel-reunion-top:hover { border-color: var(--accent); }
     .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: opacity 0.2s; }
     .btn-primary:hover { opacity: 0.9; }
     .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 9px 18px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
@@ -266,6 +268,8 @@
 <div class="topbar">
   <a href="reuniones.html" class="btn-back">← Reuniones</a>
   <h1 id="topbar-title">Carta de Llamados</h1>
+  <select id="sel-reunion" class="sel-reunion-top" onchange="irAReunion(this.value)"
+          title="Reunión — incluye las pasadas: la carta vieja es la plantilla de la siguiente"></select>
   <button class="btn-outline" onclick="guardarCartaPDF()">💾 Guardar PDF</button>
   <button class="btn-outline" onclick="imprimirCartaColor()">🖨️ Imprimir Color</button>
   <button class="btn-outline" onclick="imprimirCartaBN()">🖨️ Imprimir B/N</button>
@@ -474,8 +478,20 @@ function imprimirCartaBN() {
 }
 
 const params = new URLSearchParams(location.search);
-let reunionId = params.get('reunion_id') || ActiveReunion.get();
-if (reunionId) { ActiveReunion.set(reunionId); }
+// Sólo lo que vino por URL. Cuál reunión se muestra de verdad lo decide load() contra la
+// lista real (elegirReunionPorDefecto): un id guardado hace meses puede ya no existir, o
+// ser de otro club después del club-switcher, y con .single() eso es un error, no un vacío.
+//
+// ACÁ NO SE LLAMA A ActiveReunion.set() — a propósito, y es un cambio de conducta.
+// Antes, abrir cualquier carta fijaba esa reunión como la activa de TODO el sistema
+// (inscripciones, ratificación, resultados, liquidaciones la leen con ActiveReunion.resolve).
+// Con el selector, mirar la carta de agosto para copiarla es una operación de lectura que
+// pasa varias veces por mes: si arrastra la reunión activa, el próximo módulo que se abra
+// aparece parado en agosto sin que nadie lo haya pedido. Ningún módulo depende de que la
+// carta fije la activa —todos resuelven solos y caen en findClosest si no hay nada—, y el
+// modo deliberado de fijarla sigue siendo el botón 📍 Activar de reuniones.html.
+let reunionId = params.get('reunion_id') || null;
+let reuniones = [];
 let reunion=null, carreras=[], categorias=[], hipodromos=[], clubData=null, condPista=null;
 
 // ---- Reordenamiento manual de llamados (docs/CARTA_LLAMADOS_ORDEN.md) ----
@@ -652,25 +668,89 @@ function updPct() {
   el.className = 'total-premios ' + (Math.abs(total-100)<0.01 ? 'ok' : 'bad');
 }
 
+const escH = s => (s === null || s === undefined ? '' : String(s))
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
+// Estados en los que una reunión todavía va a correrse. El ENUM estado_reunion tiene siete
+// valores; los tres que faltan quedan afuera a propósito: 'finalizada' y 'cancelada' porque ya
+// pasaron, y 'suspendida' porque mientras lo esté no es la próxima (decisión conservadora: si
+// alguna vez se retoma, vuelve a 'programada' y entra sola). Se usa SOLO para elegir el default:
+// el selector lista todas, sin filtro de estado.
+const ESTADOS_ABIERTOS = ['borrador', 'programada', 'publicada', 'en_curso'];
+
+/** Número público si lo tiene, fecha y estado. Sufijo ⚗ PRUEBA igual que el selector de Pagos. */
+function rotuloReunion(r) {
+  const fecha = new Date(r.fecha + 'T12:00:00').toLocaleDateString('es-AR');
+  const num = r.numero_publico != null ? `N° ${r.numero_publico}` : `interna ${r.numero}`;
+  return `${num} — ${fecha} — ${r.estado}${r.es_prueba ? ' ⚗ PRUEBA' : ''}`;
+}
+
+/**
+ * Qué reunión mostrar cuando no vino ninguna por ?reunion_id:
+ *   1. la ACTIVA, si todavía existe en la lista
+ *   2. la PRÓXIMA abierta — fecha >= hoy, la más cercana
+ *   3. la MÁS RECIENTE de todas, del estado que sea
+ *
+ * El default viejo era `.in(estado, abiertos).order(fecha ASC).limit(1)`: sin piso de fecha, la
+ * primera abierta es la más VIEJA, así que la página abría parada en un borrador de junio y
+ * daba a entender que las cartas anteriores se habían borrado.
+ *
+ * La sandbox (es_prueba) queda fuera de los pasos 2 y 3 — al sandbox se entra a mano, nunca por
+ * descarte (ISSUE-055) —, pero sí vale en el paso 1: si alguien la activó desde reuniones.html
+ * fue una decisión explícita y se respeta.
+ */
+function elegirReunionPorDefecto(lista) {
+  const activa = ActiveReunion.get();
+  if (activa && lista.some(r => r.id === activa)) return activa;
+  const reales = lista.filter(r => !r.es_prueba);
+  const hoy = new Date().toISOString().slice(0, 10);
+  const proximas = reales
+    .filter(r => r.fecha >= hoy && ESTADOS_ABIERTOS.includes(r.estado))
+    .sort((a, b) => a.fecha.localeCompare(b.fecha));
+  if (proximas.length) return proximas[0].id;
+  const recientes = [...reales].sort((a, b) => b.fecha.localeCompare(a.fecha));
+  return recientes.length ? recientes[0].id : null;
+}
+
+function renderSelectorReuniones() {
+  const sel = document.getElementById('sel-reunion');
+  if (!sel) return;
+  sel.innerHTML = reuniones
+    .map(r => `<option value="${escH(r.id)}">${escH(rotuloReunion(r))}</option>`)
+    .join('');
+  sel.value = reunionId || '';
+}
+
+/**
+ * Cambiar de reunión = recargar con otro ?reunion_id. Recarga simple a propósito: load() ya
+ * arma todo desde cero y no hay estado en memoria que valga la pena preservar. Se conserva el
+ * ?club= del club-switcher, que si no se perdería en el salto.
+ * NO toca ActiveReunion — ver el comentario largo arriba de `let reunionId`.
+ */
+function irAReunion(id) {
+  if (!id || id === reunionId) return;
+  const qs = new URLSearchParams(location.search);
+  qs.set('reunion_id', id);
+  location.href = `carta-llamados.html?${qs}`;
+}
+
 async function load() {
+  // Una sola query, sin filtro de estado, igual que reuniones.html: de acá salen el selector y
+  // el default, y así los dos ven exactamente la misma lista.
+  const { data: reuns, error: erReuns } = await sb.from('reuniones')
+    .select('id, numero, numero_publico, fecha, estado, es_prueba')
+    .eq('club_id', CLUB_ID)
+    .order('fecha', { ascending: false });
+  if (erReuns) { toast(erReuns.message, 'error'); return; }
+  reuniones = reuns || [];
+
+  // Un id que no está en la lista (reunión borrada, o de otro club tras el club-switcher) se
+  // descarta acá: si llegara al .single() de abajo, sería un error y una pantalla en blanco.
+  if (reunionId && !reuniones.some(r => r.id === reunionId)) reunionId = null;
+  if (!reunionId) reunionId = elegirReunionPorDefecto(reuniones);
+  renderSelectorReuniones();
+
   if (!reunionId) {
-    const { data: activas } = await sb.from('reuniones')
-      .select('id, fecha, estado')
-      .eq('club_id', CLUB_ID)
-      .in('estado', ['borrador', 'programada', 'publicada'])
-      .order('fecha', { ascending: true })
-      .limit(1);
-    let elegida = activas?.[0];
-    if (!elegida) {
-      const { data: ultima } = await sb.from('reuniones')
-        .select('id')
-        .eq('club_id', CLUB_ID)
-        .order('fecha', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      elegida = ultima;
-    }
-    if (!elegida) {
       document.getElementById('reunion-info').innerHTML = '';
       document.getElementById('list-container').innerHTML = `
         <div class="empty-state">
@@ -680,11 +760,10 @@ async function load() {
           <a href="reuniones.html" class="btn-primary" style="display:inline-block;margin-top:20px;text-decoration:none;padding:10px 22px;">Ir a Reuniones</a>
         </div>`;
       return;
-    }
-    reunionId = elegida.id;
-    history.replaceState(null, '', `?reunion_id=${reunionId}`);
-    try { localStorage.setItem('sgh_active_reunion_id', reunionId); } catch(_) {}
   }
+  const qsUrl = new URLSearchParams(location.search);
+  qsUrl.set('reunion_id', reunionId);
+  history.replaceState(null, '', `?${qsUrl}`);
   const [{ data: r, error: er }, { data: cars }, { data: cats }, { data: hips }, { data: club }] = await Promise.all([
     sb.from('reuniones').select('*, hipodromos(nombre,sigla,localidad)').eq('id', reunionId).single(),
     sb.from('carreras').select('*').eq('reunion_id', reunionId).order('numero_turno'),

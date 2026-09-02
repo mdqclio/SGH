@@ -84,6 +84,7 @@ node tests/probe_cobros_caballeriza.mjs  # Pagos: búsqueda por caballeriza → 
 node tests/probe_recibo_rol.mjs         # Pagos: rótulo del rol en el recibo, propietario vs entrenador/jockey (real-code, read-only)
 node tests/probe_pedigree_programa.mjs   # Columna PADRE-MADRE en los 3 programas: vacío sin placeholder, separador no colgado (real-code, 9998 + teardown)
 node tests/probe_apuestas_especiales.mjs # Caja de especiales de la tapa derivada de carrera_apuestas (real-code, sólo lectura)
+node tests/probe_carta_selector_reunion.mjs # Carta de llamados: selector de reunión + default activa/próxima + ActiveReunion intacta (real-code, sólo lectura, --mutantes)
 node tests/probe_cuerpos_oficial.mjs     # Ventaja de llegada en la vista oficial: cotejo de R6 contra la planilla (real-code, sólo lectura)
 node tests/probe_reordenar_turnos.mjs    # RPC reordenar_turnos: permutación + 4 validaciones (→ R9, snapshot→restore)
 node tests/probe_orden_ui.mjs            # Lógica ▲▼ de carta-llamados: payload a la RPC y confirmación (real-code, sin DB)
