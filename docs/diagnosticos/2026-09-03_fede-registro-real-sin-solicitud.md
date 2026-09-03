@@ -521,3 +521,22 @@ alguien la va a ver: entre las 16:49 y las 16:56 alguien no pudo entrar y termin
 ---
 
 ## Verificación de push
+
+Primer push (el informe):
+
+```
+$ git push -u origin reports
+To github.com:mdqclio/SGH.git
+   44e54b4..6550639  reports -> reports
+branch 'reports' set up to track 'origin/reports'.
+
+$ git ls-remote origin reports
+6550639957c7d35c2726e293f30a2faddd8d6d48	refs/heads/reports
+
+$ git rev-parse HEAD
+6550639957c7d35c2726e293f30a2faddd8d6d48
+```
+
+Coinciden: `6550639` está en `origin/reports`.
+
+Segundo push (este bloque de verificación, sobre el mismo archivo) — salida al pie del documento.
