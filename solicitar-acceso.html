@@ -233,6 +233,33 @@
       </p>
     </div>
 
+    <!-- ===== EL CORREO YA TIENE CUENTA ===== -->
+    <!-- GoTrue no devuelve error cuando el alta se repite sobre una cuenta ya
+         confirmada: responde 200 con un user obfuscado y NO manda ningún mail
+         (anti-enumeración, para no filtrar qué correos existen). Sin esta
+         pantalla la página mostraba "revisá tu correo" por un mail que nunca se
+         emitió — le pasó a un usuario real el 02/09/2026. El texto no dice nada
+         de la cuenta más allá de que el correo ya está registrado. -->
+    <div id="sec-existe" style="display:none;">
+      <div class="ok-icon">🔑</div>
+      <h2 class="card-title" style="text-align:center;">Ese correo ya está registrado</h2>
+      <p class="card-sub" style="text-align:center;">
+        Ya hay una cuenta con <strong id="existe-email"></strong>. No te mandamos
+        ningún mail: iniciá sesión con tu contraseña para continuar.
+      </p>
+      <a class="btn" id="lnk-login" href="login.html" style="display:block;text-align:center;text-decoration:none;padding:13px;">
+        Iniciar sesión
+      </a>
+      <a class="btn btn-sec" id="lnk-recuperar" href="login.html?recuperar=1" style="display:block;text-align:center;text-decoration:none;padding:13px;margin-top:10px;">
+        ¿Olvidaste tu contraseña?
+      </a>
+      <!-- Salida para el que se equivocó de correo: volver al form sin recargar y sin perder
+           lo que ya tipeó. -->
+      <button class="btn btn-sec" id="btn-volver-form" style="margin-top:10px;">
+        Me equivoqué de correo
+      </button>
+    </div>
+
     <!-- ===== SOLICITUD ENVIADA ===== -->
     <div id="sec-listo" style="display:none;">
       <div class="ok-icon">✅</div>
@@ -270,7 +297,16 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- VERSIÓN PINEADA a propósito, y es la única página del repo que lo hace. El resto carga
+     @2 porque sólo usa la API estable (auth, from, rpc). Acá no: la pantalla "ese correo ya
+     está registrado" se decide mirando `user.identities` de la respuesta del signUp, y CÓMO
+     mapea el SDK esa respuesta cambia entre versiones. GoTrue manda el user sin envoltorio;
+     2.106.1 lo nulea (`data.user ?? null` en _sessionResponse) y 2.112.4 / 2.114.0 lo pasan.
+     Con @2 flotante, una versión del CDN que vuelva a nulearlo dejaría el corte en código
+     muerto y la página volvería a decir "revisá tu correo" por un mail que no se emitió, sin
+     que nadie se entere. El canario es el assert A5 de tests/probe_solicitar_cuenta_existente.mjs.
+     Para subir la versión: cambiar acá y correr el probe, que baja ESTE bundle, no @2. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.114.0"></script>
 <!-- Cloudflare Turnstile — el proyecto tiene Attack Protection activo, así que
      GoTrue rechaza signUp sin captchaToken. Render explícito, igual que en
      login.html. -->
@@ -311,7 +347,7 @@ function showErr(m) { const e = document.getElementById('err'); e.textContent = 
 function hideMsgs() { document.getElementById('err').classList.remove('show');
                       document.getElementById('ok').classList.remove('show'); }
 function seccion(id) {
-  ['sec-form','sec-confirmar','sec-listo','sec-reintento'].forEach(s => {
+  ['sec-form','sec-confirmar','sec-existe','sec-listo','sec-reintento'].forEach(s => {
     document.getElementById(s).style.display = (s === id) ? '' : 'none';
   });
 }
@@ -478,6 +514,25 @@ document.getElementById('btn-enviar').onclick = async () => {
     return;
   }
 
+  // Alta repetida: GoTrue NO tira error acá. Ante un correo que ya tiene cuenta
+  // confirmada responde 200 con un user obfuscado —id nuevo, metadata vacía y
+  // un confirmation_sent_at falso— y no emite ningún mail. La única marca es
+  // identities vacío. Verificado contra GoTrue de producción el 02/09/2026:
+  //   alta nueva               → identities.length === 1  (y manda el mail)
+  //   repetida, cuenta SIN confirmar → identities.length === 1  (reenvía el mail)
+  //   repetida, cuenta confirmada    → identities.length === 0  (no manda nada)
+  // Por eso el corte es === 0 y no "falsy": el reenvío a una cuenta sin
+  // confirmar tiene que seguir cayendo en "revisá tu correo".
+  // La rama de authErr de arriba queda igual: cubre el caso de que GoTrue
+  // devuelva "already registered" con la obfuscación apagada.
+  if (Array.isArray(authData.user?.identities) && authData.user.identities.length === 0) {
+    loading('btn-enviar', 'btn-txt', false, 'Enviar solicitud');
+    cfReset();
+    document.getElementById('existe-email').textContent = d.email;
+    seccion('sec-existe');
+    return;
+  }
+
   // Con "Confirm email" activo, signUp NO devuelve sesión: hay que esperar a
   // que el usuario abra el mail. Sin sesión, la RPC no puede correr todavía.
   if (!authData.session) {
@@ -511,6 +566,15 @@ document.getElementById('btn-reintentar').onclick = async () => {
   if (e) { showErr(mensajeRpc(e)); return; }
   localStorage.removeItem(BORRADOR);
   seccion('sec-listo');
+};
+
+// --- Volver al formulario desde "ese correo ya está registrado" -------------
+// El form conserva lo tipeado: sólo se vuelve a mostrar. El captcha, en cambio, se resetea
+// solo en el corte que trajo hasta acá, así que hay token nuevo para el segundo intento.
+document.getElementById('btn-volver-form').onclick = () => {
+  hideMsgs();
+  seccion('sec-form');
+  document.getElementById('f-email').focus();
 };
 
 // --- Camino 2: ya logueado (volvió de confirmar el email) -------------------

@@ -324,6 +324,14 @@ function cfReset(cual) {
   if (textos[motivo]) showError(textos[motivo]);
 })();
 
+// Deep link desde solicitar-acceso.html: ?recuperar=1 abre directo el panel de
+// "olvidé mi contraseña". Sin esto el link tendría que caer en reset-password.html,
+// que sin token de mail muestra "enlace inválido" y es un callejón sin salida.
+(function abrirRecuperar() {
+  if (new URLSearchParams(window.location.search).get('recuperar') !== '1') return;
+  showForgot();
+})();
+
 // Si ya hay sesión activa, redirigir según rol
 (async () => {
   const { data: { session } } = await sb.auth.getSession();
