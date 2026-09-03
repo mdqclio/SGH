@@ -539,4 +539,19 @@ $ git rev-parse HEAD
 
 Coinciden: `6550639` está en `origin/reports`.
 
-Segundo push (este bloque de verificación, sobre el mismo archivo) — salida al pie del documento.
+Segundo push (este bloque de verificación, sobre el mismo archivo):
+
+```
+$ git push origin reports
+To github.com:mdqclio/SGH.git
+   6550639..e811ac3  reports -> reports
+
+$ git ls-remote origin reports
+e811ac3c30950096b794b9cb62e7ab7741d4521f	refs/heads/reports
+
+$ git rev-parse HEAD
+e811ac3c30950096b794b9cb62e7ab7741d4521f
+```
+
+Coinciden. El SHA vigente de `reports` al cerrar este informe es `e811ac3` (el commit que agrega
+esta última línea queda por encima; el contenido del diagnóstico ya está publicado desde `6550639`).
