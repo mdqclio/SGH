@@ -121,6 +121,27 @@ texto. Mide a 390 / 375 / 768 / 1280 px y en `media: print`, porque el bug apare
 visor de iOS y no en desktop — a un solo ancho no se detecta. Con `--pdf` además emite el
 PDF a `/tmp`. Mismos códigos de salida. La contraparte estructural que sí corre en el VPS es
 `probe_badge_overlap.mjs`.
+### `probe_solicitar_cuenta_existente.mjs` — A DEMANDA, no en la rutina
+
+Cubre el corte de "ese correo ya está registrado" de `solicitar-acceso.html` (ISSUE-069, GOTCHA #89):
+32 asserts + 8 mutantes. Extrae del HTML el bloque real que va de los helpers de UI al final del
+"camino 2" y lo corre sobre un mini-DOM que **parsea los ids del archivo** — pedir un id que no
+existe revienta el probe, así que renombrar `#sec-existe` rompe el test en vez de pasar inadvertido.
+
+Dos cosas que lo hacen distinto del resto:
+
+- **Baja el bundle de supabase-js que carga la página** —la URL la lee del `<script>` del HTML, no
+  está escrita en el test— en vez de usar el de `node_modules`. La señal (`user.identities`) depende
+  de la versión del SDK: con la 2.106.1 local, el probe daría verde sobre un fix muerto (GOTCHA #89).
+- **Se corre a demanda**: cuando se toca auth, el signup o esa página. Cada corrida hace dos altas
+  reales, o sea **dos mails que rebotan** en Resend, y los rebotes duros degradan la reputación del
+  dominio que tiene que estar sano el día que se publique el link de registro. La tanda de mutantes
+  hace **una** captura contra GoTrue y los 8 hijos la reusan (`RESP_CACHE`).
+
+Escribe en `auth.users`: 3 cuentas `probe-<caso>-<run>@sgh-probe.invalid`, borradas en el `finally`.
+El teardown se verifica **por estado** (listar y ver que no quedó ninguna + total igual al de antes),
+no por la lista de ids: en el caso obfuscado GoTrue devuelve un id que no existe.
+
 Los probes real-code de liquidaciones (`probe_fase_c`, `probe_incentivos_montas`, `probe_recibos_emision`, `probe_cobros_v11`) extraen el cuerpo real de la función / llaman las RPCs reales con `SUPABASE_SECRET_KEY` (de `.env`), snapshot→run→assert→restore. Sin browser (chromium no corre en ubuntu26.04).
 
 Duración: ~20-90 segundos por probe.
