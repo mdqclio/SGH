@@ -19,16 +19,20 @@
  * OJO CON LA LIBRERÍA: la señal viaja adentro de `data.user`, y ESO DEPENDE DE LA VERSIÓN de
  * supabase-js. La 2.106.1 que hay en node_modules devuelve `user: null` en todo signUp sin sesión
  * (su `_sessionResponse` hace `data.user ?? null`, y GoTrue manda el user SIN envoltorio); la
- * 2.112.4 que sirve el CDN —la que carga la página— sí lo devuelve. Por eso la sección A corre el
- * signUp con el MISMO bundle que carga solicitar-acceso.html, bajado del CDN en la corrida. Si un
- * día el CDN vuelve a la variante que nulea el user, A5 se pone en rojo en vez de dejar el fix
- * convertido en código muerto sin que nadie se entere.
+ * 2.112.4 / 2.114.0 sí lo devuelven. Por eso la página tiene la versión PINEADA y la sección A
+ * baja ese mismo bundle —la URL sale del <script> del HTML, no está escrita acá— en vez de usar
+ * el de node_modules: probar con otra librería daría verde con un fix muerto. A5 es el canario:
+ * si la versión pineada deja de exponer user.identities, se pone en rojo.
  *
  * Qué cubre:
  *   A) GoTrue real, con el bundle del CDN: alta nueva · reenvío sin confirmar · repetida confirmada
  *   B) la página, alimentada con esas respuestas: sec-confirmar vs sec-existe, y los dos links
  *   C) el "camino 2" (ya logueado) sigue yendo a portal.html — el fix no lo toca
  *   D) el deep link ?recuperar=1 de login.html abre el panel de "olvidé mi contraseña"
+ *
+ * SE CORRE A DEMANDA, no en la rutina: cuando se toca auth, el signup o esta página. Cada
+ * corrida rebota dos mails en Resend (ver abajo) y los rebotes duros degradan la reputación del
+ * dominio, que tiene que llegar sano al día que se publique el link de registro.
  *
  *   set -a; . ./.env; set +a
  *   node tests/probe_solicitar_cuenta_existente.mjs
@@ -98,7 +102,7 @@ function mkDom(valores = {}){
   const nodos = {};
   const nuevo = (id) => ({
     id, value: valores[id] ?? '', textContent: '', innerHTML: '', disabled: false, checked: false,
-    onclick: null, style: {}, addEventListener(){},
+    onclick: null, style: {}, addEventListener(){}, _focus: 0, focus(){ this._focus++; },
     classList: { _c:new Set(),
       add(c){ this._c.add(c); }, remove(c){ this._c.delete(c); },
       contains(c){ return this._c.has(c); },
@@ -201,6 +205,14 @@ const MUTANTES = [
     from:`<a class="btn btn-sec" id="lnk-recuperar" href="login.html?recuperar=1"`,
     to:  `<a class="btn btn-sec" id="lnk-recuperar" href="reset-password.html"` },
 
+  { id:'M7', desc:'"me equivoqué de correo" no vuelve al formulario', mata:['B13'],
+    from:`  seccion('sec-form');\n  document.getElementById('f-email').focus();`,
+    to:  `  document.getElementById('f-email').focus();` },
+
+  { id:'M8', desc:'la página vuelve a cargar supabase-js por major (@2, sin pin)', mata:['A0'],
+    from:`<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.114.0"></script>`,
+    to:  `<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>` },
+
   { id:'M6', desc:'el deep link ?recuperar=1 de login.html no abre nada', mata:['D1'], archivo:'login',
     from:`  if (new URLSearchParams(window.location.search).get('recuperar') !== '1') return;`,
     to:  `  if (true) return;` },
@@ -283,9 +295,11 @@ const censo = async () => {
   return { total: data.users.length, mios: data.users.filter(u => MIOS.has(u.email || '')) };
 };
 
-// El mismo <script> que carga la página, corrido acá: la señal depende de la versión.
-const CDN = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+// El mismo <script> que carga la página, corrido acá: la señal depende de la versión, así que
+// la URL se LEE del HTML en vez de escribirla en el probe.
+const CDN = (HTML.match(/<script src="(https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^"]*)"/) || [])[1];
 async function clienteDelCdn(){
+  if (!CDN) throw new Error('no encontré el <script> de supabase-js en el HTML');
   const src = await (await fetch(CDN)).text();
   const umd = new Function(src + '\n;return supabase;')();
   const ver = (src.match(/supabase-js\/(2\.[0-9.]+)/) || [])[1] || '?';
@@ -329,9 +343,9 @@ const CACHE = process.env.RESP_CACHE ? JSON.parse(readFileSync(process.env.RESP_
       rConf = await signUp(mConf);
     }
 
-    ok('A0) la página carga supabase-js del CDN por major, sin pin de versión',
-       HTML.includes('cdn.jsdelivr.net/npm/@supabase/supabase-js@2'),
-       `bundle probado = ${ver}${enVivo ? '' : ' (respuestas cacheadas)'}`);
+    ok('A0) la página pinea una versión EXACTA de supabase-js, y el probe corre ESA',
+       /@supabase\/supabase-js@2\.\d+\.\d+$/.test(CDN || ''),
+       `${CDN} → bundle probado = ${ver}${enVivo ? '' : ' (respuestas cacheadas)'}`);
     ok('A1) alta NUEVA: GoTrue no da error y devuelve identities con 1 entrada',
        !rNuevo.error && rNuevo.data?.user?.identities?.length === 1,
        rNuevo.error?.message ?? `identities=${JSON.stringify(rNuevo.data?.user?.identities?.length)}`);
@@ -354,8 +368,8 @@ const CACHE = process.env.RESP_CACHE ? JSON.parse(readFileSync(process.env.RESP_
       ok('A4d) la cuenta real quedó intacta: sigue confirmada y sin mail nuevo',
          !!uConfPost?.user?.email_confirmed_at, String(uConfPost?.user?.email_confirmed_at));
     }
-    ok('A5) el bundle que carga la página SIGUE exponiendo user.identities — si esto se pone en '
-       + 'rojo, el fix quedó en código muerto y hay que pinear la versión',
+    ok('A5) CANARIO — la versión pineada SIGUE exponiendo user.identities; en rojo, el corte '
+       + 'quedó en código muerto y hay que revisar el pin antes de tocar nada más',
        !!rNuevo.data?.user && Array.isArray(rNuevo.data.user.identities)
        && !!rConf.data?.user && Array.isArray(rConf.data.user.identities), `supabase-js ${ver}`);
     if (process.env.CAPTURA) {
@@ -375,6 +389,13 @@ const CACHE = process.env.RESP_CACHE ? JSON.parse(readFileSync(process.env.RESP_
     ok('B5) y NO "revisá tu correo" — el mail nunca se emitió', !b2.dom.visible('sec-confirmar'));
     ok('B6) con el correo escrito, y sin decir nada más de la cuenta',
        b2.dom._n['existe-email'].textContent === mConf, b2.dom._n['existe-email'].textContent);
+
+    b2.dom._n['btn-volver-form'].onclick();
+    ok('B13) "me equivoqué de correo" vuelve al form sin recargar y sin perder lo tipeado',
+       b2.dom.visible('sec-form') && !b2.dom.visible('sec-existe')
+       && b2.dom._n['f-email'].value === mConf && b2.dom._n['f-email']._focus === 1,
+       `sec-form=${b2.dom._n['sec-form'].style.display} · sec-existe=${b2.dom._n['sec-existe'].style.display}`
+       + ` · email=${b2.dom._n['f-email'].value} · focus=${b2.dom._n['f-email']._focus}`);
 
     const b3 = await enviarComo(mSinConf, rSinConf);
     ok('B7) reenvío a cuenta sin confirmar → sigue siendo "revisá tu correo" (no hay falso positivo)',
