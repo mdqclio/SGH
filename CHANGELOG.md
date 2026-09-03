@@ -1,5 +1,60 @@
 # Changelog
 
+## [2026-09-02] — solicitar-acceso: el falso "revisá tu correo" (merge `6056acd`)
+
+> Una persona real se registró, la página le dijo que revisara el correo, y el correo nunca se
+> mandó. No era un problema de entrega: el mail no se generó nunca.
+
+### El bug
+
+- GoTrue, ante un alta **repetida** sobre una cuenta **ya confirmada**, responde **200 sin error**,
+  con un `user` obfuscado (id nuevo, metadata vacía, `confirmation_sent_at` falso) y **no manda
+  ningún mail**. Es anti-enumeración: la respuesta es indistinguible de un alta nueva para que nadie
+  pueda averiguar qué correos existen.
+- `solicitar-acceso.html` sólo miraba `authErr`. Como no hay error, caía en `sec-confirmar`
+  ("revisá tu correo") por un mail que nunca se emitió. La rama de "ya hay una cuenta con ese
+  correo" (`:471`) era **código muerto**: sólo se activa si GoTrue devuelve error, y no lo devuelve.
+- Diagnóstico del caso real: `docs/diagnosticos/2026-09-02_fede-mail-verificacion-no-llega.md`.
+
+### El fix
+
+- **La señal es `user.identities` vacío**, verificada contra el GoTrue de producción en los tres
+  casos, no deducida de la documentación:
+
+  | Caso | `identities.length` | ¿manda mail? | Pantalla |
+  |---|---|---|---|
+  | Alta nueva | 1 | sí | "revisá tu correo" |
+  | Repetida, cuenta **sin** confirmar | 1 | sí, reenvía | "revisá tu correo" |
+  | Repetida, cuenta **confirmada** | **0** | **no** | "ese correo ya está registrado" |
+
+  Por eso el corte es `=== 0` y no un chequeo "falsy": un `!identities.length` mandaría el reenvío a
+  la pantalla equivocada.
+- **Pantalla `#sec-existe`** con tres salidas: iniciar sesión, `login.html?recuperar=1` y "me
+  equivoqué de correo" (vuelve al form sin recargar y sin perder lo tipeado). El texto no dice nada
+  de la cuenta más allá de que el correo ya está registrado — no se filtra rol, club ni nada.
+- **`login.html` gana `?recuperar=1`**, que abre el panel de "olvidé mi contraseña". El link no
+  puede ir a `reset-password.html`: esa página es la *landing* del mail y sin token muestra "enlace
+  inválido", o sea un callejón sin salida.
+- **`solicitar-acceso.html` pinea `@supabase/supabase-js@2.114.0`** y es la única página del repo
+  que lo hace. Ver GOTCHA #89: con `@2` flotante el fix se convierte en código muerto sin aviso.
+
+### Verificación
+
+- Probe `tests/probe_solicitar_cuenta_existente.mjs` — **32/32** en local y **32/32 contra el HTML
+  servido por `sigh.com.ar`**. **8 mutantes, todos mueren.**
+- **Se corre a demanda**, no en la rutina: cada corrida rebota dos mails en Resend y los rebotes
+  duros degradan la reputación del dominio, que tiene que llegar sano al día que se publique el link
+  de registro.
+- El probe **lee del HTML la URL del bundle** y baja ese, en vez de usar el de `node_modules`:
+  probar con otra versión de la librería daría verde con un fix muerto.
+
+### Lecciones
+
+- **GOTCHA #89** — dos cosas en una: GoTrue no avisa el alta repetida, y la señal que sí lo dice
+  depende de la versión del SDK.
+- **La instrucción que mandaba a `reset-password.html`** se verificó antes de aplicarla y resultó ser
+  un callejón sin salida. El destino correcto era `login.html`, que es donde vive el formulario.
+
 ## [2026-08-30] — ISSUE-065 cerrado + ISSUE-067 opción 1 (merges `ceccda2` y `ea92795`)
 
 > Dos agujeros del circuito de pagos, en el orden equivocado y corregido a mitad de camino: se fue a

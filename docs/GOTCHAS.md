@@ -1037,3 +1037,70 @@ Corolario para probes: **una fixture de "línea comprometida" tiene que existir 
 Con una sola, la mitad del guard queda sin probar y el mutante correspondiente sobrevive.
 
 Ver `tests/probe_no_borrar_liq_cobrada.mjs` (fixtures `liqA` y `liqB`) y GOTCHA #74.
+
+
+---
+
+## 89. Un alta repetida NO da error — y la señal que la delata depende de la versión del SDK (2026-09-02)
+
+### Lo que pasa
+
+`sb.auth.signUp()` sobre un correo que **ya tiene cuenta confirmada** devuelve **200, sin error**, y
+**no manda ningún mail**. La respuesta trae un `user` fabricado: id nuevo que no existe en la base,
+metadata vacía y un `confirmation_sent_at` con la hora actual. Es deliberado —anti-enumeración: si la
+respuesta fuera distinta, cualquiera podría averiguar qué correos están registrados probando altas.
+
+Consecuencia directa: **`if (error)` no alcanza**. Un formulario que asume "sin error = cuenta creada,
+mail enviado" le va a decir a la persona que revise un correo que nunca se emitió. Pasó en producción
+el 02/09/2026 (ISSUE-069).
+
+### La señal
+
+`user.identities`. Verificado contra el GoTrue de producción, los tres casos:
+
+| Caso | `identities.length` | ¿mail? |
+|---|---|---|
+| Alta nueva | **1** | sí |
+| Repetida, cuenta **sin** confirmar | **1** | sí, reenvía |
+| Repetida, cuenta **confirmada** | **0** | **no** |
+
+```javascript
+if (Array.isArray(authData.user?.identities) && authData.user.identities.length === 0) {
+  // ese correo ya tiene cuenta: no se mandó nada
+}
+```
+
+El corte es `=== 0`, **no** `!identities.length` ni `<= 0`: el reenvío a una cuenta sin confirmar sí
+manda mail y tiene que seguir cayendo en "revisá tu correo".
+
+### La trampa de segundo orden: la versión del SDK
+
+GoTrue manda el user **sin envoltorio** (`{id, email, identities, …}` en la raíz del body). Cómo lo
+mapea supabase-js **cambió entre versiones**:
+
+- **2.106.1** — `_sessionResponse` hace `data.user ?? null`
+  (`node_modules/@supabase/auth-js/dist/main/lib/fetch.js:148`). Como el body no tiene clave `user`,
+  **devuelve `user: null` en todo signUp sin sesión**. La señal no existe.
+- **2.112.4 / 2.114.0** — devuelven el user completo, con `identities`.
+
+O sea: el mismo código funciona o no según qué sirva el CDN ese día. Y `@2` **no es "la última"**: el
+02/09 npm marcaba `latest` = 2.114.0 y jsdelivr servía **2.112.4** por cache.
+
+### Qué hacer
+
+1. **Pinear la versión** en la página cuyo comportamiento depende de la forma de la respuesta —
+   `solicitar-acceso.html` carga `@supabase/supabase-js@2.114.0`, con el comentario que explica por
+   qué es la única del repo que lo hace. **No "unificarla" a `@2`.**
+2. **Probar con el bundle que carga la página, no con el de `node_modules`.** Si el probe hubiera
+   usado la librería local (2.106.1), habría dado verde con un fix muerto — o rojo por una razón que
+   no existe en producción. `tests/probe_solicitar_cuenta_existente.mjs` **lee la URL del `<script>`
+   del HTML** y baja ese bundle.
+3. **Dejar un canario.** El assert A5 del probe se pone en rojo si la versión pineada deja de
+   exponer `user.identities`.
+
+### Corolario para probes de auth
+
+Un signUp de prueba **manda mail de verdad**. A un dominio `.invalid` eso es un rebote duro, y los
+rebotes degradan la reputación del dominio en Resend. Por eso ese probe se corre **a demanda**
+—cuando se toca auth o el signup—, no en la rutina, y su tanda de mutantes hace **una** captura
+contra GoTrue que los hijos reusan (`RESP_CACHE`) en vez de repetir el alta por cada mutante.

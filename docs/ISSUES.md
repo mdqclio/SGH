@@ -1291,3 +1291,34 @@ más**, como se hizo con `recibos` — habría que mover esos borrados a un RPC 
 restringir la policy a las líneas no comprometidas.
 
 Módulo: policies de `liquidaciones` / `liquidacion_detalle`. Relacionado: ISSUE-065, ISSUE-067.
+
+
+---
+
+### ISSUE-069: `solicitar-acceso.html` decía "revisá tu correo" por un mail que nunca se emitió
+
+**Estado**: ✅ **CERRADO** el 2026-09-02 (merge `6056acd`).
+
+**Síntoma**: Fede se registró como propietario, la página le mostró "revisá tu correo" y el mail no
+llegó nunca. No era un problema de entrega de Resend: **el mail no se generó**.
+
+**Causa**: GoTrue devuelve **200 sin error** ante un alta repetida sobre una cuenta ya confirmada, con
+un `user` obfuscado y sin mandar nada (anti-enumeración). La página sólo miraba `authErr`, así que
+caía en `sec-confirmar`. La rama de "ya hay una cuenta con ese correo" (`solicitar-acceso.html:471`)
+era código muerto: sólo se activa con un error que GoTrue no devuelve.
+
+**Fix**: corte por `user.identities.length === 0` → pantalla `#sec-existe` (iniciar sesión ·
+`login.html?recuperar=1` · volver al formulario). `login.html` acepta `?recuperar=1` y abre el panel
+de recuperación. `solicitar-acceso.html` pinea `supabase-js@2.114.0` (GOTCHA #89).
+
+**Verificación**: `tests/probe_solicitar_cuenta_existente.mjs` — 32/32 en local y contra el HTML
+servido; 8 mutantes, todos muertos. Se corre **a demanda** (cada corrida rebota 2 mails en Resend).
+
+**Lo que NO resuelve**: Fede tiene cuenta `secretario_carreras` con ese mismo correo. Con el fix ya
+no espera un mail fantasma, pero si además necesita ficha de propietario, ese camino sigue sin
+existir — `rpc_solicitar_acceso` corta con "La cuenta ya tiene acceso al sistema". Queda como
+pregunta de producto.
+
+Módulo: `solicitar-acceso.html`, `login.html`. Informes:
+`docs/diagnosticos/2026-09-02_fede-mail-verificacion-no-llega.md` (diagnóstico) y
+`docs/diagnosticos/2026-09-02_fix-solicitar-acceso-cuenta-existente.md` (fix, diff y probe).

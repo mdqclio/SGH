@@ -286,6 +286,7 @@ node tests/probe_pagos_rol_carrera.mjs    # rol y nº de carrera en el tab Pagos
 node tests/probe_edad_reglamentaria.mjs   # la regla del 1° de julio en el gate de inscripción
 node tests/probe_no_largo.mjs             # "No corrió" persiste {posicion:null,no_largo:true}
 node tests/probe_reunion_es_prueba.mjs    # ISSUE-055: reuniones.es_prueba fuera del circuito de cobro
+node tests/probe_solicitar_cuenta_existente.mjs   # ISSUE-069 — A DEMANDA: manda 2 mails que rebotan
 ```
 
 **El patrón es código real sin browser.** Chromium no corre en este Ubuntu (`"Playwright does not support chromium on ubuntu26.04-x64"` — ver `docs/SERVER.md`), así que el probe **extrae del propio HTML** la función o el bloque a probar —por ancla, con balance de llaves—, lo corre con `new AsyncFunction(...)` inyectando dependencias reales (cliente Supabase con `SUPABASE_SECRET_KEY`, más stubs de DOM si hacen falta) y assertea contra la base. Nunca reimplementar la lógica dentro del test: si el archivo cambia, el probe corre el archivo cambiado. Para lo que escribe: **snapshot → run → assert → restore** en el `finally`.
@@ -405,6 +406,11 @@ salidas de queries, `git status`, `git log`, los diffs, y cualquier cosa pedida 
 13. **SPCs son globales** (sin `club_id`). **Entrenadores y jockeys son per-hipódromo** (tienen `hipodromo_patente`).
 14. **`propietarios.nombre`** — NO `nombre_completo` ni `razon_social`.
 15. **`comisariato` está en `clubs`, NO en `reuniones`** (esa columna fue dropeada).
+16. **`solicitar-acceso.html` pinea `supabase-js@2.114.0`** — es la única página que no usa `@2`, y
+    es a propósito: su corte de "ese correo ya está registrado" lee `user.identities` de la respuesta
+    del `signUp`, y el 2.106.1 devuelve `user: null` ahí. No unificarla a `@2` (GOTCHA #89).
+17. **`signUp` no da error si el correo ya tiene cuenta confirmada** — GoTrue responde 200 con un
+    user obfuscado y no manda mail (anti-enumeración). Mirar `identities.length === 0`, no `error`.
 
 Ver `docs/GOTCHAS.md` para la lista completa (88 entradas).
 
