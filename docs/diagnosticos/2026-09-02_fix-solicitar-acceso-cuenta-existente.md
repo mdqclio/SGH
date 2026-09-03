@@ -350,3 +350,221 @@ d67726be41d17b140b8f14151558b4569b88ffb5	refs/heads/main
 `git rev-parse HEAD` en la rama del fix: `58f3529d11ede641368d859bb60842fa20ab1eee` — coincide con
 el `refs/heads/fix/solicitar-acceso-cuenta-existente` del remoto. `main` sigue en `d67726b`: **no se
 mergeó nada**.
+
+
+---
+
+# Adenda — ajustes pedidos y merge a `main` (2026-09-03)
+
+**SHA del merge**: `6056acd` · **rama mergeada**: `fix/solicitar-acceso-cuenta-existente` en `52db3a4`
+· **estrategia**: `--no-ff`.
+
+## A · Los dos ajustes
+
+### A.1 — Pin de supabase-js
+
+`solicitar-acceso.html` pasa de `@supabase/supabase-js@2` a **`@2.114.0`**, con el comentario que
+explica por qué esta página va pineada y las otras 20 no:
+
+```html
+<!-- VERSIÓN PINEADA a propósito, y es la única página del repo que lo hace. El resto carga
+     @2 porque sólo usa la API estable (auth, from, rpc). Acá no: la pantalla "ese correo ya
+     está registrado" se decide mirando `user.identities` de la respuesta del signUp, y CÓMO
+     mapea el SDK esa respuesta cambia entre versiones. GoTrue manda el user sin envoltorio;
+     2.106.1 lo nulea (`data.user ?? null` en _sessionResponse) y 2.112.4 / 2.114.0 lo pasan.
+     Con @2 flotante, una versión del CDN que vuelva a nulearlo dejaría el corte en código
+     muerto y la página volvería a decir "revisá tu correo" por un mail que no se emitió, sin
+     que nadie se entere. El canario es el assert A5 de tests/probe_solicitar_cuenta_existente.mjs.
+     Para subir la versión: cambiar acá y correr el probe, que baja ESTE bundle, no @2. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.114.0"></script>
+```
+
+La versión elegida es **2.114.0**, que es la que se verificó en vivo (corrida `ljmv75` de anoche y
+las tres de hoy) y la que npm marca como `latest`. Nota al margen: `@2` en jsdelivr servía hoy
+**2.112.4** —cache del CDN, un par de versiones atrás de npm—, o sea que "@2" ni siquiera es "la
+última": es "la que el CDN tenga cacheada". Un argumento más para el pin.
+
+El probe ya no tiene la URL escrita adentro: la **lee del `<script>` del HTML** y baja ese bundle,
+así que testea lo que la página carga de verdad. Dos asserts sostienen esto:
+
+- **A0** — la página pinea una versión exacta (regex `@supabase/supabase-js@2.N.N` al final).
+- **A5** — canario: la versión pineada sigue exponiendo `user.identities`.
+
+### A.2 — Salida al formulario
+
+`#sec-existe` gana un botón "Me equivoqué de correo" que vuelve a `sec-form` sin recargar y sin
+perder lo tipeado (el borrador ni se toca: la sección sólo se vuelve a mostrar), y deja el foco en
+el campo de correo:
+
+```html
+      <!-- Salida para el que se equivocó de correo: volver al form sin recargar y sin perder
+           lo que ya tipeó. -->
+      <button class="btn btn-sec" id="btn-volver-form" style="margin-top:10px;">
+        Me equivoqué de correo
+      </button>
+```
+
+```javascript
+// --- Volver al formulario desde "ese correo ya está registrado" -------------
+// El form conserva lo tipeado: sólo se vuelve a mostrar. El captcha, en cambio, se resetea
+// solo en el corte que trajo hasta acá, así que hay token nuevo para el segundo intento.
+document.getElementById('btn-volver-form').onclick = () => {
+  hideMsgs();
+  seccion('sec-form');
+  document.getElementById('f-email').focus();
+};
+```
+
+Cubierto por **B13** (vuelve al form, esconde `sec-existe`, conserva el correo tipeado, foco en
+`#f-email`) y por el mutante **M7**, que le saca el `seccion('sec-form')` y lo mata.
+
+### A.3 — Cabecera del probe
+
+Se agregó, arriba de todo:
+
+```
+ * SE CORRE A DEMANDA, no en la rutina: cuando se toca auth, el signup o esta página. Cada
+ * corrida rebota dos mails en Resend (ver abajo) y los rebotes duros degradan la reputación del
+ * dominio, que tiene que llegar sano al día que se publique el link de registro.
+```
+
+## B · Mutantes nuevos
+
+De 6 a **8**, todos muertos:
+
+- **M7** — "me equivoqué de correo" no vuelve al formulario → mata B13.
+- **M8** — la página vuelve a `@2` sin pin → mata A0.
+
+```
+═══ MUTATION TESTING · 4/8 mutantes (tanda: M5,M7,M8,M6) ═══
+(copias en /tmp/mut-solicitar-existe-XDm1zm — el repo no se toca)
+
+(captura de GoTrue en /tmp/mut-solicitar-existe-XDm1zm/respuestas.json — los mutantes la reusan)
+
+✅ M5 muere — el link de recuperación apunta a reset-password.html (callejón sin salida)  [esperaba matar B9; murieron B9]
+✅ M7 muere — "me equivoqué de correo" no vuelve al formulario  [esperaba matar B13; murieron B13]
+✅ M8 muere — la página vuelve a cargar supabase-js por major (@2, sin pin)  [esperaba matar A0; murieron A0]
+✅ M6 muere — el deep link ?recuperar=1 de login.html no abre nada  [esperaba matar D1; murieron D1]
+
+✅ TANDA LIMPIA — 4 probados · 4 muertos
+```
+
+(La primera tanda —M1 a M4— también quedó limpia: `4 probados · 4 muertos`.)
+
+## C · Merge y verificación en producción
+
+```bash
+git checkout main && git pull --ff-only origin main
+git merge --no-ff fix/solicitar-acceso-cuenta-existente
+git push origin main
+```
+
+```
+Merge made by the 'ort' strategy.
+ login.html                                 |   8 +
+ solicitar-acceso.html                      |  68 ++++-
+ tests/probe_solicitar_cuenta_existente.mjs | 475 +++++++++++++++++++++++++++++
+ 3 files changed, 549 insertions(+), 2 deletions(-)
+ create mode 100644 tests/probe_solicitar_cuenta_existente.mjs
+
+6056acdb19dbcce177266037cb363179d9f41827
+6056acd merge: fix del falso 'revisá tu correo' en solicitar-acceso.html (cuenta ya existente)
+52db3a4 fix(solicitud): pin de supabase-js + salida al formulario en sec-existe
+58f3529 fix(solicitud): cortar el falso 'revisá tu correo' cuando el correo ya tiene cuenta
+```
+
+### md5 local vs `sigh.com.ar` (con `-L`)
+
+```bash
+md5sum solicitar-acceso.html login.html
+for i in 1 2 3 4 5 6; do
+  curl -s -L "https://sigh.com.ar/solicitar-acceso.html?v=$RANDOM" | md5sum
+  curl -s -L "https://sigh.com.ar/login.html?v=$RANDOM" | md5sum
+  sleep 20
+done
+```
+
+```
+966b04959093986e0439dd44b97b349f  solicitar-acceso.html
+77e55a5e41ede27ae58a1d59953077be  login.html
+--- prod (con -L) ---
+intento 1 · solicitar=1b2f9cf599545efdceda4b6e4b83359f · login=58cdd84c2d6024ef203d7ec125356234
+intento 2 · solicitar=1b2f9cf599545efdceda4b6e4b83359f · login=58cdd84c2d6024ef203d7ec125356234
+intento 3 · solicitar=966b04959093986e0439dd44b97b349f · login=77e55a5e41ede27ae58a1d59953077be
+MATCH
+```
+
+Los dos primeros intentos devolvieron el hash **pre-merge**: es la ventana de propagación del CDN
+de GitHub Pages, no un deploy fallido. Al tercero (≈40 s) los dos archivos coinciden.
+
+### Probe contra el HTML **servido**
+
+```bash
+D=$(mktemp -d)
+curl -s -L -o $D/solicitar-acceso.html https://sigh.com.ar/solicitar-acceso.html
+curl -s -L -o $D/login.html            https://sigh.com.ar/login.html
+md5sum $D/*.html
+SOLICITAR_HTML=$D/solicitar-acceso.html LOGIN_HTML=$D/login.html \
+  node tests/probe_solicitar_cuenta_existente.mjs
+```
+
+```
+77e55a5e41ede27ae58a1d59953077be  /tmp/tmp.Lu107Bk6kh/login.html
+966b04959093986e0439dd44b97b349f  /tmp/tmp.Lu107Bk6kh/solicitar-acceso.html
+exit=0
+
+── Probe · "ese correo ya está registrado" en solicitar-acceso.html ──
+   solicitar=/tmp/tmp.Lu107Bk6kh/solicitar-acceso.html
+   login=/tmp/tmp.Lu107Bk6kh/login.html
+   run=f2n27q
+ ✅ A0) la página pinea una versión EXACTA de supabase-js, y el probe corre ESA  → https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.114.0 → bundle probado = 2.114.0
+ ✅ A1) alta NUEVA: GoTrue no da error y devuelve identities con 1 entrada  → identities=1
+ ✅ A2) y no devuelve sesión: falta confirmar el mail  → null
+ ✅ A3) alta repetida sobre cuenta SIN confirmar: identities sigue en 1 (reenvía el mail)  → identities=1
+ ✅ A3b) y es el usuario REAL, no uno obfuscado  → 090d9435-5d77-46d8-8328-15f47102d970 vs 090d9435-5d77-46d8-8328-15f47102d970
+ ✅ A4) alta repetida sobre cuenta CONFIRMADA: 200, sin error, identities VACÍO — el caso de Fede  → identities=[]
+ ✅ A4b) el user que devuelve es obfuscado: id distinto del real  → 148b2b4e-ec9f-4b36-8bd4-7974983ef948 vs 553f5ae0-036c-49e6-8680-05b2f18489d4
+ ✅ A4c) y trae un confirmation_sent_at igual — por eso no sirve como señal  → 2026-09-03T00:11:09.951061367Z
+ ✅ A4d) la cuenta real quedó intacta: sigue confirmada y sin mail nuevo  → 2026-09-03T00:11:09.714446Z
+ ✅ A5) CANARIO — la versión pineada SIGUE exponiendo user.identities; en rojo, el corte quedó en código muerto y hay que revisar el pin antes de tocar nada más  → supabase-js 2.114.0
+ ✅ B1) alta nueva → "revisá tu correo"
+ ✅ B2) con el correo escrito en la pantalla  → probe-nuevo-f2n27q@sgh-probe.invalid
+ ✅ B3) y sin mostrar la pantalla de cuenta existente
+ ✅ B4) alta repetida sobre confirmada → pantalla de cuenta existente
+ ✅ B5) y NO "revisá tu correo" — el mail nunca se emitió
+ ✅ B6) con el correo escrito, y sin decir nada más de la cuenta  → probe-confirmada-f2n27q@sgh-probe.invalid
+ ✅ B13) "me equivoqué de correo" vuelve al form sin recargar y sin perder lo tipeado  → sec-form= · sec-existe=none · email=probe-confirmada-f2n27q@sgh-probe.invalid · focus=1
+ ✅ B7) reenvío a cuenta sin confirmar → sigue siendo "revisá tu correo" (no hay falso positivo)
+ ✅ B8) el link a login.html está en el HTML real  → login.html
+ ✅ B9) y el de contraseña abre el panel de recuperación de login.html  → login.html?recuperar=1
+ ✅ B10) el caso de cuenta existente no llama a la RPC  → []
+ ✅ B11) el botón queda usable y el captcha reseteado para reintentar  → disabled=false · cfReset=1
+ ✅ B12) el texto de la pantalla no nombra rol, club ni nada de la cuenta
+ ✅ C1) con sesión y usuario del sistema → portal.html  → portal.html
+ ✅ C2) con sesión y solicitud ya enviada → "solicitud enviada", sin redirigir  → sec-listo= · replace=undefined
+ ✅ C3) con sesión, sin usuario y sin solicitud → el form sin el bloque de cuenta  → grp-cuenta=none · replace=undefined
+ ✅ D1) ?recuperar=1 abre el panel de "olvidé mi contraseña"
+ ✅ D2) sin el parámetro no toca nada
+ ✅ D3) showForgot existe en login.html
+ ✅ D4) reset-password.html sigue sin formulario para pedir el link — por eso no se linkea ahí
+ ✅ Z1) teardown: no quedó ninguna cuenta de esta corrida
+ ✅ Z2) y auth.users volvió al conteo de antes  → antes=10 · después=10
+
+32/32 OK
+```
+
+Los md5 del temporal son los mismos que los locales: lo que corrió el probe es exactamente el HTML
+que sirve producción.
+
+## D · Estado final
+
+| Cosa | Estado |
+|---|---|
+| `main` | `6056acd` — mergeado y desplegado |
+| Asserts | **32/32** en local y contra el HTML servido |
+| Mutantes | **8/8 muertos** (dos tandas) |
+| Cuentas de prueba | 0 residuos (Z1) · `auth.users` 10 → 10 (Z2) |
+| Pin de supabase-js | `@2.114.0`, sólo en `solicitar-acceso.html` |
+
+Sigue abierta la pregunta 2 del §6 (Fede y el rol de propietario con el mismo correo); las
+preguntas 1 y 4 quedaron cerradas por estos ajustes.
