@@ -795,3 +795,254 @@ bdfa16d7977febd4020536b72731e0cd034ebb57	refs/heads/reports
 $ git rev-parse HEAD
 bdfa16d7977febd4020536b72731e0cd034ebb57
 ```
+
+---
+
+# ADENDA — merge a `main`, verificación contra prod y GOTCHA #90 (2026-09-05)
+
+## 14. Merge con `--no-ff`
+
+```
+$ git checkout main
+Switched to branch 'main'
+Your branch is up to date with 'origin/main'.
+
+$ git pull --ff-only origin main
+ * branch            main       -> FETCH_HEAD
+Already up to date.
+
+$ git merge --no-ff fix/solicitar-acceso-paso-final -m "merge: el paso 3 del registro pasa a ser un paso (pantalla \"Ya casi\")"
+ CHANGELOG.md                               |  56 ++++
+ CLAUDE.md                                  |   1 +
+ docs/ISSUES.md                             |  90 +++++
+ solicitar-acceso.html                      | 188 ++++++++++-
+ tests/README.md                            |  12 +
+ tests/probe_solicitar_cuenta_existente.mjs |  11 +-
+ tests/probe_solicitar_falta_paso.mjs       | 517 +++++++++++++++++++++++++++++
+ 7 files changed, 854 insertions(+), 21 deletions(-)
+ create mode 100644 tests/probe_solicitar_falta_paso.mjs
+
+$ git log --oneline -1
+2fb85d4 merge: el paso 3 del registro pasa a ser un paso (pantalla "Ya casi")
+
+$ git push origin main
+   5d95372..2fb85d4  main -> main
+
+$ git ls-remote origin main
+2fb85d433e3f19a3d9d7b18d089f6e2b40f337c3	refs/heads/main
+
+$ git rev-parse HEAD
+2fb85d433e3f19a3d9d7b18d089f6e2b40f337c3
+```
+
+## 15. MD5 contra `sigh.com.ar`
+
+```
+$ md5sum solicitar-acceso.html
+local  = 10c236bae998e357edf76f6ac9972ea0
+
+$ curl -sL -H 'Cache-Control: no-cache' "https://sigh.com.ar/solicitar-acceso.html?v=$RANDOM" -o served.html
+intento 1: remoto = 966b04959093986e0439dd44b97b349f
+intento 2: remoto = 966b04959093986e0439dd44b97b349f
+intento 3: remoto = 10c236bae998e357edf76f6ac9972ea0
+MATCH
+```
+
+Los dos primeros intentos son el HTML **viejo**: GitHub Pages tardó ~40 s en publicar. El tercero
+coincide byte a byte con el local. `login.html` no se tocó y también se bajó servido, para correr el
+probe de ISSUE-069 contra el par real:
+
+```
+login servido = 77e55a5e41ede27ae58a1d59953077be  ·  local = 77e55a5e41ede27ae58a1d59953077be
+```
+
+## 16. Los dos probes, contra el HTML SERVIDO
+
+No contra el archivo local: contra `served.html`, el que baja el navegador.
+
+```
+$ SOLICITAR_HTML=served.html node tests/probe_solicitar_falta_paso.mjs
+
+── Probe · pantalla "Ya casi" (paso final) en solicitar-acceso.html ──
+   solicitar=/tmp/claude-1000/-home-clio-dev-SGH/566e4a24-ae1b-464b-94b1-d6bb6ea7faa4/scratchpad/served.html
+ ✅ P1) sesión + sin usuario + sin solicitud + borrador válido → pantalla "Ya casi", y el formulario NO se muestra  → sec-falta="" · sec-form="none" · replace=undefined
+ ✅ P2) la ficha muestra los datos del borrador, legibles  → nombre=Federico Iguacel · dni=23456789 · rol=Propietario · caballeriza=Stud La Yaya · hip=Tandil · tel=5492245123456
+ ✅ P2b) propietario: se ve la caballeriza y no la patente, y la etiqueta del hipódromo es la de la caballeriza  → caballeriza=true · patente=false · etiqueta=Hipódromo de la caballeriza
+ ✅ P3) entrenador: patente visible, caballeriza escondida, etiqueta de hipódromo la de la patente  → rol=Entrenador · patente=true/AZ-4412 · caballeriza=false · etiqueta=Hipódromo de la patente
+ ✅ P3b) el teléfono vacío no deja una fila en blanco  → res-row-tel="none"
+ ✅ P3c) la patente es opcional: sin ella, la fila tampoco aparece  → patente="none"
+ ✅ P4) "Enviar solicitud" llama a rpc_solicitar_acceso con los datos de la ficha  → [{"fn":"rpc_solicitar_acceso","args":{"p_nombre":"Federico","p_apellido":"Iguacel","p_documento_nro":"23456789","p_telefono":"5492245123456","p_rol_pedido":"propietario","p_club_id":"0649e9c5-9e87-4aad-842f-101458e6b33c","p_origen_hipodromo":"Tandil","p_origen_patente_nro":null,"p_origen_caballeriza":"Stud La Yaya"}}]
+ ✅ P4b) y después muestra "solicitud enviada" y limpia el borrador  → sec-listo="" · borrador=null
+ ✅ P4c) si la RPC falla, no dice "enviada" y el borrador sobrevive para reintentar  → sec-listo="none" · err=Esta cuenta ya envió una solicitud. La secretaría la va a revisar.
+ ✅ P5) "corregir mis datos" despliega el formulario y esconde la ficha  → sec-form="" · sec-falta="none"
+ ✅ P5b) y viene precargado con el borrador, sin pedir la cuenta de nuevo  → nombre=Federico · dni=23456789 · hip=Tandil · grp-cuenta="none"
+ ✅ P5c) con el rol del borrador ya elegido y el bloque de origen correcto  → origen-prop="" · origen-prof="none"
+ ✅ P5d) el subtítulo del formulario dice que todavía hay que enviar  → sub=Corregí lo que haga falta y tocá Enviar solicitud. Tu correo ya está confirmado. · focus=1
+ ✅ P5e) desde el formulario corregido, "Enviar solicitud" manda la RPC y no re-crea la cuenta  → [{"fn":"rpc_solicitar_acceso","args":{"p_nombre":"Federico","p_apellido":"Iguacel","p_documento_nro":"23456789","p_telefono":"5492245123456","p_rol_pedido":"propietario","p_club_id":"0649e9c5-9e87-4aad-842f-101458e6b33c","p_origen_hipodromo":"Tandil","p_origen_patente_nro":null,"p_origen_caballeriza":"Stud La Yaya"}}]
+ ✅ P6) sin borrador (otro dispositivo, localStorage limpio) → el formulario, no la ficha  → sec-form="" · sec-falta="none"
+ ✅ P6b) con un texto propio: dice que el correo quedó confirmado y que la solicitud FALTA  → sub=Tu correo ya está confirmado, pero todavía falta la solicitud. Completá los datos y enviala.
+ ✅ P7) borrador que no pasa validar() → mismo camino que sin borrador, nunca la ficha  → sec-falta="none" · sub=Tu correo ya está confirmado, pero todavía falta la solicitud. Completá los datos y enviala.
+ ✅ P7b) y lo que sí tenía el borrador roto queda precargado, no se pierde  → nombre=Federico · hip=""
+ ✅ P8) con fila en usuarios → sigue redirigiendo a portal.html, sin mostrar la ficha  → replace=portal.html · sec-falta=undefined
+ ✅ P9) con solicitud ya enviada → sigue mostrando "solicitud enviada", sin ficha ni redirect  → sec-listo="" · replace=undefined
+ ✅ P10) alta nueva sin sesión → "revisá tu correo", y NO la ficha  → sec-confirmar="" · conf-email=probe@sgh-probe.invalid
+ ✅ P10b) y el borrador queda guardado para cuando vuelva de confirmar  → {"nombre":"Juan","apellido":"Probe","dni":"12345678","telefono":"5492245123456","rol":"propietario","origenHipodromo":"Tandil","origenPatente":"","origenCaballeriza":"Stud Probe","email":"probe@sgh-probe.invalid","pass":"Probe12345!"}
+ ✅ P11) "revisá tu correo" avisa que la solicitud NO queda enviada y nombra el botón  → <div id="sec-confirmar" style="display:none;"> <div class="ok-icon">📬</div> <h2 class="card-title" style="text-align:center;">Revisá tu correo</h2> <p class="card-sub" style="text-align:center;"> Te mandamos un mail a <strong id="conf-email"></strong> para confirmar la dirección. </p> <p class="card-sub" style="text-a
+ ✅ P12) la ficha no tiene un solo <input>: no se lee como formulario
+ ✅ P12b) tiene un único botón de envío, y el de corregir es un link secundario  → <button class="btn" id="btn-falta-enviar"> | <button class="lnk-sec" id="btn-falta-corregir">
+ ✅ P12c) y su título es distinto del de sec-reintento — son dos pantallas, no una  → falta=Ya casi
+ ✅ P13) si el borrador se rompió entremedio, el botón NO manda la RPC y abre el formulario  → rpc=[] · sec-form=""
+
+27/27 OK
+exit=0
+```
+
+```
+$ SOLICITAR_HTML=served.html node tests/probe_solicitar_falta_paso.mjs --mutantes
+
+═══ MUTATION TESTING · 12/12 mutantes ═══
+(copias en /tmp/mut-solicitar-falta-izKiRw — el repo no se toca)
+
+✅ N1 muere — el camino 2 vuelve a re-mostrar el formulario (el bug original vuelve)  [esperaba matar P1,P2; murieron P1,P2]
+✅ N2 muere — la condición se invierte: ficha con borrador roto, formulario con borrador bueno  [esperaba matar P1,P6; murieron P1,P6]
+✅ N3 muere — seccion() no conoce sec-falta: la pantalla nunca se muestra  [esperaba matar P1; murieron P1]
+✅ N4 muere — "corregir mis datos" no despliega el formulario  [esperaba matar P5; murieron P5]
+✅ N5 muere — el botón de la ficha da "enviada" sin llamar a la RPC  [esperaba matar P4; murieron P4]
+✅ N6 muere — sin borrador, el form usa el texto genérico del alta (no dice que falta la solicitud)  [esperaba matar P6b; murieron P6b]
+✅ N7 muere — sec-confirmar vuelve al texto viejo: no anticipa el paso que falta  [esperaba matar P11; murieron P11]
+✅ N8 muere — la etiqueta del hipódromo no cambia con el rol  [esperaba matar P3; murieron P3]
+✅ N9 muere — la ficha se muestra vacía: el resumen no se pinta  [esperaba matar P2; murieron P2]
+✅ N10 muere — la fila de caballeriza se muestra siempre, también para el entrenador  [esperaba matar P3; murieron P3]
+✅ N11 muere — con usuario en el sistema ya no redirige a portal.html  [esperaba matar P8; murieron P8]
+✅ N12 muere — la ficha manda la RPC aunque el borrador esté incompleto  [esperaba matar P13; murieron P13]
+
+✅ TANDA LIMPIA — 12 probados · 12 muertos
+
+exit=0
+```
+
+```
+$ set -a; . ./.env; set +a
+$ SOLICITAR_HTML=served.html LOGIN_HTML=served_login.html node tests/probe_solicitar_cuenta_existente.mjs
+
+── Probe · "ese correo ya está registrado" en solicitar-acceso.html ──
+   solicitar=/tmp/claude-1000/-home-clio-dev-SGH/566e4a24-ae1b-464b-94b1-d6bb6ea7faa4/scratchpad/served.html
+   login=/tmp/claude-1000/-home-clio-dev-SGH/566e4a24-ae1b-464b-94b1-d6bb6ea7faa4/scratchpad/served_login.html
+   run=nty94b
+ ✅ A0) la página pinea una versión EXACTA de supabase-js, y el probe corre ESA  → https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.114.0 → bundle probado = 2.114.0
+ ✅ A1) alta NUEVA: GoTrue no da error y devuelve identities con 1 entrada  → identities=1
+ ✅ A2) y no devuelve sesión: falta confirmar el mail  → null
+ ✅ A3) alta repetida sobre cuenta SIN confirmar: identities sigue en 1 (reenvía el mail)  → identities=1
+ ✅ A3b) y es el usuario REAL, no uno obfuscado  → 9af269bf-9581-4a17-9cae-0ee503ca92c7 vs 9af269bf-9581-4a17-9cae-0ee503ca92c7
+ ✅ A4) alta repetida sobre cuenta CONFIRMADA: 200, sin error, identities VACÍO — el caso de Fede  → identities=[]
+ ✅ A4b) el user que devuelve es obfuscado: id distinto del real  → 8b42c09c-31bf-4c42-aa17-a2198ce77441 vs ae0cd5ae-12b5-412a-9ac4-31c99f370382
+ ✅ A4c) y trae un confirmation_sent_at igual — por eso no sirve como señal  → 2026-09-05T05:29:05.758523658Z
+ ✅ A4d) la cuenta real quedó intacta: sigue confirmada y sin mail nuevo  → 2026-09-05T05:29:05.528081Z
+ ✅ A5) CANARIO — la versión pineada SIGUE exponiendo user.identities; en rojo, el corte quedó en código muerto y hay que revisar el pin antes de tocar nada más  → supabase-js 2.114.0
+ ✅ B1) alta nueva → "revisá tu correo"
+ ✅ B2) con el correo escrito en la pantalla  → probe-nuevo-nty94b@sgh-probe.invalid
+ ✅ B3) y sin mostrar la pantalla de cuenta existente
+ ✅ B4) alta repetida sobre confirmada → pantalla de cuenta existente
+ ✅ B5) y NO "revisá tu correo" — el mail nunca se emitió
+ ✅ B6) con el correo escrito, y sin decir nada más de la cuenta  → probe-confirmada-nty94b@sgh-probe.invalid
+ ✅ B13) "me equivoqué de correo" vuelve al form sin recargar y sin perder lo tipeado  → sec-form= · sec-existe=none · email=probe-confirmada-nty94b@sgh-probe.invalid · focus=1
+ ✅ B7) reenvío a cuenta sin confirmar → sigue siendo "revisá tu correo" (no hay falso positivo)
+ ✅ B8) el link a login.html está en el HTML real  → login.html
+ ✅ B9) y el de contraseña abre el panel de recuperación de login.html  → login.html?recuperar=1
+ ✅ B10) el caso de cuenta existente no llama a la RPC  → []
+ ✅ B11) el botón queda usable y el captcha reseteado para reintentar  → disabled=false · cfReset=1
+ ✅ B12) el texto de la pantalla no nombra rol, club ni nada de la cuenta
+ ✅ C1) con sesión y usuario del sistema → portal.html  → portal.html
+ ✅ C2) con sesión y solicitud ya enviada → "solicitud enviada", sin redirigir  → sec-listo= · replace=undefined
+ ✅ C3) con sesión, sin usuario, sin solicitud y sin borrador → el form sin el bloque de cuenta  → grp-cuenta=none · replace=undefined
+ ✅ D1) ?recuperar=1 abre el panel de "olvidé mi contraseña"
+ ✅ D2) sin el parámetro no toca nada
+ ✅ D3) showForgot existe en login.html
+ ✅ D4) reset-password.html sigue sin formulario para pedir el link — por eso no se linkea ahí
+ ✅ Z1) teardown: no quedó ninguna cuenta de esta corrida
+ ✅ Z2) y auth.users volvió al conteo de antes  → antes=11 · después=11
+
+32/32 OK
+exit=0
+```
+
+**Resumen**: el probe nuevo **27/27 asserts y 12/12 mutantes** sobre el HTML servido; el de
+ISSUE-069 **32/32**, con `Z1`/`Z2` en verde (`auth.users` 11 → 11, ninguna cuenta de la corrida
+sobreviviente). El fix está vivo en producción y ninguno de los dos caminos anteriores se rompió.
+
+Costo de esta verificación: **2 mails** más (la corrida de ISSUE-069 contra el servido). Total de la
+sesión: 6. Se corrieron sólo las corridas normales contra prod; la tanda de mutantes de ISSUE-069 ya
+se había verificado antes del merge y no se repitió.
+
+## 17. GOTCHA #90 — el hallazgo de instrumentación del §5
+
+Asentado en `docs/GOTCHAS.md` como **#90**, con las tres ocurrencias enlazadas:
+
+| # | Qué falló | Cómo se leyó |
+|---|---|---|
+| GOTCHA #82 | `\b` no separa `U4` de `U4b` en el regex del runner | el mutante "sobrevive" |
+| GOTCHA #84 | el hijo moría en el `import` desde `/tmp`, antes del primer assert | el mutante "sobrevive" |
+| **#90** | el hijo moría armando el **texto de la nota** de un assert | el mutante "sobrevive" |
+
+Lo que hace a #90 distinto de #84: el guard que puso #84 —*"si no imprimió `NN/NN OK`, es
+arnés"*— **no lo agarra**. El hijo arranca bien, corre asserts, revienta a mitad de camino armando
+la nota de uno, el `catch` general lo levanta y el probe **igual imprime `NN/NN OK`**. Para el
+runner corrió; como nunca llegó al rótulo `❌ P8)`, lo reporta `SOBREVIVE`. La única pista es que el
+conteo final baja (`18/19` contra `27/27`).
+
+La regla general que quedó escrita, tal cual:
+
+> **Cuando un mutante "sobrevive", primero descartar que el arnés lo esté leyendo mal.**
+>
+> 1. ¿El hijo llegó al final? — el guard de GOTCHA #84 (`NN/NN OK`). Si no, es arnés.
+> 2. ¿El hijo murió en el medio? — buscar `💥 el probe corrió entero` o un `TypeError`. Si el conteo
+>    final es menor que el de la corrida limpia, es arnés (#90).
+> 3. ¿El `mata:` apunta al assert correcto? — correr el mutante a mano y mirar **qué** se puso en
+>    rojo, no si algo se puso en rojo. Ojo con los sufijos (`P6` vs `P6b`, #82).
+> 4. Recién ahí: ¿agujero de cobertura real, o mutante equivalente (#84)?
+>
+> Tres de tres veces el "sobreviviente" era instrumentación. La conclusión no es que los mutantes no
+> sirvan: es que **la salida de un mutante que sobrevive es una pregunta, no una respuesta**.
+
+El arreglo concreto en el mini-DOM, para que una nota no pueda reventar:
+
+```javascript
+dsp(id){ return JSON.stringify(get(id).style.display); },   // para las notas
+est(id){ return get(id).style.display; },                   // crudo, para los asserts
+```
+
+`dsp()` va `JSON.stringify`-eado a propósito: `""` y `undefined` se ven distinto en la nota, y ésa
+es exactamente la diferencia entre "se mostró" y "nunca se tocó".
+
+## 18. Commit de documentación posterior al merge
+
+```
+$ git log --oneline -2
+cc0ea64 docs: GOTCHA #90 — un throw en la nota del assert disfraza una muerte de sobreviviente
+2fb85d4 merge: el paso 3 del registro pasa a ser un paso (pantalla "Ya casi")
+
+$ git push origin main
+   2fb85d4..cc0ea64  main -> main
+
+$ git ls-remote origin main
+cc0ea64c8847d5eafb78a234cfedc749ab597afe	refs/heads/main
+
+$ git rev-parse HEAD
+cc0ea64c8847d5eafb78a234cfedc749ab597afe
+```
+
+Ese commit también corrige el estado de ISSUE-070 (`CERRADO el 2026-09-05, merge 2fb85d4, VIVO`) y
+le agrega al CHANGELOG la sección de verificación en producción.
+
+## 19. Estado final de las tres ramas
+
+| Rama | SHA |
+|---|---|
+| `main` | `cc0ea64c8847d5eafb78a234cfedc749ab597afe` — **merge del fix + GOTCHA #90, vivo en prod** |
+| `fix/solicitar-acceso-paso-final` | `29fec91677cecccaaa3bc60b8aa2ef68199bfdef` — mergeada, se puede borrar |
+| `reports` | este informe |
+
+## 20. Preguntas abiertas — sin cambios
+
+Las cuatro de §11 siguen abiertas. La #4 ("merge") queda respondida: mergeado y verificado contra
+prod. Falta la que no puede dar ningún probe: **Fede terminando su registro por el camino nuevo**.
