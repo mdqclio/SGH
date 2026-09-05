@@ -1,5 +1,61 @@
 # Changelog
 
+## [2026-09-05] — solicitar-acceso: el paso 3 pasa a ser un paso (rama `fix/solicitar-acceso-paso-final`)
+
+> El primer usuario real confirmó el correo, volvió a la página, vio el formulario con sus datos y
+> cerró la pestaña. La solicitud nunca se creó: cuenta viva en `auth.users`, `solicitudes_acceso`
+> vacía, invisible para la secretaría.
+
+### El agujero
+
+No es un bug de código. El registro tiene **tres** pasos —llenar el form · confirmar el correo ·
+**enviar la solicitud**— y el tercero no se leía como un paso:
+
+- `sec-confirmar` decía *"Abrilo y volvés acá para terminar la solicitud"*. El que clickea el link
+  del mail **ya está "acá"**: la frase no anticipa que falta apretar un botón.
+- Al volver, el camino 2 re-mostraba **el mismo formulario** precargado. Campos llenos se leen como
+  "ya está hecho".
+
+Con el link publicado esto le pasa a la mayoría. Diagnóstico:
+`docs/diagnosticos/2026-09-03_fede-registro-real-sin-solicitud.md`.
+
+### Lo que se descartó
+
+Llamar a `enviarSolicitud()` sola al detectar sesión + borrador. **No va**: manda sin que la persona
+revise y arrastra el riesgo de un borrador viejo. Se hace el paso inconfundible, no se saltea.
+
+### El fix (`solicitar-acceso.html`)
+
+- **Pantalla nueva `#sec-falta` ("Ya casi")** — ficha de **sólo lectura** (nombre, DNI, rol, origen
+  y lo que corresponda al rol; cero `<input>`), **un** botón grande `Enviar solicitud`, y un link
+  secundario "corregir mis datos" que despliega el formulario precargado. Se muestra con sesión, sin
+  fila en `usuarios`, sin solicitud **y** borrador que pasa `validar(b, false)`.
+- **Sin borrador utilizable** (otro dispositivo, `localStorage` limpio) → el formulario, con
+  subtítulo propio: *"Tu correo ya está confirmado, pero todavía falta la solicitud."*
+- **`sec-confirmar` reescrito** — avisa que confirmar el mail **no** deja enviada la solicitud y
+  nombra el botón que va a tener que apretar al volver.
+- El resumen se pinta con `textContent` sobre filas que ya existen en el HTML: nada de `innerHTML`
+  con datos (ISSUE-018), y los ids quedan verificables desde el probe.
+- Sin cambios en `rpc_solicitar_acceso`. Las otras ramas del camino 2 quedan iguales: `usuarios` →
+  `portal.html`, solicitud → `sec-listo`, sin sesión → `sec-confirmar`.
+
+### Probe
+
+`tests/probe_solicitar_falta_paso.mjs` — **27/27 asserts, 12/12 mutantes muertos**. Mismo patrón de
+slab + mini-DOM que `probe_solicitar_cuenta_existente.mjs`, pero **sin red y sin credenciales**: no
+manda mails, no planta cuentas, no escribe una fila. Se puede correr en cualquier rutina.
+
+`probe_solicitar_cuenta_existente.mjs` se re-corrió sobre el archivo cambiado: **32/32 y 8/8
+mutantes**. Se le tocaron dos anclas (el array de `seccion()` y el corte del assert B12, que ahora
+termina en `<!-- ===== FALTA ENVIAR`); sigue siendo **a demanda**, 2 mails por corrida.
+
+### Issues
+
+- **ISSUE-070** cerrado (este fix).
+- **ISSUE-071** abierto **con criterio de activación**: vista de cuentas confirmadas sin solicitud.
+  No se construye hasta que, publicada la campaña, se acumulen. La query que lo mide está en el
+  issue.
+
 ## [2026-09-02] — solicitar-acceso: el falso "revisá tu correo" (merge `6056acd`)
 
 > Una persona real se registró, la página le dijo que revisara el correo, y el correo nunca se

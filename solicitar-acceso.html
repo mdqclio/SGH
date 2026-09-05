@@ -90,6 +90,28 @@
     }
     @keyframes sp { to { transform: rotate(360deg); } }
     .ok-icon { font-size: 40px; text-align: center; margin-bottom: 10px; }
+    /* Resumen de "Ya casi": tiene que leerse como una ficha ya cargada, no como
+       un formulario. Sin inputs, sin bordes de campo, sin nada clickeable. */
+    .resumen {
+      background: rgba(0,0,0,0.22); border: 1px solid var(--verde-borde);
+      border-radius: 10px; padding: 4px 14px; margin-bottom: 18px;
+    }
+    /* Borde ARRIBA y no abajo: las filas opcionales (patente, teléfono) están al final y
+       se esconden según el rol y lo que haya cargado. Con border-bottom, esconder la última
+       dejaba una línea colgando; con border-top el corte siempre cae entre dos visibles. */
+    .res-row {
+      display: flex; gap: 12px; justify-content: space-between; align-items: baseline;
+      padding: 9px 0; border-top: 1px solid rgba(36,80,51,0.55);
+    }
+    .res-row:first-child { border-top: none; }
+    .res-k { color: var(--gris); font-size: 12.5px; flex: 0 0 auto; }
+    .res-v { color: var(--crema); font-size: 14px; font-weight: 500; text-align: right; word-break: break-word; }
+    .lnk-sec {
+      display: block; width: 100%; margin-top: 12px; padding: 4px;
+      background: none; border: none; font-family: inherit; font-size: 13px;
+      color: var(--gris); text-decoration: underline; cursor: pointer; text-align: center;
+    }
+    .lnk-sec:hover { color: var(--oro-suave); }
   </style>
 </head>
 <body>
@@ -226,10 +248,20 @@
       <h2 class="card-title" style="text-align:center;">Revisá tu correo</h2>
       <p class="card-sub" style="text-align:center;">
         Te mandamos un mail a <strong id="conf-email"></strong> para confirmar la dirección.
-        Abrilo y volvés acá para terminar la solicitud.
+      </p>
+      <!-- El texto anterior decía "abrilo y volvés acá para terminar la solicitud". El que
+           clickea el link del mail YA está "acá", así que lo leía como que había terminado:
+           veía el formulario precargado, lo tomaba por confirmación y cerraba. Le pasó al
+           primer usuario real (03/09/2026) y la solicitud nunca se creó. Ahora la pantalla
+           dice el número de pasos y nombra el botón que va a tener que apretar. -->
+      <p class="card-sub" style="text-align:center;">
+        <strong style="color:var(--oro-suave);">Ojo: con eso todavía no queda enviada.</strong>
+        Al volver a esta página vas a ver tus datos y un botón
+        <strong style="color:var(--oro-suave);">Enviar solicitud</strong>:
+        recién cuando lo apretás le llega a la secretaría.
       </p>
       <p class="card-sub" style="text-align:center;">
-        Si no lo ves, mirá en correo no deseado.
+        Si no ves el mail, mirá en correo no deseado.
       </p>
     </div>
 
@@ -258,6 +290,51 @@
       <button class="btn btn-sec" id="btn-volver-form" style="margin-top:10px;">
         Me equivoqué de correo
       </button>
+    </div>
+
+    <!-- ===== FALTA ENVIAR (volvió de confirmar el mail) ===== -->
+    <!-- Esta pantalla existe porque re-mostrar el formulario NO se lee como un paso: el que
+         vuelve de confirmar el correo ve campos con sus datos y entiende "ya está cargado".
+         Es exactamente lo que pasó el 03/09/2026 — cuenta confirmada, cero solicitud, invisible
+         para la secretaría. Se descartó a propósito mandar la RPC sola al detectar sesión +
+         borrador: eso envía sin que la persona revise, y arrastra el riesgo de un borrador
+         viejo. La solución es hacer el paso inconfundible, no saltearlo: ficha de sólo lectura
+         (sin un input a la vista) y un único botón grande. -->
+    <div id="sec-falta" style="display:none;">
+      <div class="ok-icon">📝</div>
+      <h2 class="card-title" style="text-align:center;">Ya casi</h2>
+      <p class="card-sub" style="text-align:center;">
+        Tu correo quedó confirmado. <strong style="color:var(--oro-suave);">La solicitud
+        todavía no está enviada</strong>: revisá los datos y tocá el botón para mandarla
+        a la secretaría.
+      </p>
+      <div class="resumen" id="falta-resumen">
+        <div class="res-row" id="res-row-nombre">
+          <span class="res-k">Nombre</span><span class="res-v" id="res-nombre"></span>
+        </div>
+        <div class="res-row" id="res-row-dni">
+          <span class="res-k">DNI</span><span class="res-v" id="res-dni"></span>
+        </div>
+        <div class="res-row" id="res-row-rol">
+          <span class="res-k">Soy</span><span class="res-v" id="res-rol"></span>
+        </div>
+        <div class="res-row" id="res-row-caballeriza">
+          <span class="res-k">Caballeriza</span><span class="res-v" id="res-caballeriza"></span>
+        </div>
+        <div class="res-row" id="res-row-hipodromo">
+          <span class="res-k" id="res-k-hipodromo">Hipódromo</span><span class="res-v" id="res-hipodromo"></span>
+        </div>
+        <div class="res-row" id="res-row-patente">
+          <span class="res-k">Patente</span><span class="res-v" id="res-patente"></span>
+        </div>
+        <div class="res-row" id="res-row-tel">
+          <span class="res-k">Teléfono</span><span class="res-v" id="res-tel"></span>
+        </div>
+      </div>
+      <button class="btn" id="btn-falta-enviar">
+        <span id="btn-falta-txt">Enviar solicitud</span>
+      </button>
+      <button class="lnk-sec" id="btn-falta-corregir">Corregir mis datos</button>
     </div>
 
     <!-- ===== SOLICITUD ENVIADA ===== -->
@@ -347,7 +424,7 @@ function showErr(m) { const e = document.getElementById('err'); e.textContent = 
 function hideMsgs() { document.getElementById('err').classList.remove('show');
                       document.getElementById('ok').classList.remove('show'); }
 function seccion(id) {
-  ['sec-form','sec-confirmar','sec-existe','sec-listo','sec-reintento'].forEach(s => {
+  ['sec-form','sec-confirmar','sec-existe','sec-falta','sec-listo','sec-reintento'].forEach(s => {
     document.getElementById(s).style.display = (s === id) ? '' : 'none';
   });
 }
@@ -577,6 +654,79 @@ document.getElementById('btn-volver-form').onclick = () => {
   document.getElementById('f-email').focus();
 };
 
+// --- Pantalla "Ya casi": ficha del borrador + un solo botón ----------------
+// Se pinta con textContent sobre filas que ya existen en el HTML: nada de innerHTML con
+// datos (ISSUE-018), y los ids quedan verificables desde el probe.
+function pintarResumen(d) {
+  const esProp = d.rol === 'propietario';
+  const set = (id, v) => { document.getElementById(id).textContent = v || '—'; };
+  const fila = (id, on) => { document.getElementById(id).style.display = on ? '' : 'none'; };
+
+  set('res-nombre', `${d.nombre || ''} ${d.apellido || ''}`.trim());
+  set('res-dni', d.dni);
+  set('res-rol', esProp ? 'Propietario' : 'Entrenador');
+  set('res-caballeriza', d.origenCaballeriza);
+  set('res-hipodromo', d.origenHipodromo);
+  set('res-patente', d.origenPatente);
+  set('res-tel', d.telefono);
+
+  // La etiqueta del hipódromo cambia con el rol: es el dato que la secretaría usa para
+  // llamar a validar, y de un propietario se valida la caballeriza, no una patente.
+  document.getElementById('res-k-hipodromo').textContent =
+    esProp ? 'Hipódromo de la caballeriza' : 'Hipódromo de la patente';
+
+  fila('res-row-caballeriza', esProp);
+  fila('res-row-patente', !esProp && !!d.origenPatente);
+  fila('res-row-tel', !!d.telefono);
+}
+
+// Precarga del formulario con el borrador. La usan los dos caminos de "ya confirmó el mail":
+// el que corrige desde la ficha y el que llega sin borrador utilizable.
+function precargarForm(b) {
+  if (b.nombre)   document.getElementById('f-nombre').value = b.nombre;
+  if (b.apellido) document.getElementById('f-apellido').value = b.apellido;
+  if (b.dni)      document.getElementById('f-dni').value = b.dni;
+  if (b.telefono) document.getElementById('f-tel').value = b.telefono;
+  // setRol ANTES de pintar el origen: es lo que decide qué bloque queda visible.
+  if (b.rol)      setRol(b.rol);
+  if (b.origenHipodromo) {
+    const id = (b.rol === 'propietario') ? 'f-hip-prop' : 'f-hip-prof';
+    document.getElementById(id).value = b.origenHipodromo;
+  }
+  if (b.origenPatente)     document.getElementById('f-patente').value = b.origenPatente;
+  if (b.origenCaballeriza) document.getElementById('f-caballeriza').value = b.origenCaballeriza;
+}
+
+// El formulario precargado, detrás del link "corregir mis datos". El bloque de cuenta queda
+// escondido: la cuenta ya existe y el correo ya está confirmado.
+function abrirFormCorreccion() {
+  document.getElementById('grp-cuenta').style.display = 'none';
+  document.getElementById('sub-form').textContent =
+    'Corregí lo que haga falta y tocá Enviar solicitud. Tu correo ya está confirmado.';
+  seccion('sec-form');
+  document.getElementById('f-nombre').focus();
+}
+
+// El botón grande de "Ya casi". Manda la RPC con el borrador tal como se mostró en la ficha:
+// lo que se ve es lo que se envía.
+document.getElementById('btn-falta-enviar').onclick = async () => {
+  hideMsgs();
+  const d = JSON.parse(localStorage.getItem(BORRADOR) || '{}');
+  const err = validar(d, false);
+  // Defensivo: a la ficha sólo se llega con un borrador que ya pasó validar(). Si algo lo
+  // dejó incompleto entremedio (otra pestaña, storage tocado a mano), abrir el formulario
+  // en vez de mandar una solicitud coja.
+  if (err) { showErr(err); abrirFormCorreccion(); return; }
+  loading('btn-falta-enviar', 'btn-falta-txt', true);
+  const e = await enviarSolicitud(d);
+  loading('btn-falta-enviar', 'btn-falta-txt', false, 'Enviar solicitud');
+  if (e) { showErr(mensajeRpc(e)); return; }
+  localStorage.removeItem(BORRADOR);
+  seccion('sec-listo');
+};
+
+document.getElementById('btn-falta-corregir').onclick = () => { hideMsgs(); abrirFormCorreccion(); };
+
 // --- Camino 2: ya logueado (volvió de confirmar el email) -------------------
 (async () => {
   const { data: { session } } = await sb.auth.getSession();
@@ -592,23 +742,27 @@ document.getElementById('btn-volver-form').onclick = () => {
     .select('id').eq('auth_user_id', session.user.id).maybeSingle();
   if (sol) { seccion('sec-listo'); return; }
 
-  // Logueado, sin usuario y sin solicitud: sólo faltan los datos.
+  // Logueado, sin usuario y sin solicitud: la cuenta está, la solicitud NO.
   document.getElementById('grp-cuenta').style.display = 'none';
-  document.getElementById('sub-form').textContent =
-    'Ya confirmaste tu correo. Revisá los datos y enviá la solicitud.';
   const b = JSON.parse(localStorage.getItem(BORRADOR) || '{}');
-  if (b.nombre)   document.getElementById('f-nombre').value = b.nombre;
-  if (b.apellido) document.getElementById('f-apellido').value = b.apellido;
-  if (b.dni)      document.getElementById('f-dni').value = b.dni;
-  if (b.telefono) document.getElementById('f-tel').value = b.telefono;
-  // setRol ANTES de pintar el origen: es lo que decide qué bloque queda visible.
-  if (b.rol)      setRol(b.rol);
-  if (b.origenHipodromo) {
-    const id = (b.rol === 'propietario') ? 'f-hip-prop' : 'f-hip-prof';
-    document.getElementById(id).value = b.origenHipodromo;
+  precargarForm(b);
+
+  if (!validar(b, false)) {
+    // Con borrador completo NO se re-muestra el formulario. El que llega acá ya lo llenó
+    // una vez: ver los mismos campos con sus datos se lee como "ya está hecho", cierra la
+    // pestaña y la solicitud nunca se crea (pasó el 03/09/2026, primer usuario real).
+    // Tampoco se manda sola la RPC: eso enviaría sin que la persona revise, y el borrador
+    // puede ser viejo. Ficha + un botón.
+    pintarResumen(b);
+    seccion('sec-falta');
+  } else {
+    // Sin borrador utilizable: confirmó el mail en otro dispositivo, o el localStorage se
+    // limpió. Hay que pedir los datos de nuevo — pero con un texto que deje claro que la
+    // solicitud sigue sin enviarse, no el "completá tus datos" genérico del alta.
+    document.getElementById('sub-form').textContent =
+      'Tu correo ya está confirmado, pero todavía falta la solicitud. Completá los datos y enviala.';
+    seccion('sec-form');
   }
-  if (b.origenPatente)     document.getElementById('f-patente').value = b.origenPatente;
-  if (b.origenCaballeriza) document.getElementById('f-caballeriza').value = b.origenCaballeriza;
 })();
 </script>
 </body>

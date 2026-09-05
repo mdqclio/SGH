@@ -287,6 +287,7 @@ node tests/probe_edad_reglamentaria.mjs   # la regla del 1° de julio en el gate
 node tests/probe_no_largo.mjs             # "No corrió" persiste {posicion:null,no_largo:true}
 node tests/probe_reunion_es_prueba.mjs    # ISSUE-055: reuniones.es_prueba fuera del circuito de cobro
 node tests/probe_solicitar_cuenta_existente.mjs   # ISSUE-069 — A DEMANDA: manda 2 mails que rebotan
+node tests/probe_solicitar_falta_paso.mjs         # ISSUE-070 — pantalla "Ya casi"; sin red, no manda nada
 ```
 
 **El patrón es código real sin browser.** Chromium no corre en este Ubuntu (`"Playwright does not support chromium on ubuntu26.04-x64"` — ver `docs/SERVER.md`), así que el probe **extrae del propio HTML** la función o el bloque a probar —por ancla, con balance de llaves—, lo corre con `new AsyncFunction(...)` inyectando dependencias reales (cliente Supabase con `SUPABASE_SECRET_KEY`, más stubs de DOM si hacen falta) y assertea contra la base. Nunca reimplementar la lógica dentro del test: si el archivo cambia, el probe corre el archivo cambiado. Para lo que escribe: **snapshot → run → assert → restore** en el `finally`.

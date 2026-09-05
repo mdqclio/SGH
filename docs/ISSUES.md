@@ -1322,3 +1322,93 @@ pregunta de producto.
 Módulo: `solicitar-acceso.html`, `login.html`. Informes:
 `docs/diagnosticos/2026-09-02_fede-mail-verificacion-no-llega.md` (diagnóstico) y
 `docs/diagnosticos/2026-09-02_fix-solicitar-acceso-cuenta-existente.md` (fix, diff y probe).
+
+---
+
+### ISSUE-070: el paso 3 del registro no se leía como un paso — cuenta confirmada y cero solicitud
+
+**Estado**: ✅ **CERRADO** el 2026-09-05 (rama `fix/solicitar-acceso-paso-final`, sin mergear al
+momento de escribir esto).
+
+**Síntoma**: el primer usuario real recorrió el circuito entero, confirmó el correo, volvió a
+`solicitar-acceso.html`… y la solicitud nunca se creó. Cuenta viva en `auth.users`,
+`solicitudes_acceso` vacía: huérfana e **invisible para la secretaría**, que sólo mira esa tabla.
+
+**Causa — no es un bug de código**. El registro tiene tres pasos (llenar el form · confirmar el
+correo · **enviar la solicitud**) y el tercero no se leía como un paso:
+
+- `sec-confirmar` decía *"Abrilo y volvés acá para terminar la solicitud"*. El que clickea el link
+  del mail **ya está "acá"**: la frase no le anticipa que falta apretar un botón.
+- Al volver, el camino 2 re-mostraba **el mismo formulario** con los datos precargados. Ver los
+  campos llenos se lee como "ya está cargado" → cerrar la pestaña.
+
+Con el link de registro publicado, esto le pasa a la mayoría, no a un usuario distraído.
+
+**Decisión de producto (tomada, documentada acá para que no se re-discuta)**: se evaluó llamar a
+`enviarSolicitud()` sola al detectar sesión + borrador. **NO va**: manda sin que la persona revise y
+arrastra el riesgo de un borrador viejo. La solución es hacer el paso **inconfundible**, no
+saltearlo.
+
+**Fix** (`solicitar-acceso.html`):
+
+1. Pantalla nueva `#sec-falta` ("Ya casi"): **ficha de sólo lectura** con nombre, DNI, rol, origen
+   y lo que corresponda al rol —cero `<input>`—, un botón grande `Enviar solicitud` y un link
+   secundario "corregir mis datos" que despliega el formulario precargado (el comportamiento
+   anterior). Se muestra cuando hay sesión, no hay fila en `usuarios`, no hay solicitud **y el
+   borrador pasa `validar(b, false)`**.
+2. Borrador vacío o incompleto (confirmó en otro dispositivo, `localStorage` limpio): el formulario,
+   pero con subtítulo propio — *"Tu correo ya está confirmado, pero todavía falta la solicitud."* —
+   distinto del genérico del alta.
+3. `sec-confirmar` ahora anticipa el paso: dice que con confirmar **todavía no queda enviada** y
+   nombra el botón que va a tener que apretar al volver.
+
+Las otras ramas del camino 2 quedan como estaban: con fila en `usuarios` → `portal.html`; con
+solicitud → `sec-listo`; sin sesión, el alta sigue yendo a `sec-confirmar`.
+
+**Verificación**: `tests/probe_solicitar_falta_paso.mjs` — 27/27 asserts, 12/12 mutantes muertos.
+**No toca la red**: las respuestas de `usuarios` / `solicitudes_acceso` son el *input* de la
+decisión, así que van como stub. No manda mails, no planta cuentas, no escribe una fila — se puede
+correr en cualquier rutina, al revés que `probe_solicitar_cuenta_existente.mjs`.
+
+Módulo: `solicitar-acceso.html`. Informes:
+`docs/diagnosticos/2026-09-03_fede-registro-real-sin-solicitud.md` (diagnóstico) y
+`docs/diagnosticos/2026-09-05_solicitar-acceso-paso-final.md` (fix, diff y probe).
+Relacionado: ISSUE-069, ISSUE-071.
+
+---
+
+### ISSUE-071: no hay forma de ver las cuentas confirmadas que nunca mandaron la solicitud
+
+**Estado**: 🟡 **ABIERTO — con criterio de activación**. No se construye todavía, a propósito.
+
+**Qué falta**: una vista para la secretaría (o una query de mantenimiento) que liste las cuentas de
+`auth.users` con `email_confirmed_at` puesto que **no** tienen fila en `usuarios` ni en
+`solicitudes_acceso`. Hoy esas cuentas son invisibles: la bandeja de solicitudes sólo lee
+`solicitudes_acceso`, así que una persona que se cayó en el paso 3 no aparece en ningún lado y no
+hay a quién llamar.
+
+**Por qué no se construye ahora**: ISSUE-070 ataca la causa —el paso 3 pasó a ser inconfundible—.
+Si el fix funciona, las huérfanas dejan de acumularse y la vista sería una pantalla de mantenimiento
+sin datos que mostrar. Construirla antes de saberlo es adelantar trabajo sobre una hipótesis.
+
+**Criterio de activación**: **después de publicar la campaña**, si se acumulan cuentas confirmadas
+sin solicitud, se construye. La query que lo mide (correr a mano cada tanto durante la campaña):
+
+```sql
+SELECT u.id, u.email, u.created_at, u.email_confirmed_at
+  FROM auth.users u
+  LEFT JOIN usuarios            usr ON usr.auth_user_id = u.id
+  LEFT JOIN solicitudes_acceso  sol ON sol.auth_user_id = u.id
+ WHERE u.email_confirmed_at IS NOT NULL
+   AND usr.id IS NULL
+   AND sol.id IS NULL
+ ORDER BY u.created_at DESC;
+```
+
+Mientras esté vacía o con una fila suelta, el issue se queda abierto sin trabajo.
+
+**Caso conocido**: la cuenta `fedeiguacel3@hotmail.com` (03/09/2026) es una huérfana viva. **No se
+toca a mano**: la va a terminar Fede por el camino real, y esa corrida es la prueba de campo que le
+falta a ISSUE-070.
+
+Módulo: `solicitudes.html`, `admin.html`. Relacionado: ISSUE-070, ISSUE-069.

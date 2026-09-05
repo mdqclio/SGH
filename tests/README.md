@@ -142,6 +142,18 @@ Escribe en `auth.users`: 3 cuentas `probe-<caso>-<run>@sgh-probe.invalid`, borra
 El teardown se verifica **por estado** (listar y ver que no quedó ninguna + total igual al de antes),
 no por la lista de ids: en el caso obfuscado GoTrue devuelve un id que no existe.
 
+### `probe_solicitar_falta_paso.mjs` — sin red, se puede correr siempre
+
+Cubre la pantalla "Ya casi" del paso final de `solicitar-acceso.html` (ISSUE-070): 27 asserts + 12
+mutantes. Mismo slab y mismo mini-DOM que el de arriba —de los helpers de UI al final del "camino
+2"—, pero **sin credenciales y sin red**: lo que se prueba son ramas de UI (qué pantalla se muestra
+según sesión / fila en `usuarios` / solicitud / borrador), y las respuestas de esas dos tablas son
+el *input* de la decisión, no algo que haya que descubrir en prod. Entonces van como stub.
+
+Consecuencia práctica: **no manda mails, no planta cuentas, no escribe una fila**. Es el probe que
+sí se puede meter en una rutina y correr las veces que haga falta. Los dos tocan el MISMO archivo y
+se confunden fácil — el de `cuenta_existente` es el que cuesta 2 mails y sigue siendo a demanda.
+
 Los probes real-code de liquidaciones (`probe_fase_c`, `probe_incentivos_montas`, `probe_recibos_emision`, `probe_cobros_v11`) extraen el cuerpo real de la función / llaman las RPCs reales con `SUPABASE_SECRET_KEY` (de `.env`), snapshot→run→assert→restore. Sin browser (chromium no corre en ubuntu26.04).
 
 Duración: ~20-90 segundos por probe.
