@@ -197,8 +197,8 @@ const MUTANTES = [
     to:  `authData.user.identities.length >= 0) {` },
 
   { id:'M4', desc:'seccion() no conoce sec-existe: la pantalla nunca se muestra', mata:['B4'],
-    from:`  ['sec-form','sec-confirmar','sec-existe','sec-listo','sec-reintento'].forEach(s => {`,
-    to:  `  ['sec-form','sec-confirmar','sec-listo','sec-reintento'].forEach(s => {` },
+    from:`  ['sec-form','sec-confirmar','sec-existe','sec-falta','sec-listo','sec-reintento'].forEach(s => {`,
+    to:  `  ['sec-form','sec-confirmar','sec-falta','sec-listo','sec-reintento'].forEach(s => {` },
 
   { id:'M5', desc:'el link de recuperación apunta a reset-password.html (callejón sin salida)',
     mata:['B9'],
@@ -412,7 +412,7 @@ const CACHE = process.env.RESP_CACHE ? JSON.parse(readFileSync(process.env.RESP_
        `disabled=${b2.dom._n['btn-enviar'].disabled} · cfReset=${b2.p.cf.reset}`);
     ok('B12) el texto de la pantalla no nombra rol, club ni nada de la cuenta',
        !/secretari|propietario habilitado|club|hipódromo de/i.test(
-         HTML.slice(HTML.indexOf('<div id="sec-existe"'), HTML.indexOf('<!-- ===== SOLICITUD ENVIADA'))));
+         HTML.slice(HTML.indexOf('<div id="sec-existe"'), HTML.indexOf('<!-- ===== FALTA ENVIAR'))));
 
     // ── C) EL CAMINO 2 (YA LOGUEADO) SIGUE INTACTO ──────────────────────────
     const SES = { user:{ id:'uid-probe' } };
@@ -430,7 +430,10 @@ const CACHE = process.env.RESP_CACHE ? JSON.parse(readFileSync(process.env.RESP_
 
     const domC3 = mkDom(FORM('x@y.com'));
     const c3 = await mkPagina({ dom: domC3, session: SES, tablas: { usuarios:null, solicitudes_acceso:null } });
-    ok('C3) con sesión, sin usuario y sin solicitud → el form sin el bloque de cuenta',
+    // Sin borrador en localStorage. Con borrador válido esta misma rama muestra la ficha
+    // "Ya casi" en vez del formulario — eso lo cubre entero tests/probe_solicitar_falta_paso.mjs,
+    // que no toca la red. Acá sólo se verifica que el fix de "cuenta existente" no la rompió.
+    ok('C3) con sesión, sin usuario, sin solicitud y sin borrador → el form sin el bloque de cuenta',
        domC3._n['grp-cuenta'].style.display === 'none' && c3.loc.reemplazo === undefined,
        `grp-cuenta=${domC3._n['grp-cuenta'].style.display} · replace=${c3.loc.reemplazo}`);
 
