@@ -785,3 +785,13 @@ a81e48945d75b79e14f4a58e5be9cf79bfe50580
 
 Coinciden. Este commit (§12–13 + el número de diff corregido) es el siguiente y su SHA queda
 verificado abajo, en el mismo formato.
+
+### SHA final verificado en `origin/reports`
+
+```
+$ git ls-remote origin reports
+bdfa16d7977febd4020536b72731e0cd034ebb57	refs/heads/reports
+
+$ git rev-parse HEAD
+bdfa16d7977febd4020536b72731e0cd034ebb57
+```
