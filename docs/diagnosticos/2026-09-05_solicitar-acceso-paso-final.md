@@ -728,7 +728,7 @@ Coinciden: la rama está en `origin` y se puede leer.
 | | |
 |---|---|
 | Archivos tocados | 7 (`solicitar-acceso.html`, probe nuevo, probe viejo, `CHANGELOG.md`, `CLAUDE.md`, `docs/ISSUES.md`, `tests/README.md`) |
-| Diff | +336 / −21 |
+| Diff | +854 / −21 (7 archivos, el probe nuevo son 517 líneas) |
 | Pantallas nuevas | 1 (`#sec-falta`) |
 | Ramas del camino 2 | 5 (usuario · solicitud · borrador válido · borrador roto/ausente · sin sesión) |
 | Probe nuevo | 27/27 asserts · 12/12 mutantes muertos · **0 mails, 0 escrituras** |
@@ -749,3 +749,39 @@ Coinciden: la rama está en `origin` y se puede leer.
 3. **Prueba de campo.** Falta la corrida real: Fede terminando su registro por el camino nuevo. Es
    la única verificación que ningún probe puede dar, y por eso su cuenta quedó sin tocar.
 4. **Merge.** La rama espera OK explícito. Mientras tanto prod sigue con el texto viejo.
+
+---
+
+## 12. Diff completo de la rama, por archivo
+
+El `git diff --stat` de §4 se sacó antes de la última edición de `CLAUDE.md`. El estado final de la
+rama contra `main` es éste:
+
+```
+$ git diff --stat main...fix/solicitar-acceso-paso-final
+ CHANGELOG.md                               |  56 ++++
+ CLAUDE.md                                  |   1 +
+ docs/ISSUES.md                             |  90 +++++
+ solicitar-acceso.html                      | 188 ++++++++++-
+ tests/README.md                            |  12 +
+ tests/probe_solicitar_cuenta_existente.mjs |  11 +-
+ tests/probe_solicitar_falta_paso.mjs       | 517 +++++++++++++++++++++++++++++
+ 7 files changed, 854 insertions(+), 21 deletions(-)
+```
+
+## 13. Verificación de push de este informe
+
+```
+$ git push -u origin reports
+   b1666fc..a81e489  reports -> reports
+branch 'reports' set up to track 'origin/reports'.
+
+$ git ls-remote origin reports
+a81e48945d75b79e14f4a58e5be9cf79bfe50580	refs/heads/reports
+
+$ git rev-parse HEAD
+a81e48945d75b79e14f4a58e5be9cf79bfe50580
+```
+
+Coinciden. Este commit (§12–13 + el número de diff corregido) es el siguiente y su SHA queda
+verificado abajo, en el mismo formato.
