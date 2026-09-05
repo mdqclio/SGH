@@ -1104,3 +1104,83 @@ Un signUp de prueba **manda mail de verdad**. A un dominio `.invalid` eso es un 
 rebotes degradan la reputación del dominio en Resend. Por eso ese probe se corre **a demanda**
 —cuando se toca auth o el signup—, no en la rutina, y su tanda de mutantes hace **una** captura
 contra GoTrue que los hijos reusan (`RESP_CACHE`) en vez de repetir el alta por cada mutante.
+
+---
+
+## 90. Un `throw` en la NOTA del assert también disfraza una muerte de sobreviviente (2026-09-05)
+
+**Tercera vez** que un fallo de instrumentación se lee como un resultado. Las tres:
+
+| # | Qué falló | Cómo se leyó |
+|---|---|---|
+| GOTCHA #82 | `\b` no separa `U4` de `U4b` en el regex del runner | el mutante "sobrevive" |
+| GOTCHA #84 | el hijo moría en el `import` desde `/tmp`, antes del primer assert | el mutante "sobrevive" |
+| **#90** | el hijo moría armando el **texto de la nota** de un assert | el mutante "sobrevive" |
+
+GOTCHA #84 puso el tercer estado —muere / sobrevive / **no sé**— para el caso de "el hijo no
+arrancó". Este es el mismo agujero pero **por adentro del probe**: el hijo arranca bien, corre
+asserts, y revienta a mitad de camino armando la nota de uno.
+
+El caso real, en `tests/probe_solicitar_falta_paso.mjs`. El mutante N11 saca el redirect a
+`portal.html`; el assert P8 tenía que morir. Sobrevivía. La nota decía:
+
+```javascript
+`replace=${p8.loc.reemplazo} · sec-falta=${d8._n['sec-falta'].style.display}`
+```
+
+Con ese mutante el camino 2 hace `return` antes de llamar a `seccion()`, así que el nodo
+`sec-falta` **nunca se crea** en el mini-DOM (que los crea *lazy*) y `_n['sec-falta']` es
+`undefined`:
+
+```
+❌ 💥 el probe corrió entero  → Cannot read properties of undefined (reading 'style')
+TypeError: Cannot read properties of undefined (reading 'style')
+    at .../probe_solicitar_falta_paso.mjs:446:85
+18/19 OK
+```
+
+El `throw` lo agarra el `catch` general, el probe **igual imprime `NN/NN OK`** —así que el guard de
+GOTCHA #84 no se dispara, el runner lo da por corrido— y como nunca llegó a imprimir `❌ P8)`, se
+reporta `SOBREVIVE`. El assert estaba perfecto; era la nota la que no soportaba ese estado.
+
+### Qué hacer
+
+**La nota tiene que ser tan robusta como el assert.** Nunca desreferenciar un nodo del mini-DOM a
+mano dentro de un template string: pasar por un accessor que lo cree si no existe.
+
+```javascript
+// mal — revienta si el mutante hace que ese nodo nunca se toque
+`sec-falta=${d8._n['sec-falta'].style.display}`
+
+// bien — dsp() usa el mismo get() lazy que el código bajo prueba
+dsp(id){ return JSON.stringify(get(id).style.display); },
+est(id){ return get(id).style.display; },   // crudo, para los asserts
+`sec-falta=${d8.dsp('sec-falta')}`
+```
+
+`dsp()` va `JSON.stringify`-eado a propósito: `""` y `undefined` se ven distinto en la nota, y ésa
+es justamente la diferencia entre "se mostró" y "nunca se tocó".
+
+### Segundo hallazgo de la misma tanda: un `mata:` mal apuntado
+
+El mutante N6 también "sobrevivía". Declaraba `mata:['P6']`, pero el assert que verifica el texto es
+`P6b` — `P6` sólo mira qué sección quedó visible, y el mutante no cambia la sección, sólo el copy.
+El mutante estaba bien, la declaración estaba mal. **Un `mata:` mal apuntado convierte un mutante en
+decoración**: parece que cubre algo y no cubre nada.
+
+### Regla general
+
+**Cuando un mutante "sobrevive", primero descartar que el arnés lo esté leyendo mal.** El orden de
+sospecha, antes de tocar un solo assert:
+
+1. **¿El hijo llegó al final?** — el guard de GOTCHA #84 (`NN/NN OK`). Si no, es arnés.
+2. **¿El hijo murió en el medio?** — buscar `💥 el probe corrió entero` o un `TypeError` en la
+   salida. Si el conteo final es menor que el de la corrida limpia, es arnés (este GOTCHA).
+3. **¿El `mata:` apunta al assert correcto?** — correr el mutante a mano y mirar **qué** se puso en
+   rojo, no si algo se puso en rojo. Ojo con los sufijos (`P6` vs `P6b`, GOTCHA #82).
+4. **Recién ahí**: ¿es un agujero de cobertura real, o un mutante equivalente (GOTCHA #84)?
+
+Tres de tres veces el "sobreviviente" era instrumentación. La conclusión no es que los mutantes no
+sirvan: es que **la salida de un mutante que sobrevive es una pregunta, no una respuesta**.
+
+Relacionado: GOTCHA #82, GOTCHA #84. Probes: `tests/probe_solicitar_falta_paso.mjs`.

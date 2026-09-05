@@ -1327,8 +1327,7 @@ Módulo: `solicitar-acceso.html`, `login.html`. Informes:
 
 ### ISSUE-070: el paso 3 del registro no se leía como un paso — cuenta confirmada y cero solicitud
 
-**Estado**: ✅ **CERRADO** el 2026-09-05 (rama `fix/solicitar-acceso-paso-final`, sin mergear al
-momento de escribir esto).
+**Estado**: ✅ **CERRADO** el 2026-09-05 (merge `2fb85d4`, VIVO en `https://sigh.com.ar/`).
 
 **Síntoma**: el primer usuario real recorrió el circuito entero, confirmó el correo, volvió a
 `solicitar-acceso.html`… y la solicitud nunca se creó. Cuenta viva en `auth.users`,

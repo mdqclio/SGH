@@ -1,6 +1,6 @@
 # Changelog
 
-## [2026-09-05] — solicitar-acceso: el paso 3 pasa a ser un paso (rama `fix/solicitar-acceso-paso-final`)
+## [2026-09-05] — solicitar-acceso: el paso 3 pasa a ser un paso (merge `2fb85d4`)
 
 > El primer usuario real confirmó el correo, volvió a la página, vio el formulario con sus datos y
 > cerró la pestaña. La solicitud nunca se creó: cuenta viva en `auth.users`, `solicitudes_acceso`
@@ -48,6 +48,13 @@ manda mails, no planta cuentas, no escribe una fila. Se puede correr en cualquie
 `probe_solicitar_cuenta_existente.mjs` se re-corrió sobre el archivo cambiado: **32/32 y 8/8
 mutantes**. Se le tocaron dos anclas (el array de `seccion()` y el corte del assert B12, que ahora
 termina en `<!-- ===== FALTA ENVIAR`); sigue siendo **a demanda**, 2 mails por corrida.
+
+### Verificación en producción
+
+Mergeado con `--no-ff` (`2fb85d4`) y desplegado: el MD5 de `solicitar-acceso.html` servido por
+`sigh.com.ar` coincide con el local (`10c236bae998e357edf76f6ac9972ea0`). Los **dos** probes
+re-corridos **contra el HTML servido**: el nuevo **27/27 + 12/12 mutantes**, el de ISSUE-069
+**32/32**.
 
 ### Issues
 
