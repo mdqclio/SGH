@@ -1046,3 +1046,13 @@ le agrega al CHANGELOG la sección de verificación en producción.
 
 Las cuatro de §11 siguen abiertas. La #4 ("merge") queda respondida: mergeado y verificado contra
 prod. Falta la que no puede dar ningún probe: **Fede terminando su registro por el camino nuevo**.
+
+### SHA final de la adenda, verificado en `origin/reports`
+
+```
+$ git ls-remote origin reports
+2c0b8ff3cdd28d54ce5444beab02ced1fd2245e6	refs/heads/reports
+
+$ git rev-parse HEAD
+2c0b8ff3cdd28d54ce5444beab02ced1fd2245e6
+```
