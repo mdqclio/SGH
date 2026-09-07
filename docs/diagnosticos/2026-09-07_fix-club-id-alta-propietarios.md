@@ -530,3 +530,290 @@ Ese `b793e96` es el commit del cuerpo del informe; esta adenda va en el commit s
 se deja anotado abajo una vez pusheado.
 
 SHA de esta adenda, verificado en `origin/reports`: **`4c9db942623ba0db9824a9d787ec007d975164e0`**.
+
+---
+
+# ADENDA — merge a `main`, verificación en producción y ISSUE-073
+
+**Fecha:** 2026-09-07 (misma sesión)
+**Estado:** el fix está **VIVO en `sigh.com.ar`**. La adenda de §7 quedó obsoleta en el punto en que
+decía "main sigue en cc0ea64 / no se mergeó nada" — se mergeó después, con OK explícito.
+
+## 8. Guards de la adenda
+
+```
+$ pwd
+/home/clio/dev/SGH
+```
+
+```sql
+select count(*) total, count(*) filter (where club_id is null) nulos,
+       count(*) filter (where nombre like 'ZZ PROBE%') fixtures,
+       count(*) filter (where club_id='0649e9c5-9e87-4aad-842f-101458e6b33c') dolores,
+       count(*) filter (where club_id='a6da7e40-1515-45dc-8933-4eef33ce937a') otro
+from propietarios;
+```
+
+```json
+[{"total":260,"nulos":0,"fixtures":0,"dolores":253,"otro":7}]
+```
+
+`spcs` = **181** (verificado al arrancar la sesión, sin cambios). Ref del proyecto:
+`unlhcuanfrtpatoipwve`.
+
+## 9. El merge
+
+```bash
+git checkout main
+git pull --ff-only origin main          # cc0ea64
+git merge --no-ff fix/club-id-alta-propietarios
+git push origin main
+```
+
+```
+Merge made by the 'ort' strategy.
+ CHANGELOG.md                              |  54 ++++
+ CLAUDE.md                                 |   1 +
+ docs/ISSUES.md                            |  82 ++++++
+ propietarios.html                         |  24 +-
+ tests/README.md                           |  36 +++
+ tests/probe_club_id_alta_propietarios.mjs | 439 ++++++++++++++++++++++++++++++
+ 6 files changed, 633 insertions(+), 3 deletions(-)
+ create mode 100644 tests/probe_club_id_alta_propietarios.mjs
+```
+
+Merge commit: **`18dab80166c42bfdc4fd2784d62047c245052bcb`**. `--no-ff`, así que el branch queda
+visible en el grafo:
+
+```
+$ git ls-remote origin main reports fix/club-id-alta-propietarios
+bba68945c14b739aff3e3565665c311c533b74bc	refs/heads/fix/club-id-alta-propietarios
+b10adc906b67316da72c717d47e3defba9010f0e	refs/heads/main
+689d652202341b7496770e6710b94db811bf3430	refs/heads/reports
+
+$ git log --oneline --graph -6 main
+* b10adc9 docs: ISSUE-072 vivo en producción + ISSUE-073 (el UPDATE sin acote en profesionales/jockeys)
+*   18dab80 merge: propietarios.html crea con club_id y lista sólo su club (ISSUE-072)
+|\  
+| * bba6894 fix: propietarios.html crea con club_id y lista sólo su club (ISSUE-072)
+|/  
+* cc0ea64 docs: GOTCHA #90 — un throw en la nota del assert disfraza una muerte de sobreviviente
+*   2fb85d4 merge: el paso 3 del registro pasa a ser un paso (pantalla "Ya casi")
+|\  
+| * 29fec91 fix: el paso 3 del registro pasa a ser un paso (pantalla "Ya casi")
+|/  
+
+$ git log --oneline -1 --merges main
+18dab80 merge: propietarios.html crea con club_id y lista sólo su club (ISSUE-072)
+```
+
+## 10. MD5 contra `sigh.com.ar` (con `-L`)
+
+El `-L` importa: `sigh.com.ar` redirige, y sin seguir el redirect se está midiendo el MD5 de una
+página de redirección, no del HTML.
+
+Bucle de espera de CDN — se dejan los tres intentos, incluidos los dos que sirvieron HTML viejo:
+
+```
+$ LOCAL=$(md5sum propietarios.html | cut -d' ' -f1)
+local propietarios.html = 1a6232ba9561ab1c66d05ab76d779a84
+intento 1 · servido = da47bb4e18073460bc4a18a42f794f3a · stale
+intento 2 · servido = da47bb4e18073460bc4a18a42f794f3a · stale
+intento 3 · servido = 1a6232ba9561ab1c66d05ab76d779a84 · MATCH
+```
+
+Los dos primeros no son ruido: `da47bb4e18073460bc4a18a42f794f3a` es **exactamente** el MD5 de
+`propietarios.html` en `origin/main @ cc0ea64` que quedó anotado en el informe base. O sea que el
+bucle midió el archivo pre-merge y después el post-merge — la propagación de GitHub Pages tardó
+~40 s, igual que en GOTCHA de la sesión anterior. Sin el bucle, un solo `curl` inmediato habría dado
+"no se desplegó" sobre un deploy que sí salió.
+
+Evidencia completa de los dos archivos:
+
+```
+$ md5sum propietarios.html solicitudes.html          # working tree, main @ 18dab80
+1a6232ba9561ab1c66d05ab76d779a84  propietarios.html
+a5e88e947e156f2de71e6afe31addcb4  solicitudes.html
+
+$ curl -sL https://sigh.com.ar/propietarios.html -o served_prop.html && md5sum served_prop.html
+1a6232ba9561ab1c66d05ab76d779a84  /tmp/claude-1000/-home-clio-dev-SGH/17cedf69-fe0b-402e-85fb-36d078324ace/scratchpad/served_prop.html
+$ curl -sL https://sigh.com.ar/solicitudes.html  -o served_sol.html  && md5sum served_sol.html
+a5e88e947e156f2de71e6afe31addcb4  /tmp/claude-1000/-home-clio-dev-SGH/17cedf69-fe0b-402e-85fb-36d078324ace/scratchpad/served_sol.html
+
+# md5 previo al merge (origin/main @ cc0ea64), para contraste:
+#   propietarios.html da47bb4e18073460bc4a18a42f794f3a   ← lo que servía sigh.com.ar en los intentos 1 y 2
+#   solicitudes.html  a5e88e947e156f2de71e6afe31addcb4   ← sin cambios en este fix
+```
+
+| Archivo | Local (`main` @ `18dab80`) | Servido por `sigh.com.ar` | |
+|---|---|---|---|
+| `propietarios.html` | `1a6232ba9561ab1c66d05ab76d779a84` | `1a6232ba9561ab1c66d05ab76d779a84` | ✅ |
+| `solicitudes.html` | `a5e88e947e156f2de71e6afe31addcb4` | `a5e88e947e156f2de71e6afe31addcb4` | ✅ sin cambios en este fix |
+
+## 11. Probe re-corrido contra el HTML SERVIDO
+
+No contra el working tree: contra los dos archivos bajados de `sigh.com.ar` con `curl -L`. El probe
+acepta `PROPIETARIOS_HTML` y `SOLICITUDES_HTML` por entorno justamente para esto, así que corre el
+mismo texto que ve el navegador de Yesi.
+
+```
+$ PROPIETARIOS_HTML=served_prop.html SOLICITUDES_HTML=served_sol.html \
+    node tests/probe_club_id_alta_propietarios.mjs
+```
+
+Salida cruda completa:
+
+```
+$ PROPIETARIOS_HTML=served_prop.html SOLICITUDES_HTML=served_sol.html node tests/probe_club_id_alta_propietarios.mjs
+   línea de base: total=260 dolores=253 otro=7 nulos=0
+
+── Probe · club_id en el alta y el listado de propietarios.html (ISSUE-072) ──
+   propietarios=/tmp/claude-1000/-home-clio-dev-SGH/17cedf69-fe0b-402e-85fb-36d078324ace/scratchpad/served_prop.html
+   solicitudes =/tmp/claude-1000/-home-clio-dev-SGH/17cedf69-fe0b-402e-85fb-36d078324ace/scratchpad/served_sol.html
+   dni_fixture =99921397
+ ✅ A0) la línea de base no tiene fichas huérfanas (club_id NULL) antes de empezar  → nulos=0
+ ✅ A1) saveRecord() crea la ficha CON club_id del hipódromo activo (no NULL)  → toasts=[{"msg":"Propietario creado","tipo":"success"}] · fila={"id":"cb658ed1-3804-4db3-81e9-e5dffb7f466e","club_id":"0649e9c5-9e87-4aad-842f-101458e6b33c","nombre":"ZZ PROBE CLUBID Iguacel Loeda, Federico","nombre_stud":"Kazan","documento_tipo":"DNI","documento_nro":"99921397","tipo":"persona","estado":"activo","activo":true}
+ ✅ A1b) y el resto del payload llegó entero, con el DNI normalizado por parseDNI  → {"id":"cb658ed1-3804-4db3-81e9-e5dffb7f466e","club_id":"0649e9c5-9e87-4aad-842f-101458e6b33c","nombre":"ZZ PROBE CLUBID Iguacel Loeda, Federico","nombre_stud":"Kazan","documento_tipo":"DNI","documento_nro":"99921397","tipo":"persona","estado":"activo","activo":true}
+ ✅ A2) buscarFichas() la encuentra por DNI exacto y la marca EXACTO — el botón "Vincular y aprobar" se habilita  → exactas=[{"id":"cb658ed1-3804-4db3-81e9-e5dffb7f466e","nombre":"ZZ PROBE CLUBID Iguacel Loeda, Federico","nombre_stud":"Kazan","documento_nro":"99921397","tipo":"persona"}] · sugeridas=0
+ ✅ A3) ⭐ y el buscador manual de la bandeja también la encuentra — circuito completo propietarios.html → solicitudes.html  → sugeridas=[{"id":"cb658ed1-3804-4db3-81e9-e5dffb7f466e","nombre":"ZZ PROBE CLUBID Iguacel Loeda, Federico"}]
+ ✅ A4) load() lista TODAS las fichas de Dolores y NINGUNA de otro club  → listadas=254 · dolores_en_db=254 · otro_en_db=8 · ajenas_en_lista=0 · ejemplo_ajena=[]
+ ✅ A4b) la ficha ajena SÍ está en la DB — el 0 de arriba es del filtro, no de una tabla vacía  → otro_base=7 · otro_ahora=8
+ ✅ A4c) el filtro por estado sigue funcionando encima del filtro por club  → activos=254
+ ✅ A5) editar por id una ficha de otro club es un no-op: no la pisa NI la mueve de hipódromo  → {"id":"1637f319-235e-4536-b2ff-01c4b1a8ce53","club_id":"a6da7e40-1515-45dc-8933-4eef33ce937a","nombre":"ZZ PROBE CLUBID Ajeno De Otro Club","tipo":"persona"}
+ ✅ A5b) y avisa que no se guardó, en vez de cantar "Propietario actualizado"  → [{"msg":"No se pudo actualizar: la ficha no pertenece a este hipódromo.","tipo":"error"}] · cerroModal=0
+ ✅ A6) editar una ficha del propio club sigue guardando, y no le cambia el club  → {"id":"cb658ed1-3804-4db3-81e9-e5dffb7f466e","club_id":"0649e9c5-9e87-4aad-842f-101458e6b33c","nombre_stud":"Kazan II","estado":"inactivo","activo":false,"localidad":"Dolores"} · toasts=[{"msg":"Propietario actualizado","tipo":"success"}]
+ ✅ A7) con club_id cargado, ux_propietarios_club_doc rechaza el alta repetida del mismo DNI  → fila_duplicada=null · toasts=[{"msg":"duplicate key value violates unique constraint \"ux_propietarios_club_doc\"","tipo":"error"}]
+ ✅ Z1) teardown por estado: ninguno de los ids creados sigue existiendo, y no queda ninguna fila con el prefijo del fixture  → ids_creados=2 · siguen_vivos=[] · por_prefijo=[]
+ ✅ Z2) teardown por conteo: total, Dolores, otro club y huérfanos vuelven a la línea de base  → base={"total":260,"dolores":253,"otro":7,"nulos":0} · fin={"total":260,"dolores":253,"otro":7,"nulos":0}
+
+14/14 OK
+exit=0
+```
+
+Y los 7 mutantes, también sobre el HTML servido (el runner muta la copia servida, no el repo):
+
+```
+$ PROPIETARIOS_HTML=served_prop.html SOLICITUDES_HTML=served_sol.html node tests/probe_club_id_alta_propietarios.mjs --mutantes
+
+═══ MUTATION TESTING · 7/7 mutantes ═══
+(copias en /tmp/mut-clubid-prop-DSi63i — el repo no se toca)
+
+✅ M1 muere — BUG ORIGINAL 1 — el payload del INSERT vuelve a no mandar club_id  [esperaba matar A1,A2,A3; murieron A1,A2,A3]
+✅ M2 muere — club_id se manda pero en null: la ficha nace igual de huérfana  [esperaba matar A1,A2,A3; murieron A1,A2,A3]
+✅ M3 muere — BUG ORIGINAL 2 — load() vuelve a listar todos los clubes  [esperaba matar A4; murieron A4]
+✅ M4 muere — load() filtra por un club fijo equivocado en vez de por CLUB_ID  [esperaba matar A4; murieron A4]
+✅ M5 muere — el UPDATE pierde el acote por club: una ficha ajena se puede mover de hipódromo  [esperaba matar A5; murieron A5]
+✅ M6 muere — el UPDATE de 0 filas canta "actualizado" igual  [esperaba matar A5b; murieron A5b]
+✅ M7 muere — el UPDATE legítimo del propio club deja de funcionar (falso positivo del acote)  [esperaba matar A6; murieron A6]
+
+✅ TANDA LIMPIA — 7 probados · 7 muertos
+
+exit=0
+```
+
+**14/14 asserts · 7/7 mutantes muertos · 0 errores de arnés · 0 teardowns sucios**, contra el
+archivo que sirve producción. En particular **A3** —el circuito completo `propietarios.html` →
+`solicitudes.html`— pasa con el HTML real: una ficha creada por la pantalla desplegada es
+encontrable por el buscador de la bandeja desplegada.
+
+Base después de las dos corridas (confirmación independiente del teardown, por MCP):
+
+```json
+[{"total":260,"nulos":0,"fixtures":0,"dolores":253,"otro":7}]
+```
+
+Idéntica a los guards. Las dos corridas contra prod no dejaron nada.
+
+## 12. ISSUE-073 — el ticket que deja abierto este fix
+
+Abierto, **no ejecutado**, como se pidió. `docs/ISSUES.md`, commit `b10adc9`.
+
+**El razonamiento que motiva el ticket** (y que corrige el encuadre con el que se pidió §2 de este
+informe): el acote del UPDATE **no es una decisión separada** del fix del INSERT. Es su consecuencia
+obligada, y por eso ISSUE-049 dejó su archivo peor de lo que lo encontró en ese camino:
+
+| Momento | Un UPDATE por id de una ficha ajena… |
+|---|---|
+| Antes de ISSUE-049 (`profesionales.html`) | la **edita**: le pisa nombre, DNI, estado |
+| Después de ISSUE-049 (hoy, en `main`) | la **mueve de hipódromo**: `club_id` va en el payload compartido, así que la ficha desaparece del padrón de su club y aparece en el de quien escribió |
+| Con el fix de ISSUE-072 aplicado | **no-op de 0 filas**, y la pantalla avisa en vez de cantar "actualizado" |
+
+Mover una ficha de tenant es estrictamente peor que editarla. Poner `club_id` en el payload sin
+acotar el UPDATE **empeora** ese camino. Son la misma decisión.
+
+**Los tres caminos sin acote que quedan vivos en `main`** (líneas a `18dab80`):
+
+| Archivo | Línea | Camino | ¿Mueve la ficha? |
+|---|---|---|---|
+| `profesionales.html` | `:413` | `update(payload).eq('id', id)` — guardado del modal, `club_id` en el payload (`:397`) | **sí** |
+| `profesionales.html` | `:287` | `update({ estado, activo }).eq('id', id)` — toggle rápido de estado | no, pero edita una ajena |
+| `jockeys.html` | `:402` | `update(payload).eq('id', id)` — mismo caso que `:413`, `club_id` desde `:382` | **sí** |
+
+`jockeys.html` no estaba en el pedido: apareció al grepear los caminos de escritura y va en el mismo
+ticket porque es literalmente el mismo diff.
+
+**`propietarios.html` quedó limpio**: sus únicos caminos de escritura son el `saveRecord()` ya
+acotado (`:450`) y el `delete().eq('id', id)` (`:464`), que la policy ya restringe a
+`fn_is_super_admin()` — cross-club por diseño. No hay un toggle rápido de estado como el de
+`profesionales.html:287`.
+
+**Fix propuesto en el ticket** — idéntico al aplicado:
+
+```js
+const { data: filasUpd, error } = id
+  ? await sb.from('profesionales').update(payload).eq('id', id).eq('club_id', CLUB_ID).select('id')
+  : await sb.from('profesionales').insert(payload);
+if (error) { toast(error.message, 'error'); return; }
+if (id && (!filasUpd || filasUpd.length === 0)) {
+  toast('No se pudo actualizar: la ficha no pertenece a este hipódromo.', 'error'); return;
+}
+```
+
+Con la nota de por qué el chequeo de 0 filas no es decoración: **PostgREST no devuelve error cuando
+un UPDATE no matchea ninguna fila** — devuelve `error: null`. Sin el chequeo, el módulo cantaría
+"actualizado" sobre una escritura que nunca ocurrió. Es el mutante M6.
+
+El ticket también deja anotado el probe a clonar (`tests/probe_club_id_alta_propietarios.mjs`,
+asserts A5/A5b/A6 y mutantes M5/M6/M7 trasladan tal cual) y lo que **no** cubre: las policies
+`profesionales_update`/`propietarios_update` siguen siendo `fn_is_staff()` sin condición de club —
+eso es DDL y va con ISSUE-017.
+
+## 13. SHAs finales
+
+| Ref | SHA | Qué es |
+|---|---|---|
+| `origin/main` | **`b10adc906b67316da72c717d47e3defba9010f0e`** | punta de main (docs de cierre + ISSUE-073) |
+| merge commit | **`18dab80166c42bfdc4fd2784d62047c245052bcb`** | el `--no-ff` del fix |
+| `fix/club-id-alta-propietarios` | `bba68945c14b739aff3e3565665c311c533b74bc` | la rama, ya mergeada, sin borrar |
+| `origin/reports` | ver la última línea de este archivo | este informe |
+
+```
+$ git ls-remote origin main reports fix/club-id-alta-propietarios
+bba68945c14b739aff3e3565665c311c533b74bc	refs/heads/fix/club-id-alta-propietarios
+b10adc906b67316da72c717d47e3defba9010f0e	refs/heads/main
+689d652202341b7496770e6710b94db811bf3430	refs/heads/reports
+```
+
+## 14. Estado final
+
+| Ítem | Estado |
+|---|---|
+| Merge a `main` con `--no-ff` | ✅ `18dab80`, pusheado |
+| MD5 contra `sigh.com.ar` con `-L` | ✅ `1a6232ba…` local = servido (2 intentos stale, ~40 s de CDN) |
+| Probe contra el HTML servido | ✅ 14/14 asserts |
+| Mutantes contra el HTML servido | ✅ 7/7 muertos |
+| Base intacta después de correr contra prod | ✅ `260 / 253 / 7 / 0 nulos / 0 fixtures` |
+| Issue para `profesionales.html` | ✅ **ISSUE-073**, con el razonamiento entero, sin ejecutar |
+| ISSUE-072 marcado vivo en producción | ✅ con MD5 y resultado del probe |
+
+## Preguntas abiertas de la adenda
+
+1. **Yesi puede resolver la solicitud de Fede ahora.** El camino es: Propietarios → crear la ficha
+   con los datos declarados (Federico Iguacel Loeda · DNI 27826202 · tel 541158911520 ·
+   `nombre_stud` "Kazan" si corresponde) → volver a Solicitudes → la ficha aparece marcada `EXACTO`
+   por DNI → *Vincular y aprobar*. ¿Se le avisa, o se espera al botón "Crear ficha nueva" de la
+   bandeja (que sigue sin construirse y va aparte)?
+2. **El error de duplicado sigue siendo el crudo de Postgres** — pendiente de la pregunta 2 del
+   informe base. Ahora es visible en producción.
+3. **ISSUE-073: ¿se hace suelto o se junta con el cambio de policies (ISSUE-017)?** El fix de
+   pantalla son ~6 líneas por archivo; el de policies es DDL sobre dos tablas.
