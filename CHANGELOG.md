@@ -52,7 +52,25 @@ nunca se usó. **No hace falta migración de adopción**, igual que en ISSUE-049
 encontrable después por el buscador de la bandeja — el circuito que estaba roto. Teardown verificado
 por estado **y** por conteo contra la línea de base.
 
-**Sin mergear a `main`**: branch `fix/club-id-alta-propietarios`, pendiente de OK.
+### Verificación en producción
+
+Mergeado a `main` con `--no-ff` (`18dab80`) y verificado sobre el HTML **servido**, no sobre el
+working tree:
+
+```
+md5 local  propietarios.html  1a6232ba9561ab1c66d05ab76d779a84
+md5 servido sigh.com.ar       1a6232ba9561ab1c66d05ab76d779a84   ✅ (los 2 primeros intentos
+                                                                    devolvieron da47bb4e…, el
+                                                                    pre-merge: ~40 s de CDN)
+md5 solicitudes.html          a5e88e947e156f2de71e6afe31addcb4   (sin cambios en este fix)
+```
+
+Probe re-corrido contra los dos archivos bajados de `sigh.com.ar`: **14/14 asserts · 7/7 mutantes
+muertos**. Base intacta después (`total=260 · dolores=253 · otro=7 · nulos=0 · fixtures=0`).
+
+Deuda que deja abierta: **ISSUE-073** — `profesionales.html` y `jockeys.html` tienen el UPDATE sólo
+por id. Con el `club_id` que ISSUE-049 puso en el payload, un UPDATE por API de una ficha ajena la
+**mueve de hipódromo**. Mismo fix que acá; no se hizo en este diff.
 
 ## [2026-09-05] — solicitar-acceso: el paso 3 pasa a ser un paso (merge `2fb85d4`)
 

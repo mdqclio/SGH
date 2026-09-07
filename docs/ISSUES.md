@@ -1485,11 +1485,85 @@ un alta suya volvería a nacer con `club_id NULL`. Es exactamente el comportamie
 `profesionales.html` y `jockeys.html`; se unifica, no se empeora. Si se quiere cerrar ese resto hay
 que hacerlo en las tres pantallas a la vez, no en una sola.
 
-**Deuda simétrica que deja abierta**: `profesionales.html` tiene el UPDATE sin acote por club
-(`:413-414`) y `propietarios_update`/`profesionales_update` son `fn_is_staff()` sin condición de
-club. Alcanzable sólo por API, no desde la UI. No se toca acá para no ampliar el diff de un fix que
-tiene que entrar rápido.
+**Deuda simétrica que deja abierta**: `profesionales.html` (`:287`, `:413`) y `jockeys.html`
+(`:402`) tienen el UPDATE sin acote por club, y `propietarios_update`/`profesionales_update` son
+`fn_is_staff()` sin condición de club. Alcanzable sólo por API, no desde la UI. No se tocó acá para
+no ampliar el diff de un fix que tenía que entrar rápido: quedó como **ISSUE-073**.
 
-Módulo: `propietarios.html`. Estado: ✅ Resuelto (07/09/2026), **sin mergear a `main`** — pendiente
-de OK. Prioridad: era Alta (aislamiento por tenant + bloquea la aprobación de solicitudes de
-propietario). Relacionado: ISSUE-049 (antecedente), ISSUE-016.
+Módulo: `propietarios.html`. Estado: ✅ **Resuelto y VIVO en `sigh.com.ar`** — merge `--no-ff`
+`18dab80` (07/09/2026). MD5 del HTML servido `1a6232ba9561ab1c66d05ab76d779a84`, idéntico al
+local; probe re-corrido contra el archivo bajado de producción: 14/14 asserts y 7/7 mutantes
+muertos. Prioridad: era Alta (aislamiento por tenant + bloquea la aprobación de solicitudes de
+propietario). Relacionado: ISSUE-049 (antecedente), **ISSUE-073** (la deuda simétrica en
+`profesionales.html` y `jockeys.html`, abierta a partir de este fix), ISSUE-016.
+
+### ISSUE-073: el UPDATE de `profesionales.html` y `jockeys.html` no está acotado por club — una escritura por API mueve la ficha de hipódromo
+
+**Estado**: 🟡 **ABIERTO**. No se hace ahora, a propósito: sale del cierre de ISSUE-072 y merece su
+propio diff. Ticket abierto para que el razonamiento no se pierda.
+
+**De dónde sale**: al cerrar ISSUE-072 en `propietarios.html` quedó claro que el acote del UPDATE
+**no es una decisión separada del fix del INSERT: es su consecuencia**. ISSUE-049 hizo la mitad del
+trabajo en `profesionales.html` —`club_id` al payload y `.eq('club_id', CLUB_ID)` en la lectura—
+pero dejó el UPDATE filtrando **sólo por id**. Con el `club_id` en el payload compartido entre
+INSERT y UPDATE, ese archivo tiene hoy exactamente el agujero que ISSUE-072 acaba de cerrar.
+
+**El razonamiento, entero:**
+
+- **Antes de ISSUE-049**, un UPDATE por id de una ficha ajena la **editaba**: le pisaba nombre, DNI,
+  estado. Malo.
+- **Después de ISSUE-049**, con `club_id: CLUB_ID` en el payload, ese mismo UPDATE la **mueve de
+  hipódromo**: la ficha desaparece del padrón de su club y aparece en el de quien escribió. Es
+  estrictamente **peor** que editarla — el 049 empeoró ese camino sin querer mientras arreglaba el
+  otro.
+- El filtro de lectura vuelve el caso **inalcanzable desde la UI** (la pantalla ya no sirve fichas
+  ajenas), pero **no lo cierra**: `profesionales_update` es `fn_is_staff()` sin condición de club,
+  igual que `propietarios_update`. Por API —curl, otro módulo, un script— sigue abierto.
+
+**Los tres caminos de escritura sin acote** (líneas al 2026-09-07, `main` @ `18dab80`):
+
+| Archivo | Línea | Camino |
+|---|---|---|
+| `profesionales.html` | `:413` | `update(payload).eq('id', id)` — el guardado del modal, con `club_id` en el payload |
+| `profesionales.html` | `:287` | `update({ estado, activo }).eq('id', id)` — el toggle rápido de estado, **sin** payload de club (no mueve la ficha, pero sí edita una ajena) |
+| `jockeys.html` | `:402` | `update(payload).eq('id', id)` — mismo caso que `profesionales.html:413`; `club_id: CLUB_ID` está en el payload desde `:382` |
+
+**El fix es el mismo que se aplicó en `propietarios.html:450`:**
+
+```js
+const { data: filasUpd, error } = id
+  ? await sb.from('profesionales').update(payload).eq('id', id).eq('club_id', CLUB_ID).select('id')
+  : await sb.from('profesionales').insert(payload);
+if (error) { toast(error.message, 'error'); return; }
+if (id && (!filasUpd || filasUpd.length === 0)) {
+  toast('No se pudo actualizar: la ficha no pertenece a este hipódromo.', 'error'); return;
+}
+```
+
+**El chequeo de 0 filas no es decoración**: PostgREST **no** devuelve error cuando un UPDATE no
+matchea ninguna fila — devuelve `error: null`. Sin el chequeo, el código cantaría "actualizado",
+cerraría el modal y recargaría la lista sobre una escritura que nunca ocurrió. El mutante M6 de
+`tests/probe_club_id_alta_propietarios.mjs` es exactamente ese caso.
+
+**Impacto real esperado: 0 filas dañadas.** Igual que en ISSUE-049 y ISSUE-072, el camino sólo es
+alcanzable por API y no hay indicios de que se haya usado. Verificar antes de tocar:
+
+```sql
+select club_id, count(*) from profesionales group by 1;   -- esperado: sin NULL, sin cruces raros
+```
+
+**Lo que NO cubre este issue**: las policies. `profesionales_update` / `propietarios_update` siguen
+siendo `fn_is_staff()` sin condición de club, así que el acote es **de la pantalla, no de la base**.
+Cerrar eso es DDL sobre las policies de las dos tablas y va con el trabajo de RLS (ISSUE-017), no
+acá. El `delete().eq('id', id)` (`profesionales.html:424`, `jockeys.html:413`,
+`propietarios.html:464`) queda tal cual: la policy de DELETE ya exige `fn_is_super_admin()`, y el
+super_admin es cross-club por diseño.
+
+**Probe**: cuando se haga, clonar `tests/probe_club_id_alta_propietarios.mjs` — los asserts A5/A5b
+(el no-op sobre la ficha ajena y el aviso en vez del falso "actualizado") y A6 (que el UPDATE
+legítimo siga andando) trasladan tal cual, con los mutantes M5, M6 y M7.
+
+Módulo: `profesionales.html`, `jockeys.html`. Prioridad: Media — no alcanzable desde la UI, 0 filas
+dañadas medidas, pero es una regresión introducida por ISSUE-049 que hoy está viva en `main`.
+Antecedentes: ISSUE-072 (el mismo fix, ya aplicado en `propietarios.html`), ISSUE-049 (el fix a
+medias), ISSUE-017 (las policies sin club).
