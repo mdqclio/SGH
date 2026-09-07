@@ -528,3 +528,5 @@ b793e96808e08d87619d51e5721b9678f8806d41
 
 Ese `b793e96` es el commit del cuerpo del informe; esta adenda va en el commit siguiente, cuyo SHA
 se deja anotado abajo una vez pusheado.
+
+SHA de esta adenda, verificado en `origin/reports`: **`4c9db942623ba0db9824a9d787ec007d975164e0`**.
