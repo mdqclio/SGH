@@ -817,3 +817,5 @@ b10adc906b67316da72c717d47e3defba9010f0e	refs/heads/main
    informe base. Ahora es visible en producción.
 3. **ISSUE-073: ¿se hace suelto o se junta con el cambio de policies (ISSUE-017)?** El fix de
    pantalla son ~6 líneas por archivo; el de policies es DDL sobre dos tablas.
+
+SHA de esta adenda, verificado en `origin/reports`: **`460f3b00c4c438f233b05b1903fcb3516bc8163b`**.
