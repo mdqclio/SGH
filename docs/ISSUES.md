@@ -1411,3 +1411,85 @@ toca a mano**: la va a terminar Fede por el camino real, y esa corrida es la pru
 falta a ISSUE-070.
 
 Módulo: `solicitudes.html`, `admin.html`. Relacionado: ISSUE-070, ISSUE-069.
+
+### ISSUE-072: `propietarios.html` listaba propietarios de todos los clubes y los creaba sin `club_id` — RESUELTO
+
+**Antecedente: ISSUE-049.** Es el **mismo par de defectos, en el archivo hermano**. El 049 se
+diagnosticó y se cerró el 05/08/2026 sobre `profesionales.html`; `propietarios.html` tenía los dos
+idénticos y quedó sin tocar. Se abre issue propio en vez de reabrir el 049 —que está cerrado y
+verificado— para no mezclar dos fixes en un solo historial.
+
+**Cómo apareció**: no por auditoría, sino por un caso real. El 06/09/2026 Fede
+(`fedeiguacel3@hotmail.com`, rol `propietario`) mandó su solicitud de acceso. No está en el padrón
+de Dolores por ninguna vía —ni por DNI, ni por apellido, ni por caballeriza— así que la bandeja cae
+en la rama "sin ficha" y le dice a la secretaría *"creá la ficha desde Propietarios y volvé"*
+(`solicitudes.html:322-327`). Ese camino no llegaba a ningún lado. Diagnóstico completo:
+`docs/diagnosticos/2026-09-07_aprobacion-solicitud-sin-ficha-propietario.md` §4.2.
+
+**Los dos defectos:**
+
+1. **Alta sin tenant**: el payload del INSERT de `saveRecord()` (`propietarios.html:419-433`) no
+   incluía `club_id`. La columna es nullable, sin default y sin trigger que la complete
+   (único trigger de la tabla: `trg_propietarios_updated_at`, `BEFORE UPDATE`), y la policy
+   `propietarios_insert` es `WITH CHECK (fn_is_staff())` a secas. Toda alta por pantalla nacía con
+   `club_id = NULL`. `profesionales.html:397` sí lo mandaba.
+2. **Fuga cross-tenant en la lectura**: `load()` (`propietarios.html:307`) consultaba
+   `sb.from('propietarios').select('*').order('nombre')` **sin** `.eq('club_id', CLUB_ID)`.
+   `propietarios_select` para staff es `fn_is_staff()` sin condición de club, así que desde Dolores
+   se veían —y se podían editar y dar de baja— las 7 fichas de `Mi Club Hípico`.
+   `profesionales.html:273` y `jockeys.html:271` sí filtraban.
+
+**Por qué el #1 era el bloqueante y no sólo una prolijidad**: `buscarFichas()` de `solicitudes.html`
+filtra `.eq('club_id', CLUB_ID)` en las tres consultas (`:182`, `:187-188`, `:198`). Una ficha con
+`club_id NULL` **no aparece en la bandeja** — ni en el match exacto por DNI, ni en las sugerencias
+por apellido, ni en el buscador manual. Y si igual llegara a seleccionarse,
+`rpc_aprobar_solicitud` corta con `RAISE EXCEPTION 'La ficha pertenece a otro hipódromo'`
+(`NULL IS DISTINCT FROM <uuid>` = true), con un mensaje que ni siquiera describe el problema.
+Peor modo de falla posible: la ficha se crea, se ve en `propietarios.html` (que no filtraba), y es
+invisible exactamente donde hace falta. Parece que funcionó.
+
+**Impacto real medido antes del fix: 0 filas huérfanas** (`count(*) FILTER (WHERE club_id IS NULL)`
+= 0 sobre 260; 253 Dolores + 7 Mi Club Hípico). Las 260 entraron por importación
+(`created_at`: 2026-04-21 → 7, 2026-06-02 → 213, 2026-08-18 → 40): **el alta por pantalla nunca se
+usó**. Igual que en ISSUE-049, **no hizo falta migración de adopción**. Fede es el primer caso que
+lo habría disparado.
+
+**Fix** (branch `fix/club-id-alta-propietarios`):
+
+- `club_id: CLUB_ID` en el payload de `saveRecord()` — mismo patrón que `profesionales.html:397`.
+- `.eq('club_id', CLUB_ID)` en `load()` — mismo patrón que `profesionales.html:273` / `jockeys.html:271`.
+- **Extra sobre ISSUE-049**: el branch de UPDATE va acotado por club además de por id
+  (`.eq('id', id).eq('club_id', CLUB_ID).select('id')`), y un update de 0 filas avisa en vez de
+  cantar "Propietario actualizado". Razón: con `club_id` en el payload, un update por id sobre una
+  ficha ajena ya no la editaría — la **movería** de hipódromo, que es peor que el estado previo.
+  Desde la UI el caso deja de ser alcanzable con el filtro de lectura puesto, pero
+  `propietarios_update` es `fn_is_staff()` sin condición de club: por API seguía abierto.
+  `profesionales.html` **no** tiene este acote — queda como deuda simétrica, ver abajo.
+
+**Efecto colateral bueno**: `ux_propietarios_club_doc` es `UNIQUE (club_id, documento_tipo,
+documento_nro) WHERE documento_nro IS NOT NULL`. Con `club_id NULL` los duplicados nunca chocaban
+(en un índice único los NULL son distintos entre sí). Con el club cargado, el índice empieza a
+morder: el alta repetida del mismo DNI ahora da error en vez de duplicar la ficha (assert A7 del
+probe).
+
+**Probe**: `tests/probe_club_id_alta_propietarios.mjs` — 14 asserts + 7 mutantes, todos muertos.
+Corre el `saveRecord()`, el `load()` y el `parseDNI()` reales de `propietarios.html` y el
+`buscarFichas()` real de `solicitudes.html` con cliente Supabase real y mini-DOM. El assert que
+importa es **A3**: una ficha creada por la pantalla tiene que ser encontrable después por el
+buscador de la bandeja — el circuito que estaba roto. Fixtures propias con teardown verificado por
+estado (los ids dejan de existir) **y** por conteo (total/Dolores/otro club/huérfanos vuelven a la
+línea de base).
+
+**Nota**: con el fix, un `super_admin` sin club seleccionado (`CLUB_ID` null) no ve propietarios y
+un alta suya volvería a nacer con `club_id NULL`. Es exactamente el comportamiento que hoy tienen
+`profesionales.html` y `jockeys.html`; se unifica, no se empeora. Si se quiere cerrar ese resto hay
+que hacerlo en las tres pantallas a la vez, no en una sola.
+
+**Deuda simétrica que deja abierta**: `profesionales.html` tiene el UPDATE sin acote por club
+(`:413-414`) y `propietarios_update`/`profesionales_update` son `fn_is_staff()` sin condición de
+club. Alcanzable sólo por API, no desde la UI. No se toca acá para no ampliar el diff de un fix que
+tiene que entrar rápido.
+
+Módulo: `propietarios.html`. Estado: ✅ Resuelto (07/09/2026), **sin mergear a `main`** — pendiente
+de OK. Prioridad: era Alta (aislamiento por tenant + bloquea la aprobación de solicitudes de
+propietario). Relacionado: ISSUE-049 (antecedente), ISSUE-016.

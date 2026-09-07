@@ -1,5 +1,59 @@
 # Changelog
 
+## [2026-09-07] — propietarios.html: alta con `club_id` y listado acotado por club (ISSUE-072)
+
+> Yesi no podía aprobar la solicitud de Fede. La bandeja le decía "creá la ficha desde Propietarios
+> y volvé", y ese camino no llegaba a ningún lado.
+
+### El agujero
+
+Mismo par de defectos que **ISSUE-049** —diagnosticado y cerrado en `profesionales.html` el
+05/08/2026— en el archivo hermano, que quedó sin tocar:
+
+1. El payload del INSERT de `saveRecord()` no incluía `club_id`. Columna nullable, sin default y sin
+   trigger que la complete: **toda alta por pantalla nacía con `club_id = NULL`**.
+2. `load()` no filtraba por club: desde Dolores se veían y se podían editar las 7 fichas de
+   `Mi Club Hípico`.
+
+Lo que lo volvía bloqueante y no una prolijidad: `buscarFichas()` de `solicitudes.html` filtra
+`.eq('club_id', CLUB_ID)` en sus tres consultas. Una ficha con `club_id NULL` **no aparece en la
+bandeja** —ni por DNI exacto, ni por apellido, ni en el buscador manual— y si igual se seleccionara,
+`rpc_aprobar_solicitud` corta con *"La ficha pertenece a otro hipódromo"*. La ficha se creaba, se
+veía en Propietarios (que tampoco filtraba) y era invisible justo donde hacía falta.
+
+Diagnóstico: `docs/diagnosticos/2026-09-07_aprobacion-solicitud-sin-ficha-propietario.md` §4.2.
+
+### El fix (`propietarios.html`)
+
+- `club_id: CLUB_ID` en el payload — patrón de `profesionales.html:397`.
+- `.eq('club_id', CLUB_ID)` en `load()` — patrón de `profesionales.html:273` / `jockeys.html:271`.
+- **Extra sobre el 049**: el UPDATE va acotado por club además de por id
+  (`.eq('id', id).eq('club_id', CLUB_ID).select('id')`) y un update de 0 filas avisa en vez de
+  cantar "Propietario actualizado". Con `club_id` en el payload, un update por id sobre una ficha
+  ajena ya no la editaría: la **movería** de hipódromo. Desde la UI el caso deja de ser alcanzable
+  con el filtro de lectura, pero `propietarios_update` es `fn_is_staff()` sin condición de club —
+  por API seguía abierto.
+
+Efecto colateral bueno: `ux_propietarios_club_doc` es `UNIQUE (club_id, documento_tipo,
+documento_nro)`. Con `club_id NULL` los duplicados nunca chocaban (NULLs distintos entre sí); con el
+club cargado el índice empieza a morder.
+
+### Impacto medido antes del fix
+
+**0 filas huérfanas** — `club_id IS NULL` = 0 sobre 260 (253 Dolores + 7 Mi Club Hípico). Las 260
+entraron por importación (2026-04-21 → 7, 2026-06-02 → 213, 2026-08-18 → 40): el alta por pantalla
+nunca se usó. **No hace falta migración de adopción**, igual que en ISSUE-049.
+
+### Probe
+
+`tests/probe_club_id_alta_propietarios.mjs` — **14/14 asserts · 7/7 mutantes muertos**. Corre el
+`saveRecord()`, `load()` y `parseDNI()` reales de `propietarios.html` y el `buscarFichas()` real de
+`solicitudes.html`. El assert clave es **A3**: una ficha creada por la pantalla tiene que ser
+encontrable después por el buscador de la bandeja — el circuito que estaba roto. Teardown verificado
+por estado **y** por conteo contra la línea de base.
+
+**Sin mergear a `main`**: branch `fix/club-id-alta-propietarios`, pendiente de OK.
+
 ## [2026-09-05] — solicitar-acceso: el paso 3 pasa a ser un paso (merge `2fb85d4`)
 
 > El primer usuario real confirmó el correo, volvió a la página, vio el formulario con sus datos y
