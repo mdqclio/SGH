@@ -304,7 +304,11 @@ function estadoBadge(estado) {
 async function load() {
   setList('<div class="loading-state"><div class="spinner"></div> Cargando propietarios…</div>');
   const filtro = document.getElementById('filter-estado').value;
-  let query = sb.from('propietarios').select('*').order('nombre');
+  // Acotado por club, igual que profesionales.html:273 y jockeys.html:271 (ISSUE-049). Sin el
+  // filtro, propietarios_select —que para staff es fn_is_staff() a secas, sin condición de
+  // club— devolvía también las fichas de otros hipódromos: desde Dolores se veían y se podían
+  // editar las 7 de "Mi Club Hípico".
+  let query = sb.from('propietarios').select('*').eq('club_id', CLUB_ID).order('nombre');
   if (filtro === 'activos')  query = query.eq('estado', 'activo');
   else if (filtro === 'visibles') query = query.in('estado', ['activo', 'inactivo']);
   const { data, error } = await query;
@@ -415,7 +419,13 @@ async function saveRecord(e) {
       btn.disabled = false; btn.textContent = 'Guardar'; return;
     }
   }
+  // club_id explícito, igual que profesionales.html:397 (ISSUE-049). La columna es nullable y
+  // no tiene default ni trigger que la complete, así que sin esta línea TODA alta por pantalla
+  // nacía con club_id NULL — y una ficha sin club es invisible para buscarFichas() de
+  // solicitudes.html, que filtra .eq('club_id', CLUB_ID). Ése es el circuito que rompía: Yesi
+  // creaba la ficha acá, volvía a la bandeja y no la encontraba ni buscándola por DNI.
   const payload = {
+    club_id: CLUB_ID,
     tipo: document.getElementById('f-tipo').value,
     estado: nuevoEstado,
     activo: nuevoEstado === 'activo',
@@ -431,11 +441,19 @@ async function saveRecord(e) {
     colores_desc: document.getElementById('f-colores').value.trim() || null,
     notas: document.getElementById('f-notas').value.trim() || null,
   };
-  const { error } = id
-    ? await sb.from('propietarios').update(payload).eq('id', id)
+  // El UPDATE va acotado por club ADEMÁS de por id. Con club_id en el payload, un update por id
+  // sobre una ficha ajena no la editaría: la MOVERÍA de hipódromo. El .eq lo convierte en un
+  // no-op de 0 filas. Desde la UI el caso ya no es alcanzable —load() filtra—, pero la policy
+  // propietarios_update es fn_is_staff() sin condición de club, así que por API seguía abierto.
+  // El .select('id') es para no cantar "actualizado" sobre 0 filas afectadas.
+  const { data: filasUpd, error } = id
+    ? await sb.from('propietarios').update(payload).eq('id', id).eq('club_id', CLUB_ID).select('id')
     : await sb.from('propietarios').insert(payload);
   btn.disabled = false; btn.textContent = 'Guardar';
   if (error) { toast(error.message, 'error'); return; }
+  if (id && (!filasUpd || filasUpd.length === 0)) {
+    toast('No se pudo actualizar: la ficha no pertenece a este hipódromo.', 'error'); return;
+  }
   toast(id ? 'Propietario actualizado' : 'Propietario creado');
   closeModal();
   load();

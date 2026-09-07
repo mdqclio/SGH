@@ -85,6 +85,7 @@ node tests/probe_recibo_rol.mjs         # Pagos: rótulo del rol en el recibo, p
 node tests/probe_pedigree_programa.mjs   # Columna PADRE-MADRE en los 3 programas: vacío sin placeholder, separador no colgado (real-code, 9998 + teardown)
 node tests/probe_apuestas_especiales.mjs # Caja de especiales de la tapa derivada de carrera_apuestas (real-code, sólo lectura)
 node tests/probe_carta_selector_reunion.mjs # Carta de llamados: selector de reunión + default activa/próxima + ActiveReunion intacta (real-code, sólo lectura, --mutantes)
+node tests/probe_club_id_alta_propietarios.mjs # ISSUE-072: propietarios.html crea con club_id y lista sólo su club; ficha nueva encontrable por buscarFichas() (real-code, ESCRIBE, --mutantes)
 node tests/probe_cuerpos_oficial.mjs     # Ventaja de llegada en la vista oficial: cotejo de R6 contra la planilla (real-code, sólo lectura)
 node tests/probe_reordenar_turnos.mjs    # RPC reordenar_turnos: permutación + 4 validaciones (→ R9, snapshot→restore)
 node tests/probe_orden_ui.mjs            # Lógica ▲▼ de carta-llamados: payload a la RPC y confirmación (real-code, sin DB)
@@ -121,6 +122,41 @@ texto. Mide a 390 / 375 / 768 / 1280 px y en `media: print`, porque el bug apare
 visor de iOS y no en desktop — a un solo ancho no se detecta. Con `--pdf` además emite el
 PDF a `/tmp`. Mismos códigos de salida. La contraparte estructural que sí corre en el VPS es
 `probe_badge_overlap.mjs`.
+### `probe_club_id_alta_propietarios.mjs` — ISSUE-072 (ESCRIBE EN PRODUCCIÓN)
+
+14 asserts + 7 mutantes. Cubre que `propietarios.html` cree las fichas **con `club_id`** y liste
+**sólo las de su club** (gemelo de ISSUE-049, ya cerrado en `profesionales.html`).
+
+Extrae de los HTML los cuerpos reales de `saveRecord()`, `load()` y `parseDNI()` de
+`propietarios.html` y de `buscarFichas()` de `solicitudes.html`, y los corre con cliente Supabase
+real + mini-DOM que **parsea los ids del archivo** (pedir un id que no existe revienta el probe).
+
+**El assert que importa es A3**, no A1: una ficha creada por la pantalla tiene que ser encontrable
+después por el `buscarFichas()` de la bandeja, que filtra `.eq('club_id', CLUB_ID)`. Ése es el
+circuito que estaba roto — verificar sólo que el INSERT manda `club_id` no prueba que el camino de
+Yesi funcione.
+
+Usa `SUPABASE_SECRET_KEY`, que **bypasea RLS a propósito**: lo que se prueba es el filtro del
+CLIENTE. Con la anon key, `propietarios_select` (para staff, `fn_is_staff()` sin condición de club)
+no cambiaría nada y el probe daría verde sobre el bug.
+
+Crea 2 fixtures (una en Dolores, una en "Mi Club Hípico") y las borra en el `finally`. Teardown
+verificado **por estado** (Z1: los ids dejan de existir, no queda ninguna fila con el prefijo
+`ZZ PROBE CLUBID`) **y por conteo** (Z2: total / Dolores / otro club / huérfanos vuelven a la línea
+de base tomada antes de correr). Barrido preflight por prefijo antes de empezar, por si una corrida
+anterior murió a mitad de camino.
+
+```bash
+set -a; . ./.env; set +a
+node tests/probe_club_id_alta_propietarios.mjs
+node tests/probe_club_id_alta_propietarios.mjs --mutantes          # los 7
+node tests/probe_club_id_alta_propietarios.mjs --mutantes=M1,M3    # los dos bugs originales
+```
+
+M1 y M3 son **los dos bugs originales tal cual estaban** en `main`: el runner de mutantes los
+resucita sobre una copia en `/tmp` y verifica que el probe los mate. Si algún día alguien vuelve a
+sacar el `club_id` del payload, M1 lo dice con esas palabras.
+
 ### `probe_solicitar_cuenta_existente.mjs` — A DEMANDA, no en la rutina
 
 Cubre el corte de "ese correo ya está registrado" de `solicitar-acceso.html` (ISSUE-069, GOTCHA #89):
