@@ -505,3 +505,26 @@ Fuera de alcance, no tocado: el botón "Crear ficha nueva" de la bandeja, `rpc_a
    `caballeriza_responsables`. Este fix lo deja sano, pero si la respuesta a ISSUE-016 es "se
    deprecia", el botón "Crear ficha nueva" de la bandeja debería crear la ficha por RPC y no
    mandar a nadie a esta pantalla.
+
+---
+
+## Adenda — verificación final de los tres refs en `origin`
+
+Corrido después de commitear este informe:
+
+```
+$ git ls-remote origin main reports fix/club-id-alta-propietarios
+bba68945c14b739aff3e3565665c311c533b74bc	refs/heads/fix/club-id-alta-propietarios
+cc0ea64c8847d5eafb78a234cfedc749ab597afe	refs/heads/main
+b793e96808e08d87619d51e5721b9678f8806d41	refs/heads/reports
+
+$ git rev-parse HEAD          # en reports
+b793e96808e08d87619d51e5721b9678f8806d41
+```
+
+- **`main` = `cc0ea64`** — intacto, sin merge. ✅ gate respetado.
+- **`fix/club-id-alta-propietarios` = `bba6894`** — en `origin`, legible. ✅
+- **`reports` = `b793e96`** — el commit de este informe está publicado. ✅
+
+Ese `b793e96` es el commit del cuerpo del informe; esta adenda va en el commit siguiente, cuyo SHA
+se deja anotado abajo una vez pusheado.
