@@ -1015,3 +1015,270 @@ $ git ls-remote origin feat/paridad-llamado-inscripciones
 
 Los tres refs verificados: el informe está en `origin/reports`, la rama de trabajo está
 pusheada, y `main` sigue en `b10adc9` sin tocar.
+
+---
+
+# ADENDA — merge a `main`, verificación contra producción y GOTCHA #91
+
+**Fecha:** 2026-09-08
+**Autorizado por:** el usuario, tras leer este informe ("OK, mergeá a main con --no-ff").
+
+## A1. El merge
+
+```
+$ git switch main && git pull --ff-only origin main
+b10adc9 docs: ISSUE-072 vivo en producción + ISSUE-073 (el UPDATE sin acote en profesionales/jockeys)
+
+$ git merge --no-ff feat/paridad-llamado-inscripciones -F <mensaje>
+Merge made by the 'ort' strategy.
+ auditoria.html                                |   4 +-
+ inscripciones.html                            | 108 ++++-
+ liquidaciones.html                            |  11 +-
+ portal.html                                   |  29 +-
+ resultados.html                               |   3 +-
+ solicitudes.html                              |   3 +-
+ tests/README.md                               |   1 +
+ tests/probe_paridad_llamado_inscripciones.mjs | 564 ++++++++++++++++++++++++++
+ 8 files changed, 712 insertions(+), 11 deletions(-)
+ create mode 100644 tests/probe_paridad_llamado_inscripciones.mjs
+
+$ git log --oneline origin/main -5
+0775082 docs: GOTCHA #91 — toLocaleTimeString('es-AR') da 12 h y depende del ICU
+1676bf7 merge: paridad llamado abierto ↔ inscripciones + hora en 24 h
+07ef2aa fix: los cuatro usos de hora en liquidaciones.html también en 24 h
+f0d1d79 feat: llamado abierto e inscripciones muestran el mismo conjunto + hora en 24 h
+b10adc9 docs: ISSUE-072 vivo en producción + ISSUE-073 (el UPDATE sin acote en profesionales/jockeys)
+
+$ git ls-remote origin main
+0775082e509c51dbc8b3ac5612bd21a7b6e17bc4	refs/heads/main
+
+$ git ls-remote origin feat/paridad-llamado-inscripciones   # la rama queda, no se borró
+07ef2aa4058001f9fca96608d3b213b5bb0b8f2f	refs/heads/feat/paridad-llamado-inscripciones
+```
+
+Merge **`1676bf7`**, con `--no-ff` como se pidió: el merge commit está y los dos commits de la
+rama (`f0d1d79`, `07ef2aa`) quedan visibles en la historia. Encima va **`0775082`** con el
+GOTCHA #91.
+
+`main` pasó de `b10adc9` a **`0775082e509c51dbc8b3ac5612bd21a7b6e17bc4`**.
+
+## A2. MD5 local vs. producción (`curl -sL`)
+
+El deploy de GitHub Pages tardó. Primer intento a los ~10 s: los seis HTML servidos daban MD5
+**idéntico al blob pre-merge `b10adc9`** — o sea, versión vieja, no un deploy roto:
+
+```
+portal.html          pre-merge=67acc19aa0b9b883ea7d7ff7c872c4f6 servido=67acc19aa0b9b883ea7d7ff7c872c4f6
+inscripciones.html   pre-merge=bbd6d8854e0a8762073d124604a875c9 servido=bbd6d8854e0a8762073d124604a875c9
+liquidaciones.html   pre-merge=c8e2cdc12e19926e727cbf87ebe3a545 servido=c8e2cdc12e19926e727cbf87ebe3a545
+```
+
+A los ~30 s más, MATCH. Comparación final:
+
+```
+=== MD5: local (main 0775082) vs servido en https://sigh.com.ar (curl -sL) ===
+corrido: 2026-09-08T01:26:18Z
+
+portal.html            local=526d1bf4cd403b9a2f689e3a521afc85  servido=526d1bf4cd403b9a2f689e3a521afc85  MATCH
+inscripciones.html     local=23ba0782e4b127324f1ed5292e18a82e  servido=23ba0782e4b127324f1ed5292e18a82e  MATCH
+auditoria.html         local=344e6b947073d5a52f2a7cd23546fdf4  servido=344e6b947073d5a52f2a7cd23546fdf4  MATCH
+solicitudes.html       local=9b5c0b090ab28fd2386e1043f52610be  servido=9b5c0b090ab28fd2386e1043f52610be  MATCH
+resultados.html        local=4b66146cf0ab04d999f2a088cb0bb598  servido=4b66146cf0ab04d999f2a088cb0bb598  MATCH
+liquidaciones.html     local=ef57d92f0794a9724c2df52608c68279  servido=ef57d92f0794a9724c2df52608c68279  MATCH
+tests/README.md        local=0945d687614a347b649f1c3e27a0f618  servido=0945d687614a347b649f1c3e27a0f618  MATCH
+```
+
+**7/7 MATCH.** Lo que sirve `sigh.com.ar` es byte por byte lo que está en `main` en `0775082`.
+
+## A3. Greps sobre el HTML servido
+
+```
+=== greps sobre el HTML SERVIDO (no el local) ===
+corrido: 2026-09-08T01:27:06Z
+
+--- 1) portal: dónde aparece "a. m." en el servido (tienen que ser SÓLO comentarios) ---
+$ curl -sL https://sigh.com.ar/portal.html | grep -n "a\. m\."
+413:// devuelve "09:00 a. m." en el ICU actual: como acá se le concatenaba " hs",
+414:// salía "cierra 11/9 09:00 a. m. hs" — las dos notaciones mezcladas y la unidad
+
+--- 2) portal: el fix del helper y el bloque de condición ---
+$ curl -sL https://sigh.com.ar/portal.html | grep -n "carrera-cond\|p2(d.getHours())"
+92:    .carrera-cond { font-size: 12px; line-height: 1.45; color: var(--muted); margin-top: 6px; overflow-wrap: anywhere; }
+423:  return `${d.getDate()}/${d.getMonth() + 1} ${p2(d.getHours())}:${p2(d.getMinutes())} hs`;
+609:          ${textoCondicion(c) ? `<div class="carrera-cond">${esc(textoCondicion(c))}</div>` : ''}
+
+--- 3) inscripciones: encabezado, select ampliado, render ---
+$ curl -sL https://sigh.com.ar/inscripciones.html | grep -n "id=\"carrera-header\"\|cierre_inscripcion,estado\|renderCarreraChips"
+233:<div id="carrera-header" class="carrera-header" style="display:none;"></div>
+466:    .select('id,numero_turno,nombre,distancia_metros,tipo_pista,condicion_sexo,edad_minima_anos,edad_maxima_anos,bolsa_total,cupo_maximo,condicion_handicap,condicion_adicional,cierre_inscripcion,estado,categoria_id,categorias_carrera(nombre)')
+540:  renderCarreraChips();
+548:function renderCarreraChips() {
+
+--- 4) BARRIDO: toLocale con hora SIN hour12:false en el servido (tiene que dar 0 en los cinco) ---
+  portal.html: usos-de-hora=1  sin-hour12=1
+  auditoria.html: usos-de-hora=1  sin-hour12=0
+  solicitudes.html: usos-de-hora=1  sin-hour12=0
+  resultados.html: usos-de-hora=0  sin-hour12=0
+  liquidaciones.html: usos-de-hora=4  sin-hour12=0
+
+--- 5) resultados.html: el toLocaleTimeString sin options ---
+$ curl -sL https://sigh.com.ar/resultados.html | grep -n "toLocaleTimeString"
+1602:  setStatus(`✓ ${msg} — ${new Date().toLocaleTimeString('es-AR', { hour12: false })}`);
+
+--- 6) liquidaciones.html: los cuatro usos ---
+$ curl -sL https://sigh.com.ar/liquidaciones.html | grep -c "toLocaleTimeString(.es-AR.,{hour:.2-digit.,minute:.2-digit.,hour12:false})"
+4
+
+--- 4b) el único "sin-hour12" de portal: ¿código o comentario? ---
+$ curl -sL https://sigh.com.ar/portal.html | grep -nE "toLocale(Time|Date)?String\('es-AR'[^)]*hour:"
+412:// Hora en 24 h, armada a mano. `toLocaleTimeString('es-AR', {hour:'2-digit'})`
+
+  → línea 412, empieza con "//": es el comentario que explica el bug, no código vivo.
+  → El único formateo de hora vivo de portal.html es el de la línea 423 (getHours/getMinutes).
+```
+
+Lectura:
+
+- El fix del helper (`getHours`/`getMinutes`) y el bloque `.carrera-cond` están **en el HTML que
+  sirve producción**, no sólo en el repo.
+- El encabezado de inscripciones (`id="carrera-header"`), el `select` ampliado a 16 columnas y
+  `renderCarreraChips()` están servidos.
+- **Barrido final del defecto en producción: cero código vivo.** Los cinco archivos dan
+  `sin-hour12 = 0` salvo un hit en `portal.html`, que es la línea 412 — el comentario que
+  explica el bug, no código. Los cuatro usos de `liquidaciones.html` tienen `hour12:false`.
+- Las dos apariciones de `"a. m."` en `portal.html` servido (líneas 413-414) son el texto del
+  mismo comentario.
+
+## A4. El probe re-corrido contra el HTML SERVIDO
+
+No contra los archivos del repo: contra los bytes bajados de `sigh.com.ar`.
+
+```
+set -a; . ./.env; set +a
+PORTAL_HTML=<descarga>/portal.html INSC_HTML=<descarga>/inscripciones.html \
+  node tests/probe_paridad_llamado_inscripciones.mjs
+```
+
+Salida cruda completa:
+
+```
+
+── Probe · paridad llamado abierto ↔ encabezado de inscripciones ──
+   portal=/tmp/claude-1000/-home-clio-dev-SGH/6abfa28c-346e-4061-986e-7da9ea3c41b2/scratchpad/servido/portal.html
+   insc=/tmp/claude-1000/-home-clio-dev-SGH/6abfa28c-346e-4061-986e-7da9ea3c41b2/scratchpad/servido/inscripciones.html
+   TZ=America/Argentina/Buenos_Aires · condición larga=192 chars
+ ✅ H1) el llamado imprime la hora en 24 h, sin duplicar la unidad  → fechaHora → "1/5 09:00 hs"  (esperado "1/5 09:00 hs")
+ ✅ H2) sin "a. m." ni "p. m."  → "1/5 09:00 hs"
+ ✅ H3) una sola vez "hs"  → "1/5 09:00 hs"
+ ✅ H4) inscripciones imprime la MISMA hora que el llamado  → portal="1/5 09:00 hs" · inscripciones="1/5 09:00 hs"
+ ✅ H5) el valor guardado sigue siendo 09:00 AR — sólo cambió el formato  → db=2099-05-01T12:00:00+00:00 → "1/5 09:00 hs"
+ ✅ H6) medianoche sale 00:00 en las dos pantallas, no 24:00  → portal="2/5 00:00 hs" · inscripciones="2/5 00:00 hs"
+ ✅ H7) el helper es idéntico en los dos archivos (ninguno se quedó atrás)
+ ✅ P0) el llamado renderizó el bloque de la reunión del fixture  → container=12216 chars
+ ✅ P1) el turno de condición larga tiene su fila
+ ✅ P2) chip de distancia  → 1100m | tierra | ambos | 5 a 10 años | 💰 $3.333.333,33 | Cupo 14 | ⏳ cierra 1/5 09:00 hs
+ ✅ P3) chip de pista
+ ✅ P4) chip de sexo
+ ✅ P5) chip de rango de edad
+ ✅ P6) chip de bolsa
+ ✅ P7) el número de turno está en la fila
+ ✅ P8) el texto de la condición está en la fila
+ ✅ P9) chip de cierre en 24 h
+ ✅ P10) ni un "a. m." en todo el llamado renderizado
+ ✅ Q0) onReunionChange trajo los dos turnos del fixture  → carreras=2
+ ✅ Q1) el encabezado se muestra
+ ✅ Q2) chip de distancia  → 1100m | tierra | ambos | 5 a 10 años | Concertada | 💰 $3.333.333,33 | Cupo 14 | ⏳ cierra 1/5 09:00 hs
+ ✅ Q3) chip de pista
+ ✅ Q4) chip de sexo
+ ✅ Q5) chip de rango de edad
+ ✅ Q6) chip de bolsa
+ ✅ Q7) chip de cierre en 24 h
+ ✅ Q8) el texto de la condición está en el encabezado
+ ✅ Q9) el número de turno está en el encabezado
+ ✅ Q10) ni un "a. m." en el encabezado
+ ✅ Y1) el chip de categoría que pidió Yesi está en inscripciones  → categoría="Concertada"
+ ✅ D1) los ocho campos aparecen en LAS DOS pantallas  → 8/8
+ ✅ D2) la condición se arma igual en las dos (mismo separador)
+ ✅ D3) el rango de edad se arma igual en las dos
+ ✅ D4) la bolsa se formatea igual en las dos  → portal="$3.333.333,33" · inscripciones="$3.333.333,33"
+ ✅ L1) el llamado muestra la condición larga COMPLETA, sin truncar  → render=192 chars · esperado=192
+ ✅ L2) inscripciones muestra la condición larga COMPLETA, sin truncar  → render=192 chars · esperado=192
+ ✅ L3) en el llamado la condición va en su propio bloque, no en la fila de chips
+ ✅ L4) en inscripciones la condición va en su propio bloque, no en la fila de chips
+ ✅ L5) el llamado: mismo número de chips con condición corta y con larga  → larga=7 · corta=7
+ ✅ L6) inscripciones: mismo número de chips con condición corta y con larga  → larga=8 · corta=8
+ ✅ L7) .carrera-cond declara overflow-wrap: anywhere en las dos hojas  → portal=".carrera-cond { font-size: 12px; line-height: 1.45; color: var(--muted); margin-top: 6px; overflow-wrap: anywhere; }" · inscripciones=".carrera-cond { font-size: 12px; line-height: 1.45; color: var(--muted); margin-top: 6px; overflow-wrap: anywhere; }"
+ ✅ L8) el contenedor de texto puede encogerse (min-width), así el bloque crece hacia abajo
+ ✅ F1) mirar el encabezado no cambia la reunión activa por otra cosa que el select  → ids=["ebf8705b-ed7f-426f-870c-2305da3ece94"]
+ ✅ F2) ningún toast de error durante el render  → []
+ ✅ F3) el gate de edad de la inscripción quedó intacto
+ ✅ F4) al deseleccionar el turno el encabezado se limpia
+ ✅ T1) teardown: no quedó ninguna reunión 9992 en la base  → quedan=0
+
+47/47 OK
+```
+
+**47/47 OK contra el HTML servido.** Fixture 9992 plantado y borrado, teardown verificado (T1).
+
+## A5. GOTCHA #91
+
+Se agregó `docs/GOTCHAS.md` § 91 — *"`toLocaleTimeString('es-AR', {hour:'2-digit'})` da
+"09:00 a. m." — y depende del ICU del navegador"*. Los tres puntos que deja anotados:
+
+1. **`es-AR` no es un locale de 24 h** para el ICU actual: su `hourCycle` por defecto es `h12`.
+   Concatenarle `" hs"` da `"09:00 a. m. hs"`.
+2. **Lo grave no es el "a. m.": es que el resultado no es estable.** `hourCycle` por locale sale
+   del CLDR y cada versión de ICU trae el suyo. El navegador lleva su propio ICU, así que **el
+   mismo código puede verse distinto en máquinas distintas** — y el que reporta el bug puede
+   estar viendo algo que en la máquina del que lo arregla no aparece. Vale también para
+   `toLocaleDateString`: el `"11/9"` (día con dos dígitos, mes sin rellenar) no lo eligió nadie,
+   sale del CLDR. Regla: **para horas en 24 h, formateo explícito con
+   `getHours()`/`getMinutes()`, no `toLocale*`**; si el `toLocale*` ya está y reescribirlo no
+   vale la pena, el mínimo es `hour12: false` explícito. Es el mismo principio que la convención
+   de `formatARS()` para dinero: el locale del browser no es una API estable.
+3. **El corolario del barrido**, que es lo que el usuario marcó como el buen hallazgo: se
+   reportó **una** línea y había **ocho, en cinco archivos**. La única reportada fue la única que
+   además **duplicaba la unidad** — `"09:00 a. m. hs"` salta a la vista; `"09:00 a. m."` leído
+   solo no parece un bug, parece una decisión. Dos de las siete no reportadas salen en
+   documentos que se le entregan a un tercero: el **recibo impreso** (`liquidaciones.html:1864`)
+   y el aviso de **recibo anulado** (`1854`). La regla que queda: **al arreglar un bug de
+   formato, grepear el defecto, no el síntoma.** El síntoma era `" hs"` pegado a un `"a. m."` —
+   grepearlo habría devuelto una línea. El defecto era `toLocale*` con la hora.
+   Y el sub-corolario, que también pasó en esta misma sesión: **el grep va contra `main`**. El
+   primer barrido se corrió parado en `reports` y no vio los cuatro de `liquidaciones.html`,
+   porque ahí el archivo es una foto vieja. Devolvió cero y parecía cero.
+
+Tabla del barrido completo, como quedó en el GOTCHA:
+
+| Archivo | Línea (pre-fix) | Qué imprimía | ¿Duplicaba la unidad? |
+|---|---|---|---|
+| `portal.html` | 409 | `fechaHora()` — 2 usos: chip del llamado y modal de anotar | **Sí** — el único reportado |
+| `auditoria.html` | 263 | `formatTs()` — timestamp de cada fila del log | no |
+| `solicitudes.html` | 156 | `fecha()` — fecha de cada solicitud | no |
+| `resultados.html` | 1601 | `setStatus()` — hora del último guardado | no |
+| `liquidaciones.html` | 1518 | hora del último recibo emitido | no |
+| `liquidaciones.html` | 1785 | historial de recibos | no |
+| `liquidaciones.html` | 1854 | aviso de recibo anulado — **lo ve el propietario** | no |
+| `liquidaciones.html` | 1864 | recibo impreso — **lo ve el propietario** | no |
+
+Se actualizó también el conteo en `CLAUDE.md`: 88 → 91 entradas.
+
+## A6. Estado final
+
+| Ref | SHA |
+|---|---|
+| `origin/main` | `0775082e509c51dbc8b3ac5612bd21a7b6e17bc4` |
+| `origin/feat/paridad-llamado-inscripciones` | `07ef2aa4058001f9fca96608d3b213b5bb0b8f2f` (queda, no se borró) |
+| merge commit | `1676bf7` |
+| GOTCHA #91 | `0775082` |
+| `origin/reports` (este informe) | ver A7 |
+
+| Verificación | Resultado |
+|---|---|
+| MD5 local vs. `sigh.com.ar` (`curl -sL`) | 7/7 MATCH |
+| Probe contra el HTML servido | 47/47 OK |
+| Código vivo con `toLocale*` de hora sin `hour12` en producción | **0** |
+| `hora_cierre` / `cierre_inscripcion` de R9 | sin tocar, once turnos en 09:00 |
+
+Las seis preguntas abiertas de la §11 siguen abiertas — el merge no las resuelve. La más urgente
+sigue siendo la #2: **R9 cierra el 11/09 a las 09:00 y hoy es el 08/09.**
