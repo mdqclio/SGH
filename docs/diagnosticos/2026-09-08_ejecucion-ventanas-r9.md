@@ -348,3 +348,233 @@ $ git ls-remote origin main
 ```
 
 Los refs verificados en `origin`.
+
+---
+
+# ADENDA — merge del fix de la UI, verificación contra producción y GOTCHA #92
+
+**Fecha:** 2026-09-08, ~02:17 UTC
+**Autorizado por:** el usuario — *"Mergeá `fix/carta-llamados-hora-local` a main con `--no-ff`. Es
+lo que cierra el riesgo que vos mismo señalás."*
+
+**Cierra el punto 1 del §7**: mientras la pantalla siguiera con el bug de zona, editar un turno de
+R9 le mostraba `15:00` en el cierre y, si alguien lo "corregía" a `12:00`, volvía a romper lo que
+el `UPDATE` acababa de arreglar. Ese riesgo ya no existe.
+
+## A1. El merge
+
+```
+$ git merge --no-ff fix/carta-llamados-hora-local -F <mensaje>
+Merge made by the 'ort' strategy.
+ carta-llamados.html              |  65 +++++-
+ tests/README.md                  |   1 +
+ tests/probe_carta_hora_local.mjs | 435 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 493 insertions(+), 8 deletions(-)
+ create mode 100644 tests/probe_carta_hora_local.mjs
+```
+
+```
+$ git log --oneline origin/main -5
+2bb5d0c docs: GOTCHA #92 — datetime-local es hora local sin zona; el .slice sobre el ISO miente
+5d108ab merge: carta-llamados guarda y muestra las ventanas en hora argentina
+776a17b docs: ISSUE-074 — dos fuentes para la hora de ratificación y la editable no gobierna
+71a5995 fix: carta-llamados guarda y muestra las ventanas en hora argentina, no en UTC
+79821ae docs: CLAUDE.md — de dónde vienen las instrucciones (el repo es público)
+
+$ git ls-remote origin main
+2bb5d0c9ef3e7738df66cf19c649a93d6aba3f5d	refs/heads/main
+
+$ git ls-remote origin fix/carta-llamados-hora-local   # la rama queda, no se borró
+71a5995a796f4e2c5234dab8e47713c9cba075c0	refs/heads/fix/carta-llamados-hora-local
+
+$ git ls-remote origin fix/hora-ventanas-r9            # el .sql, sin mergear (es sólo el versionado)
+5ed5504c0701687e1b6d41d074012ae4da6eabdc	refs/heads/fix/hora-ventanas-r9
+```
+
+Merge **`5d108ab`** con `--no-ff`: el commit de merge está y `71a5995` queda visible en la
+historia. Encima, **`2bb5d0c`** con el GOTCHA #92.
+
+`main` pasó de `776a17b` a **`2bb5d0c9ef3e7738df66cf19c649a93d6aba3f5d`**.
+
+## A2. MD5 local vs. producción
+
+El deploy tardó ~40 s (dos intentos con el blob viejo, el tercero MATCH). Comparación final:
+
+```
+=== MD5: local (main 2bb5d0c) vs servido en https://sigh.com.ar (curl -sL) ===
+corrido: 2026-09-08T02:17:28Z
+
+carta-llamados.html                  local=a1c9ab393a10924abc93662760195f1a  servido=a1c9ab393a10924abc93662760195f1a  MATCH
+portal.html                          local=526d1bf4cd403b9a2f689e3a521afc85  servido=526d1bf4cd403b9a2f689e3a521afc85  MATCH
+inscripciones.html                   local=23ba0782e4b127324f1ed5292e18a82e  servido=23ba0782e4b127324f1ed5292e18a82e  MATCH
+liquidaciones.html                   local=ef57d92f0794a9724c2df52608c68279  servido=ef57d92f0794a9724c2df52608c68279  MATCH
+auditoria.html                       local=344e6b947073d5a52f2a7cd23546fdf4  servido=344e6b947073d5a52f2a7cd23546fdf4  MATCH
+solicitudes.html                     local=9b5c0b090ab28fd2386e1043f52610be  servido=9b5c0b090ab28fd2386e1043f52610be  MATCH
+resultados.html                      local=4b66146cf0ab04d999f2a088cb0bb598  servido=4b66146cf0ab04d999f2a088cb0bb598  MATCH
+tests/probe_carta_hora_local.mjs     local=2224f5eba8fa1f76f0c01a9a8d6141f9  servido=2224f5eba8fa1f76f0c01a9a8d6141f9  MATCH
+tests/README.md                      local=b0b38f9386e02bd4b4b259609b858c10  servido=b0b38f9386e02bd4b4b259609b858c10  MATCH
+```
+
+**9/9 MATCH.** Lo que sirve `sigh.com.ar` es byte por byte lo que está en `main` en `2bb5d0c`,
+`carta-llamados.html` y el probe nuevo incluidos.
+
+## A3. El probe contra el HTML SERVIDO
+
+No contra el archivo del repo: contra los bytes bajados de `sigh.com.ar`.
+
+```
+set -a; . ./.env; set +a
+CARTA_HTML=<descarga>/carta-llamados.html node tests/probe_carta_hora_local.mjs
+```
+
+Salida cruda completa:
+
+```
+
+── Probe · carta-llamados, las cuatro ventanas en hora argentina ──
+   html=/tmp/claude-1000/-home-clio-dev-SGH/6abfa28c-346e-4061-986e-7da9ea3c41b2/scratchpad/serv2/carta-llamados.html
+   TZ=America/Argentina/Buenos_Aires  ·  offset=-3 h
+ ✅ H1) isoAInputLocal convierte el instante a hora argentina  → 2099-05-04T15:00:00+00:00 → "2099-05-04T12:00"  (esperado "2099-05-04T12:00")
+ ✅ H2) inputLocalAISO da el instante correcto  → "2099-05-04T12:00" → 2099-05-04T15:00:00.000Z  (esperado el instante de 2099-05-04T15:00:00+00:00)
+ ✅ H2b) …y la cadena que devuelve lleva zona explícita (Z u offset)  → "2099-05-04T15:00:00.000Z"
+ ✅ H3) las dos funciones son inversas exactas: ISO → input → ISO no mueve el instante  → 2099-05-04T15:00:00+00:00→2099-05-04T15:00:00.000Z · 2026-09-11T15:00:00+00:00→2026-09-11T15:00:00.000Z · 2026-01-01T03:00:00+00:00→2026-01-01T03:00:00.000Z · 2026-12-31T02:59:00+00:00→2026-12-31T02:59:00.000Z
+ ✅ H4) vacío y basura no explotan
+ ✅ L1) apertura de inscripción se muestra en hora argentina  → input="2099-05-01T09:00"  esperado="2099-05-01T09:00"  (db=2099-05-01T12:00:00+00:00)
+ ✅ L2) cierre de inscripción se muestra en hora argentina  → input="2099-05-04T12:00"  esperado="2099-05-04T12:00"  (db=2099-05-04T15:00:00+00:00)
+ ✅ L3) apertura de ratificación se muestra en hora argentina  → input="2099-05-06T08:30"  esperado="2099-05-06T08:30"
+ ✅ L4) cierre de ratificación se muestra en hora argentina  → input="2099-05-07T18:45"  esperado="2099-05-07T18:45"
+ ✅ E1) cargar 12:00 en el input guarda las 12:00 DE ARGENTINA  → db=2026-09-11T15:00:00+00:00  (esperado el instante de 2026-09-11T15:00:00+00:00 = 12:00 AR)
+ ✅ E2) y se relee como 12:00 en el input  → relectura="2026-09-11T12:00"
+ ✅ E3) no hubo toast de error al guardar  → [{"msg":"Turno actualizado"}]
+ ✅ R1) ida y vuelta sin editar: apertura de inscripción no se mueve  → antes=2099-05-01T12:00:00+00:00  después=2099-05-01T12:00:00+00:00
+ ✅ R2) ida y vuelta sin editar: cierre de inscripción no se mueve  → antes=2026-09-11T15:00:00+00:00  después=2026-09-11T15:00:00+00:00
+ ✅ R3) ida y vuelta sin editar: apertura de ratificación no se mueve  → antes=2099-05-06T11:30:00+00:00  después=2099-05-06T11:30:00+00:00
+ ✅ R4) ida y vuelta sin editar: cierre de ratificación no se mueve  → antes=2099-05-07T21:45:00+00:00  después=2099-05-07T21:45:00+00:00
+ ✅ R5) dos vueltas seguidas tampoco mueven ninguno de los cuatro  → apertura_inscripcion: 0h · cierre_inscripcion: 0h · apertura_ratificacion: 0h · cierre_ratificacion: 0h
+ ✅ R6) y el input sigue mostrando lo mismo después de las dos vueltas  → "2026-09-11T12:00"
+ ✅ F1) los cuatro inputs de ventana siguen siendo datetime-local  → encontrados=4
+ ✅ F2) no quedó ningún .slice(0,16) sobre una fecha en el archivo
+ ✅ F3) hora_estimada (time sin zona) sigue yendo cruda, sin conversión
+ ✅ T1) teardown: no quedó ninguna reunión 9991 en la base  → quedan=0
+
+22/22 OK
+```
+
+**22/22 OK contra el HTML servido.**
+
+Los que importan, como marcaste, son los de ida y vuelta — y salieron limpios contra el código
+que efectivamente corre en producción:
+
+| | |
+|---|---|
+| **R1** apertura de inscripción | `antes=2099-05-01T12:00:00+00:00` → `después=2099-05-01T12:00:00+00:00` |
+| **R2** cierre de inscripción | `antes=2026-09-11T15:00:00+00:00` → `después=2026-09-11T15:00:00+00:00` |
+| **R3** apertura de ratificación | `antes=2099-05-06T11:30:00+00:00` → `después=2099-05-06T11:30:00+00:00` |
+| **R4** cierre de ratificación | `antes=2099-05-07T21:45:00+00:00` → `después=2099-05-07T21:45:00+00:00` |
+| **R5** dos vueltas seguidas | `0h · 0h · 0h · 0h` — corrimiento cero en las cuatro |
+
+Abrir el modal y darle Guardar sin editar **no mueve un solo instante**, ni en una vuelta ni en
+dos. Con el código viejo, cada vuelta corría las cuatro fechas −3 h.
+
+Fixture 9991 plantado y borrado, teardown verificado (T1). No tocó R9.
+
+## A4. R9 sigue correcta
+
+El probe usa su propio fixture, pero conviene confirmarlo igual después de todo el movimiento:
+
+```sql
+SELECT c.numero_turno,
+       to_char(c.cierre_inscripcion    AT TIME ZONE 'America/Argentina/Buenos_Aires','TMDay DD/MM HH24:MI') AS ci_insc_ar,
+       to_char(c.apertura_ratificacion AT TIME ZONE 'America/Argentina/Buenos_Aires','TMDay DD/MM HH24:MI') AS ap_rat_ar,
+       to_char(c.cierre_ratificacion   AT TIME ZONE 'America/Argentina/Buenos_Aires','TMDay DD/MM HH24:MI') AS ci_rat_ar,
+       to_char(c.apertura_inscripcion  AT TIME ZONE 'America/Argentina/Buenos_Aires','DD/MM HH24:MI') AS ap_insc_ar
+FROM reuniones r JOIN carreras c ON c.reunion_id=r.id
+WHERE r.club_id='0649e9c5-9e87-4aad-842f-101458e6b33c' AND r.numero=9
+ORDER BY c.numero_turno;
+```
+
+Los once turnos:
+
+| T | ci_insc_ar | ap_rat_ar | ci_rat_ar | ap_insc_ar |
+|---|---|---|---|---|
+| 1 | Friday 11/09 12:00 | Monday 14/09 00:00 | Monday 14/09 12:00 | 23/08 21:00 |
+| 2 | Friday 11/09 12:00 | Monday 14/09 00:00 | Monday 14/09 12:00 | 27/08 21:00 |
+| 3 | Friday 11/09 12:00 | Monday 14/09 00:00 | Monday 14/09 12:00 | 27/08 21:00 |
+| 4 | Friday 11/09 12:00 | Monday 14/09 00:00 | Monday 14/09 12:00 | 27/08 21:00 |
+| 5 | Friday 11/09 12:00 | Monday 14/09 00:00 | Monday 14/09 12:00 | 27/08 21:00 |
+| 6 | Friday 11/09 12:00 | Monday 14/09 00:00 | Monday 14/09 12:00 | 27/08 21:00 |
+| 7 | Friday 11/09 12:00 | Monday 14/09 00:00 | Monday 14/09 12:00 | 27/08 21:00 |
+| 8 | Friday 11/09 12:00 | Monday 14/09 00:00 | Monday 14/09 12:00 | 27/08 21:00 |
+| 9 | Friday 11/09 12:00 | Monday 14/09 00:00 | Monday 14/09 12:00 | 27/08 21:00 |
+| 10 | Friday 11/09 12:00 | Monday 14/09 00:00 | Monday 14/09 12:00 | 27/08 21:00 |
+| 11 | Friday 11/09 12:00 | Monday 14/09 00:00 | Monday 14/09 12:00 | 27/08 21:00 |
+
+Intacta, y `apertura_inscripcion` sigue donde estaba (sin corregir, como se acordó).
+
+Y el chip del portal, re-verificado con el `portal.html` servido:
+
+```
+reunión pública 8 (interna 9) encontrada en el llamado: true
+turnos renderizados: 1,2,3,4,5,6,7,8,9,10,11 (11)
+chips de cierre distintos: [ 'cierra 11/9 12:00 hs' ]
+total chips de cierre: 11
+TODOS dicen "cierra 11/9 12:00 hs": true
+ningún "a. m.": true
+ningún "hs" duplicado: true
+```
+
+## A5. GOTCHA #92
+
+Se agregó `docs/GOTCHAS.md` § 92 — *"`datetime-local` es hora local SIN zona — cortar un ISO con
+`.slice(0,16)` muestra una hora y guarda otra"*. Lo que deja anotado:
+
+1. **Un `<input type="datetime-local">` trabaja en hora local, sin zona.** Cortar un ISO con
+   offset por `.slice(0,16)` se queda con la hora **UTC** y le arranca la zona: el `.slice` no
+   convierte nada, recorta texto. **La pantalla muestra una hora y guarda otra, tres horas
+   antes.**
+2. **El error se acumula por vuelta.** Como lectura y escritura comparten el defecto, abrir un
+   turno y darle Guardar sin tocar nada corría las cuatro fechas otras −3 h: mirar un dato lo
+   corrompía.
+3. **Para `timestamptz` en `datetime-local` hace falta conversión explícita en las dos
+   direcciones.** No hay atajo de string. Y el `Date` de escritura se arma **por componentes**
+   —`new Date(y, m, d, h, mi)` es hora local por definición—, no pasándole el string: esa regla
+   de parseo ya cambió una vez. Misma lección que el GOTCHA #91.
+4. **El assert que lo prueba es abrir y guardar sin editar**: el instante tiene que quedar
+   idéntico, y hay que correrlo **dos veces seguidas**, porque una sola vuelta pasa desapercibida.
+5. **Y ese assert tiene que ir contra la base.** El mutante M7 lo destapó: un round-trip en
+   memoria puede **confirmar** un bug de zona en vez de detectarlo, porque las dos puntas usan las
+   mismas reglas de parseo. La regla que queda: *en un bug de zona, el assert que decide es el que
+   cruza el límite del sistema.*
+6. **Dónde más mirar**: son los únicos cuatro `datetime-local` del repo, todos en
+   `carta-llamados.html`. Y el vecino a no tocar: `hora_estimada` es `time without time zone` y va
+   cruda — una columna sin zona en un input sin zona no necesita conversión.
+
+Conteo en `CLAUDE.md`: 91 → 92 entradas.
+
+## A6. Estado final
+
+| Ref | SHA |
+|---|---|
+| `origin/main` | `2bb5d0c9ef3e7738df66cf19c649a93d6aba3f5d` |
+| merge del fix de la UI | `5d108ab` |
+| GOTCHA #92 | `2bb5d0c` |
+| ISSUE-074 | `776a17b` |
+| `origin/fix/carta-llamados-hora-local` | `71a5995` (mergeada; la rama queda) |
+| `origin/fix/hora-ventanas-r9` | `5ed5504` (sin mergear — es sólo el `.sql` versionado) |
+
+| Verificación | Resultado |
+|---|---|
+| MD5 local vs. `sigh.com.ar` | **9/9 MATCH** |
+| Probe contra el HTML servido | **22/22 OK** |
+| Ida y vuelta R1-R5 | corrimiento **0 h** en las cuatro columnas, dos vueltas |
+| R9 en la base | las tres columnas correctas en los once turnos |
+| Chip del portal | `cierra 11/9 12:00 hs` × 11 |
+| `apertura_inscripcion` de R9 | sin tocar, como se acordó |
+
+**El riesgo del §7.1 quedó cerrado.** Lo que sigue abierto del §7: las reuniones 10, 11 y 12 con
+el mismo corrimiento (ahora sí se pueden corregir desde la pantalla, que ya anda bien), la carta
+impresa si se repartió con 09:00, avisarle o no a los tres anotados, ISSUE-074, y el
+`bolsa_total` de 0.
+
+## A7. Verificación final en `origin`
+
