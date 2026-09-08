@@ -1567,3 +1567,77 @@ Módulo: `profesionales.html`, `jockeys.html`. Prioridad: Media — no alcanzabl
 dañadas medidas, pero es una regresión introducida por ISSUE-049 que hoy está viva en `main`.
 Antecedentes: ISSUE-072 (el mismo fix, ya aplicado en `propietarios.html`), ISSUE-049 (el fix a
 medias), ISSUE-017 (las policies sin club).
+
+---
+
+### ISSUE-074: dos fuentes para la hora de ratificación, y la que se edita no es la que gobierna
+
+**Estado**: 🟡 **ABIERTO**. Sale del trabajo de las ventanas de R9 del 2026-09-08. No se arregla
+ahora, a propósito: no rompe nada hoy y merece decidirse con Fede, no de apuro.
+
+**El problema.** La hora de cierre de ratificación vive en **dos lugares distintos**, y el que se
+edita **no** es el que manda:
+
+| Dónde | Tipo | Quién la **escribe** | Quién la **lee** |
+|---|---|---|---|
+| `carreras.apertura_ratificacion` | `timestamptz` | `carta-llamados.html` (modal del turno) | **nadie** |
+| `carreras.cierre_ratificacion` | `timestamptz` | `carta-llamados.html` (modal del turno) | **nadie** |
+| `reuniones.hora_cierre_ratificacion` | `time without time zone` | `reuniones.html` | **`ratificacion.html`** — la que efectivamente cierra |
+
+Verificado contra `main` y contra la base:
+
+```
+$ git grep -n "cierre_ratificacion\|apertura_ratificacion" main -- '*.html' '*.js'
+main:carta-llamados.html:1113  ← lee para el modal
+main:carta-llamados.html:1114  ← lee para el modal
+main:carta-llamados.html:1166  ← escribe
+main:carta-llamados.html:1167  ← escribe
+main:ratificacion.html:512     ← select de reuniones.hora_cierre_ratificacion
+main:ratificacion.html:554     ← el gate de cierre: usa hora_cierre_ratificacion
+main:ratificacion.html:562     ← el rótulo "Cierre HH:MM hs": usa hora_cierre_ratificacion
+main:reuniones.html:389/431    ← ABM de reuniones.hora_cierre_ratificacion
+```
+
+```sql
+-- funciones que mencionan las columnas de carreras
+SELECT ... FROM pg_proc WHERE pg_get_functiondef(oid) ILIKE '%_ratificacion%';  -- []
+-- policies / constraints / vistas
+SELECT ... ILIKE '%_ratificacion%';  -- sólo el trigger de auditoría de carreras
+```
+
+**Cero consumidores** de las dos columnas de `carreras`: ni funciones, ni policies, ni
+constraints, ni vistas, ni frontend fuera del propio modal que las escribe.
+
+**Por qué importa.** El modal de `carta-llamados.html` tiene dos campos, "Apertura de
+ratificación" y "Cierre de ratificación", **por turno**. Alguien los va a cargar creyendo que
+sirven para algo — de hecho ya pasó: los once turnos de R9 los tienen cargados, y con el
+corrimiento de −3 h del bug de zona (GOTCHA #91) nadie lo notó, justamente porque **nada los
+lee**. Un campo que se puede editar y no hace nada es peor que un campo que no está: promete un
+control que no existe.
+
+Y hay una asimetría de granularidad detrás: las columnas de `carreras` son **por turno**, la de
+`reuniones` es **por reunión**. Si en algún momento se quiso poder cerrar la ratificación de un
+turno antes que la de otro, eso quedó a mitad de camino.
+
+**Las dos salidas, y hay que elegir una:**
+
+1. **Unificar hacia `carreras`** — `ratificacion.html` pasa a leer `carreras.cierre_ratificacion`
+   y el cierre se vuelve por turno. Es más trabajo: hay que ver qué significa "la reunión está
+   cerrada" cuando cada turno cierra a su hora, y qué pasa con
+   `reuniones.hora_cierre_ratificacion` (¿queda como default para los turnos nuevos?).
+2. **Sacar los campos muertos** — se borran los dos inputs del modal de `carta-llamados.html` y,
+   más adelante, las dos columnas. La hora de ratificación queda una sola, por reunión, donde
+   hoy ya vive y ya funciona. Es la opción conservadora y la que menos código toca.
+
+**No es urgente ni riesgoso**: nada se rompe hoy y ninguna decisión de negocio depende de esas
+dos columnas. Lo urgente era el corrimiento de hora, que ya se corrigió.
+
+**Ojo con el orden**: si se elige (1), las dos columnas pasan a ser load-bearing y su valor tiene
+que ser correcto en todas las reuniones — no sólo en R9. Al 2026-09-08 las reuniones 10, 11 y 12
+tienen ventanas cargadas con el mismo corrimiento de −3 h, sin corregir.
+
+Módulo: `carta-llamados.html`, `ratificacion.html`, `reuniones.html`. Prioridad: Baja — cero
+impacto funcional hoy, pero es una trampa para el que cargue datos.
+Relacionado: GOTCHA #91 (el bug de zona que lo destapó).
+Informes: `docs/diagnosticos/2026-09-08_plan-ventanas-r9-tres-columnas.md` §3,
+`docs/diagnosticos/2026-09-08_fix-carta-llamados-hora-local.md`.
