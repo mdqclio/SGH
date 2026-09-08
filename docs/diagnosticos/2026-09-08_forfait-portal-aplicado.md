@@ -689,3 +689,16 @@ del modal de turno dejaron de ser decorativas — si no las carga, el botón de 
 
 ## A8. Verificación final en `origin`
 
+
+```
+$ git ls-remote origin reports
+eb0f07a5544b73a6e173f4704b7cc57d35e6b75d	refs/heads/reports
+$ git rev-parse HEAD
+eb0f07a5544b73a6e173f4704b7cc57d35e6b75d
+$ git ls-remote origin main
+972c0772aa6bbbfbcd92d684101f4ac4de289398	refs/heads/main
+$ git ls-remote origin feat/forfait-portal
+c4684fc73eb0943c52e8602af2ba4942f256b4ca	refs/heads/feat/forfait-portal
+```
+
+Los tres refs verificados en `origin`.
