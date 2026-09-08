@@ -467,3 +467,18 @@ node tests/probe_forfait_portal.mjs --mutantes    # los 3 de portal; los 11 de S
    desfasaje sobre la reunión que viene.
 4. **El rótulo "Dar forfait"** quedó como pediste. Si Fede prefiere "Retirar (forfait)", es una
    línea.
+
+### 9.1 SHA final
+
+```
+$ git ls-remote origin reports
+6f4fe9e3b77b82f39037b61bf2320f286c59699e	refs/heads/reports
+$ git rev-parse HEAD
+6f4fe9e3b77b82f39037b61bf2320f286c59699e
+$ git ls-remote origin feat/forfait-portal
+c4684fc73eb0943c52e8602af2ba4942f256b4ca	refs/heads/feat/forfait-portal
+$ git ls-remote origin main
+8dafe0943cc2d9072dbed814d71c9a49286797e3	refs/heads/main
+```
+
+Los tres refs verificados en `origin`.
