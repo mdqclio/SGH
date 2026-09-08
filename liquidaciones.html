@@ -1514,8 +1514,11 @@ function cobrosRenderRecibo(){
   if (!cont) return;
   if (!cobUltimoRecibo) { cont.innerHTML = ''; return; }
   const { recibo, lineaIds, benef, anulado, retenidas } = cobUltimoRecibo;
+  // hour12:false explícito acá y en los otros tres usos del archivo (1785, 1854
+  // y el recibo impreso en 1864): sin él el ICU actual devuelve "09:00 a. m."
+  // para es-AR. La app muestra la hora en 24 h en todos lados (Fede, 07/09/2026).
   const hora = recibo.emitido_at
-    ? new Date(recibo.emitido_at).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}) : '';
+    ? new Date(recibo.emitido_at).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false}) : '';
   const accion = anulado
     ? `<span class="badge badge-anulada">ANULADO</span>`
     : (puedeAnularUI(recibo, currentUser?.rol)
@@ -1782,7 +1785,7 @@ function recibosRenderLista(){
       const f = new Date(r.emitido_at);
       return `<tr class="rec-row${anulado?' rec-anulado':''}" data-recibo="${r.id}" data-estado="${r.estado}">
         <td style="font-weight:600;color:var(--accent);">#${r.numero_recibo}</td>
-        <td>${f.toLocaleDateString('es-AR')} ${f.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}</td>
+        <td>${f.toLocaleDateString('es-AR')} ${f.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false})}</td>
         <td>${escapeHtml(recNombreBenef(r))}</td>
         <td>${escapeHtml(r.cobrador_nombre || '—')}</td>
         <td>${r.forma_pago === 'transferencia' ? 'transf.' : 'efectivo'}</td>
@@ -1851,7 +1854,7 @@ async function recibosDetalle(reciboId){
 
   const bloqueAnulado = !anulado ? '' : `
     <div class="config-card" style="margin:6px 0 14px;border:1px solid var(--danger);background:rgba(224,82,82,0.07);">
-      <div class="config-card-title" style="color:var(--danger);">⛔ ANULADO el ${rec.anulado_at ? new Date(rec.anulado_at).toLocaleDateString('es-AR')+' '+new Date(rec.anulado_at).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}) : '—'}${rec.anulado_por ? ' por '+escapeHtml(recUsuarios[rec.anulado_por] || '—') : ''}</div>
+      <div class="config-card-title" style="color:var(--danger);">⛔ ANULADO el ${rec.anulado_at ? new Date(rec.anulado_at).toLocaleDateString('es-AR')+' '+new Date(rec.anulado_at).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false}) : '—'}${rec.anulado_por ? ' por '+escapeHtml(recUsuarios[rec.anulado_por] || '—') : ''}</div>
       <div style="font-size:13px;padding:3px 0;"><strong>Motivo:</strong> ${escapeHtml(rec.motivo_anulacion || '—')}</div>
       <div style="font-size:12px;color:var(--muted);padding:2px 0;">Las ${lineas.length} línea(s) volvieron a quedar pendientes de cobro. El número ${rec.numero_recibo} no se reutiliza.</div>
       ${foto ? '' : `<div style="font-size:11px;color:var(--muted);padding-top:5px;">⚠ Este recibo se anuló antes de que el sistema guardara la foto de las líneas: los importes se reconstruyen desde la liquidación y pueden no coincidir con el papel si la reunión se recalculó después.</div>`}
@@ -1861,7 +1864,7 @@ async function recibosDetalle(reciboId){
     <div class="config-card" style="margin-top:16px;${anulado?'border-left:4px solid var(--danger);':''}">
       <h2 style="font-size:18px;color:var(--accent);margin-bottom:6px;">Recibo N° ${rec.numero_recibo} — ${escapeHtml(recNombreBenef(rec))}</h2>
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">
-        Emitido el ${fEmi.toLocaleDateString('es-AR')} a las ${fEmi.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}
+        Emitido el ${fEmi.toLocaleDateString('es-AR')} a las ${fEmi.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false})}
         · ${rec.forma_pago === 'transferencia' ? 'Transferencia' : 'Efectivo'}
         · Retiró: ${escapeHtml(rec.cobrador_nombre || '—')}${rec.cobrador_documento ? ' (Doc. '+escapeHtml(rec.cobrador_documento)+')' : ''}
         ${rec.comprobante_url ? '· Comprobante: '+escapeHtml(rec.comprobante_url) : ''}
