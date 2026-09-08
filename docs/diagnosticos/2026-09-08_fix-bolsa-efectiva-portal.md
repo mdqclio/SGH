@@ -462,3 +462,20 @@ node tests/probe_paridad_llamado_inscripciones.mjs --mutantes
 4. **El delta de $791.475 ya se anunció en el papel.** Si la carta de R9 se imprimió,
    dice la efectiva; el portal decía el nominal. Los entrenadores que miraron el
    portal vieron menos plata de la que la reunión reparte.
+
+---
+
+## 9. SHA final
+
+```
+$ git ls-remote origin reports
+59e4e3777db11c418fb6d6b29795445114710364	refs/heads/reports
+$ git rev-parse HEAD
+59e4e3777db11c418fb6d6b29795445114710364
+$ git ls-remote origin fix/bolsa-efectiva-portal
+72f3b509c5cc4016952b99b6cf4ac6fb75c078c6	refs/heads/fix/bolsa-efectiva-portal
+$ git ls-remote origin main
+2bb5d0c9ef3e7738df66cf19c649a93d6aba3f5d	refs/heads/main
+```
+
+Los tres refs verificados en `origin`. `main` sin tocar.
