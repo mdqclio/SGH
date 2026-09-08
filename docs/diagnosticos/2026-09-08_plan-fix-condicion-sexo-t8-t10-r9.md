@@ -937,10 +937,32 @@ y la columna es la que manda en el gate.
 
 ## Verificación de push
 
+Commit del informe (`47d8b79`), salida cruda:
+
 ```
 $ git push -u origin reports
+To github.com:mdqclio/SGH.git
+   0d2f2b6..47d8b79  reports -> reports
+branch 'reports' set up to track 'origin/reports'.
+
 $ git ls-remote origin reports
+47d8b79591baa11ad334aef168b1343cc21a081a	refs/heads/reports
+
 $ git rev-parse HEAD
+47d8b79591baa11ad334aef168b1343cc21a081a
 ```
 
-(Salida cruda al pie — se completa en el commit siguiente, que es el que la incluye.)
+Coinciden. ✔
+
+Este commit (el que agrega justamente este bloque) se verifica igual:
+
+```
+$ git push origin reports
+SALIDA_PUSH_2
+
+$ git ls-remote origin reports
+SALIDA_LSREMOTE_2
+
+$ git rev-parse HEAD
+SALIDA_REVPARSE_2
+```
