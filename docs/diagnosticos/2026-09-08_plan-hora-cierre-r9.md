@@ -521,3 +521,12 @@ d04951695291c5592ec5ab1050a7295c3142e39d	refs/heads/reports
 
 **Nada de esto se ejecutó.** La base sigue con los once turnos en `2026-09-11 12:00:00+00`
 (09:00 AR). El plan espera OK.
+
+### 8.1 SHA final
+
+```
+$ git ls-remote origin reports
+293e15659f5a27bc506846d0dfe440b0136412c2	refs/heads/reports
+$ git rev-parse HEAD
+293e15659f5a27bc506846d0dfe440b0136412c2
+```
