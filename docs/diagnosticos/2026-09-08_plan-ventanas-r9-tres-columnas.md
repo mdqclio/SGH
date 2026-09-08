@@ -437,3 +437,20 @@ $ git diff --stat origin/main..origin/fix/hora-ventanas-r9
 
 **`main` sigue en `79821ae`. Las dos ramas `fix/` están pusheadas y ninguna mergeada.**
 **Nada se ejecutó contra la base: los once turnos siguen con las ventanas corridas −3 h.**
+
+### 10.1 SHA final
+
+```
+$ git ls-remote origin reports
+c91512c2a654df2cea28c8a0ba3f39197e01e995	refs/heads/reports
+$ git rev-parse HEAD
+c91512c2a654df2cea28c8a0ba3f39197e01e995
+$ git ls-remote origin fix/hora-ventanas-r9
+5ed5504c0701687e1b6d41d074012ae4da6eabdc	refs/heads/fix/hora-ventanas-r9
+$ git ls-remote origin fix/carta-llamados-hora-local
+71a5995a796f4e2c5234dab8e47713c9cba075c0	refs/heads/fix/carta-llamados-hora-local
+$ git ls-remote origin main
+79821ae01a9b8e8768ae698b967462d00baa71a0	refs/heads/main
+```
+
+Los cuatro refs verificados en `origin`.
