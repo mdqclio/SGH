@@ -342,3 +342,16 @@ $ git ls-remote origin main
 ```
 
 **Nada aplicado.** `main` queda en `972c077` y el único cambio del repo es este informe.
+
+### 8.1 SHA final
+
+```
+$ git ls-remote origin reports
+75c3b2a5f1be5479eb2200415cb4827456b9ae06	refs/heads/reports
+$ git rev-parse HEAD
+75c3b2a5f1be5479eb2200415cb4827456b9ae06
+$ git ls-remote origin main
+972c0772aa6bbbfbcd92d684101f4ac4de289398	refs/heads/main
+```
+
+`main` sin tocar. Los dos refs verificados en `origin`.
