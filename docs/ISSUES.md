@@ -1577,9 +1577,11 @@ medias), ISSUE-017 (las policies sin club).
 desde el portal son el guard de una operación de escritura** (`rpc_baja_inscripcion`). Eso resuelve
 la mitad del issue por su **opción (1), "unificar hacia `carreras`"** — para el portal.
 
-Lo que queda abierto es la otra mitad, y se abrió como issue propio: **`ratificacion.html` sigue
-gobernándose con `reuniones.hora_cierre_ratificacion` y calcula un plazo distinto del que usa el
-sistema. Ver ISSUE-075.**
+Lo que queda abierto es la otra mitad, y se abrió como issue propio: **`ratificacion.html` se
+gobierna con `reuniones.hora_cierre_ratificacion`, que define una ventana DISTINTA y legítima — la
+de la secretaría, no la del entrenador. Ver ISSUE-075**, reescrito el 2026-09-08 con los datos de
+R8: no son dos cálculos del mismo plazo, son dos plazos que se llaman igual, y el problema es de
+nombres.
 
 Y cambió el riesgo: esas dos columnas **pasaron de decorativas a load-bearing**. Un turno cargado
 sin ellas deja el botón de forfait apagado (fail-closed, que es el comportamiento correcto), pero
@@ -1658,67 +1660,153 @@ Informes: `docs/diagnosticos/2026-09-08_plan-ventanas-r9-tres-columnas.md` §3,
 
 ---
 
-### ISSUE-075: `ratificacion.html` calcula el cierre de ratificación seis días tarde — la pantalla de la secretaría tiene un plazo distinto al del sistema
+### ISSUE-075: dos ventanas de ratificación distintas se llaman igual — el problema es de nombres, no de cálculo
 
-**Estado**: 🔴 **ABIERTO**. Sale del trabajo de forfait desde el portal (2026-09-08). **No se
-arregla ahora**: hay que decidirlo con Fede, porque cambia el plazo que ve la secretaría.
+**Estado**: 🟡 **ABIERTO**. Sale del forfait desde el portal (2026-09-08). **Reescrito el mismo día**
+tras medir los datos de R8: el diagnóstico original estaba equivocado.
 
-**El problema.** Hay dos definiciones del cierre de ratificación conviviendo, y **no coinciden**:
-
-| Quién | Cómo lo calcula | Para R9 |
-|---|---|---|
-| `carreras.cierre_ratificacion` (el guard del portal, desde hoy) | columna `timestamptz`, cargada en el modal de turno | **lunes 14/09 12:00** |
-| `ratificacion.html:554` | `reunion.fecha` + `reuniones.hora_cierre_ratificacion` | **domingo 20/09 12:00** |
-
-**Seis días de diferencia.** Y el que está mal es el de la pantalla: la regla de Fede es *"el lunes
-antes de las 12"*, y el patrón está en los datos de las dos reuniones que tienen ventanas cargadas:
-
-```
-R8: cierre_ratificacion = lunes 10/08 · reunión domingo 16/08  → 6 días antes
-R9: cierre_ratificacion = lunes 14/09 · reunión domingo 20/09  → 6 días antes
-```
-
-`ratificacion.html` empareja la **hora** correcta (12:00, que sale de
-`reuniones.hora_cierre_ratificacion` y es 12:00 en las 13 reuniones del club) con la **fecha
-equivocada** — la de la carrera en vez de la del lunes previo:
-
-```javascript
-// ratificacion.html:548-556
-const [anio, mes, dia] = reunion.fecha.split('-').map(Number);   // ← la fecha de la CARRERA
-…
-const [hh, mm] = (reunion.hora_cierre_ratificacion || '12:00:00').split(':').map(Number);
-return hoy.getHours() * 60 + hoy.getMinutes() >= hh * 60 + mm;
-```
-
-**Por qué importa.** `isCerrada` gobierna toda la pantalla de ratificación: deshabilita los inputs
-de número de carrera y hora estimada (`:678-679`), marca las carreras como cerradas (`:617`) y
-dispara `congelarPesos()` (`:590`). Con el cálculo actual, **la secretaría puede seguir editando la
-ratificación seis días después del plazo real** — y desde hoy, con el forfait del portal, un
-entrenador ya no puede dar forfait el martes pero la secretaría sí puede seguir ratificando. Los
-dos lados del mismo trámite tienen plazos distintos.
-
-**Las dos salidas:**
-
-1. **`ratificacion.html` pasa a leer `carreras.cierre_ratificacion`**, como el portal. Es
-   consistente y usa el dato que ya codifica la regla. Cuesta decidir qué significa "la reunión
-   está cerrada" cuando el cierre es por turno — hoy `isCerrada` es un booleano de reunión.
-2. **Se agrega una fecha a `reuniones`** (algo como `fecha_cierre_ratificacion`) y la pantalla la
-   usa junto con la hora. Mantiene la granularidad por reunión, pero duplica el dato con las
-   columnas de `carreras`.
-
-La (1) es más consistente con lo que ya hicimos y cierra ISSUE-074 del todo. La (2) es menos
-trabajo. **No lo decido yo.**
-
-**Ojo con el orden**: mientras esto no se resuelva, el guard del portal y el de la pantalla de
-secretaría no coinciden, y eso es un plazo distinto para el mismo trámite según quién lo mire.
-
-Módulo: `ratificacion.html`. Prioridad: **Media-alta** — no rompe nada técnicamente, pero es un
-plazo operativo que hoy dice dos cosas distintas.
-Relacionado: ISSUE-074, GOTCHA #91/#92 (los otros dos bugs de fecha/hora de la misma semana).
-Informe: `docs/diagnosticos/2026-09-08_forfait-portal-aplicado.md` §3.
+> **Corrección del 2026-09-08.** La primera versión de este issue decía que `ratificacion.html`
+> *"calcula el cierre seis días tarde"* y proponía unificar las dos fuentes contra
+> `carreras.cierre_ratificacion`. **Los datos de R8 desarmaron esa premisa** y la propuesta habría
+> roto la operación. No calcula mal: **calcula otra cosa.** El texto viejo queda abajo, tachado,
+> para que se entienda de dónde salió el error.
 
 ---
 
+#### El hecho que lo decide
+
+En R8 —la única reunión completa— la secretaría ratificó **el lunes 10/08 entre las 15:23 y las
+15:27**, y trabajó la pantalla de **14:23 a 17:58**. El cierre pretendido era el **lunes 12:00**.
+
+```sql
+WITH r8 AS (…), rat AS (
+  SELECT a.registro_id, min(a.created_at) AS primera_ratificacion
+  FROM auditoria a JOIN r8 ON r8.id = a.registro_id
+  WHERE a.tabla='inscripciones' AND a.accion='UPDATE'
+    AND (a.datos_despues->>'estado') = 'ratificado'
+    AND coalesce(a.datos_antes->>'estado','') <> 'ratificado'
+  GROUP BY a.registro_id)
+SELECT (primera_ratificacion AT TIME ZONE 'America/Argentina/Buenos_Aires')::date AS dia_ar,
+       to_char(…,'TMDay') AS dia_semana, count(*), min(…)::time, max(…)::time
+FROM rat GROUP BY 1,2;
+-- [{"dia_ar":"2026-08-10","dia_semana":"Monday","inscripciones_ratificadas":67,
+--   "primera_hora":"15:23:23","ultima_hora":"15:27:26"}]
+```
+
+Todos los cambios de estado de R8, el mismo lunes: 3 `mal_inscrito` (14:43–15:16), 31 `forfait`
+(14:44–15:21), 2 correcciones a `inscripto` (15:00) y los **67 `ratificado` (15:23–15:27)**. Un
+solo usuario, `Administrador Dolores` (`secretario_carreras`), 271 eventos entre las 14:23 y las
+17:58.
+
+| | |
+|---|---|
+| `carreras.cierre_ratificacion` de R8 (guardado) | lunes 10/08 **09:00 AR** |
+| Intención de ese valor | lunes 10/08 **12:00 AR** |
+| Cuándo ratificó de verdad la secretaría | lunes 10/08 **15:23 – 15:27** |
+| Diferencia contra la intención | **+3 h 23 min** |
+
+**Un bloqueo duro contra el lunes 12:00 habría impedido la sesión completa de R8**: la
+ratificación, los 31 forfait y los 3 mal inscriptos.
+
+#### El diagnóstico correcto: son DOS plazos, no dos cálculos del mismo
+
+| Ventana | ¿Para quién? | ¿Qué gobierna? | Fuente | R9 |
+|---|---|---|---|---|
+| **Plazo del entrenador** | entrenador / propietario, desde el portal | hasta cuándo puede **pedir el forfait él mismo** (`rpc_baja_inscripcion`) | `carreras.apertura_ratificacion` / `cierre_ratificacion` (`timestamptz`, por turno) | **lunes 14/09 00:00 → 12:00** |
+| **Cierre de la carga** | secretaría, en `ratificacion.html` | hasta cuándo puede **procesar**: ratificar, cargar forfait de los que llamaron, pesos, jockeys | `reuniones.hora_cierre_ratificacion` (`time`) + `reuniones.fecha` | **domingo 20/09 12:00** |
+
+**El orden es el correcto y tiene que ser así**: primero cierra la ventana del entrenador, y
+**después** la secretaría procesa lo que entró — incluidos los forfait que le llegaron por
+teléfono después del cierre. Si los dos plazos fueran el mismo instante, la secretaría no tendría
+un minuto para cargar nada.
+
+Lo dice el propio mensaje del RPC cuando el entrenador llega tarde: *"Hablá con la secretaría"* —
+y la secretaría **puede**, porque su ventana sigue abierta. **El circuito ya está completo.**
+
+#### Entonces, ¿cuál es el problema?
+
+**Que las dos se llaman "cierre de ratificación".** Eso ya causó daño concreto dos veces:
+
+1. **ISSUE-074**: se cargaron los cuatro campos de ventana de R9 creyendo que gobernaban la
+   pantalla de ratificación, y no gobernaban nada.
+2. **La primera versión de este mismo issue**, que a partir del nombre concluyó "la pantalla
+   calcula mal" y propuso un cambio que habría roto la operación.
+
+Y el rótulo lo empeora. `ratificacion.html:560-566`:
+
+```javascript
+const hora = (reunion.hora_cierre_ratificacion || '12:00:00').slice(0, 5);
+el.innerHTML = isCerrada
+  ? `<span class="cierre-cerrada">Cierre ${hora} hs — CERRADA</span>`
+  : `<span class="cierre-abierta">Cierre ${hora} hs — ABIERTA</span>`;
+```
+
+Dice **"Cierre 12:00 hs"** a secas. La secretaría lo lee como *el* cierre —el del entrenador— y es
+el suyo, seis días después.
+
+#### Qué hacer: renombrar, no unificar
+
+**NO se toca el cálculo de `ratificacion.html` ni se bloquea nada.** Lo único que cambia es cómo se
+llaman las dos ventanas, en la UI y en la documentación.
+
+**Los dos nombres propuestos:**
+
+| Concepto | Nombre propuesto | Dónde aparece |
+|---|---|---|
+| `carreras.apertura/cierre_ratificacion` | **«Plazo de forfait del entrenador»** — o *«Forfait desde el portal»* donde entre corto | los inputs `f-ap-rat` / `f-ci-rat` del modal de turno en `carta-llamados.html`; el chip del portal; la doc |
+| `reuniones.hora_cierre_ratificacion` + `fecha` | **«Cierre de carga de secretaría»** — o *«Cierre de la planilla»* | el campo `f-hora-cierre-rat` de `reuniones.html`; el rótulo de `renderCierreStatus`; la doc |
+
+Criterio de los nombres: **cada uno dice de quién es el plazo.** El error viene de que los dos
+decían "ratificación", que es el trámite, no el actor.
+
+El rótulo pasaría a mostrar **los dos**, en vez de uno solo sin dueño:
+
+```
+Forfait del entrenador: cerró el lunes 14/09 12:00
+Carga de secretaría: abierta hasta el domingo 20/09 12:00
+```
+
+Y como complemento —ya propuesto en ISSUE-076— un **chip** sobre las filas con
+`motivo_estado = 'Forfait desde el portal'`, para que la secretaría distinga de un vistazo lo que
+cargó ella de lo que entró solo.
+
+**`reuniones.hora_cierre_ratificacion` se queda.** No es un campo muerto: gobierna la ventana de la
+secretaría, que es real y se usa. Lo que hay que cambiarle es el nombre en la UI, no la existencia.
+
+#### Lo que NO resuelve este issue
+
+Que el control siga siendo **sólo de pantalla**: `ratificacion.html` escribe el estado directo por
+PostgREST y no hay guard en la base. Eso es **ISSUE-077**, y es más grave que esto.
+
+Módulo: `ratificacion.html`, `reuniones.html`, `carta-llamados.html`, docs. Prioridad: **Baja** —
+no rompe nada y no corre para R9; el forfait del portal ya cierra el lunes 12:00, que es lo que
+pidió Fede. Es deuda de claridad, y ya cobró dos veces.
+Relacionado: ISSUE-074 (el mismo par de columnas), ISSUE-076 (el chip), **ISSUE-077** (el guard que
+falta), GOTCHA #91 y #92 (los otros bugs de fecha/hora de la misma semana).
+Informes: `docs/diagnosticos/2026-09-08_plan-issue-075-ventana-ratificacion.md` (el relevamiento y
+los datos), `docs/diagnosticos/2026-09-08_forfait-portal-aplicado.md`.
+
+<details>
+<summary><b>Texto original del issue (2026-09-08, mañana) — diagnóstico equivocado, se conserva</b></summary>
+
+> ~~**`ratificacion.html` calcula el cierre de ratificación seis días tarde — la pantalla de la
+> secretaría tiene un plazo distinto al del sistema.**~~
+>
+> ~~Hay dos definiciones del cierre de ratificación conviviendo y no coinciden: el guard del portal
+> dice lunes 14/09 12:00 y `ratificacion.html` dice domingo 20/09 12:00. **Seis días de
+> diferencia. Y el que está mal es el de la pantalla.**~~
+>
+> ~~**Las dos salidas:** (1) `ratificacion.html` pasa a leer `carreras.cierre_ratificacion`, como
+> el portal; (2) se agrega una fecha a `reuniones`. La (1) es más consistente y cierra ISSUE-074
+> del todo.~~
+>
+> **Por qué estaba mal:** la (1) —unificar contra `carreras.cierre_ratificacion`— habría bloqueado
+> la sesión de ratificación de R8 por completo, porque la secretaría procesa **después** de que
+> cierra la ventana del entrenador. El error de razonamiento fue asumir, a partir del nombre
+> compartido, que las dos fuentes describían el mismo plazo. Sin mirar cuándo se ratifica de
+> verdad, "seis días de diferencia" parecía un bug y era el diseño.
+
+</details>
 ### ISSUE-076: un forfait cargado desde el portal no le avisa a nadie
 
 **Estado**: 🟡 **ABIERTO**. Sale del forfait desde el portal (2026-09-08). **No se construye
@@ -1753,3 +1841,109 @@ Módulo: `ratificacion.html`, `index.html`. Prioridad: Media — no hay pérdida
 problema de oportunidad de la información.
 Relacionado: ISSUE-075 (la misma pantalla), ISSUE-074.
 Informe: `docs/diagnosticos/2026-09-08_forfait-portal-aplicado.md` §7.
+
+---
+
+### ISSUE-077: la ratificación no tiene ningún guard en la base — el portal sí, la secretaría no
+
+**Estado**: 🔴 **ABIERTO**. **No es de esta semana**: viene desde que existe `ratificacion.html`.
+Salió a la luz el 2026-09-08 al comparar, para ISSUE-075, cómo escribe cada pantalla.
+
+#### El contraste
+
+Las dos puntas del mismo trámite tienen niveles de control opuestos:
+
+| | Portal (entrenador) | `ratificacion.html` (secretaría) |
+|---|---|---|
+| Cómo escribe | `sb.rpc('rpc_baja_inscripcion', …)` | `sb.from('inscripciones').update({estado:'ratificado', …})` **directo** |
+| ¿INSERT/UPDATE propio? | **no** — la policy lo excluye | sí |
+| Guard de ventana | **en la base**, dentro del RPC | **ninguno** |
+| Guard de canal / autor | **en la base** | no aplica |
+| Guard de estado admitido | **en la base** | **ninguno** |
+| Qué pasa si se esquiva la UI | el RPC rechaza | **se escribe** |
+
+`ratificacion.html:898-902`:
+
+```javascript
+async function ratificar(inscId) {
+  …
+  const { error } = await sb.from('inscripciones')
+    .update({ estado:'ratificado', peso_final: peso }).eq('id', inscId);
+```
+
+Igual `volverInscripto()` (`:925`) y el forfait / mal-inscripto de la secretaría (`:967`).
+
+#### Lo que hay en la base: una sola policy, y es de club
+
+```sql
+SELECT policyname, cmd, qual, with_check FROM pg_policies
+ WHERE tablename='inscripciones' AND cmd IN ('UPDATE','ALL');
+```
+
+```
+inscripciones_update | UPDATE |
+  (NOT fn_is_portal_user())
+  AND (fn_is_super_admin() OR fn_club_de_carrera(carrera_id) = fn_get_user_club_id())
+```
+
+**Cero condición de tiempo. Cero validación de la transición de estado. Cero funciones**
+(el barrido de `pg_proc` por `%ratificado%` sólo devuelve `rpc_baja_inscripcion`, que es la del
+portal).
+
+O sea: la policy verifica **quién** —staff, del club de la carrera— y nada más. Un
+`secretario_carreras` autenticado puede, por API:
+
+- ratificar una inscripción de una reunión **finalizada** o **anulada**;
+- ratificar meses después de corrida la carrera;
+- pasar de `forfait` a `ratificado` sin ningún paso intermedio;
+- ratificar un turno con `carreras.estado = 'anulada'`.
+
+Todo eso lo frena hoy **la UI y nada más**: `carCerrada` (`:617`) deshabilita los seis controles de
+la fila, e `isCerrada` (`:678-679`) los inputs de programa y hora. **Deshabilitar un `<button>` no
+es un control de acceso.**
+
+#### Por qué importa más que ISSUE-075
+
+ISSUE-075 es deuda de claridad: nombres confusos que hicieron equivocar dos veces, pero nada se
+rompe. **Esto es un control que no existe** sobre la tabla de la que salen el programa, el sorteo
+de gateras, los mandiles, la liquidación y el JSON del Stud Book
+(`docs/AUTOREGISTRO_GATE_4.md:15`).
+
+Y es **asimétrico de una forma difícil de defender**: al entrenador, que sólo puede retirar su
+propio caballo en una ventana acotada, se le validan siete condiciones en la base; a la secretaría,
+que puede cambiar cualquier estado de cualquier inscripción del club, **ninguna**.
+
+Atenuante honesto: **la secretaría ES la autoridad** y tiene que poder forzar —inscribe por
+teléfono, corrige a mano, ratifica a las 15:23 aunque el plazo del entrenador cerrara a las 12:00
+(los datos de R8, ver ISSUE-075)—. El problema no es que pueda: es que **no hay ninguna línea
+donde diga hasta dónde**, ni rastro de cuándo la cruzó.
+
+#### La salida
+
+Un **`rpc_ratificar` / `rpc_cambiar_estado_inscripcion`** `SECURITY DEFINER`, con el mismo patrón
+que `rpc_baja_inscripcion`:
+
+- **staff del club** de la carrera (lo que ya hace la policy);
+- **reunión no `finalizada` ni `anulada`**, carrera no `anulada`;
+- **transiciones válidas** — el ENUM `estado_inscripcion` tiene siete valores y hoy cualquiera va a
+  cualquiera; el modelo dice `inscripto → ratificado → forfait / mal_inscrito`
+  (`CLAUDE.md:122`);
+- **ventana de carga de la secretaría** como **advertencia**, no bloqueo: la secretaría tiene que
+  poder pasarse, pero que quede registrado que se pasó;
+- y después, quitarle a `inscripciones_update` la capacidad de tocar `estado` a pelo.
+
+**Cuidado con el orden**, que es la lección de ISSUE-075: **antes de escribir el guard hay que
+medir qué hace la secretaría de verdad.** Si se define la ventana desde el papel en vez de desde la
+auditoría, se bloquea la operación — que es exactamente lo que casi pasa con el 075. Los datos
+existen: la tabla `auditoria` tiene el historial completo.
+
+**No se hace ahora.** Es un cambio de fondo sobre la escritura principal del sistema, necesita
+probe con mutantes por guard y merece decidirse con Fede y Yesi, no de apuro.
+
+Módulo: `ratificacion.html`, policies de `inscripciones`. Prioridad: **Alta** — no hay daño medido,
+pero es la escritura menos protegida del sistema y la más consecuente.
+Relacionado: ISSUE-075 (de donde salió), ISSUE-067 (`eliminarLiq`, el mismo patrón: un botón de UI
+como único control), ISSUE-068 y ISSUE-065 (policies de DELETE abiertas), ISSUE-017 (RLS sin club).
+Antecedente del patrón bueno: `rpc_inscribir` / `rpc_baja_inscripcion`
+(`migrations/rpc_baja_inscripcion_forfait.sql`).
+Informe: `docs/diagnosticos/2026-09-08_plan-issue-075-ventana-ratificacion.md` §1.3.
