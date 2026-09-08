@@ -420,3 +420,16 @@ $ git ls-remote origin main
 El cálculo del §3 y §5 corrió `premios-utils.js` extraído de `main` sobre datos traídos por
 `SELECT`, en un archivo temporal fuera del repo. `main` queda en `2bb5d0c` y el único cambio es
 este informe.
+
+### 9.1 SHA final
+
+```
+$ git ls-remote origin reports
+fd24c7361eabb390544aa6b815eeb16814e61555	refs/heads/reports
+$ git rev-parse HEAD
+fd24c7361eabb390544aa6b815eeb16814e61555
+$ git ls-remote origin main
+2bb5d0c9ef3e7738df66cf19c649a93d6aba3f5d	refs/heads/main
+```
+
+`main` sin tocar. Los dos refs verificados en `origin`.
