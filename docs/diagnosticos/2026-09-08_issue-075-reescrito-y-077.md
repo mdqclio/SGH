@@ -205,3 +205,16 @@ $ git diff --stat origin/main~1..origin/main -- ratificacion.html   # sin tocar
 3. **ISSUE-077 necesita medición antes de diseñarse** (§4). Cuando se encare, el primer paso es la
    consulta a `auditoria`, no el `CREATE FUNCTION`.
 4. **Nada de esto corre para el lunes 14.** El forfait del portal ya cierra a las 12:00.
+
+### 7.1 SHA final
+
+```
+$ git ls-remote origin reports
+f8f49753f876f5d689a73b7aaa5da5fcb6fe43ff	refs/heads/reports
+$ git rev-parse HEAD
+f8f49753f876f5d689a73b7aaa5da5fcb6fe43ff
+$ git ls-remote origin main
+eface80078b99a56c9ae3160053cd8fd0c425d31	refs/heads/main
+```
+
+Los dos refs verificados en `origin`.
