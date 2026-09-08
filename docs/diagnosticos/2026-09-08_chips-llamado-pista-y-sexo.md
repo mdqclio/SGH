@@ -391,3 +391,18 @@ node tests/probe_paridad_llamado_inscripciones.mjs --mutantes
    muestra, un entrenador con un caballo de césped no tiene cómo saber a cuáles anotarlo.
 3. **T8/T10 (§5).** Sacar el chip esconde la contradicción y el gate sigue validando contra la
    columna. Cierra el viernes.
+
+### 8.1 SHA final
+
+```
+$ git ls-remote origin reports
+cf116f00574e62cc838a8ad4eadcd289fc04c92d	refs/heads/reports
+$ git rev-parse HEAD
+cf116f00574e62cc838a8ad4eadcd289fc04c92d
+$ git ls-remote origin fix/llamado-chips-fede
+966b6c823a48427020f1b7b3ecbfc52d302a12d4	refs/heads/fix/llamado-chips-fede
+$ git ls-remote origin main
+eface80078b99a56c9ae3160053cd8fd0c425d31	refs/heads/main
+```
+
+Los tres refs verificados en `origin`.
