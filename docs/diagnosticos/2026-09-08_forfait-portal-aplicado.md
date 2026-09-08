@@ -482,3 +482,210 @@ $ git ls-remote origin main
 ```
 
 Los tres refs verificados en `origin`.
+
+---
+
+# ADENDA — merge a `main`, verificación contra producción y GOTCHA #95
+
+**Fecha:** 2026-09-08, ~10:30 UTC
+**Autorizado por:** el usuario — *"Mergeá `feat/forfait-portal` a main con `--no-ff`. Es lo que
+cierra el desfasaje que vos mismo señalás."*
+
+**Cierra el §0**: el RPC estaba vivo en producción y la UI no. No hubo exposición —ninguna ventana
+de ratificación estaba abierta— pero **la de R9 abre el lunes 14/09 a las 00:00**, y llegar así
+era innecesario.
+
+## A1. El merge
+
+```
+$ git merge --no-ff feat/forfait-portal -F <mensaje>
+Merge made by the 'ort' strategy.
+ docs/ISSUES.md                              | 116 ++++++-
+ docs/MODELO_NUMERACION.md                   |  26 +-
+ migrations/rpc_baja_inscripcion_forfait.sql | 165 ++++++++++
+ portal.html                                 |  78 ++++-
+ tests/README.md                             |   1 +
+ tests/probe_forfait_portal.mjs              | 457 ++++++++++++++++++++++++++++
+ 6 files changed, 823 insertions(+), 20 deletions(-)
+```
+
+```
+$ git log --oneline origin/main -4
+972c077 merge: forfait desde el portal en la ventana de ratificación
+7f7d9c5 docs: GOTCHA #95 — los mutantes de RPC aplicados por apply_migration quedan en el historial
+c4684fc feat: forfait desde el portal en la ventana de ratificación
+8dafe09 docs: GOTCHA #93 (paridad ≠ corrección) y #94 (el fixture sin el caso borde)
+
+$ git ls-remote origin main
+972c0772aa6bbbfbcd92d684101f4ac4de289398	refs/heads/main
+
+$ git ls-remote origin feat/forfait-portal   # la rama queda
+c4684fc73eb0943c52e8602af2ba4942f256b4ca	refs/heads/feat/forfait-portal
+```
+
+Merge **`972c077`** con `--no-ff`; debajo, **`7f7d9c5`** con el GOTCHA #95 (§A5).
+`main` pasó de `8dafe09` a **`972c0772aa6bbbfbcd92d684101f4ac4de289398`**.
+
+**El RPC y la UI ya están en fase.** El desfasaje del §0 se cerró.
+
+## A2. MD5 local vs. producción
+
+Deploy en ~80 s (tres intentos con el blob viejo, el cuarto MATCH).
+
+```
+=== MD5: local (main 972c077) vs servido en https://sigh.com.ar (curl -sL) ===
+corrido: 2026-09-08T10:30:32Z
+
+portal.html                                      local=0620c28ceed094a4dafb4486ac5bc36d  servido=0620c28ceed094a4dafb4486ac5bc36d  MATCH
+tests/probe_forfait_portal.mjs                   local=303680bfa060c879cf248ea9b78241ad  servido=303680bfa060c879cf248ea9b78241ad  MATCH
+migrations/rpc_baja_inscripcion_forfait.sql      local=2efc37b59a7581657ac6bab4965a950a  servido=2efc37b59a7581657ac6bab4965a950a  MATCH
+docs/MODELO_NUMERACION.md                        local=64532cf7bddf01ff618d9fc391916257  servido=64532cf7bddf01ff618d9fc391916257  MATCH
+docs/ISSUES.md                                   local=232ea9f506f676a3755c0cbf3f5ed686  servido=232ea9f506f676a3755c0cbf3f5ed686  MATCH
+docs/GOTCHAS.md                                  local=d3a3181d9b63dc4b8d8a878a2e6697ae  servido=d3a3181d9b63dc4b8d8a878a2e6697ae  MATCH
+tests/README.md                                  local=e9794f812c3edaf2e295ce6a5413dc0a  servido=e9794f812c3edaf2e295ce6a5413dc0a  MATCH
+premios-utils.js                                 local=c2187783d01485917c53f145384e7834  servido=c2187783d01485917c53f145384e7834  MATCH
+inscripciones.html                               local=9a3843e350df24cc206d461b4aad16e3  servido=9a3843e350df24cc206d461b4aad16e3  MATCH
+```
+
+**9/9 MATCH**, incluidos el `.sql` versionado, el probe y los tres docs corregidos.
+
+## A3. El probe contra el `portal.html` SERVIDO
+
+```
+PORTAL_HTML=<descarga>/portal.html node tests/probe_forfait_portal.mjs
+```
+
+```
+
+── El RPC ──
+
+── La UI ──
+
+── Probe · forfait desde el portal ──
+   portal=/tmp/claude-1000/-home-clio-dev-SGH/6abfa28c-346e-4061-986e-7da9ea3c41b2/scratchpad/serv4/portal.html  ·  rpc=rpc_baja_inscripcion  ·  run=jc2j5f
+ ✅ A1) retirar durante la INSCRIPCIÓN sigue funcionando, y BORRA la fila  → ok=true msg=null fila=null
+ ✅ A2) retirar durante la RATIFICACIÓN funciona y deja estado=forfait — la fila NO se borra  → ok=true msg=null fila={"id":"bf2b90cb-5b22-4b4a-bd38-598dde595408","estado":"forfait","canal":"portal","inscripto_por":"b499452d-67b0-46ff-9270-d163b4ebae12","numero_partidor":null,"motivo_estado":"Forfait desde el portal"}
+ ✅ A10) el forfait limpia numero_partidor  → numero_partidor=null
+ ✅ A11) el forfait CONSERVA canal e inscripto_por (el rastro no se pierde)  → canal=portal inscripto_por=b499452d-67b0-46ff-9270-d163b4ebae12
+ ✅ A12) el forfait deja marca de origen en motivo_estado  → motivo_estado="Forfait desde el portal"
+ ✅ A14) un caballo ya RATIFICADO puede darse de forfait en esa ventana  → ok=true msg=null estado=forfait
+ ✅ A13) un caballo ya en forfait no se puede volver a retirar  → msg=Ese caballo ya figura como forfait y no se puede dar de baja desde el portal.
+ ✅ A3) antes de que abra ninguna ventana, rechaza  → msg=Fuera de plazo: se puede retirar mientras la inscripción está abierta, o dar forfait durante la ratificación. Hablá con la secretaría.
+ ✅ A4) EL HUECO entre el cierre de inscripción y la apertura de ratificación, rechaza  → msg=Fuera de plazo: se puede retirar mientras la inscripción está abierta, o dar forfait durante la ratificación. Hablá con la secretaría.
+ ✅ A5) después del cierre de ratificación, rechaza  → msg=Fuera de plazo: se puede retirar mientras la inscripción está abierta, o dar forfait durante la ratificación. Hablá con la secretaría.
+ ✅ A6) no se puede retirar lo que cargó OTRO usuario  → msg=Esa inscripción no la cargó usted desde el portal. Para darla de baja, hablá con la secretaría.
+ ✅ A7) no se puede retirar lo que cargó la SECRETARÍA (canal manual)  → msg=Esa inscripción no la cargó usted desde el portal. Para darla de baja, hablá con la secretaría.
+ ✅ A8) reunión no publicada, rechaza  → msg=Fuera de plazo: esa reunión no está publicada. Hablá con la secretaría.
+ ✅ A9) ventana de ratificación en NULL → fail-closed, rechaza  → msg=Fuera de plazo: se puede retirar mientras la inscripción está abierta, o dar forfait durante la ratificación. Hablá con la secretaría.
+ ✅ U1) modoRetiro distingue las dos ventanas y el fuera-de-plazo  → insc=inscripcion · rat=ratificacion
+ ✅ U2) el rótulo del botón es "Dar forfait" en ratificación y "Retirar" en inscripción
+ ✅ U3) cargarInscripcionesCrudas pide apertura_ratificacion y cierre_ratificacion
+ ✅ U4) ventanaRatificacion es fail-closed: sin las dos fechas, cerrada
+ ✅ U5) un RATIFICADO muestra botón en la ventana de ratificación, no en la de inscripción
+ ✅ U6) lo de otro y lo de la secretaría no muestran botón
+ ✅ T1) teardown: no quedaron reuniones 9988/9989 ni SPC del run  → reuniones=0 spcs=0
+
+21/21 OK
+```
+
+**21/21 OK** contra el HTML que sirve producción, con el RPC real. Los que importan:
+
+- **A2** — retirar en la ventana de ratificación deja la fila con `estado='forfait'`,
+  `numero_partidor=null`, `motivo_estado='Forfait desde el portal'`, `canal='portal'` e
+  `inscripto_por` intactos. **La fila no se borra.**
+- **A1** — la ventana de inscripción sigue borrando, igual que antes del cambio.
+- **A14** — un caballo ya `ratificado` puede darse de forfait en esa ventana.
+- **A4** — el hueco de ~60 h entre las dos ventanas sigue cerrado.
+
+## A4. Estado de producción — verificado
+
+```sql
+SELECT (… mutantes_en_historial, gemela, residuo_probe, reuniones_fixture,
+        r9_turnos, r9_cierre_rat_ok, r9_inscripciones, r9_inscripto);
+-- [{"mutantes_en_historial":0,"gemela":0,"residuo_probe":0,"reuniones_fixture":0,
+--   "r9_turnos":11,"r9_cierre_rat_ok":11,"r9_inscripciones":3,"r9_inscripto":3}]
+```
+
+| Control | Resultado |
+|---|---|
+| Mutantes en el historial de migraciones | **0** (§A5) |
+| Función gemela `rpc_baja_inscripcion_mut` | **no existe** |
+| Residuo de fixtures (9988/9989/9990/9991/9992) | **0** |
+| R9 — turnos | **11**, intactos |
+| R9 — cierre de ratificación en lunes 14/09 12:00 AR | **11/11** |
+| R9 — inscripciones | **3**, las tres `inscripto` |
+
+**Las tres inscripciones de R9 siguen en pie.** El lunes 14/09, de 00:00 a 12:00, sus tres
+titulares van a ver el botón **"Dar forfait"**.
+
+## A5. GOTCHA #95 — el mutante que quedaba replicable
+
+Salió de revisar el historial de migraciones **después** de cerrar el trabajo, y es un problema
+que generé yo:
+
+**Los 11 mutantes de SQL se aplicaron con `apply_migration`, y `apply_migration` los registra en
+`supabase_migrations.schema_migrations`.** Quedaron once entradas `probe_mut_*` mezcladas con las
+migraciones reales, justo debajo de la legítima.
+
+**No era suciedad cosmética.** Esas migraciones **crean** una función con los guards
+deliberadamente rotos —sin el chequeo de `canal`, sin el de `inscripto_por`, con el forfait
+haciendo `DELETE`—. Si el proyecto se replicara o restaurara desde el historial,
+`rpc_baja_inscripcion_mut` **volvería a existir con todos sus agujeros**. Dropear la función no
+alcanzaba: la vía que la recrea seguía registrada.
+
+La regla que queda: **para DDL efímero —mutantes, gemelas, scaffolding de test— usar
+`execute_sql`, no `apply_migration`.** Y el teardown son dos cosas, el `DROP` **y** el `DELETE` del
+registro, con doble acote (patrón de nombre **y** rango de versión).
+
+Limpiado y verificado por estado, no contando —lección del GOTCHA #77 aplicada al historial de
+migraciones—: mutantes restantes 0, **migración legítima presente**, gemela inexistente, función
+real intacta con sus dos marcas.
+
+El GOTCHA deja dicho también **por qué el runner no automatiza los mutantes de SQL**: desde el
+probe no hay vía de DDL —no hay cliente `pg`, no hay connection string, sólo la clave REST— y
+crear un `exec_sql(text)` genérico para dársela **sería abrir una inyección SQL con permisos de
+owner en producción**, un agujero mucho peor que la molestia que resuelve.
+
+Conteo en `CLAUDE.md`: 94 → 95.
+
+## A6. Sobre la corrección del sorteo
+
+Tu observación era la correcta y además **es la que hace que `numero_partidor = NULL` no sea
+opcional**: el sorteo se genera **al pedir el PDF de ratificación**
+(`docs/PREGUNTAS_ABIERTAS.md:127`), y ese PDF se pide **dentro de la misma ventana** en la que
+ahora se puede dar forfait. O sea que las dos cosas se solapan en el tiempo.
+
+Si el forfait no limpiara la gatera, un caballo que no corre podría quedarse con un cajón
+asignado — y el mutante **M8**, que quita exactamente esa línea, mata `A10`. Los datos de R8 lo
+confirman como invariante ya vigente: **67 ratificados con gatera, 29 forfait con cero**.
+
+Lo que sí quedó desmentido es `docs/MODELO_NUMERACION.md:129` (*"SORTEO (antes de ratificación)"*),
+corregido en este mismo cambio con la evidencia.
+
+## A7. Estado final
+
+| Ref | SHA |
+|---|---|
+| `origin/main` | `972c0772aa6bbbfbcd92d684101f4ac4de289398` |
+| merge del forfait | `972c077` |
+| GOTCHA #95 | `7f7d9c5` |
+| `origin/feat/forfait-portal` | `c4684fc` (mergeada; la rama queda) |
+
+| Verificación | Resultado |
+|---|---|
+| MD5 local vs. `sigh.com.ar` | **9/9 MATCH** |
+| Probe contra el HTML servido | **21/21 OK** |
+| Mutantes (repo) | **14/14 muertos** |
+| Producción limpia | mutantes 0 · gemela 0 · residuo 0 |
+| R9 | 11 turnos, cierre de ratificación 14/09 12:00, 3 inscripciones |
+
+**Queda abierto y corre contra el reloj: ISSUE-075.** El lunes 14/09 el portal va a cerrar el
+forfait a las 12:00 y `ratificacion.html` va a seguir dejando ratificar hasta el domingo 20. Son
+seis días de desfasaje sobre la reunión que viene.
+
+Y lo operativo: **avisarle a la secretaría** que `apertura_ratificacion` / `cierre_ratificacion`
+del modal de turno dejaron de ser decorativas — si no las carga, el botón de forfait no aparece
+(fail-closed).
+
+## A8. Verificación final en `origin`
+
