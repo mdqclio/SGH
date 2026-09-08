@@ -153,7 +153,8 @@ function abrirWa(tel, texto) {
   if (!url) { toast('Esta solicitud no tiene teléfono cargado.', 'error'); return; }
   window.open(url, '_blank', 'noopener');
 }
-const fecha = (iso) => new Date(iso).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+// hour12:false explícito: sin él el ICU actual devuelve "09:00 a. m." para es-AR.
+const fecha = (iso) => new Date(iso).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
 
 function setTab(t){
   tab=t;

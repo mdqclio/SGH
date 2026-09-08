@@ -48,6 +48,15 @@
     .carrera-name { font-family: 'Playfair Display', serif; font-size: 17px; }
     .carrera-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
     .chip { font-size: 11px; background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.2); color: var(--muted); padding: 2px 9px; border-radius: 5px; }
+    /* Encabezado del turno. El texto de la condición es libre y largo (R9 T9 son
+       192 caracteres entre handicap y adicional, tres renglones): va en su propio
+       bloque, envuelve, y con overflow-wrap:anywhere no lo desborda ni una palabra
+       sin espacios. El número de turno es flex-shrink:0 y el resto flex:1, así el
+       bloque crece hacia abajo y nunca hacia los costados. */
+    .carrera-header { display: flex; align-items: flex-start; gap: 14px; margin: 16px 16px 0; padding: 14px 18px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
+    .carrera-header .carrera-num { flex-shrink: 0; line-height: 1; }
+    .carrera-header-body { flex: 1; min-width: 0; }
+    .carrera-cond { font-size: 12px; line-height: 1.45; color: var(--muted); margin-top: 6px; overflow-wrap: anywhere; }
     .stats-row { display: flex; gap: 12px; padding: 16px 24px; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
     .stat-chip { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 18px; text-align: center; min-width: 100px; }
     .stat-chip-val { font-size: 20px; font-weight: 700; color: var(--accent); }
@@ -218,6 +227,11 @@
   </div>
 </div>
 
+<!-- Encabezado del turno seleccionado: mismo conjunto de datos que el llamado
+     abierto del portal (turno, distancia, pista, sexo, edad, bolsa, cierre) más
+     el texto completo de la condición. Vacío hasta que hay turno elegido. -->
+<div id="carrera-header" class="carrera-header" style="display:none;"></div>
+
 
 <div class="content">
   <div class="table-actions">
@@ -349,6 +363,42 @@ function toast(msg, type='success') {
   document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),3500);
 }
 
+// ---------------------------------------------------------------------------
+// Encabezado del turno — mismo conjunto de datos que el llamado abierto del
+// portal. Las cuatro funciones de abajo son gemelas de las de portal.html: se
+// duplican en vez de compartirse porque cada módulo es un HTML autocontenido
+// (misma convención que formatMonto/formatARS, que ya está duplicado). Si una
+// cambia, tiene que cambiar la otra — el probe compara las dos salidas.
+// ---------------------------------------------------------------------------
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, ch =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+}
+
+// Hora en 24 h, armada a mano: toLocaleTimeString('es-AR') da "09:00 a. m." en
+// el ICU actual. Ver el comentario gemelo en portal.html.
+function fechaHora(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  const p2 = (n) => String(n).padStart(2, '0');
+  return `${d.getDate()}/${d.getMonth() + 1} ${p2(d.getHours())}:${p2(d.getMinutes())} hs`;
+}
+
+// `carreras` no tiene una columna de edad en texto: el dato son dos enteros.
+function textoEdad(c) {
+  const min = c.edad_minima_anos, max = c.edad_maxima_anos;
+  if (min == null && max == null) return '';
+  if (min != null && max != null) return min === max ? `${min} años` : `${min} a ${max} años`;
+  return min != null ? `desde ${min} años` : `hasta ${max} años`;
+}
+
+// Mismo separador que el programa oficial (programa-oficial.html:496).
+function textoCondicion(c) {
+  return [c.condicion_handicap, c.condicion_adicional]
+    .map(s => (s || '').trim()).filter(Boolean).join(' — ');
+}
+
 async function loadAll() {
   const [{ data: reuns }, { data: jocksData }, { data: entrData }, { data: sprcs }, { data: cabs }] = await Promise.all([
     sb.from('reuniones').select('id,numero,numero_publico,fecha,estado,sorteo_partidores,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
@@ -407,7 +457,15 @@ async function onReunionChange() {
   if (rid) { ActiveReunion.set(rid); }
   const selC = document.getElementById('sel-carrera');
   if (!rid) { selC.innerHTML='<option value="">— Seleccionar reunión primero —</option>'; return; }
-  const { data: cars } = await sb.from('carreras').select('id,numero_turno,nombre,distancia_metros,condicion_handicap').eq('reunion_id', rid).order('numero_turno');
+  // El select traía sólo lo que entra en el label del <option>. El encabezado
+  // del turno necesita además los campos que el llamado del portal ya muestra
+  // como chips (pista, sexo, edad, bolsa, cupo, cierre) más condicion_adicional
+  // y el nombre de la categoría. Sin esto, currentCarrera salía del array con
+  // la mitad de las columnas y los chips quedaban vacíos.
+  const { data: cars, error: eCars } = await sb.from('carreras')
+    .select('id,numero_turno,nombre,distancia_metros,tipo_pista,condicion_sexo,edad_minima_anos,edad_maxima_anos,bolsa_total,cupo_maximo,condicion_handicap,condicion_adicional,cierre_inscripcion,estado,categoria_id,categorias_carrera(nombre)')
+    .eq('reunion_id', rid).order('numero_turno');
+  if (eCars) { console.error('[carreras onReunionChange]', eCars); toast(eCars.message, 'error'); throw eCars; }
   carreras = cars||[];
   selC.innerHTML = '<option value="">— Seleccionar turno —</option>' +
     carreras.map(c => {
@@ -425,6 +483,7 @@ async function onReunionChange() {
   document.getElementById('inscriptos-count').style.display='none';
   document.getElementById('btn-nueva').style.display='none';
   document.getElementById('list-container').innerHTML='';
+  limpiarCarreraHeader();
 }
 
 async function onCarreraChange() {
@@ -436,11 +495,16 @@ async function onCarreraChange() {
     document.getElementById('inscriptos-count').style.display='none';
     document.getElementById('btn-nueva').style.display='none';
     document.getElementById('list-container').innerHTML='';
+    limpiarCarreraHeader();
     return;
   }
   currentCarrera = carreras.find(c=>c.id===cid) || null;
   if (!currentCarrera) {
-    const { data } = await sb.from('carreras').select('*').eq('id', cid).single();
+    // Camino del deep link ?carrera_id=…: la carrera no está en el array. El
+    // join a categorias_carrera va explícito porque select('*') no lo trae y el
+    // chip de categoría quedaría vacío sólo en este camino.
+    const { data } = await sb.from('carreras')
+      .select('*,categorias_carrera(nombre)').eq('id', cid).single();
     currentCarrera = data;
   }
   renderCarreraHeader();
@@ -473,6 +537,46 @@ function renderCarreraHeader() {
        </select>` : '';
   document.getElementById('ch-estado-carrera').innerHTML = badge + sel;
   document.getElementById('sel-estado-car-wrap').style.display='flex';
+  renderCarreraChips();
+}
+
+// El conjunto completo, igual que el llamado abierto del portal: número de
+// turno, distancia, pista, sexo, rango de edad, bolsa, cupo, cierre, y el
+// texto de la condición. La categoría va como chip propio (pedido de Yesi,
+// 07/09/2026): se agrega, no reemplaza al número de turno.
+// Todo el texto que viene de la DB pasa por esc() — es innerHTML (ISSUE-018).
+function renderCarreraChips() {
+  const cont = document.getElementById('carrera-header');
+  const c = currentCarrera;
+  if (!c) { cont.style.display = 'none'; cont.innerHTML = ''; return; }
+
+  const cond = textoCondicion(c);
+  const cat = c.categorias_carrera?.nombre || '';
+  const chips = [
+    c.distancia_metros ? `${c.distancia_metros}m` : '',
+    c.tipo_pista || '',
+    c.condicion_sexo || '',
+    textoEdad(c),
+    cat,
+    c.bolsa_total ? `💰 ${formatMonto(c.bolsa_total)}` : '',
+    c.cupo_maximo ? `Cupo ${c.cupo_maximo}` : '',
+    c.cierre_inscripcion ? `⏳ cierra ${fechaHora(c.cierre_inscripcion)}` : '',
+  ].filter(Boolean).map(t => `<span class="chip">${esc(t)}</span>`).join('');
+
+  cont.innerHTML = `
+    <div class="carrera-num">${esc(c.numero_turno ?? '—')}</div>
+    <div class="carrera-header-body">
+      <div class="carrera-name">${esc(c.nombre || 'Turno ' + (c.numero_turno ?? ''))}</div>
+      <div class="carrera-chips">${chips}</div>
+      ${cond ? `<div class="carrera-cond">${esc(cond)}</div>` : ''}
+    </div>`;
+  cont.style.display = 'flex';
+}
+
+function limpiarCarreraHeader() {
+  const cont = document.getElementById('carrera-header');
+  cont.style.display = 'none';
+  cont.innerHTML = '';
 }
 
 async function loadInscripciones() {

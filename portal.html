@@ -83,6 +83,13 @@
     .carrera-name { font-size: 14px; font-weight: 600; color: var(--text); }
     .carrera-chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
     .chip { font-size: 11px; background: rgba(201,168,76,0.08); border: 1px solid rgba(201,168,76,0.2); color: var(--muted); padding: 2px 8px; border-radius: 4px; }
+    /* El texto de la condición es libre y largo: R9 T9 son 192 caracteres entre
+       condicion_handicap y condicion_adicional, o sea tres renglones. Va en su
+       propio bloque (no adentro de la fila de chips), envuelve, y con
+       overflow-wrap:anywhere para que una palabra sin espacios tampoco empuje
+       la tarjeta. .carrera-info ya es flex:1 con min-width, así que el botón
+       "Anotar" se mantiene en su lugar. */
+    .carrera-cond { font-size: 12px; line-height: 1.45; color: var(--muted); margin-top: 6px; overflow-wrap: anywhere; }
     .btn-inscribir { background: var(--accent); color: #1a1a0a; border: none; padding: 8px 16px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; white-space: nowrap; }
     .btn-inscribir:hover { opacity: 0.85; }
 
@@ -402,11 +409,18 @@ function fechaCorta(iso) {
   if (!iso) return '—';
   return new Date(iso + 'T12:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
+// Hora en 24 h, armada a mano. `toLocaleTimeString('es-AR', {hour:'2-digit'})`
+// devuelve "09:00 a. m." en el ICU actual: como acá se le concatenaba " hs",
+// salía "cierra 11/9 09:00 a. m. hs" — las dos notaciones mezcladas y la unidad
+// repetida (lo marcó Fede, 07/09/2026). Se arma con getHours()/getMinutes(),
+// que ya vienen en la zona del browser: 24 h siempre, sin depender del locale.
+// Fecha en d/M sin cero a la izquierda, que es lo que venía dando es-AR.
 function fechaHora(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
-  return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
-    + ' ' + d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) + ' hs';
+  if (isNaN(d.getTime())) return '—';
+  const p2 = (n) => String(n).padStart(2, '0');
+  return `${d.getDate()}/${d.getMonth() + 1} ${p2(d.getHours())}:${p2(d.getMinutes())} hs`;
 }
 function toast(msg, type = 'success') {
   const t = document.createElement('div');
@@ -502,6 +516,16 @@ function textoEdad(c) {
   return min != null ? `desde ${min} años` : `hasta ${max} años`;
 }
 
+// El texto de la condición vive libre en dos columnas: condicion_handicap (la
+// condición propiamente dicha) y condicion_adicional (pesos, descargos). Se
+// unen con el MISMO separador que ya usa el programa oficial
+// (programa-oficial.html:496) para no inventar un formato nuevo.
+// Puede venir vacío: no toda carrera tiene condición cargada.
+function textoCondicion(c) {
+  return [c.condicion_handicap, c.condicion_adicional]
+    .map(s => (s || '').trim()).filter(Boolean).join(' — ');
+}
+
 function ventanaAbierta(c, reunionEstado) {
   if (reunionEstado !== 'publicada') return false;
   if (c.estado === 'anulada') return false;
@@ -582,6 +606,7 @@ async function loadLlamado() {
             <span class="chip">⏳ cierra ${esc(fechaHora(c.cierre_inscripcion))}</span>
             ${yaAnotados ? `<span class="chip" style="color:var(--success);border-color:rgba(76,175,130,0.35);">✓ ${yaAnotados} anotado${yaAnotados > 1 ? 's' : ''}</span>` : ''}
           </div>
+          ${textoCondicion(c) ? `<div class="carrera-cond">${esc(textoCondicion(c))}</div>` : ''}
         </div>
         <button class="btn-inscribir" onclick="abrirInscripcion('${esc(c.id)}','${esc(r.id)}')">Anotar</button>
       </div>`;
