@@ -587,11 +587,16 @@ mensajería y ninguna se invoca desde la bandeja de solicitudes.
 
 ```
 $ git push origin reports
-SALIDA_PUSH
+To github.com:mdqclio/SGH.git
+   6d391f5..be7fe31  reports -> reports
 
 $ git ls-remote origin reports
-SALIDA_LSREMOTE
+be7fe319acb0f5a126b8d88500c40000b9e9ef1c	refs/heads/reports
 
 $ git rev-parse HEAD
-SALIDA_REVPARSE
+be7fe319acb0f5a126b8d88500c40000b9e9ef1c
 ```
+
+Coinciden. ✔ (`be7fe31` es el commit que trae el informe; este bloque lo agrega el commit
+siguiente, cuyo SHA no puede estar escrito adentro de sí mismo — se verifica con los mismos dos
+comandos inmediatamente después del push y ambos devuelven el mismo valor.)
