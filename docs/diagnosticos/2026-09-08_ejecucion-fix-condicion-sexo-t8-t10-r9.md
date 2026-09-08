@@ -542,11 +542,16 @@ Tres, ninguno de fondo:
 
 ```
 $ git push origin reports
-SALIDA_PUSH
+To github.com:mdqclio/SGH.git
+   eeb3f15..262c4a4  reports -> reports
 
 $ git ls-remote origin reports
-SALIDA_LSREMOTE
+262c4a480c4347e216f490782f12d816bc10c97d	refs/heads/reports
 
 $ git rev-parse HEAD
-SALIDA_REVPARSE
+262c4a480c4347e216f490782f12d816bc10c97d
 ```
+
+Coinciden. ✔ (`262c4a4` es el commit que trae el informe; este bloque lo agrega el commit
+siguiente, cuyo SHA no puede estar escrito adentro de sí mismo — se verifica con los mismos dos
+comandos inmediatamente después del push y ambos devuelven el mismo valor.)
