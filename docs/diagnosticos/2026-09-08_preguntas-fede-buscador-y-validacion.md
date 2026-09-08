@@ -571,3 +571,16 @@ $ git ls-remote origin main
 
 **Solo lectura confirmada:** este trabajo no ejecutó ningún `INSERT`, `UPDATE`, `DELETE` ni DDL.
 La base queda exactamente como estaba, y el único cambio en el repo es este archivo.
+
+### 7.1 SHA final
+
+```
+$ git ls-remote origin reports
+2ccdbc373e2f661b99f77a74a50ab0ba808b1b47	refs/heads/reports
+$ git rev-parse HEAD
+2ccdbc373e2f661b99f77a74a50ab0ba808b1b47
+$ git ls-remote origin main
+2bb5d0c9ef3e7738df66cf19c649a93d6aba3f5d	refs/heads/main
+```
+
+`main` sin tocar. Los dos refs verificados en `origin`.
