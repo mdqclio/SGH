@@ -1406,3 +1406,142 @@ Relacionado: GOTCHA #91 (`toLocaleTimeString` y el ICU — el otro bug de hora d
 Fix: merge `5d108ab`. Probe: `tests/probe_carta_hora_local.mjs` (22 asserts, 8 mutantes).
 Informes: `docs/diagnosticos/2026-09-08_fix-carta-llamados-hora-local.md`,
 `docs/diagnosticos/2026-09-08_ejecucion-ventanas-r9.md`. Issue derivado: ISSUE-074.
+
+---
+
+## 93. Un probe de PARIDAD no verifica corrección, sólo consistencia — si las dos están mal, da verde (2026-09-08)
+
+El llamado del portal mostraba `$1.054.166,67` de bolsa donde la carta mostraba
+`$1.159.292,00`. Lo reportó Fede. El chip usaba `carreras.bolsa_total` crudo en vez de la bolsa
+**efectiva** con el piso `ganancia_minima` aplicado (GOTCHA #63). Diez de los once turnos de R9
+diferían: $791.475 de delta en la reunión.
+
+**Lo grave no es el chip. Es que había un probe cubriendo exactamente eso, y pasó en verde.**
+
+`tests/probe_paridad_llamado_inscripciones.mjs` verificaba que el llamado del portal y el
+encabezado de inscripciones mostraran los mismos campos. Su assert de bolsa era:
+
+```javascript
+const CAMPOS = [
+  …
+  ['bolsa', '$3.333.333,33', '$3.333.333,33'],   // ← el mismo literal para las dos
+];
+const faltan = CAMPOS.filter(([, a, b]) => !(filaL.includes(a) && headL.includes(b)));
+```
+
+Las dos pantallas mostraban el nominal. **Coincidían perfectamente.** El probe cerró **47/47 con
+11 mutantes muertos** mientras el número era el equivocado.
+
+Peor: el chip de inscripciones se escribió **copiando** el del portal, guiado por ese mismo
+criterio de paridad. El probe no sólo no detectó el bug: ayudó a propagarlo a una segunda
+pantalla.
+
+### La regla
+
+> **Un assert de paridad necesita un TERCER punto de apoyo.** Para cualquier campo que sea un
+> valor **calculado**, el esperado tiene que salir del helper que lo calcula —cargado aparte, como
+> oráculo— y no de la otra pantalla.
+
+```javascript
+// ORÁCULO INDEPENDIENTE: premios-utils.js instanciado por separado.
+const oraculo = {};
+new Function('window', readFileSync(join(HERE, '..', 'premios-utils.js'), 'utf8'))(oraculo);
+const { repartoDisplay } = oraculo;
+
+const BOLSA_EFECTIVA = repartoDisplay(BOLSA, DIST).total;
+
+// mal:  ['bolsa', '$3.333.333,33', '$3.333.333,33']
+// bien: el esperado sale del oráculo, y el nominal queda PROHIBIDO
+ok('P6) el chip == repartoDisplay, NO el nominal',
+   chips.includes(P.formatARS(BOLSA_EFECTIVA)) && !chips.includes(P.formatARS(BOLSA)));
+
+// y el que cierra el agujero de la paridad:
+ok('D5) las dos coinciden CON EL ORÁCULO, no sólo entre sí', …);
+```
+
+La paridad **sigue siendo un assert útil** —es lo que el pedido de Fede y Yesi quería— pero es un
+assert de *consistencia*, no de *corrección*. Los dos hacen falta y miden cosas distintas.
+
+### Cómo se detecta un probe con este defecto
+
+**Preguntarle al assert de qué se enteraría si el código estuviera mal.** Si la respuesta es "de
+nada, porque los dos lados usan el mismo supuesto", el assert es decorativo. Es la misma familia
+que el GOTCHA #92 §"el assert de ida y vuelta tiene que ir contra la BASE": ahí el round-trip en
+memoria **confirmaba** el bug de zona en vez de detectarlo, porque las dos puntas reparseaban con
+las mismas reglas.
+
+**El patrón común: el test comparte un supuesto con el código que prueba.** Se rompe metiendo
+algo que no lo comparta — el helper cargado aparte, la base de datos, una tabla de números
+escritos a mano.
+
+### Corolario: DOS oráculos, no uno
+
+En el probe de reemplazo (`tests/probe_bolsa_efectiva.mjs`) el esperado se verifica contra **dos**
+cosas: el helper cargado aparte **y** una tabla con los once valores de R9 escritos a mano. No es
+redundancia:
+
+| El assert compara contra… | No detecta… |
+|---|---|
+| sólo el helper | que el **helper** esté roto — el chip lo sigue y los dos coinciden |
+| sólo la tabla | que el chip haya **dejado de usar** el helper y acierte por otra vía |
+
+El mutation testing lo demostró: el mutante que le quita el piso a `calcPremiosConPiso`
+**sobrevive** a los asserts chip-vs-helper —el chip y el oráculo comparten el helper mutado— y
+sólo lo matan los que van contra la tabla.
+
+---
+
+## 94. Un assert de redondeo no prueba nada si el fixture no deja residuo (2026-09-08)
+
+`repartoDisplay` redondea cada puesto y hace que **el puesto de mayor monto absorba el resto**,
+para que `Σ puestos ≡ total` sin drift de $1 y sin desclavar los pisos de los puestos bajos:
+
+```javascript
+if (topKey !== null) puestos[topKey] += total - acum;
+```
+
+El probe tenía el assert que corresponde:
+
+```javascript
+ok('H3) Σ de los puestos ≡ total, sin drift de $1',
+   R9.every(([, b, cbg]) => {
+     const { puestos, total } = repartoDisplay(b, distDe(cbg));
+     return Object.values(puestos).reduce((s, v) => s + v, 0) === total;
+   }));
+```
+
+**Y el mutante que borra la línea de absorción SOBREVIVÍA.** Motivo: con las once bolsas reales de
+R9 el redondeo **da justo** — `Σ round(puestos)` ya es igual a `round(Σ)`, no hay residuo. El
+assert medía una identidad que se cumplía sola. Verde permanente, cobertura cero.
+
+### La regla
+
+> **El fixture tiene que incluir el caso que el assert dice medir.** Un assert sobre el manejo de
+> un caso borde, alimentado con datos que nunca lo producen, es decoración.
+
+Cómo se arregló: buscar por fuerza bruta una bolsa que **sí** deje residuo, y agregarla:
+
+```javascript
+// Con las bolsas de R9 el redondeo da justo y no hay residuo que absorber, así
+// que el assert de arriba por sí solo no probaba la absorción (mutante M7).
+// 1.000.002 deja +1 de residuo, que el puesto mayor tiene que absorber.
+const CON_RESIDUO = 1000002;
+ok('H3b) …y también con una bolsa que DEJA residuo: el puesto mayor lo absorbe',
+   crudo !== resid.total && resid.suma === resid.total, …);
+//  → Σround(puestos)=1110001 · round(Σ)=1110002 · residuo=1 · Σ tras absorber=1110002
+```
+
+**Copiar datos de producción al fixture es bueno para el realismo y malo para la cobertura de
+bordes:** los datos reales son, por definición, el caso típico. Para cada assert que habla de un
+borde —residuo de redondeo, empate, cero, desbordamiento, el piso que muerde— hay que **construir**
+el dato que lo dispara, aunque no exista en la base.
+
+**El mutation testing es lo que lo delata**, y es la razón de correrlo: un mutante que sobrevive
+sobre un assert que "claramente cubre eso" casi siempre significa que **el fixture no llega al
+caso**. Antes de tocar el assert, mirar con qué datos corre (y descartar primero las tres causas
+de arnés del GOTCHA #90).
+
+Relacionado: GOTCHA #93 (el mismo probe, el otro defecto), GOTCHA #92, GOTCHA #90, GOTCHA #63.
+Probes: `tests/probe_bolsa_efectiva.mjs`, `tests/probe_paridad_llamado_inscripciones.mjs`.
+Informes: `docs/diagnosticos/2026-09-08_bolsas-portal-vs-detalle-r9.md`,
+`docs/diagnosticos/2026-09-08_fix-bolsa-efectiva-portal.md`.
