@@ -283,6 +283,10 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="activacion-pendiente.js"></script>
+<!-- repartoDisplay(): la bolsa que se muestra es la EFECTIVA, con el piso
+     ganancia_minima aplicado (GOTCHA #63, regla de Yesica). El portal era la
+     única pantalla que no cargaba este helper y por eso mostraba el nominal. -->
+<script src="premios-utils.js"></script>
 <script>
 let sb, currentUser, miUsuarioId = null, esEntrenador = false, miProfesionalId = null;
 let misCaballos = [], misInscripciones = [];
@@ -526,6 +530,25 @@ function textoCondicion(c) {
     .map(s => (s || '').trim()).filter(Boolean).join(' — ');
 }
 
+// La bolsa que ve el entrenador es la EFECTIVA, no `bolsa_total` crudo.
+// GOTCHA #63 (regla aclarada por Yesica): el piso `ganancia_minima` SÍ entra en
+// el display — un 4°/5° que queda por debajo se muestra elevado al piso, y la
+// bolsa impresa es la suma de los puestos efectivos. Los bonos NO se suman acá
+// (decisión de Fede): van como líneas aparte.
+//
+// Antes esto era `formatARS(c.bolsa_total)` y el portal era la ÚNICA pantalla
+// que mostraba el nominal: en R9 anunciaba $1.054.167 donde la carta y el
+// programa decían $1.159.292. Diez de los once turnos diferían.
+// Ver docs/diagnosticos/2026-09-08_bolsas-portal-vs-detalle-r9.md.
+//
+// repartoDisplay() viene de premios-utils.js, el mismo helper que usan la carta
+// de llamados, los tres programas, la ratificación y el PDF de inscriptos.
+function bolsaChip(c) {
+  if (!c.bolsa_total) return '';
+  const { total } = repartoDisplay(c.bolsa_total, c.distribucion_premios);
+  return `<span class="chip">💰 ${esc(formatARS(total))}</span>`;
+}
+
 function ventanaAbierta(c, reunionEstado) {
   if (reunionEstado !== 'publicada') return false;
   if (c.estado === 'anulada') return false;
@@ -545,7 +568,7 @@ async function loadLlamado() {
   // anotarse. Mejor no mostrarla que ofrecer algo imposible.
   const hoy = new Date().toISOString().slice(0, 10);
   const { data: reuns, error } = await sb.from('reuniones')
-    .select('id,numero,numero_publico,fecha,estado,hipodromos(nombre),carreras(id,numero_turno,nombre,distancia_metros,condicion_sexo,edad_minima_anos,edad_maxima_anos,condicion_handicap,condicion_adicional,bolsa_total,cupo_maximo,tipo_pista,estado,apertura_inscripcion,cierre_inscripcion)')
+    .select('id,numero,numero_publico,fecha,estado,hipodromos(nombre),carreras(id,numero_turno,nombre,distancia_metros,condicion_sexo,edad_minima_anos,edad_maxima_anos,condicion_handicap,condicion_adicional,bolsa_total,distribucion_premios,cupo_maximo,tipo_pista,estado,apertura_inscripcion,cierre_inscripcion)')
     .eq('estado', 'publicada')
     .gte('fecha', hoy)
     .order('fecha', { ascending: true });
@@ -601,7 +624,7 @@ async function loadLlamado() {
             ${c.tipo_pista ? `<span class="chip">${esc(c.tipo_pista)}</span>` : ''}
             ${c.condicion_sexo ? `<span class="chip">${esc(c.condicion_sexo)}</span>` : ''}
             ${textoEdad(c) ? `<span class="chip">${esc(textoEdad(c))}</span>` : ''}
-            ${c.bolsa_total ? `<span class="chip">💰 ${esc(formatARS(c.bolsa_total))}</span>` : ''}
+            ${bolsaChip(c)}
             ${c.cupo_maximo ? `<span class="chip">Cupo ${esc(c.cupo_maximo)}</span>` : ''}
             <span class="chip">⏳ cierra ${esc(fechaHora(c.cierre_inscripcion))}</span>
             ${yaAnotados ? `<span class="chip" style="color:var(--success);border-color:rgba(76,175,130,0.35);">✓ ${yaAnotados} anotado${yaAnotados > 1 ? 's' : ''}</span>` : ''}
