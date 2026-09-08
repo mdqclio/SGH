@@ -5,7 +5,7 @@
 **Rama de trabajo:** `feat/paridad-llamado-inscripciones` — **pusheada, SIN mergear a `main`**.
 **SHA de la rama de trabajo:** `07ef2aa4058001f9fca96608d3b213b5bb0b8f2f`
 **SHA de `main` (intacto):** `b10adc906b67316da72c717d47e3defba9010f0e`
-**SHA de este informe:** ver la última sección (se completa después del push).
+**SHA de este informe:** `1282c88f145b12bbab92dfad782e6a0bf2e525a3` en `origin/reports` (verificación al pie).
 
 ---
 
@@ -997,3 +997,21 @@ node tests/probe_paridad_llamado_inscripciones.mjs --mutantes
 ```
 
 **No mergeado. Esperando OK.**
+
+---
+
+## 13. Verificación final del informe en `origin`
+
+```
+$ git ls-remote origin reports
+1282c88f145b12bbab92dfad782e6a0bf2e525a3	refs/heads/reports
+$ git rev-parse HEAD
+1282c88f145b12bbab92dfad782e6a0bf2e525a3
+$ git ls-remote origin main
+b10adc906b67316da72c717d47e3defba9010f0e	refs/heads/main
+$ git ls-remote origin feat/paridad-llamado-inscripciones
+07ef2aa4058001f9fca96608d3b213b5bb0b8f2f	refs/heads/feat/paridad-llamado-inscripciones
+```
+
+Los tres refs verificados: el informe está en `origin/reports`, la rama de trabajo está
+pusheada, y `main` sigue en `b10adc9` sin tocar.
