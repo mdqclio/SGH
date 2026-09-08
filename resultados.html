@@ -1598,7 +1598,8 @@ async function aplicar(carreraId, estado) {
   isDirty = false;
   const msg = estado==='provisional' ? 'Resultado provisional guardado' : 'Guardado';
   toast(msg);
-  setStatus(`✓ ${msg} — ${new Date().toLocaleTimeString('es-AR')}`);
+  // hour12:false explícito: sin él el ICU actual devuelve "09:00:00 a. m.".
+  setStatus(`✓ ${msg} — ${new Date().toLocaleTimeString('es-AR', { hour12: false })}`);
   renderDivView(undefined, true);  // pendingApuestas ya está actualizado desde RPC
 }
 
