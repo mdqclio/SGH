@@ -462,3 +462,18 @@ sección de abajo.
 4. **`.claude/` no está trackeado ni ignorado.** Tiene `RESUME.md` y `settings.local.json`. Hoy
    `settings.local.json` no tiene nada sensible (`hooks: {}`), pero el repo es público: si
    alguna vez se le agrega algo, se commitea sin querer. ¿Se agrega `.claude/` a `.gitignore`?
+
+---
+
+## 9. Verificación final en `origin`
+
+```
+$ git ls-remote origin reports
+df19a3a575ee54dc1667a47e4155ef0f52e45e2b	refs/heads/reports
+$ git rev-parse HEAD
+df19a3a575ee54dc1667a47e4155ef0f52e45e2b
+$ git ls-remote origin main
+79821ae01a9b8e8768ae698b967462d00baa71a0	refs/heads/main
+```
+
+Ambos refs verificados en `origin`.
