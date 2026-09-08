@@ -1282,3 +1282,18 @@ Se actualizó también el conteo en `CLAUDE.md`: 88 → 91 entradas.
 
 Las seis preguntas abiertas de la §11 siguen abiertas — el merge no las resuelve. La más urgente
 sigue siendo la #2: **R9 cierra el 11/09 a las 09:00 y hoy es el 08/09.**
+
+## A7. Verificación final de la adenda en `origin`
+
+```
+$ git ls-remote origin reports
+cc985226df972cc2b3b3d11c8588357bdca9ab4a	refs/heads/reports
+$ git rev-parse HEAD
+cc985226df972cc2b3b3d11c8588357bdca9ab4a
+$ git ls-remote origin main
+0775082e509c51dbc8b3ac5612bd21a7b6e17bc4	refs/heads/main
+$ git ls-remote origin feat/paridad-llamado-inscripciones
+07ef2aa4058001f9fca96608d3b213b5bb0b8f2f	refs/heads/feat/paridad-llamado-inscripciones
+```
+
+Los tres refs verificados en `origin`.
