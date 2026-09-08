@@ -121,20 +121,36 @@ El nombre "chapa" en este contexto viene de las figuras SBARG (Standard Bloodsto
 
 ## Flujo completo
 
+> **Corregido el 2026-09-08.** Este diagrama decía `SORTEO (antes de ratificación)`. Es al revés,
+> y los datos de R8 —la única reunión completa— lo zanjan: los **67 ratificados tienen gatera** y
+> los **29 forfait tienen cero**. Si el sorteo corriera antes de ratificar, los forfait también la
+> tendrían: se les habría asignado y después se habrían dado de baja. La gatera existe **sólo** en
+> los ratificados.
+>
+> Coinciden `docs/REGLA_INSCRIPCION_MULTITURNO.md:188`, el diagnóstico
+> `docs/diagnosticos/2026-08-13_fix-orden-carreras-resultados.md:17` (*"sorteo después de la
+> ratificación"*) y `docs/PREGUNTAS_ABIERTAS.md:127` (*"se genera al pedir el PDF de
+> ratificación"*). Ver `docs/diagnosticos/2026-09-08_forfait-portal-aplicado.md` §5.
+>
+> Consecuencia práctica: durante la ventana de ratificación **todavía no hay mandiles asignados**,
+> así que un forfait de esa ventana no obliga a renumerar nada. `renumerarChapas` sigue siendo
+> para el forfait **posterior** al sorteo, que carga la secretaría.
+
+
 ```
 INSCRIPCIÓN
   ↓
   numero_partidor = NULL (aún no sorteado)
 
-SORTEO (antes de ratificación)
-  ↓
-  numero_partidor = gatera asignada (ej: 7)
-  Persiste en inscripciones
-
 RATIFICACIÓN
   ↓
   estado = 'ratificado' (o 'forfait' / 'mal_inscrito')
   Los ratificados son los que largan
+
+SORTEO (DESPUÉS de la ratificación)
+  ↓
+  numero_partidor = gatera asignada (ej: 7)
+  Persiste en inscripciones — SÓLO en los ratificados
 
 CARGA DE RESULTADOS (runtime)
   ↓

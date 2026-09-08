@@ -682,7 +682,10 @@ function onBuscarSpc(q) {
 async function cargarInscripcionesCrudas() {
   const { data, error } = await sb.from('inscripciones')
     .select('id,estado,canal,inscripto_por,spc_id,carrera_id,created_at,spcs(nombre),'
+          // apertura/cierre_ratificacion: son la fuente de verdad de la ventana de
+          // forfait (ver modoRetiro). Sin ellas el front no puede decidir el modo.
           + 'carreras(numero_turno,nombre,estado,apertura_inscripcion,cierre_inscripcion,'
+          + 'apertura_ratificacion,cierre_ratificacion,'
           + 'reuniones(id,numero,numero_publico,fecha,estado,hipodromos(nombre)))')
     .order('created_at', { ascending: false });
   if (error) { console.error('[inscripciones]', error); toast(error.message, 'error'); throw error; }
@@ -926,12 +929,47 @@ async function anotar(spcId) {
 // Se puede retirar SÓLO una fila propia, cargada desde el portal, sin
 // ratificar y con la ventana todavía abierta. El RPC revalida las cuatro
 // condiciones: acá se decide únicamente si se muestra el botón.
-function puedeRetirar(i) {
-  return i.canal === 'portal'
-    && i.inscripto_por === miUsuarioId
-    && i.estado === 'inscripto'
-    && ventanaAbierta(i.carreras || {}, i.carreras?.reuniones?.estado);
+// ¿Está abierta la ventana de RATIFICACIÓN de ese turno?
+// La fuente de verdad son `carreras.apertura_ratificacion` / `cierre_ratificacion`
+// —no `reuniones.hora_cierre_ratificacion`—, porque son las únicas que codifican
+// la regla de Fede ("el lunes antes de las 12"): en R8 y R9 el cierre cae en
+// LUNES, seis días antes del domingo de la carrera. Lo que deriva
+// ratificacion.html (fecha de la reunión + esa hora) pone el cierre el DOMINGO
+// de la carrera, seis días tarde — ver ISSUE-075.
+// Fail-closed igual que ventanaAbierta(): sin las dos fechas, no está abierta.
+function ventanaRatificacion(c, reunionEstado) {
+  if (reunionEstado !== 'publicada') return false;
+  if (c.estado === 'anulada') return false;
+  if (!c.apertura_ratificacion || !c.cierre_ratificacion) return false;
+  const ahora = Date.now();
+  return ahora >= Date.parse(c.apertura_ratificacion) && ahora <= Date.parse(c.cierre_ratificacion);
 }
+
+// Devuelve null | 'inscripcion' | 'ratificacion'.
+// Las dos son la MISMA acción para el usuario, con consecuencias distintas:
+//   · 'inscripcion'  → el RPC BORRA la fila. No dejó huella en ningún documento.
+//   · 'ratificacion' → el RPC deja estado='forfait'. Queda impreso como BORRADO
+//     en el PDF de ratificación y tachado en el programa.
+// Por eso el rótulo del botón cambia: la consecuencia no es la misma.
+//
+// El front NO es el guard: rpc_baja_inscripcion revalida todo. Acá sólo se
+// decide qué mostrar, igual que antes.
+function modoRetiro(i) {
+  if (i.canal !== 'portal' || i.inscripto_por !== miUsuarioId) return null;
+  const c = i.carreras || {};
+  const rEstado = i.carreras?.reuniones?.estado;
+  // En la ventana de ratificación se admite 'ratificado' además de 'inscripto':
+  // esa ventana es justo cuando la secretaría ratifica, así que exigir
+  // 'inscripto' dejaría afuera el caso que pidió Fede.
+  if (ventanaRatificacion(c, rEstado) && ['inscripto', 'ratificado'].includes(i.estado)) {
+    return 'ratificacion';
+  }
+  if (ventanaAbierta(c, rEstado) && i.estado === 'inscripto') return 'inscripcion';
+  return null;
+}
+
+// Se conserva por compatibilidad con el resto del archivo y los probes.
+function puedeRetirar(i) { return modoRetiro(i) !== null; }
 
 async function loadMisInscripciones() {
   const cont = document.getElementById('inscripciones-container');
@@ -969,9 +1007,14 @@ async function loadMisInscripciones() {
       <td>Turno ${esc(car?.numero_turno ?? '—')}</td>
       <td><span class="badge ${estadoBadge[i.estado] || ''}">${esc((i.estado || '—').replace('_', ' '))}</span></td>
       <td style="font-size:12px;color:var(--muted);">${esc(origen)}</td>
-      <td>${puedeRetirar(i)
-        ? `<button class="btn-sm btn-danger" onclick="retirar('${esc(i.id)}')">Retirar</button>`
-        : '<span style="color:var(--muted);font-size:12px;">—</span>'}</td>
+      <td>${(() => {
+        const modo = modoRetiro(i);
+        if (!modo) return '<span style="color:var(--muted);font-size:12px;">—</span>';
+        // "Dar forfait" es la palabra del ambiente y la consecuencia es distinta
+        // de retirar: el caballo queda listado como borrado en el programa.
+        const rotulo = modo === 'ratificacion' ? 'Dar forfait' : 'Retirar';
+        return `<button class="btn-sm btn-danger" onclick="retirar('${esc(i.id)}')">${rotulo}</button>`;
+      })()}</td>
     </tr>`;
   }).join('');
 
@@ -980,16 +1023,25 @@ async function loadMisInscripciones() {
     <tbody>${filas}</tbody>
   </table></div>
   <p style="font-size:12px;color:var(--muted);margin-top:12px;line-height:1.6;">
-    Sólo se pueden retirar las inscripciones que cargaste vos desde el portal y mientras
-    el turno siga abierto. Las que cargó la secretaría, o las que ya cerraron, se dan de
-    baja hablando con ${TEL}.
+    Sólo podés dar de baja las inscripciones que cargaste vos desde el portal.
+    Mientras la inscripción está abierta, <strong>Retirar</strong> borra la anotación.
+    Durante la ratificación, <strong>Dar forfait</strong> deja el caballo registrado
+    como borrado en el programa. Fuera de esas dos ventanas, y para lo que cargó la
+    secretaría, se da de baja hablando con ${TEL}.
   </p>`;
 }
 
 async function retirar(inscId) {
   const i = misInscripciones.find(x => x.id === inscId);
   const nombre = misCaballos.find(c => c.id === i?.spc_id)?.nombre || 'este caballo';
-  if (!confirm(`¿Retirar a ${nombre} del turno ${i?.carreras?.numero_turno ?? ''}?`)) return;
+  const turno = i?.carreras?.numero_turno ?? '';
+  const modo = modoRetiro(i);
+  // El forfait se IMPRIME: la confirmación tiene que decirlo antes, porque el
+  // caballo no desaparece — queda listado como borrado en el programa.
+  const pregunta = modo === 'ratificacion'
+    ? `¿Dar forfait a ${nombre} en el turno ${turno}?\n\nQueda registrado como BORRADO en el programa de la reunión.`
+    : `¿Retirar a ${nombre} del turno ${turno}?`;
+  if (!confirm(pregunta)) return;
 
   const { error } = await sb.rpc('rpc_baja_inscripcion', { p_inscripcion_id: inscId });
   if (error) {
@@ -997,7 +1049,7 @@ async function retirar(inscId) {
     toast(error.message.replace(/^.*?:\s*/, ''), 'error');
     return;
   }
-  toast('Inscripción retirada');
+  toast(modo === 'ratificacion' ? 'Forfait registrado' : 'Inscripción retirada');
   loadMisInscripciones();
 }
 

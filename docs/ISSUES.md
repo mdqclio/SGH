@@ -1572,8 +1572,21 @@ medias), ISSUE-017 (las policies sin club).
 
 ### ISSUE-074: dos fuentes para la hora de ratificación, y la que se edita no es la que gobierna
 
-**Estado**: 🟡 **ABIERTO**. Sale del trabajo de las ventanas de R9 del 2026-09-08. No se arregla
-ahora, a propósito: no rompe nada hoy y merece decidirse con Fede, no de apuro.
+**Estado**: 🟠 **PARCIALMENTE RESUELTO** (2026-09-08, tarde). Ya no es cierto que
+`carreras.apertura_ratificacion` / `cierre_ratificacion` no tengan consumidor: **desde el forfait
+desde el portal son el guard de una operación de escritura** (`rpc_baja_inscripcion`). Eso resuelve
+la mitad del issue por su **opción (1), "unificar hacia `carreras`"** — para el portal.
+
+Lo que queda abierto es la otra mitad, y se abrió como issue propio: **`ratificacion.html` sigue
+gobernándose con `reuniones.hora_cierre_ratificacion` y calcula un plazo distinto del que usa el
+sistema. Ver ISSUE-075.**
+
+Y cambió el riesgo: esas dos columnas **pasaron de decorativas a load-bearing**. Un turno cargado
+sin ellas deja el botón de forfait apagado (fail-closed, que es el comportamiento correcto), pero
+hay que avisarle a la secretaría que esos dos campos del modal de `carta-llamados.html` ya no son
+opcionales.
+
+> Texto original del issue, del 2026-09-08 a la mañana:
 
 **El problema.** La hora de cierre de ratificación vive en **dos lugares distintos**, y el que se
 edita **no** es el que manda:
@@ -1641,3 +1654,102 @@ impacto funcional hoy, pero es una trampa para el que cargue datos.
 Relacionado: GOTCHA #91 (el bug de zona que lo destapó).
 Informes: `docs/diagnosticos/2026-09-08_plan-ventanas-r9-tres-columnas.md` §3,
 `docs/diagnosticos/2026-09-08_fix-carta-llamados-hora-local.md`.
+
+
+---
+
+### ISSUE-075: `ratificacion.html` calcula el cierre de ratificación seis días tarde — la pantalla de la secretaría tiene un plazo distinto al del sistema
+
+**Estado**: 🔴 **ABIERTO**. Sale del trabajo de forfait desde el portal (2026-09-08). **No se
+arregla ahora**: hay que decidirlo con Fede, porque cambia el plazo que ve la secretaría.
+
+**El problema.** Hay dos definiciones del cierre de ratificación conviviendo, y **no coinciden**:
+
+| Quién | Cómo lo calcula | Para R9 |
+|---|---|---|
+| `carreras.cierre_ratificacion` (el guard del portal, desde hoy) | columna `timestamptz`, cargada en el modal de turno | **lunes 14/09 12:00** |
+| `ratificacion.html:554` | `reunion.fecha` + `reuniones.hora_cierre_ratificacion` | **domingo 20/09 12:00** |
+
+**Seis días de diferencia.** Y el que está mal es el de la pantalla: la regla de Fede es *"el lunes
+antes de las 12"*, y el patrón está en los datos de las dos reuniones que tienen ventanas cargadas:
+
+```
+R8: cierre_ratificacion = lunes 10/08 · reunión domingo 16/08  → 6 días antes
+R9: cierre_ratificacion = lunes 14/09 · reunión domingo 20/09  → 6 días antes
+```
+
+`ratificacion.html` empareja la **hora** correcta (12:00, que sale de
+`reuniones.hora_cierre_ratificacion` y es 12:00 en las 13 reuniones del club) con la **fecha
+equivocada** — la de la carrera en vez de la del lunes previo:
+
+```javascript
+// ratificacion.html:548-556
+const [anio, mes, dia] = reunion.fecha.split('-').map(Number);   // ← la fecha de la CARRERA
+…
+const [hh, mm] = (reunion.hora_cierre_ratificacion || '12:00:00').split(':').map(Number);
+return hoy.getHours() * 60 + hoy.getMinutes() >= hh * 60 + mm;
+```
+
+**Por qué importa.** `isCerrada` gobierna toda la pantalla de ratificación: deshabilita los inputs
+de número de carrera y hora estimada (`:678-679`), marca las carreras como cerradas (`:617`) y
+dispara `congelarPesos()` (`:590`). Con el cálculo actual, **la secretaría puede seguir editando la
+ratificación seis días después del plazo real** — y desde hoy, con el forfait del portal, un
+entrenador ya no puede dar forfait el martes pero la secretaría sí puede seguir ratificando. Los
+dos lados del mismo trámite tienen plazos distintos.
+
+**Las dos salidas:**
+
+1. **`ratificacion.html` pasa a leer `carreras.cierre_ratificacion`**, como el portal. Es
+   consistente y usa el dato que ya codifica la regla. Cuesta decidir qué significa "la reunión
+   está cerrada" cuando el cierre es por turno — hoy `isCerrada` es un booleano de reunión.
+2. **Se agrega una fecha a `reuniones`** (algo como `fecha_cierre_ratificacion`) y la pantalla la
+   usa junto con la hora. Mantiene la granularidad por reunión, pero duplica el dato con las
+   columnas de `carreras`.
+
+La (1) es más consistente con lo que ya hicimos y cierra ISSUE-074 del todo. La (2) es menos
+trabajo. **No lo decido yo.**
+
+**Ojo con el orden**: mientras esto no se resuelva, el guard del portal y el de la pantalla de
+secretaría no coinciden, y eso es un plazo distinto para el mismo trámite según quién lo mire.
+
+Módulo: `ratificacion.html`. Prioridad: **Media-alta** — no rompe nada técnicamente, pero es un
+plazo operativo que hoy dice dos cosas distintas.
+Relacionado: ISSUE-074, GOTCHA #91/#92 (los otros dos bugs de fecha/hora de la misma semana).
+Informe: `docs/diagnosticos/2026-09-08_forfait-portal-aplicado.md` §3.
+
+---
+
+### ISSUE-076: un forfait cargado desde el portal no le avisa a nadie
+
+**Estado**: 🟡 **ABIERTO**. Sale del forfait desde el portal (2026-09-08). **No se construye
+ahora**, por pedido explícito: queda anotado con el caso concreto.
+
+**El caso.** Un entrenador da forfait **el lunes a las 11:55**, cinco minutos antes del cierre de
+ratificación. Eso cambia el programa de la reunión: el caballo pasa a figurar como BORRADO, la
+carrera queda con un competidor menos, y si el sorteo de gateras ya corrió, ese cajón queda vacío.
+
+**Hoy no se entera nadie.** No hay notificación, ni mail, ni badge, ni contador. La secretaría se
+entera **sólo si mira** la pantalla de ratificación o el listado de inscriptos. El rastro existe
+—`inscripciones.motivo_estado = 'Forfait desde el portal'`, `canal='portal'`, `inscripto_por`, y el
+`UPDATE` en `auditoria`— pero es rastro **pasivo**: hay que ir a buscarlo.
+
+Con la inscripción desde el portal el riesgo era menor porque la ventana cierra el viernes y queda
+todo el fin de semana para armar la carta. El forfait cae **dentro** de la ventana en la que la
+secretaría está trabajando, y a la hora en que la está cerrando.
+
+**Opciones, de menor a mayor:**
+
+1. **Contador en el dashboard** — "3 forfait desde el portal en esta reunión". Barato, pasivo.
+2. **Badge en `ratificacion.html`** sobre las filas con `motivo_estado = 'Forfait desde el
+   portal'`, para distinguirlas de las que cargó la secretaría. Es un `WHERE` y un chip.
+3. **Notificación activa** (mail o push a la secretaría). Es lo único que resuelve el caso de las
+   11:55, y lo más caro: hoy no hay infraestructura de notificaciones —`pg_net` y `pg_cron` no
+   están instalados (verificado el 08/09)—.
+
+La (2) es la que más devuelve por lo que cuesta: no evita la sorpresa pero hace que el forfait del
+portal sea **visible de un vistazo** en la pantalla donde la secretaría ya está mirando.
+
+Módulo: `ratificacion.html`, `index.html`. Prioridad: Media — no hay pérdida de datos, es un
+problema de oportunidad de la información.
+Relacionado: ISSUE-075 (la misma pantalla), ISSUE-074.
+Informe: `docs/diagnosticos/2026-09-08_forfait-portal-aplicado.md` §7.
