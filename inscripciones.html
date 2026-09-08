@@ -554,8 +554,13 @@ function renderCarreraChips() {
   const cat = c.categorias_carrera?.nombre || '';
   const chips = [
     c.distancia_metros ? `${c.distancia_metros}m` : '',
+    // La pista se queda: en las 49 carreras del club el texto de la condición
+    // NO la menciona nunca, así que el chip es el único lugar donde aparece.
     c.tipo_pista || '',
-    c.condicion_sexo || '',
+    // El chip de SEXO se sacó el 08/09/2026 (Fede). No pierde el dato: donde
+    // hay restricción el texto la declara ("Yeguas…" / "Caballos…"), y donde no
+    // la hay el chip decía "ambos". Ver el informe del 08/09.
+
     textoEdad(c),
     cat,
     // Bolsa EFECTIVA, con el piso `ganancia_minima` aplicado — GOTCHA #63.
