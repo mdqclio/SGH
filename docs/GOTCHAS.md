@@ -1545,3 +1545,78 @@ Relacionado: GOTCHA #93 (el mismo probe, el otro defecto), GOTCHA #92, GOTCHA #9
 Probes: `tests/probe_bolsa_efectiva.mjs`, `tests/probe_paridad_llamado_inscripciones.mjs`.
 Informes: `docs/diagnosticos/2026-09-08_bolsas-portal-vs-detalle-r9.md`,
 `docs/diagnosticos/2026-09-08_fix-bolsa-efectiva-portal.md`.
+
+---
+
+## 95. Mutar una RPC por `apply_migration` deja los mutantes en el historial de migraciones — y son replicables (2026-09-08)
+
+El mutation testing de una función de base **no se puede hacer sobre una copia del archivo**: la
+función vive en la base. El patrón que se usó en `tests/probe_forfait_portal.mjs` es aplicar cada
+mutante sobre una **función gemela** (`rpc_baja_inscripcion_mut`) y correr el probe apuntándole con
+`RPC_BAJA=…`, para no tocar nunca la real.
+
+Eso está bien. **Lo que salió mal fue la vía**: se aplicaron los 11 mutantes con
+`apply_migration`, y `apply_migration` **registra cada llamada en
+`supabase_migrations.schema_migrations`**. Resultado:
+
+```
+20260908095513  rpc_baja_inscripcion_forfait          ← la real, legítima
+20260908100327  probe_mut_M7_forfait_borra            ← basura
+20260908100428  probe_mut_M5_sin_ventana_ratificacion ← basura
+…                                                      (11 en total)
+```
+
+**No es sólo suciedad. Es un peligro concreto:** esas migraciones **crean** una función con los
+guards deliberadamente rotos (sin el chequeo de `canal`, sin el de `inscripto_por`, con el forfait
+haciendo `DELETE`…). Si el proyecto se replica o se restaura desde el historial de migraciones,
+**`rpc_baja_inscripcion_mut` vuelve a existir**, con todos sus agujeros. Dropear la función no
+alcanza: la migración que la recrea sigue ahí.
+
+### La regla
+
+> **Para DDL efímero —mutantes, funciones gemelas, scaffolding de test— usar `execute_sql`, NO
+> `apply_migration`.** `apply_migration` es para cambios que tienen que quedar en la historia;
+> `execute_sql` corre el DDL sin registrarlo.
+
+Y el corolario del teardown: **dropear el objeto no alcanza si la vía de creación quedó
+registrada.** El teardown de un mutante de RPC son dos cosas:
+
+```sql
+DROP FUNCTION IF EXISTS public.rpc_baja_inscripcion_mut(uuid);
+DELETE FROM supabase_migrations.schema_migrations
+ WHERE name LIKE 'probe_mut_%' AND version BETWEEN '<desde>' AND '<hasta>';
+```
+
+El `DELETE` va con **doble acote** —patrón de nombre **y** rango de versión— por lo mismo que
+cualquier `UPDATE` sobre producción: el acote por un solo criterio es un borrado a ciegas
+esperando el día en que el patrón matchee de más.
+
+Verificación después de limpiar, con los cuatro controles:
+
+```sql
+SELECT (SELECT count(*) FROM supabase_migrations.schema_migrations WHERE name LIKE 'probe_mut_%') AS mutantes_restantes,
+       (SELECT count(*) FROM supabase_migrations.schema_migrations WHERE name='rpc_baja_inscripcion_forfait') AS migracion_legitima,
+       (SELECT count(*) FROM pg_proc … WHERE proname='rpc_baja_inscripcion_mut') AS gemela_existe,
+       (SELECT pg_get_functiondef(…) ILIKE '%Forfait desde el portal%' …) AS real_ok;
+-- [{"mutantes_restantes":0,"migracion_legitima":1,"gemela_existe":0,"real_ok":true}]
+```
+
+No alcanza con contar los que quedan: hay que verificar **también** que la migración legítima
+siguió ahí y que la función real no se tocó — es la lección de GOTCHA #77 (*verificar un restore
+contando filas no verifica nada*) aplicada al historial de migraciones.
+
+### Por qué no se automatizó el runner
+
+Vale dejarlo dicho, porque es la razón de que esto pase por MCP y no por el probe: **desde el
+probe no hay vía de DDL.** No hay cliente `pg` en `node_modules`, no hay connection string en
+`.env` (sólo `SUPABASE_SECRET_KEY`, que es la clave REST), y crear un `exec_sql(text)` genérico
+para que el probe pudiera correr DDL **sería abrir una inyección SQL con permisos de owner en
+producción** — un agujero mucho peor que la molestia que resuelve.
+
+Así que el runner emite los mutantes de SQL como archivos `.sql` y los aplica un humano (o el
+asistente) por MCP, con el procedimiento de tres pasos que imprime al final. Los mutantes que
+tocan sólo el HTML sí corren solos.
+
+Relacionado: GOTCHA #77 (verificar por estado, no contando), GOTCHA #84.
+Probe: `tests/probe_forfait_portal.mjs`.
+Informe: `docs/diagnosticos/2026-09-08_forfait-portal-aplicado.md` §5.2.
