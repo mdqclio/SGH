@@ -622,6 +622,50 @@ function parseMonto(str) {
   const s = String(str).replace(/\$/g, '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
   return parseFloat(s) || 0;
 }
+
+// ---------------------------------------------------------------------------
+// Fechas de las ventanas: <input type="datetime-local"> ↔ timestamptz
+// ---------------------------------------------------------------------------
+// Las cuatro columnas (apertura/cierre de inscripción y de ratificación) son
+// `timestamptz`: guardan un instante y PostgREST las devuelve con offset,
+// "2026-09-11T12:00:00+00:00". Un `datetime-local`, en cambio, es hora local
+// SIN zona.
+//
+// El código viejo hacía `.slice(0,16)` sobre el ISO y mandaba el value pelado.
+// Eso se queda con la hora UTC y le arranca el offset: la pantalla mostraba
+// 12:00 (que eran las 09:00 de Argentina) y al guardar escribía 12:00 UTC, o
+// sea otra vez las 09:00. Yesi cargó bien las cuatro fechas de R9 y las cuatro
+// quedaron corridas −3 h. No eran cuatro errores: era este bug, cuatro veces.
+// Ver docs/diagnosticos/2026-09-08_plan-hora-cierre-r9.md y GOTCHA #91.
+//
+// Las dos funciones son inversas exactas entre sí, y la ida y vuelta
+// (leer → guardar sin tocar nada) tiene que dejar el MISMO instante.
+
+// timestamptz → el value del input, en la hora local del browser.
+// getFullYear/getMonth/getDate/getHours/getMinutes son todos hora local: ahí
+// está la conversión que faltaba.
+function isoAInputLocal(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const p2 = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`
+       + `T${p2(d.getHours())}:${p2(d.getMinutes())}`;
+}
+
+// El value del input (hora local sin zona) → ISO con offset explícito.
+// El Date se arma por COMPONENTES a propósito: `new Date(y, m, d, h, mi)` es
+// hora local por definición. Pasarle el string a `new Date()` también anda en
+// los motores actuales, pero depende de una regla de parseo del string que ya
+// cambió una vez; por componentes no hay ambigüedad que dependa del motor.
+function inputLocalAISO(val) {
+  if (!val) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(val);
+  if (!m) return null;
+  const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], 0, 0);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
 function fmtInput(el) {
   let raw = el.value.replace(/\$/g, '').replace(/\s/g, '');
   const commaIdx = raw.indexOf(',');
@@ -1108,10 +1152,13 @@ function openModal(rec=null) {
   document.getElementById('f-bono-pos-hasta').value = dist.bono_posicion_hasta || '';
   document.getElementById('f-bono-pos-monto').value = dist.bono_posicion_monto ? formatMonto(dist.bono_posicion_monto) : '';
   updPct();
-  document.getElementById('f-ap-insc').value = rec?.apertura_inscripcion ? rec.apertura_inscripcion.slice(0,16) : '';
-  document.getElementById('f-ci-insc').value = rec?.cierre_inscripcion ? rec.cierre_inscripcion.slice(0,16) : '';
-  document.getElementById('f-ap-rat').value = rec?.apertura_ratificacion ? rec.apertura_ratificacion.slice(0,16) : '';
-  document.getElementById('f-ci-rat').value = rec?.cierre_ratificacion ? rec.cierre_ratificacion.slice(0,16) : '';
+  // Las cuatro pasan por isoAInputLocal: el input muestra la hora de Argentina,
+  // no la UTC. Antes era `.slice(0,16)` sobre el ISO — ver el comentario de
+  // isoAInputLocal.
+  document.getElementById('f-ap-insc').value = isoAInputLocal(rec?.apertura_inscripcion);
+  document.getElementById('f-ci-insc').value = isoAInputLocal(rec?.cierre_inscripcion);
+  document.getElementById('f-ap-rat').value  = isoAInputLocal(rec?.apertura_ratificacion);
+  document.getElementById('f-ci-rat').value  = isoAInputLocal(rec?.cierre_ratificacion);
   document.getElementById('modal').classList.add('open');
 }
 
@@ -1161,10 +1208,12 @@ async function saveRecord() {
     bolsa_total: bolsaVal,
     cupo_maximo: document.getElementById('f-cupo').value ? parseInt(document.getElementById('f-cupo').value) : null,
     distribucion_premios: distribucion,
-    apertura_inscripcion: document.getElementById('f-ap-insc').value || null,
-    cierre_inscripcion: document.getElementById('f-ci-insc').value || null,
-    apertura_ratificacion: document.getElementById('f-ap-rat').value || null,
-    cierre_ratificacion: document.getElementById('f-ci-rat').value || null,
+    // Las cuatro pasan por inputLocalAISO: se manda el instante con offset
+    // explícito. Antes se mandaba el value pelado y Postgres lo tomaba como UTC.
+    apertura_inscripcion: inputLocalAISO(document.getElementById('f-ap-insc').value),
+    cierre_inscripcion: inputLocalAISO(document.getElementById('f-ci-insc').value),
+    apertura_ratificacion: inputLocalAISO(document.getElementById('f-ap-rat').value),
+    cierre_ratificacion: inputLocalAISO(document.getElementById('f-ci-rat').value),
     estado: 'abierta',
   };
   const { error } = id

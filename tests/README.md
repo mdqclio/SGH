@@ -86,6 +86,7 @@ node tests/probe_pedigree_programa.mjs   # Columna PADRE-MADRE en los 3 programa
 node tests/probe_apuestas_especiales.mjs # Caja de especiales de la tapa derivada de carrera_apuestas (real-code, sólo lectura)
 node tests/probe_carta_selector_reunion.mjs # Carta de llamados: selector de reunión + default activa/próxima + ActiveReunion intacta (real-code, sólo lectura, --mutantes)
 node tests/probe_club_id_alta_propietarios.mjs # ISSUE-072: propietarios.html crea con club_id y lista sólo su club; ficha nueva encontrable por buscarFichas() (real-code, ESCRIBE, --mutantes)
+node tests/probe_carta_hora_local.mjs   # carta-llamados: las cuatro ventanas van y vuelven en hora argentina; ida y vuelta contra la base sin corrimiento (real-code, fixture 9991 + teardown, --mutantes)
 node tests/probe_paridad_llamado_inscripciones.mjs # Llamado abierto (portal) ↔ encabezado de turno (inscripciones): mismos 8 campos, condición larga sin romper la tarjeta, hora en 24 h sin "a. m." ni "hs" duplicado (real-code, fixture 9992 + teardown, --mutantes)
 node tests/probe_cuerpos_oficial.mjs     # Ventaja de llegada en la vista oficial: cotejo de R6 contra la planilla (real-code, sólo lectura)
 node tests/probe_reordenar_turnos.mjs    # RPC reordenar_turnos: permutación + 4 validaciones (→ R9, snapshot→restore)
