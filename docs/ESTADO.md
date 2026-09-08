@@ -31,9 +31,15 @@
 
 > En main/prod: tanda de premios (`feat/premios-display-v2`, merge `d626049`). Doc de premios + restore.
 
-### Premios — modelo de display: NOMINAL + bonos aparte (decisión de Fede confirmada)
-- La **BOLSA impresa es el nominal** (`bolsa_total` tal cual se carga); ni el piso `ganancia_minima` ni los bonos inflan ese número. Helper `repartoDisplay()` en `premios-utils.js` (los 6 sitios de display lo usan). El reparto por puesto suma exacto a la bolsa (último puesto absorbe el resto del redondeo).
-- **Bonos**: líneas aparte condicionales. **Ganancia mínima**: línea informativa condicional (comunica el piso sin inflar). **`calcPremiosConPiso` intacto** → el piso aplica solo en **liquidación** (pago).
+### Premios — modelo de display: BOLSA EFECTIVA (con piso) + bonos aparte
+> **Corregido el 2026-09-08.** Este bloque decía "la BOLSA impresa es el nominal" —texto **v1**,
+> anterior a la aclaración de Yesica del 21/07— y quedó contradiciendo al GOTCHA #63 vigente
+> durante mes y medio. Es el origen probable del chip de bolsa del portal, que mostraba el
+> nominal. Ver `docs/diagnosticos/2026-09-08_bolsas-portal-vs-detalle-r9.md`.
+
+- La **BOLSA impresa es la EFECTIVA**: la suma de los puestos con el piso `ganancia_minima` ya aplicado. Un 4°/5° que queda por debajo del piso se muestra **elevado al piso** (ej. 100.000). Helper `repartoDisplay()` en `premios-utils.js` — lo usan los **8** sitios de display (carta de llamados ×2, los tres programas, ratificación, PDF de inscriptos, chip del encabezado de inscripciones y chip del llamado del portal). El reparto por puesto suma exacto a la bolsa: el puesto de **mayor** monto absorbe el resto del redondeo, para no desclavar los pisos de los puestos bajos.
+- **`carreras.bolsa_total` en DB es siempre el NOMINAL** (ADR-037). La efectiva se deriva al render y **nunca se persiste**. El nominal no se le muestra al usuario: es el dato de carga.
+- **Bonos**: líneas aparte condicionales, **NO** se suman a la BOLSA (esto sí es decisión de Fede). **`calcPremiosConPiso`** es el que aplica el piso, y lo aplica tanto en el **display** como en la **liquidación** — con una diferencia: el motor de pago (`liquidaciones-engine.js:120-126`) funde el bono al ganador en el 1° **antes** del piso, el display lo excluye.
 - Warning al guardar si el piso parece un error de tipeo (`pisoSospechoso`, > 20% de la bolsa). Probes `tests/probe_reparto_display.mjs` (7/7) + `tests/probe_piso_warning.mjs` (5/5).
 
 ### Infra — proyecto Supabase pausado y restaurado (sin pérdida de datos)

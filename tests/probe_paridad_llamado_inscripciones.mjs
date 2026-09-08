@@ -66,6 +66,20 @@ const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 const results = [];
 const ok = (t, c, n = '') => { results.push({ t, s: c ? '✅' : '❌', n }); return c; };
 
+// ── ORÁCULO INDEPENDIENTE ───────────────────────────────────────────────────
+// Este probe compara DOS PANTALLAS entre sí, y eso solo no verifica ningún
+// valor: el 08/09 los dos chips de bolsa mostraban `bolsa_total` crudo en vez
+// de la bolsa efectiva, coincidían perfectamente, y el probe pasó en verde
+// mientras el número era el equivocado.
+//
+// Regla que queda: **un assert de paridad necesita un tercer punto de apoyo.**
+// Para todo campo que sea un valor CALCULADO —hoy sólo la bolsa— el esperado
+// sale de acá, de `premios-utils.js` cargado aparte, no de la otra pantalla.
+// El detalle completo vive en tests/probe_bolsa_efectiva.mjs.
+const oraculo = {};
+new Function('window', readFileSync(join(HERE, '..', 'premios-utils.js'), 'utf8'))(oraculo);
+const { repartoDisplay } = oraculo;
+
 // ── extracción por ancla ────────────────────────────────────────────────────
 // El scan de llaves arranca en la llave FINAL de la firma, no en la primera que
 // aparezca después del ancla (probe_carta_selector_reunion.mjs, mismo motivo).
@@ -111,6 +125,7 @@ async function mkPortal({ dom, inscs = [] }) {
     extractFn(PORTAL, 'function fechaHora(iso) {'),
     extractFn(PORTAL, 'function textoEdad(c) {'),
     extractFn(PORTAL, 'function textoCondicion(c) {'),
+    extractFn(PORTAL, 'function bolsaChip(c) {'),
     extractFn(PORTAL, 'function ventanaAbierta(c, reunionEstado) {'),
     extractFn(PORTAL, 'async function loadLlamado() {'),
   ].join('\n\n');
@@ -124,9 +139,9 @@ async function mkPortal({ dom, inscs = [] }) {
     async function cargarInscripcionesCrudas() {}
     ${piezas}
     return { esc, formatARS, fechaHora, textoEdad, textoCondicion, ventanaAbierta,
-             loadLlamado, _get: () => ({ turnosAbiertos }) };`;
-  const make = new AsyncFunction('document', 'sb', 'toast', 'console', cuerpo);
-  return make(dom, sb, () => {}, console);
+             bolsaChip, loadLlamado, _get: () => ({ turnosAbiertos }) };`;
+  const make = new AsyncFunction('document', 'sb', 'toast', 'console', 'repartoDisplay', cuerpo);
+  return make(dom, sb, () => {}, console, repartoDisplay);
 }
 
 /** inscripciones.html — el encabezado del turno. */
@@ -158,8 +173,8 @@ async function mkInsc({ dom, currentUser = { rol: 'secretario_carreras' } }) {
   const setSpy = { ids: [] };
   const ActiveReunion = { get: () => null, set: (id) => setSpy.ids.push(id), resolve: () => null };
   const make = new AsyncFunction(
-    'document', 'sb', 'CLUB_ID', 'ActiveReunion', 'currentUser', 'console', cuerpo);
-  const api = await make(dom, sb, CLUB_ID, ActiveReunion, currentUser, console);
+    'document', 'sb', 'CLUB_ID', 'ActiveReunion', 'currentUser', 'console', 'repartoDisplay', cuerpo);
+  const api = await make(dom, sb, CLUB_ID, ActiveReunion, currentUser, console, repartoDisplay);
   api._setSpy = setSpy;
   return api;
 }
@@ -216,6 +231,17 @@ const HC_CORTA = 'Todo caballo 5 años y + edad perdedor.';
 const CIERRE_ISO = '2099-05-01T12:00:00+00:00';
 const HORA_ESPERADA = '1/5 09:00 hs';
 
+// Bolsa y distribución copiadas de R9 T1. Se eligió a propósito una donde el
+// piso MUERDE (4° y 5° quedan por debajo de 100.000 y se elevan): así el
+// nominal ($1.054.166,67) y la efectiva ($1.159.292) son distintos y un chip
+// que mostrara el crudo no puede pasar por coincidencia.
+const BOLSA = 1054166.67;
+const DIST = { "1": 60, "2": 19, "3": 12, "4": 6, "5": 3,
+               bono_ganador: 250000, ganancia_minima: 100000,
+               bono_posicion_desde: 6, bono_posicion_hasta: 8, bono_posicion_monto: 100000 };
+// El esperado sale del ORÁCULO, no de ninguna de las dos pantallas.
+const BOLSA_EFECTIVA = repartoDisplay(BOLSA, DIST).total;   // 1159292
+
 // ═════════════════════════════ MUTATION TESTING ═════════════════════════════
 // Cada mutante neutraliza UNA cosa sobre una COPIA del HTML en un tmpdir —el
 // repo no se toca— y re-corre este mismo probe con PORTAL_HTML / INSC_HTML
@@ -248,8 +274,8 @@ const MUTANTES = [
     to: '' },
 
   { id: 'M6', archivo: 'insc', desc: 'el select de carreras vuelve a las cinco columnas viejas',
-    mata: ['Q3', 'Q4', 'Q5', 'Q6', 'Q7', 'D1'],
-    from: ".select('id,numero_turno,nombre,distancia_metros,tipo_pista,condicion_sexo,edad_minima_anos,edad_maxima_anos,bolsa_total,cupo_maximo,condicion_handicap,condicion_adicional,cierre_inscripcion,estado,categoria_id,categorias_carrera(nombre)')",
+    mata: ['Q3', 'Q4', 'Q5', 'Q6', 'Q7', 'D1', 'D5'],
+    from: ".select('id,numero_turno,nombre,distancia_metros,tipo_pista,condicion_sexo,edad_minima_anos,edad_maxima_anos,bolsa_total,distribucion_premios,cupo_maximo,condicion_handicap,condicion_adicional,cierre_inscripcion,estado,categoria_id,categorias_carrera(nombre)')",
     to: ".select('id,numero_turno,nombre,distancia_metros,condicion_handicap')" },
 
   { id: 'M7', archivo: 'insc', desc: 'la condición se mete adentro de la fila de chips y la estira',
@@ -275,6 +301,22 @@ const MUTANTES = [
   { id: 'M11', archivo: 'insc', desc: 'inscripciones pierde el chip de categoría que pidió Yesi',
     mata: ['Y1'],
     from: '    cat,\n', to: '' },
+
+  // ── Los dos que dejó pasar la versión vieja de este probe (08/09/2026) ────
+  // Con los asserts chip-contra-chip, M12 y M13 aplicados JUNTOS sobrevivían:
+  // las dos pantallas mostraban el nominal, coincidían, y la paridad daba en
+  // verde. Ahora cada uno muere por separado contra el oráculo, y D5 los mata
+  // aunque coincidan entre sí.
+  { id: 'M12', archivo: 'portal', desc: 'vuelve el bug: el chip del portal muestra bolsa_total crudo',
+    mata: ['P6', 'D1', 'D5'],
+    from: `  const { total } = repartoDisplay(c.bolsa_total, c.distribucion_premios);
+  return \`<span class="chip">💰 \${esc(formatARS(total))}</span>\`;`,
+    to: `  return \`<span class="chip">💰 \${esc(formatARS(c.bolsa_total))}</span>\`;` },
+
+  { id: 'M13', archivo: 'insc', desc: 'vuelve el bug: el chip de inscripciones muestra bolsa_total crudo',
+    mata: ['Q6', 'D1', 'D5'],
+    from: `c.bolsa_total ? \`💰 \${formatMonto(repartoDisplay(c.bolsa_total, c.distribucion_premios).total)}\` : '',`,
+    to: `c.bolsa_total ? \`💰 \${formatMonto(c.bolsa_total)}\` : '',` },
 ];
 
 const argMut = process.argv.find(a => a === '--mutantes' || a.startsWith('--mutantes='));
@@ -371,14 +413,14 @@ async function ins(tabla, fila, bucket) {
     const cLarga = await ins('carreras', {
       ...base, numero_turno: 9, distancia_metros: 1100, tipo_pista: 'tierra',
       condicion_sexo: 'ambos', edad_minima_anos: 5, edad_maxima_anos: 10,
-      bolsa_total: 3333333.33, cupo_maximo: 14,
+      bolsa_total: BOLSA, distribucion_premios: DIST, cupo_maximo: 14,
       condicion_handicap: HC_LARGA, condicion_adicional: AD_LARGA,
     }, 'carreras');
     // Turno 1 — condición corta, un solo renglón, sin adicional.
     const cCorta = await ins('carreras', {
       ...base, numero_turno: 1, distancia_metros: 1200, tipo_pista: 'cesped',
       condicion_sexo: 'ambos', edad_minima_anos: 5, edad_maxima_anos: 5,
-      bolsa_total: 1833333.33, cupo_maximo: 14,
+      bolsa_total: BOLSA, distribucion_premios: DIST, cupo_maximo: 14,
       condicion_handicap: HC_CORTA, condicion_adicional: null,
     }, 'carreras');
 
@@ -433,7 +475,11 @@ async function ins(tabla, fila, bucket) {
     ok('P3) chip de pista', chipsL.includes('>tierra<'));
     ok('P4) chip de sexo', chipsL.includes('>ambos<'));
     ok('P5) chip de rango de edad', chipsL.includes('>5 a 10 años<'));
-    ok('P6) chip de bolsa', chipsL.includes('$3.333.333,33'));
+    // ⚠️ NO comparar contra el otro chip: eso fue lo que dejó pasar el bug del
+    // 08/09. El esperado viene del oráculo (premios-utils.js cargado aparte).
+    ok('P6) el chip de bolsa del llamado == repartoDisplay, NO el nominal',
+       chipsL.includes(P.formatARS(BOLSA_EFECTIVA)) && !chipsL.includes(P.formatARS(BOLSA)),
+       `chip=${chipsTxt(filaL)} · esperado=${P.formatARS(BOLSA_EFECTIVA)} · nominal(prohibido)=${P.formatARS(BOLSA)}`);
     ok('P7) el número de turno está en la fila', filaL.includes('<div class="carrera-num">9</div>'));
     ok('P8) el texto de la condición está en la fila', filaL.includes(HC_LARGA));
     ok('P9) chip de cierre en 24 h', chipsL.includes(`⏳ cierra ${HORA_ESPERADA}`));
@@ -455,7 +501,9 @@ async function ins(tabla, fila, bucket) {
     ok('Q3) chip de pista', chipsQL.includes('>tierra<'));
     ok('Q4) chip de sexo', chipsQL.includes('>ambos<'));
     ok('Q5) chip de rango de edad', chipsQL.includes('>5 a 10 años<'));
-    ok('Q6) chip de bolsa', chipsQL.includes('$3.333.333,33'));
+    ok('Q6) el chip de bolsa de inscripciones == repartoDisplay, NO el nominal',
+       chipsQL.includes(I.formatMonto(BOLSA_EFECTIVA)) && !chipsQL.includes(I.formatMonto(BOLSA)),
+       `chip=${chipsTxt(headL)} · esperado=${I.formatMonto(BOLSA_EFECTIVA)}`);
     ok('Q7) chip de cierre en 24 h', chipsQL.includes(`⏳ cierra ${HORA_ESPERADA}`));
     ok('Q8) el texto de la condición está en el encabezado', headL.includes(HC_LARGA));
     ok('Q9) el número de turno está en el encabezado',
@@ -472,7 +520,7 @@ async function ins(tabla, fila, bucket) {
       ['pista', '>tierra<', '>tierra<'],
       ['sexo', '>ambos<', '>ambos<'],
       ['rango de edad', '>5 a 10 años<', '>5 a 10 años<'],
-      ['bolsa', '$3.333.333,33', '$3.333.333,33'],
+      ['bolsa', P.formatARS(BOLSA_EFECTIVA), I.formatMonto(BOLSA_EFECTIVA)],
       ['cierre', `cierra ${HORA_ESPERADA}`, `cierra ${HORA_ESPERADA}`],
       ['condición', HC_LARGA, HC_LARGA],
     ];
@@ -489,8 +537,16 @@ async function ins(tabla, fila, bucket) {
          .every(([a, b]) => P.textoEdad({ edad_minima_anos: a, edad_maxima_anos: b })
                           === I.textoEdad({ edad_minima_anos: a, edad_maxima_anos: b })));
     ok('D4) la bolsa se formatea igual en las dos',
-       P.formatARS(3333333.33) === I.formatMonto(3333333.33),
-       `portal="${P.formatARS(3333333.33)}" · inscripciones="${I.formatMonto(3333333.33)}"`);
+       P.formatARS(BOLSA_EFECTIVA) === I.formatMonto(BOLSA_EFECTIVA),
+       `portal="${P.formatARS(BOLSA_EFECTIVA)}" · inscripciones="${I.formatMonto(BOLSA_EFECTIVA)}"`);
+
+    // El assert que faltaba: paridad NO alcanza. Aunque las dos coincidan, el
+    // valor tiene que ser el del oráculo. Si las dos volvieran al nominal, D1 y
+    // D4 seguirían en verde y sólo este las agarra.
+    ok('D5) las dos coinciden CON EL ORÁCULO, no sólo entre sí',
+       filaL.includes(P.formatARS(BOLSA_EFECTIVA)) && headL.includes(I.formatMonto(BOLSA_EFECTIVA))
+       && !filaL.includes(P.formatARS(BOLSA)) && !headL.includes(I.formatMonto(BOLSA)),
+       `oráculo=${P.formatARS(BOLSA_EFECTIVA)} (nominal ${P.formatARS(BOLSA)} no debe aparecer)`);
 
     // ── E) LAYOUT: la condición larga no rompe la tarjeta ────────────────────
     ok('L1) el llamado muestra la condición larga COMPLETA, sin truncar',

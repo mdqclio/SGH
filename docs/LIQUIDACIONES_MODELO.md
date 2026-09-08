@@ -9,7 +9,9 @@
 > - ⏳ Fase 2bis — botón "Oficializar reunión". ⏳ Fase 3 — estados de línea + retención anti-doping. ⏳ Fase 4 — recibos por persona on-demand. ⏳ Fase 5 — resumen de reunión. ⏳ Fase 6 — validar A+B con datos reales de R5.
 > Detalle de fases y decisiones: `docs/ISSUES.md` (ISSUE-001). ADRs: ADR-042..047.
 
-> **Nota display vs liquidación (2026-07-21):** este modelo (piso `ganancia_minima` + bonos) rige la **liquidación / pago** (`calcPremiosConPiso`). En el **display** (carta de llamado, programa) la BOLSA impresa es el **nominal** (`bolsa_total` tal cual se carga, helper `repartoDisplay`): el piso y los bonos **NO inflan** ese número, se muestran como **líneas informativas aparte**. El modelo de liquidación no cambia; solo se aclara que el piso/bono aplican en el pago, no en lo impreso. Ver GOTCHA #63 / ISSUE-031.
+> **Nota display vs liquidación (2026-07-21, CORREGIDA el 2026-09-08):** este modelo (piso `ganancia_minima` + bonos) rige la **liquidación / pago**. En el **display** (carta de llamado, programa, portal) la BOLSA impresa es la **EFECTIVA**: el piso `ganancia_minima` **SÍ** entra —un puesto por debajo del piso se muestra elevado al piso, y la bolsa es la suma de los puestos efectivos (`repartoDisplay`)—; los **bonos** siguen **aparte**, como líneas informativas, y **no** se suman a la BOLSA. `carreras.bolsa_total` en DB es siempre el nominal y no se muestra al usuario.
+>
+> La versión anterior de esta nota decía que el display mostraba el **nominal**. Era texto **v1**, previo a la aclaración de Yesica que quedó registrada en GOTCHA #63, y sobrevivió mes y medio contradiciendo al GOTCHA. Ver GOTCHA #63 / ISSUE-031 / `docs/diagnosticos/2026-09-08_bolsas-portal-vs-detalle-r9.md`.
 
 -----
 

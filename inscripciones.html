@@ -463,7 +463,7 @@ async function onReunionChange() {
   // y el nombre de la categoría. Sin esto, currentCarrera salía del array con
   // la mitad de las columnas y los chips quedaban vacíos.
   const { data: cars, error: eCars } = await sb.from('carreras')
-    .select('id,numero_turno,nombre,distancia_metros,tipo_pista,condicion_sexo,edad_minima_anos,edad_maxima_anos,bolsa_total,cupo_maximo,condicion_handicap,condicion_adicional,cierre_inscripcion,estado,categoria_id,categorias_carrera(nombre)')
+    .select('id,numero_turno,nombre,distancia_metros,tipo_pista,condicion_sexo,edad_minima_anos,edad_maxima_anos,bolsa_total,distribucion_premios,cupo_maximo,condicion_handicap,condicion_adicional,cierre_inscripcion,estado,categoria_id,categorias_carrera(nombre)')
     .eq('reunion_id', rid).order('numero_turno');
   if (eCars) { console.error('[carreras onReunionChange]', eCars); toast(eCars.message, 'error'); throw eCars; }
   carreras = cars||[];
@@ -558,7 +558,13 @@ function renderCarreraChips() {
     c.condicion_sexo || '',
     textoEdad(c),
     cat,
-    c.bolsa_total ? `💰 ${formatMonto(c.bolsa_total)}` : '',
+    // Bolsa EFECTIVA, con el piso `ganancia_minima` aplicado — GOTCHA #63.
+    // Es el MISMO helper que usa el PDF de inscriptos de este archivo (:953) y
+    // las otras cinco pantallas de display. Antes acá iba `c.bolsa_total` crudo
+    // y el encabezado contradecía al PDF del mismo archivo: en R9 T1 decía
+    // $1.054.167 donde el PDF decía $1.159.292.
+    // Ver docs/diagnosticos/2026-09-08_bolsas-portal-vs-detalle-r9.md.
+    c.bolsa_total ? `💰 ${formatMonto(repartoDisplay(c.bolsa_total, c.distribucion_premios).total)}` : '',
     c.cupo_maximo ? `Cupo ${c.cupo_maximo}` : '',
     c.cierre_inscripcion ? `⏳ cierra ${fechaHora(c.cierre_inscripcion)}` : '',
   ].filter(Boolean).map(t => `<span class="chip">${esc(t)}</span>`).join('');
