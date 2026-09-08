@@ -859,3 +859,30 @@ memoria libre; en ese caso corre por lotes:
 ```bash
 node tests/probe_buscador_spc.mjs --mutantes=M1,M2,M3
 ```
+
+---
+
+## 12. Verificación de publicación
+
+Este informe, publicado. Salida cruda del commit anterior a esta adenda:
+
+```
+$ git push origin reports
+To github.com:mdqclio/SGH.git
+   8437a54..5335acd  reports -> reports
+
+$ git ls-remote origin reports
+5335acded4b87ed01a7e81a10243fd8d3ffe371b	refs/heads/reports
+
+$ git rev-parse HEAD
+5335acded4b87ed01a7e81a10243fd8d3ffe371b
+
+$ git ls-remote origin feat/buscador-spc-autocompletado
+5ab83206e29d54586654580662bff7b6e961e2f6	refs/heads/feat/buscador-spc-autocompletado
+
+$ git ls-remote origin main
+eface80078b99a56c9ae3160053cd8fd0c425d31	refs/heads/main
+```
+
+`main` sigue en `eface80`, el mismo commit sobre el que se ramificó: **nada
+mergeado**.
