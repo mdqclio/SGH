@@ -426,3 +426,16 @@ $ git ls-remote origin main
 
 **Nada aplicado.** Ni código, ni DDL, ni datos. `main` queda en `8dafe09` y el único cambio del
 repo es este informe. El plan espera tu OK sobre §2, §3 y las preguntas del §7.
+
+### 8.1 SHA final
+
+```
+$ git ls-remote origin reports
+73fd9cb3048ffb79e83a939808e72131d13e3a2c	refs/heads/reports
+$ git rev-parse HEAD
+73fd9cb3048ffb79e83a939808e72131d13e3a2c
+$ git ls-remote origin main
+8dafe0943cc2d9072dbed814d71c9a49286797e3	refs/heads/main
+```
+
+`main` sin tocar. Los dos refs verificados en `origin`.
