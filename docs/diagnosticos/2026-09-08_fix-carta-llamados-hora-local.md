@@ -412,3 +412,18 @@ set -a; . ./.env; set +a
 node tests/probe_carta_hora_local.mjs
 node tests/probe_carta_hora_local.mjs --mutantes
 ```
+
+### 8.1 SHA final
+
+```
+$ git ls-remote origin reports
+4abd3e5c79c10684d91d98ab65835f3ce258bbc3	refs/heads/reports
+$ git rev-parse HEAD
+4abd3e5c79c10684d91d98ab65835f3ce258bbc3
+$ git ls-remote origin fix/carta-llamados-hora-local
+71a5995a796f4e2c5234dab8e47713c9cba075c0	refs/heads/fix/carta-llamados-hora-local
+$ git ls-remote origin main
+79821ae01a9b8e8768ae698b967462d00baa71a0	refs/heads/main
+```
+
+Los tres refs verificados.
