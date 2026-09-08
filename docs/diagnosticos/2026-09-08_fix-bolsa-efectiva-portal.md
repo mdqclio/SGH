@@ -479,3 +479,253 @@ $ git ls-remote origin main
 ```
 
 Los tres refs verificados en `origin`. `main` sin tocar.
+
+---
+
+# ADENDA — merge, verificación contra producción y GOTCHAs #93/#94
+
+**Fecha:** 2026-09-08, ~03:33 UTC
+**Autorizado por:** el usuario — *"Mergeá a main con --no-ff."*
+
+## A1. El merge
+
+```
+$ git merge --no-ff fix/bolsa-efectiva-portal -F <mensaje>
+Merge made by the 'ort' strategy.
+ docs/ESTADO.md                                |  12 +-
+ docs/LIQUIDACIONES_MODELO.md                  |   4 +-
+ inscripciones.html                            |  10 +-
+ portal.html                                   |  27 +-
+ tests/README.md                               |   1 +
+ tests/probe_bolsa_efectiva.mjs                | 479 ++++++++++++++++++++++++++
+ tests/probe_paridad_llamado_inscripciones.mjs |  84 ++++-
+ 7 files changed, 595 insertions(+), 22 deletions(-)
+ create mode 100644 tests/probe_bolsa_efectiva.mjs
+```
+
+```
+$ git log --oneline origin/main -4
+8dafe09 docs: GOTCHA #93 (paridad ≠ corrección) y #94 (el fixture sin el caso borde)
+b3ef4fc merge: la bolsa mostrada es la EFECTIVA, y el probe de paridad ya no se miente
+72f3b50 fix: la bolsa del llamado es la EFECTIVA con piso, no bolsa_total crudo
+2bb5d0c docs: GOTCHA #92 — datetime-local es hora local sin zona; el .slice sobre el ISO miente
+
+$ git ls-remote origin main
+8dafe0943cc2d9072dbed814d71c9a49286797e3	refs/heads/main
+
+$ git ls-remote origin fix/bolsa-efectiva-portal   # la rama queda
+72f3b509c5cc4016952b99b6cf4ac6fb75c078c6	refs/heads/fix/bolsa-efectiva-portal
+```
+
+Merge **`b3ef4fc`** con `--no-ff`; encima **`8dafe09`** con los GOTCHAs #93 y #94.
+`main` pasó de `2bb5d0c` a **`8dafe0943cc2d9072dbed814d71c9a49286797e3`**.
+
+## A2. MD5 local vs. producción
+
+Deploy en ~40 s (dos intentos con el blob viejo, el tercero MATCH).
+
+```
+=== MD5: local (main 8dafe09) vs servido en https://sigh.com.ar (curl -sL) ===
+corrido: 2026-09-08T03:33:30Z
+
+portal.html                                    local=22cb9dd4b107aa0d58e98747eb9dc5fc  servido=22cb9dd4b107aa0d58e98747eb9dc5fc  MATCH
+inscripciones.html                             local=9a3843e350df24cc206d461b4aad16e3  servido=9a3843e350df24cc206d461b4aad16e3  MATCH
+premios-utils.js                               local=c2187783d01485917c53f145384e7834  servido=c2187783d01485917c53f145384e7834  MATCH
+carta-llamados.html                            local=a1c9ab393a10924abc93662760195f1a  servido=a1c9ab393a10924abc93662760195f1a  MATCH
+tests/probe_bolsa_efectiva.mjs                 local=ef2720e1969939fe3ed3436123acf882  servido=ef2720e1969939fe3ed3436123acf882  MATCH
+tests/probe_paridad_llamado_inscripciones.mjs  local=66d3d377a955355bdd69015ed77ffa27  servido=66d3d377a955355bdd69015ed77ffa27  MATCH
+tests/README.md                                local=7998bad61712668aeb0648f9b08984f1  servido=7998bad61712668aeb0648f9b08984f1  MATCH
+```
+
+**7/7 MATCH**, incluidos `premios-utils.js` —el helper que es el centro del fix— y los dos probes.
+
+## A3. Los dos probes contra el HTML SERVIDO
+
+Contra los bytes bajados de `sigh.com.ar`, no contra los archivos del repo.
+
+### `probe_bolsa_efectiva.mjs`
+
+```
+PORTAL_HTML=<descarga>/portal.html INSC_HTML=<descarga>/inscripciones.html \
+  UTILS_JS=<descarga>/premios-utils.js node tests/probe_bolsa_efectiva.mjs
+```
+
+```
+
+── Probe · la bolsa mostrada es la EFECTIVA, con piso ──
+   portal=/tmp/claude-1000/-home-clio-dev-SGH/6abfa28c-346e-4061-986e-7da9ea3c41b2/scratchpad/serv3/portal.html
+   insc=/tmp/claude-1000/-home-clio-dev-SGH/6abfa28c-346e-4061-986e-7da9ea3c41b2/scratchpad/serv3/inscripciones.html
+   utils=/tmp/claude-1000/-home-clio-dev-SGH/6abfa28c-346e-4061-986e-7da9ea3c41b2/scratchpad/serv3/premios-utils.js
+ ✅ H1) el helper da los once valores esperados de R9  → T1=1159292 T2=1125167 T3=1217683 T4=1110000 T5=1261667 T6=1185833 T7=1284417 T8=1284417 T9=3333333 T10=1878333 T11=1878333
+ ✅ H2) la efectiva es MAYOR que el nominal donde el piso muerde (10 de 11)  → T1:+105125 T2:+108500 T3:+99350 T4:+110000 T5:+95000 T6:+102500 T7:+92750 T8:+92750 T9:+0 T10:+45000 T11:+45000
+ ✅ H3) Σ de los puestos ≡ total en los once turnos de R9
+ ✅ H3b) …y también con una bolsa que DEJA residuo: el puesto mayor lo absorbe  → bolsa=1000002 · Σround(puestos)=1110001 · round(Σ)=1110002 · residuo=1 · Σ tras absorber=1110002
+ ✅ H4) los bonos NO entran en la bolsa  → con bono_ganador=1159292 · sin=1159292
+ ✅ P0) el llamado renderizó los once turnos del fixture  → filas=11
+ ✅ P1) el chip del portal == lo que da repartoDisplay, en los once turnos  → 11/11
+ ✅ P2) el chip del portal == los once números concretos de R9  → T1=$1.159.292,00 T2=$1.125.167,00 T3=$1.217.683,00 T4=$1.110.000,00 T5=$1.261.667,00 T6=$1.185.833,00 T7=$1.284.417,00 T8=$1.284.417,00 T9=$3.333.333,00 T10=$1.878.333,00 T11=$1.878.333,00
+ ✅ P3) T1 dice $1.159.292,00, NO $1.054.166,67  → chip="$1.159.292,00"
+ ✅ P4) el bloque no muestra ninguna de las once bolsas NOMINALES  → ninguna
+ ✅ I0) onReunionChange trajo los once turnos del fixture  → carreras=11
+ ✅ I1) el chip de inscripciones == repartoDisplay, en los once turnos  → 11/11
+ ✅ I2) el chip de inscripciones == los once números concretos  → 11/11
+ ✅ I3) T1 en inscripciones dice $1.159.292,00  → chip="$1.159.292,00"
+ ✅ E1) las bolsas reales de R9 siguen siendo las de la tabla del probe  → 11 turnos, sin drift
+ ✅ E2) el piso de R9 sigue siendo 100.000 en los once
+ ✅ F1) portal.html carga premios-utils.js
+ ✅ F2) ningún formatARS/formatMonto sobre bolsa_total crudo en código vivo  → portal e inscripciones limpios
+ ✅ T1) teardown: no quedó ninguna reunión 9990  → quedan=0
+
+19/19 OK
+```
+
+**19/19 OK.** Los tres archivos que usa el probe —portal, inscripciones y el helper— son los
+servidos.
+
+### `probe_paridad_llamado_inscripciones.mjs`
+
+```
+PORTAL_HTML=<descarga>/portal.html INSC_HTML=<descarga>/inscripciones.html \
+  node tests/probe_paridad_llamado_inscripciones.mjs
+```
+
+**48/48 OK.** Los asserts que antes no servían para nada, ahora contra el código servido:
+
+```
+✅ P6) el chip de bolsa del llamado == repartoDisplay, NO el nominal
+   → chip=… 💰 $1.159.292,00 … · esperado=$1.159.292,00 · nominal(prohibido)=$1.054.166,67
+✅ Q6) el chip de bolsa de inscripciones == repartoDisplay, NO el nominal
+   → chip=… 💰 $1.159.292,00 … · esperado=$1.159.292,00
+✅ D1) los ocho campos aparecen en LAS DOS pantallas  → 8/8
+✅ D4) la bolsa se formatea igual en las dos  → portal="$1.159.292,00" · inscripciones="$1.159.292,00"
+✅ D5) las dos coinciden CON EL ORÁCULO, no sólo entre sí
+   → oráculo=$1.159.292,00 (nominal $1.054.166,67 no debe aparecer)
+```
+
+`D5` es el assert que no existía cuando el bug pasó: **el que exige el valor del oráculo aunque
+las dos pantallas coincidan.**
+
+## A4. Punta a punta contra R9 REAL
+
+El probe usa fixture. Además se corrió el `loadLlamado()` del `portal.html` **servido** contra la
+base de producción, para ver qué le llega hoy al entrenador en los once turnos de R9:
+
+```
+reunión pública 8 (interna 9) encontrada en el llamado: true
+turnos renderizados: 1,2,3,4,5,6,7,8,9,10,11 (11)
+chips de cierre distintos: [ 'cierra 11/9 12:00 hs' ]
+total chips de cierre: 11
+TODOS dicen "cierra 11/9 12:00 hs": true
+ningún "a. m.": true
+ningún "hs" duplicado: true
+
+bolsas renderizadas por turno:
+  T1: $1.159.292,00   esperado $1.159.292,00   OK
+  T2: $1.125.167,00   esperado $1.125.167,00   OK
+  T3: $1.217.683,00   esperado $1.217.683,00   OK
+  T4: $1.110.000,00   esperado $1.110.000,00   OK
+  T5: $1.261.667,00   esperado $1.261.667,00   OK
+  T6: $1.185.833,00   esperado $1.185.833,00   OK
+  T7: $1.284.417,00   esperado $1.284.417,00   OK
+  T8: $1.284.417,00   esperado $1.284.417,00   OK
+  T9: $3.333.333,00   esperado $3.333.333,00   OK
+  T10: $1.878.333,00   esperado $1.878.333,00   OK
+  T11: $1.878.333,00   esperado $1.878.333,00   OK
+TODAS coinciden con la efectiva: true
+ninguna bolsa NOMINAL en el bloque: true
+```
+
+**Los once turnos muestran la bolsa efectiva.** Ninguna nominal aparece en el bloque. Y de paso
+queda re-verificado el trabajo de hora de esta madrugada: `cierra 11/9 12:00 hs` en los once, sin
+`a. m.` y sin `hs` duplicado.
+
+Comparación con lo que veía Fede esta tarde:
+
+| T | Antes (nominal) | **Ahora (efectiva)** | Δ |
+|---|---|---|---|
+| 1 | $1.054.166,67 | **$1.159.292,00** | +$105.125 |
+| 2 | $1.016.666,67 | **$1.125.167,00** | +$108.500 |
+| 3 | $1.118.333,33 | **$1.217.683,00** | +$99.350 |
+| 4 | $1.000.000,00 | **$1.110.000,00** | +$110.000 |
+| 5 | $1.166.666,67 | **$1.261.667,00** | +$95.000 |
+| 6 | $1.083.333,33 | **$1.185.833,00** | +$102.500 |
+| 7 | $1.191.666,67 | **$1.284.417,00** | +$92.750 |
+| 8 | $1.191.666,67 | **$1.284.417,00** | +$92.750 |
+| 9 | $3.333.333,33 | **$3.333.333,00** | +$0 |
+| 10 | $1.833.333,33 | **$1.878.333,00** | +$45.000 |
+| 11 | $1.833.333,33 | **$1.878.333,00** | +$45.000 |
+
+El portal y la carta ahora dicen el mismo número.
+
+## A5. GOTCHA #93 y #94
+
+### #93 — Un probe de PARIDAD no verifica corrección, sólo consistencia
+
+> **Si las dos están mal, da verde.** El probe de paridad llamado↔inscripciones comparaba el chip
+> de una contra el chip de la otra. Las dos mostraban `bolsa_total` crudo, coincidían
+> perfectamente, y cerró **47/47 con 11 mutantes muertos** mientras el número era el equivocado.
+> Peor: el chip de inscripciones se escribió **copiando** el del portal guiado por ese mismo
+> criterio de paridad — **el probe no sólo no detectó el bug, ayudó a propagarlo.**
+
+La regla que queda: **un assert de paridad necesita un tercer punto de apoyo.** Para todo campo
+que sea un valor **calculado**, el esperado sale del helper que lo calcula, cargado aparte como
+oráculo, no de la otra pantalla. La paridad sigue siendo útil —es lo que el pedido pedía— pero es
+un assert de *consistencia*, no de *corrección*: hacen falta los dos.
+
+Cómo se detecta: **preguntarle al assert de qué se enteraría si el código estuviera mal.** Si la
+respuesta es "de nada, porque los dos lados usan el mismo supuesto", es decoración. Misma familia
+que el GOTCHA #92 §"el assert de ida y vuelta tiene que ir contra la BASE": allá el round-trip en
+memoria *confirmaba* el bug de zona en vez de detectarlo.
+
+Y el corolario: **dos oráculos, no uno.** En el probe nuevo el esperado se verifica contra el
+helper cargado aparte **y** contra los once números escritos a mano, porque:
+
+| Comparando sólo contra… | No detecta… |
+|---|---|
+| el helper | que el **helper** esté roto — el chip lo sigue y coinciden |
+| la tabla | que el chip haya **dejado de usar** el helper |
+
+El mutation testing lo demostró: el mutante que le saca el piso a `calcPremiosConPiso` **sobrevive**
+a los asserts chip-vs-helper y sólo lo matan los que van contra la tabla.
+
+### #94 — Un assert de redondeo no prueba nada si el fixture no deja residuo
+
+El assert de `Σ puestos ≡ total` existía y estaba bien escrito, pero **el mutante que borra la
+línea de absorción sobrevivía**: con las once bolsas reales de R9 el redondeo **da justo** y no hay
+residuo que absorber. El assert medía una identidad que se cumplía sola.
+
+> **El fixture tiene que incluir el caso que el assert dice medir.** Copiar datos de producción da
+> realismo y **quita** cobertura de bordes: los datos reales son, por definición, el caso típico.
+> Para cada assert que habla de un borde —residuo, empate, cero, el piso que muerde— hay que
+> **construir** el dato que lo dispara, aunque no exista en la base.
+
+Se agregó `H3b` con una bolsa buscada a propósito (1.000.002, residuo +1). **Y el mutation testing
+es lo que lo delata:** un mutante que sobrevive sobre un assert que "claramente cubre eso" casi
+siempre significa que el fixture no llega al caso — después de descartar las tres causas de arnés
+del GOTCHA #90.
+
+Conteo en `CLAUDE.md`: 92 → 94.
+
+## A6. Estado final
+
+| Ref | SHA |
+|---|---|
+| `origin/main` | `8dafe0943cc2d9072dbed814d71c9a49286797e3` |
+| merge del fix | `b3ef4fc` |
+| GOTCHAs #93 y #94 | `8dafe09` |
+| `origin/fix/bolsa-efectiva-portal` | `72f3b50` (mergeada; la rama queda) |
+
+| Verificación | Resultado |
+|---|---|
+| MD5 local vs. `sigh.com.ar` | **7/7 MATCH** |
+| `probe_bolsa_efectiva` contra el servido | **19/19 OK** |
+| `probe_paridad` contra el servido | **48/48 OK** |
+| Punta a punta contra R9 real | **11/11 turnos con la efectiva**, ninguna nominal |
+| Mutantes (repo) | bolsa **8/8**, paridad **13/13** |
+
+Sigue abierto del §8: el OK de Yesi sobre la regla v2, los bonos que el entrenador todavía no ve
+en el portal, y que la carta impresa de R9 —si se repartió— ya decía la efectiva mientras el
+portal decía el nominal.
+
+## A7. Verificación final en `origin`
+
