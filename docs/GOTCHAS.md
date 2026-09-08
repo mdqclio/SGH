@@ -1184,3 +1184,111 @@ Tres de tres veces el "sobreviviente" era instrumentación. La conclusión no es
 sirvan: es que **la salida de un mutante que sobrevive es una pregunta, no una respuesta**.
 
 Relacionado: GOTCHA #82, GOTCHA #84. Probes: `tests/probe_solicitar_falta_paso.mjs`.
+
+---
+
+## 91. `toLocaleTimeString('es-AR', {hour:'2-digit'})` da "09:00 a. m." — y depende del ICU del navegador (2026-09-08)
+
+El chip de cierre del llamado abierto imprimía **`cierra 11/9 09:00 a. m. hs`**. Lo marcó Fede.
+
+El código era éste (`portal.html`, antes del merge `1676bf7`):
+
+```javascript
+function fechaHora(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
+    + ' ' + d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) + ' hs';
+}
+```
+
+Reproducción:
+
+```
+$ node -e "
+process.env.TZ='America/Argentina/Buenos_Aires';
+const d = new Date('2026-09-11T12:00:00Z');
+console.log(JSON.stringify(d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})));
+console.log('icu', process.versions.icu);
+"
+"09:00 a. m."
+icu 78.2
+```
+
+`es-AR` **no es un locale de 24 horas** para el ICU actual: su `hourCycle` por defecto es `h12`.
+Como el código le concatenaba `' hs'`, salían las dos notaciones mezcladas **y la unidad
+repetida**.
+
+### Lo importante no es el "a. m." — es que el resultado no es estable
+
+`hourCycle` por locale es dato del CLDR, y **cada versión de ICU trae su CLDR**. El navegador
+lleva su propio ICU: Chrome 120 y Chrome 138 no tienen por qué coincidir, y un Firefox viejo
+tampoco. O sea: **el mismo código puede verse distinto en máquinas distintas**, y el que reporta
+el bug puede estar viendo algo que en la máquina del que lo arregla no aparece. Ese es el modo de
+falla peligroso, no el "a. m." en sí.
+
+Vale igual para `toLocaleDateString`: el mismo `{day:'2-digit',month:'2-digit'}` en `es-AR`
+devuelve `"11/9"` (día con dos dígitos, mes sin rellenar) — un formato que nadie eligió, que sale
+del CLDR, y que puede cambiar sin que cambie una línea del repo.
+
+### La regla
+
+**Para horas en 24 h: formateo explícito, no `toLocale*`.**
+
+```javascript
+// bien — 24 h siempre, sin depender del locale ni del ICU
+const p2 = (n) => String(n).padStart(2, '0');
+return `${d.getDate()}/${d.getMonth() + 1} ${p2(d.getHours())}:${p2(d.getMinutes())} hs`;
+```
+
+`getHours()`/`getMinutes()` ya vienen en la zona del browser, así que no se pierde la conversión
+de `timestamptz` → hora local. Lo único que se saca de la ecuación es el CLDR.
+
+Cuando el `toLocale*` ya está y reescribirlo no vale la pena, el mínimo es **`hour12: false`
+explícito** — nunca confiar en el default del locale. Verificado que no cae en el caso `"24:00"`
+a medianoche:
+
+```
+$ node -e "..."   # 2099-05-02T03:00:00Z = 00:00 AR
+00:00 AR toLocaleString es-AR + hour12:false → "11/9, 00:00"
+00:00 AR formateo a mano                     → "11/9 00:00 hs"
+```
+
+Es el mismo principio que la convención de `formatARS()`/`parseARS()` para dinero (CLAUDE.md §
+Dinero): **el locale del browser no es una API estable, es una preferencia del usuario que además
+cambia con la versión**.
+
+### Corolario del barrido: el que se reporta es uno, los que están son ocho
+
+Sólo `portal.html` **duplicaba la unidad**, y por eso fue el único que alguien reportó. Pero el
+defecto de notación estaba en **ocho líneas de cinco archivos**:
+
+| Archivo | Línea | Qué imprimía |
+|---|---|---|
+| `portal.html` | 409 | `fechaHora()` — el único con `" hs"` duplicado. 2 usos: el chip del llamado y el modal de anotar |
+| `auditoria.html` | 263 | `formatTs()` — el timestamp de cada fila del log |
+| `solicitudes.html` | 156 | `fecha()` — la fecha de cada solicitud |
+| `resultados.html` | 1601 | `setStatus()` — la hora del último guardado |
+| `liquidaciones.html` | 1518 | hora del último recibo emitido |
+| `liquidaciones.html` | 1785 | historial de recibos |
+| `liquidaciones.html` | 1854 | aviso de **recibo anulado** — lo ve el propietario |
+| `liquidaciones.html` | 1864 | **recibo impreso** — lo ve el propietario |
+
+Dos de ellas salen en documentos que se le entregan a un tercero. **Nadie las reportó porque
+"09:00 a. m." leído solo no parece un bug**: parece una decisión. Sólo se ve cuando alguien le
+concatena la unidad al lado.
+
+**Al arreglar un bug de formato, grepear el defecto —no el síntoma.** El síntoma acá era `" hs"`
+pegado a un `"a. m."`; el defecto era `toLocale*` con la hora. Grepear el síntoma habría
+devuelto una línea.
+
+### Y el grep hay que correrlo contra `main`
+
+El primer barrido de este mismo bug se corrió parado en `reports` y **no vio los cuatro de
+`liquidaciones.html`**: en esa rama el archivo es una foto vieja. El grep devolvió cero y parecía
+cero. Es exactamente el caso de CLAUDE.md § Protocolo de informes — pasó de nuevo, en la misma
+sesión que lo documenta.
+
+Relacionado: GOTCHA #75 (guards que son fotos de su fecha). Probe:
+`tests/probe_paridad_llamado_inscripciones.mjs` (asserts H1-H7, mutantes M1-M3).
+Informe: `docs/diagnosticos/2026-09-08_paridad-llamado-inscripciones-y-formato-hora.md`
+(rama `reports`).
