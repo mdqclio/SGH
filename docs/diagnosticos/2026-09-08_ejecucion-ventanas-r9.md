@@ -335,3 +335,16 @@ $ git ls-remote origin fix/carta-llamados-hora-local     # sin mergear
 $ git ls-remote origin fix/hora-ventanas-r9              # sin mergear
 5ed5504c0701687e1b6d41d074012ae4da6eabdc	refs/heads/fix/hora-ventanas-r9
 ```
+
+### 8.1 SHA final
+
+```
+$ git ls-remote origin reports
+839f684abd687f06d54db1ac6ea0ac81f22f9e99	refs/heads/reports
+$ git rev-parse HEAD
+839f684abd687f06d54db1ac6ea0ac81f22f9e99
+$ git ls-remote origin main
+776a17b8423e184994a5db7e6836eaab85cc98ea	refs/heads/main
+```
+
+Los refs verificados en `origin`.
