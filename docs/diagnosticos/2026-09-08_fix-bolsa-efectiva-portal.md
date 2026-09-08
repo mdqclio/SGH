@@ -729,3 +729,16 @@ portal decía el nominal.
 
 ## A7. Verificación final en `origin`
 
+
+```
+$ git ls-remote origin reports
+8344e9eca9e104c53c654b8bac2e8a1d820e5d47	refs/heads/reports
+$ git rev-parse HEAD
+8344e9eca9e104c53c654b8bac2e8a1d820e5d47
+$ git ls-remote origin main
+8dafe0943cc2d9072dbed814d71c9a49286797e3	refs/heads/main
+$ git ls-remote origin fix/bolsa-efectiva-portal
+72f3b509c5cc4016952b99b6cf4ac6fb75c078c6	refs/heads/fix/bolsa-efectiva-portal
+```
+
+Los tres refs verificados en `origin`.
