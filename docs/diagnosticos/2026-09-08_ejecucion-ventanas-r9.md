@@ -578,3 +578,18 @@ impresa si se repartió con 09:00, avisarle o no a los tres anotados, ISSUE-074,
 
 ## A7. Verificación final en `origin`
 
+
+```
+$ git ls-remote origin reports
+ccb703d1d3f0a578598c5548d82903441fa5b45f	refs/heads/reports
+$ git rev-parse HEAD
+ccb703d1d3f0a578598c5548d82903441fa5b45f
+$ git ls-remote origin main
+2bb5d0c9ef3e7738df66cf19c649a93d6aba3f5d	refs/heads/main
+$ git ls-remote origin fix/carta-llamados-hora-local
+71a5995a796f4e2c5234dab8e47713c9cba075c0	refs/heads/fix/carta-llamados-hora-local
+$ git ls-remote origin fix/hora-ventanas-r9
+5ed5504c0701687e1b6d41d074012ae4da6eabdc	refs/heads/fix/hora-ventanas-r9
+```
+
+Los cuatro refs verificados en `origin`.
