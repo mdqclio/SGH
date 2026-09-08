@@ -459,7 +459,7 @@ salidas de queries, `git status`, `git log`, los diffs, y cualquier cosa pedida 
 17. **`signUp` no da error si el correo ya tiene cuenta confirmada** — GoTrue responde 200 con un
     user obfuscado y no manda mail (anti-enumeración). Mirar `identities.length === 0`, no `error`.
 
-Ver `docs/GOTCHAS.md` para la lista completa (91 entradas).
+Ver `docs/GOTCHAS.md` para la lista completa (92 entradas).
 
 ---
 

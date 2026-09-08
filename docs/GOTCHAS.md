@@ -1292,3 +1292,117 @@ Relacionado: GOTCHA #75 (guards que son fotos de su fecha). Probe:
 `tests/probe_paridad_llamado_inscripciones.mjs` (asserts H1-H7, mutantes M1-M3).
 Informe: `docs/diagnosticos/2026-09-08_paridad-llamado-inscripciones-y-formato-hora.md`
 (rama `reports`).
+
+---
+
+## 92. `datetime-local` es hora local SIN zona — cortar un ISO con `.slice(0,16)` muestra una hora y guarda otra (2026-09-08)
+
+Las cuatro ventanas de `carta-llamados.html` (`apertura_inscripcion`, `cierre_inscripcion`,
+`apertura_ratificacion`, `cierre_ratificacion`) son `timestamptz`. PostgREST las devuelve con
+offset:
+
+```
+"2026-09-11T12:00:00+00:00"
+```
+
+El input es `<input type="datetime-local">`, que trabaja en **hora local, sin zona**. El código
+hacía:
+
+```javascript
+// leer
+document.getElementById('f-ci-insc').value = rec.cierre_inscripcion.slice(0,16);
+// escribir
+cierre_inscripcion: document.getElementById('f-ci-insc').value || null,
+```
+
+`"2026-09-11T12:00:00+00:00".slice(0,16)` = `"2026-09-11T12:00"`. **Se queda con la hora UTC y le
+arranca la zona.** El `.slice` no convierte nada: recorta texto.
+
+Resultado: la pantalla muestra **12:00** —que en Argentina son las **09:00**— y al guardar manda
+`"2026-09-11T12:00"` sin zona, que Postgres toma como UTC → `12:00+00` = otra vez **09:00 AR**.
+**La pantalla muestra una hora y guarda otra, tres horas antes.**
+
+### Lo peor: el error se acumula por vuelta
+
+Como lectura y escritura tienen el mismo defecto, **abrir un turno y darle Guardar sin tocar nada
+corría las cuatro fechas otras −3 h**. Mirar un dato lo corrompía. Los cuatro campos de R9
+quedaron corridos exactamente −3 h: no fueron cuatro errores de carga, fue este bug cuatro veces.
+Yesi cargó bien.
+
+### La regla
+
+**Para un `timestamptz` en un `datetime-local` hace falta conversión EXPLÍCITA en las dos
+direcciones.** No hay atajo de string que funcione.
+
+```javascript
+// timestamptz → value del input. get*() sin UTC son todos hora local:
+// ahí está la conversión que el .slice no hacía.
+function isoAInputLocal(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const p2 = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`
+       + `T${p2(d.getHours())}:${p2(d.getMinutes())}`;
+}
+
+// value del input → ISO con offset explícito.
+function inputLocalAISO(val) {
+  if (!val) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(val);
+  if (!m) return null;
+  const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], 0, 0);  // componentes = hora local
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+```
+
+El `Date` de escritura se arma **por componentes** a propósito: `new Date(y, m, d, h, mi)` es hora
+local por definición del lenguaje. Pasarle el string (`new Date("2026-09-11T12:00")`) también da
+lo correcto en los motores actuales, pero depende de una regla de parseo que **ya cambió una vez**.
+Misma lección que el GOTCHA #91: no delegar en el runtime lo que se puede escribir explícito.
+
+### El assert que lo prueba: abrir y guardar sin editar
+
+**Ninguna cuenta de horas prueba esto. Lo prueba la ida y vuelta:** leer de la base → llenar el
+modal → guardar sin tocar nada → releer. **El instante tiene que quedar idéntico.** Y correrlo
+**dos veces seguidas**, porque el error se acumula por vuelta y una sola pasa desapercibida.
+
+Es el bloque R1-R6 de `tests/probe_carta_hora_local.mjs`, que corre el `openModal` y el
+`saveRecord` reales contra la base.
+
+### Y el assert de ida y vuelta tiene que ir contra la BASE, no en memoria
+
+El mutante M7 (que `inputLocalAISO` devuelva el value pelado) **no mataba** el assert que comparaba
+instantes con `new Date(...).getTime()`: JS reparsea `"2026-09-11T12:00"` como hora local y da el
+mismo número. **Las dos puntas del round-trip usaban las mismas reglas de parseo, así que el test
+confirmaba el bug en vez de detectarlo.**
+
+Lo que sí lo mata es **Postgres**, que toma el string sin zona como UTC. Regla general:
+
+> **En un bug de zona, un round-trip en memoria puede confirmarlo en vez de detectarlo. El assert
+> que decide es el que cruza el límite del sistema.**
+
+(Se agregó además un assert de cliente que exige que la cadena devuelta lleve zona explícita —
+`Z` u offset— para cerrar el hueco también de este lado.)
+
+### Dónde más mirar
+
+En este repo **son los únicos cuatro `datetime-local`**, todos en `carta-llamados.html`:
+
+```
+$ grep -rn 'type="datetime-local"' --include=*.html . | grep -v node_modules
+carta-llamados.html:420  f-ap-insc
+carta-llamados.html:424  f-ci-insc
+carta-llamados.html:428  f-ap-rat
+carta-llamados.html:432  f-ci-rat
+```
+
+Ojo con el vecino: **`hora_estimada` es `time without time zone`** y va cruda, sin conversión —
+una columna sin zona en un input sin zona no necesita nada. La conversión es sólo para
+`timestamptz`.
+
+Relacionado: GOTCHA #91 (`toLocaleTimeString` y el ICU — el otro bug de hora del mismo día).
+Fix: merge `5d108ab`. Probe: `tests/probe_carta_hora_local.mjs` (22 asserts, 8 mutantes).
+Informes: `docs/diagnosticos/2026-09-08_fix-carta-llamados-hora-local.md`,
+`docs/diagnosticos/2026-09-08_ejecucion-ventanas-r9.md`. Issue derivado: ISSUE-074.
