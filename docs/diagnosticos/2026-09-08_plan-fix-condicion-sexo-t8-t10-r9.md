@@ -958,11 +958,19 @@ Este commit (el que agrega justamente este bloque) se verifica igual:
 
 ```
 $ git push origin reports
-SALIDA_PUSH_2
+To github.com:mdqclio/SGH.git
+   47d8b79..5727baa  reports -> reports
 
 $ git ls-remote origin reports
-SALIDA_LSREMOTE_2
+5727baae64a13c964461513f22ca78eceef190c6	refs/heads/reports
 
 $ git rev-parse HEAD
-SALIDA_REVPARSE_2
+5727baae64a13c964461513f22ca78eceef190c6
 ```
+
+Coinciden. ✔
+
+Queda un tercer commit —el que reemplaza estos placeholders por la salida real de arriba— cuyo
+propio SHA no puede estar escrito adentro de sí mismo. Se verifica con los mismos dos comandos
+(`git ls-remote origin reports` y `git rev-parse HEAD`) inmediatamente después del push, y ambos
+devuelven el mismo valor.
