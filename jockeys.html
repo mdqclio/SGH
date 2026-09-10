@@ -83,6 +83,17 @@
     textarea { resize: vertical; min-height: 70px; }
     select option { background: #1a3d26; }
     .section-divider { grid-column: 1/-1; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; padding-top: 8px; border-top: 1px solid var(--border); margin-top: 4px; }
+    .field-hint { font-size: 11.5px; color: var(--muted); line-height: 1.4; }
+    /* Aviso de fichas parecidas. Informa, no bloquea: en este padrón compartir apellido es normal. */
+    #dup-aviso { grid-column: 1/-1; display: grid; gap: 8px; }
+    #dup-aviso:empty { display: none; }
+    .dup-aviso { border-radius: 9px; padding: 10px 12px; font-size: 12.5px; line-height: 1.5; }
+    .dup-aviso.fuerte { border: 1px solid rgba(224,82,82,0.45); background: rgba(224,82,82,0.10); }
+    .dup-aviso.suave  { border: 1px solid var(--border); background: rgba(0,0,0,0.18); color: var(--muted); }
+    .dup-aviso-tit { font-weight: 600; margin-bottom: 6px; }
+    .dup-aviso.fuerte .dup-aviso-tit { color: var(--danger); }
+    .dup-row { padding: 3px 0; }
+    .dup-row .dup-dni { color: var(--muted); }
     .modal-footer { padding: 16px 24px 24px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
     .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; transition: all 0.2s; }
     .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
@@ -161,7 +172,7 @@
           </div>
           <div class="form-group">
             <label>Apellido *</label>
-            <input type="text" id="f-apellido" required placeholder="Apellido(s)">
+            <input type="text" id="f-apellido" required placeholder="Apellido(s)" onblur="dupRefrescar()">
           </div>
           <div class="form-group">
             <label>Tipo documento</label>
@@ -173,7 +184,7 @@
           </div>
           <div class="form-group">
             <label>N° documento</label>
-            <input type="text" id="f-doc-nro" inputmode="numeric" onblur="this.value = formatDNI(this.value)">
+            <input type="text" id="f-doc-nro" inputmode="numeric" onblur="this.value = formatDNI(this.value); dupRefrescar()">
           </div>
           <div class="form-group">
             <label>Fecha nacimiento</label>
@@ -195,6 +206,22 @@
               <option value="baja">Dado de baja</option>
             </select>
           </div>
+          <!-- Entrenadores y jockeys son la MISMA tabla `profesionales`, separada por esta
+               columna. Antes el tipo estaba fijo en el código de cada pantalla y no había forma
+               de crear un 'ambos' desde ningún lado: hay 1 en la base y entró por importación. -->
+          <div class="form-group">
+            <label>Rol en el hipódromo *</label>
+            <select id="f-tipo">
+              <option value="jockey">Jockey</option>
+              <option value="entrenador">Entrenador</option>
+              <option value="ambos">Entrenador y jockey</option>
+            </select>
+            <span class="field-hint">Define en qué listado aparece la ficha. «Entrenador y jockey» la muestra en los dos.</span>
+          </div>
+
+          <!-- Fichas parecidas. Se llena al salir de Apellido o de N° documento, sólo en un alta
+               nueva, y nunca impide guardar: ver profesionales-duplicados.js. -->
+          <div id="dup-aviso"></div>
 
           <div class="section-divider">Licencia de Jockey</div>
           <div class="form-group">
@@ -231,12 +258,19 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="profesionales-duplicados.js"></script>
 <script>
 let sb, CLUB_ID, currentUser;
 async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
 let allData = [];
+
+// `profesionales` es UNA sola tabla; el ENUM `tipo_profesional` (jockey / entrenador / ambos) es
+// lo único que separa esta pantalla de profesionales.html. Estos dos valores son la identidad de
+// la pantalla: con qué tipo nace un alta, y qué tipos lista.
+const TIPO_DEFAULT   = 'jockey';
+const TIPOS_PANTALLA = ['jockey', 'ambos'];
 
 // Escapa datos tipeados por el usuario antes de interpolarlos en innerHTML (anti-XSS).
 function escapeHtml(s) {
@@ -341,6 +375,65 @@ function cardHTML(r) {
   </div>`;
 }
 
+// ══════════ Aviso de fichas parecidas (ver profesionales-duplicados.js) ══════════
+// `profesionales` no tiene índice único por documento —a diferencia de `propietarios`—, así que
+// nada en la base frena un alta repetida. Esto avisa; NO bloquea: en el padrón de Dolores
+// compartir apellido es lo normal (hay 5 DIESTRA y 5 GONZALEZ, todas personas distintas), y un
+// corte duro se volvería ruido que se aprende a saltear.
+function dupLimpiar() {
+  const c = document.getElementById('dup-aviso');
+  if (c) c.innerHTML = '';
+}
+
+function dupFilaHTML(f) {
+  const tipo = f.tipo === 'ambos' ? 'entrenador y jockey' : (f.tipo || '');
+  const doc  = f.documento_nro
+    ? `${escapeHtml(f.documento_tipo || 'DNI')} ${escapeHtml(formatDNI(f.documento_nro))}`
+    : 'sin documento cargado';
+  const est  = (f.estado || 'activo') === 'activo' ? '' : ` · ${escapeHtml(f.estado)}`;
+  return `<div class="dup-row">· ${escapeHtml(f.apellido || '')}, ${escapeHtml(f.nombre || '')}`
+    + ` <span class="dup-dni">— ${doc} · ${escapeHtml(tipo)}${est}</span></div>`;
+}
+
+function dupHTML(r) {
+  let h = '';
+  if (r.porDocumento.length) {
+    h += `<div class="dup-aviso fuerte">`
+      + `<div class="dup-aviso-tit">⚠ Ya hay una ficha con ese documento en este hipódromo</div>`
+      + r.porDocumento.map(dupFilaHTML).join('')
+      + `<div style="margin-top:6px">Si es la misma persona, cerrá y editá esa ficha en vez de crear otra.</div></div>`;
+  }
+  if (r.porApellido.length) {
+    h += `<div class="dup-aviso suave">`
+      + `<div class="dup-aviso-tit">${r.porApellido.length} ficha(s) con un apellido parecido</div>`
+      + r.porApellido.map(dupFilaHTML).join('')
+      + `<div style="margin-top:6px">Compartir apellido acá es normal: comparalas por documento antes de decidir. Esto no impide guardar.</div></div>`;
+  }
+  return h;
+}
+
+async function dupRefrescar() {
+  const cont = document.getElementById('dup-aviso');
+  if (!cont) return;
+  // Sólo en un alta nueva. Al editar, el "parecido" más obvio sería la propia ficha.
+  if (document.getElementById('f-id').value) { cont.innerHTML = ''; return; }
+  let r;
+  try {
+    r = await buscarProfesionalesParecidos(sb, {
+      clubId: CLUB_ID,
+      apellido: document.getElementById('f-apellido').value,
+      nombre: document.getElementById('f-nombre').value,
+      documentoNro: document.getElementById('f-doc-nro').value,
+    });
+  } catch (err) {
+    // El aviso es una ayuda: si la consulta falla, el alta tiene que seguir siendo posible.
+    console.error('[dupRefrescar]', err);
+    cont.innerHTML = '';
+    return;
+  }
+  cont.innerHTML = r.consultado ? dupHTML(r) : '';
+}
+
 function openModal(rec = null) {
   document.getElementById('modal-title').textContent = rec ? 'Editar Jockey' : 'Nuevo Jockey';
   document.getElementById('f-id').value = rec?.id || '';
@@ -353,10 +446,14 @@ function openModal(rec = null) {
   document.getElementById('f-email').value = rec?.email || '';
   document.getElementById('f-estado').value = rec?.estado || 'activo';
   document.getElementById('f-estado-original').value = rec?.estado || 'activo';
+  // En un alta el default es el tipo de ESTA pantalla; al editar se precarga el tipo real de la
+  // ficha, así un 'ambos' sigue llegando como 'ambos' al payload y no se degrada solo.
+  document.getElementById('f-tipo').value = rec?.tipo || TIPO_DEFAULT;
   document.getElementById('f-matricula').value = rec?.matricula_nro || '';
   document.getElementById('f-categoria').value = rec?.categoria_jockey || '';
   document.getElementById('f-hipodromo-patente').value = rec?.hipodromo_patente || '';
   document.getElementById('f-notas').value = rec?.notas || '';
+  dupLimpiar();
   document.getElementById('modal').classList.add('open');
 }
 
@@ -378,12 +475,13 @@ async function saveRecord(e) {
       btn.disabled = false; btn.textContent = 'Guardar'; return;
     }
   }
-  // Un 'ambos' ahora aparece en esta lista: al editarlo NO hay que degradarlo
-  // a 'jockey' — perdería la mitad de entrenador.
-  const prev = id ? (allData || []).find(r => r.id === id) : null;
+  // El tipo lo elige el usuario en #f-tipo. Antes estaba fijo en el código
+  // (`prev?.tipo === 'ambos' ? 'ambos' : 'jockey'`): preservaba un 'ambos' existente, pero no
+  // dejaba crear uno ni corregir una ficha mal tipada desde acá. Es la misma tabla que
+  // entrenadores, y ésta era la pantalla desde la que se creaba un entrenador por error.
   const payload = {
     club_id: CLUB_ID,
-    tipo: prev?.tipo === 'ambos' ? 'ambos' : 'jockey',
+    tipo: document.getElementById('f-tipo').value,
     nombre: document.getElementById('f-nombre').value.trim(),
     apellido: document.getElementById('f-apellido').value.trim(),
     documento_tipo: document.getElementById('f-doc-tipo').value,
@@ -398,20 +496,40 @@ async function saveRecord(e) {
     hipodromo_patente: document.getElementById('f-hipodromo-patente').value.trim() || null,
     notas: document.getElementById('f-notas').value.trim() || null,
   };
-  const { error } = id
-    ? await sb.from('profesionales').update(payload).eq('id', id)
+  // ISSUE-073 — el UPDATE va acotado por club ADEMÁS de por id, igual que propietarios.html:450.
+  // Con `club_id` en el payload, un update por id sobre una ficha ajena no la editaría: la
+  // MOVERÍA de hipódromo. El .eq lo convierte en un no-op de 0 filas. Desde la UI ya no es
+  // alcanzable —load() filtra por club—, pero `profesionales_update` es `fn_is_staff()` sin
+  // condición de club, así que por API seguía abierto.
+  // El .select('id') es imprescindible: PostgREST NO devuelve error cuando un UPDATE no matchea
+  // ninguna fila, devuelve `error: null`.
+  const { data: filasUpd, error } = id
+    ? await sb.from('profesionales').update(payload).eq('id', id).eq('club_id', CLUB_ID).select('id')
     : await sb.from('profesionales').insert(payload);
   btn.disabled = false; btn.textContent = 'Guardar';
   if (error) { toast(error.message, 'error'); return; }
+  if (id && (!filasUpd || filasUpd.length === 0)) {
+    toast('No se pudo actualizar: la ficha no pertenece a este hipódromo.', 'error'); return;
+  }
   toast(id ? 'Jockey actualizado' : 'Jockey creado');
+  // Si el tipo elegido la saca de este listado, decirlo — si no, parece que se perdió.
+  if (!TIPOS_PANTALLA.includes(payload.tipo)) {
+    toast('Quedó como Entrenador: la vas a encontrar en la pantalla de Entrenadores.');
+  }
   closeModal();
   load();
 }
 
 async function deleteRecord(id, nombre) {
   if (!confirm(`¿Eliminar a "${nombre}"?`)) return;
-  const { error } = await sb.from('profesionales').delete().eq('id', id);
+  // `profesionales_delete` es `fn_is_super_admin()`. Sin contar filas, un DELETE bloqueado por
+  // RLS vuelve con `error: null` y 0 filas, y la pantalla cantaría "eliminado" sobre nada.
+  const { data: filasDel, error } = await sb.from('profesionales').delete()
+    .eq('id', id).eq('club_id', CLUB_ID).select('id');
   if (error) { toast(error.message, 'error'); return; }
+  if (!filasDel || filasDel.length === 0) {
+    toast('No se pudo eliminar: hace falta permiso de super_admin.', 'error'); return;
+  }
   toast('Jockey eliminado');
   load();
 }

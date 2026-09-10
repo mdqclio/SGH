@@ -53,6 +53,7 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 ├── partidor-colors.js           Colores SBARG para chips de mandil
 ├── renumerar-chapas.js          renumerarChapas(inscripciones) → {id → 1..N}
 ├── premios-utils.js             Utilitarios de liquidación de premios
+├── profesionales-duplicados.js  Aviso de fichas parecidas en el alta de entrenadores/jockeys
 ├── supabase.js                  createClient centralizado
 │
 ├── SCHEMA.md                    Schema de DB documentado (fuente de verdad)
@@ -334,6 +335,7 @@ node tests/probe_reunion_es_prueba.mjs    # ISSUE-055: reuniones.es_prueba fuera
 node tests/probe_solicitar_cuenta_existente.mjs   # ISSUE-069 — A DEMANDA: manda 2 mails que rebotan
 node tests/probe_solicitar_falta_paso.mjs         # ISSUE-070 — pantalla "Ya casi"; sin red, no manda nada
 node tests/probe_club_id_alta_propietarios.mjs     # ISSUE-072 — alta con club_id + listado por club; ESCRIBE, teardown verificado
+node tests/probe_alta_entrenador_operador.mjs      # ISSUE-078/073/079 — operador ve "+ Nuevo Entrenador", tipo elegible, UPDATE/DELETE por club; ESCRIBE, teardown verificado
 ```
 
 **El patrón es código real sin browser.** Chromium no corre en este Ubuntu (`"Playwright does not support chromium on ubuntu26.04-x64"` — ver `docs/SERVER.md`), así que el probe **extrae del propio HTML** la función o el bloque a probar —por ancla, con balance de llaves—, lo corre con `new AsyncFunction(...)` inyectando dependencias reales (cliente Supabase con `SUPABASE_SECRET_KEY`, más stubs de DOM si hacen falta) y assertea contra la base. Nunca reimplementar la lógica dentro del test: si el archivo cambia, el probe corre el archivo cambiado. Para lo que escribe: **snapshot → run → assert → restore** en el `finally`.
