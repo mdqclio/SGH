@@ -507,4 +507,18 @@ Un párrafo, para copiar:
 
 ## Verificación de push a `origin`
 
-(se completa abajo, después del primer push)
+```bash
+git push origin reports
+git ls-remote origin reports
+git rev-parse HEAD
+```
+```
+To github.com:mdqclio/SGH.git
+   eb35ea2..a80de42  reports -> reports
+a80de42c4ede1c2ba753fc14e4d027df425fa532	refs/heads/reports
+a80de42c4ede1c2ba753fc14e4d027df425fa532
+```
+
+Coinciden: el contenido de arriba está en `origin/reports` en el commit
+`a80de42c4ede1c2ba753fc14e4d027df425fa532`. Este bloque de verificación viaja en un segundo
+commit — el primero no puede contener el SHA de sí mismo.
