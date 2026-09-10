@@ -987,4 +987,15 @@ Coinciden: el contenido de arriba está en `origin/reports` en el commit
 Este bloque de verificación se agrega en un segundo commit (el primero no puede contener
 el SHA de sí mismo). Verificación de ese segundo push:
 
-(abajo)
+```
+$ git push origin reports
+   77f50ec..65a08c6  reports -> reports
+$ git ls-remote origin reports
+65a08c68f34dc746a442111ba6d01a4c88db1559	refs/heads/reports
+$ git rev-parse HEAD
+65a08c68f34dc746a442111ba6d01a4c88db1559
+```
+
+Coinciden. La cadena se corta acá a propósito: este último bloque viaja en un tercer commit
+cuyo SHA, por la misma razón, no puede estar escrito adentro suyo. Lo que importa está
+verificado: todo el contenido del informe está en `origin/reports`.
