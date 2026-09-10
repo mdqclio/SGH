@@ -2,7 +2,10 @@
 
 ## [2026-09-10] — la secretaría puede crear entrenadores (ISSUE-078, ISSUE-073, ISSUE-079)
 
-> Branch `fix/alta-entrenador-operador`. **Sin mergear**: pendiente de revisión.
+> **VIVO en `sigh.com.ar`** — merge `--no-ff` `c540aa0` desde `fix/alta-entrenador-operador`.
+> MD5 del HTML servido idéntico al local; probe re-corrido contra los archivos bajados de
+> producción: 30/30 asserts y 14/14 mutantes muertos.
+> Verificación: `docs/diagnosticos/2026-09-10_merge-alta-entrenador-operador.md`.
 >
 > Yesi no podía aprobar la solicitud de Luciana Lo Gioia. Dijo que en Caballerizas y Jockeys hay un
 > botón "Nuevo" y en Entrenadores no lo encontraba. No lo encontraba porque no estaba.

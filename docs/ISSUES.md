@@ -1499,9 +1499,11 @@ propietario). Relacionado: ISSUE-049 (antecedente), **ISSUE-073** (la deuda sim�
 
 ### ISSUE-073: el UPDATE de `profesionales.html` y `jockeys.html` no está acotado por club — una escritura por API mueve la ficha de hipódromo
 
-**Estado**: 🟢 **FIX LISTO, PENDIENTE DE MERGE** (2026-09-10). Branch
-`fix/alta-entrenador-operador`, sin mergear a `main` — va junto con ISSUE-078, porque habilitar el
-alta a la secretaría sin acotar el UPDATE sería abrir la escritura y dejar el agujero. Los tres
+**Estado**: ✅ **RESUELTO y VIVO en `sigh.com.ar`** (2026-09-10). Merge `--no-ff` `c540aa0` desde
+`fix/alta-entrenador-operador` — fue junto con ISSUE-078, porque habilitar el alta a la secretaría
+sin acotar el UPDATE sería abrir la escritura y dejar el agujero. MD5 del HTML servido idéntico al
+local y probe re-corrido contra los archivos bajados de producción: 30/30 asserts, 14/14 mutantes.
+Verificación: `docs/diagnosticos/2026-09-10_merge-alta-entrenador-operador.md`. Los tres
 caminos de la tabla de abajo quedaron acotados (`:413` modal, `:287` toggle, `jockeys.html:402`) y
 se sumó el DELETE, que tenía el mismo problema de 0 filas silenciosas. Probe:
 `tests/probe_alta_entrenador_operador.mjs`, asserts A8/A8b/A8c/A9/A10, mutantes M8-M11.
@@ -1967,7 +1969,10 @@ Informe: `docs/diagnosticos/2026-09-08_plan-issue-075-ventana-ratificacion.md` �
 
 ### ISSUE-078: la secretaría no podía crear un entrenador — el botón estaba oculto para todo rol que no fuera super_admin
 
-**Estado**: 🟢 **FIX LISTO, PENDIENTE DE MERGE** (2026-09-10). Branch `fix/alta-entrenador-operador`.
+**Estado**: ✅ **RESUELTO y VIVO en `sigh.com.ar`** (2026-09-10). Merge `--no-ff` `c540aa0` desde
+`fix/alta-entrenador-operador`. MD5 del HTML servido idéntico al local y probe re-corrido contra
+los archivos bajados de producción: 30/30 asserts, 14/14 mutantes.
+Verificación: `docs/diagnosticos/2026-09-10_merge-alta-entrenador-operador.md`.
 
 **Cómo apareció**: por un caso real, no por auditoría. Yesi (`yesica@sgh.com`, rol **`operador`**)
 no podía aprobar la solicitud de Luciana Lo Gioia (`fee3566e…`, DNI 29785194, `pendiente` desde el
@@ -2045,8 +2050,9 @@ roto por el lado de propietarios), **ISSUE-079** (los duplicados que el alta man
 
 ### ISSUE-079: `profesionales` no tiene índice único por documento — nada en la base frena un alta repetida
 
-**Estado**: 🟡 **ABIERTO**. Se mitigó por UI en `fix/alta-entrenador-operador`; el índice queda
-pendiente porque es DDL y merece su propio diff.
+**Estado**: 🟡 **ABIERTO**. La mitigación por UI está **VIVA en `sigh.com.ar`** (merge `c540aa0`,
+2026-09-10); **el índice único sigue sin crearse** porque es DDL y merece su propio diff. O sea:
+hoy el duplicado exacto de DNI se avisa en pantalla, pero la base lo sigue aceptando.
 
 **De dónde sale**: de habilitar el alta manual (ISSUE-078). Medido el 2026-09-10:
 
