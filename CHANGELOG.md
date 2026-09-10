@@ -1,5 +1,78 @@
 # Changelog
 
+## [2026-09-10] — la secretaría puede crear entrenadores (ISSUE-078, ISSUE-073, ISSUE-079)
+
+> Branch `fix/alta-entrenador-operador`. **Sin mergear**: pendiente de revisión.
+>
+> Yesi no podía aprobar la solicitud de Luciana Lo Gioia. Dijo que en Caballerizas y Jockeys hay un
+> botón "Nuevo" y en Entrenadores no lo encontraba. No lo encontraba porque no estaba.
+
+### El agujero
+
+Es el mismo circuito roto de ISSUE-072, por el otro extremo. Allá la ficha nacía sin `club_id` y la
+bandeja no la encontraba; acá la ficha **no se podía crear**.
+
+`profesionales.html:268-270` escondía `#btn-nuevo` por JS para todo rol que no fuera `super_admin`,
+y `:338` hacía lo mismo con Editar. Viene del commit `302e684` (08/05/2026), **cuatro meses antes**
+de que existiera el autorregistro. Yesi es `operador`, así que cae del mismo lado.
+
+La bandeja de solicitudes, cuando no hay match, dice *"creá la ficha desde **Entrenadores** y
+volvé"* (`solicitudes.html:324-327`) — y manda justo a la pantalla donde el botón no está. Sin
+ficha no hay aprobación: `rpc_aprobar_solicitud` exige `p_entidad_id`. **2 de las 4 solicitudes
+pendientes de Dolores** estaban trabadas ahí (Lo Gioia y Caporale, sin ficha ni por DNI ni por
+apellido).
+
+Tres cosas que el gate no era: **no era la RLS** (`profesionales_insert` es `fn_is_staff()`, que
+incluye `operador` — la base siempre la dejó crear); **no era el criterio del repo**
+(`jockeys.html` y `caballerizas.html` nunca lo tuvieron); **no era una decisión** (Fede lo confirmó
+el 2026-09-10).
+
+Diagnóstico: `docs/diagnosticos/2026-09-10_alta-entrenador-desde-solicitudes.md`.
+
+### El fix
+
+**1. El botón** (`profesionales.html`). Se quita el gate de `#btn-nuevo` y el de Editar; queda el
+criterio de `jockeys.html` / `caballerizas.html`: *la pantalla no gatea, gatea la policy*.
+**Eliminar sigue oculto** para quien no es `super_admin`, a propósito: `profesionales_delete` es
+`fn_is_super_admin()`, así que ese botón volvería con 0 filas y `error: null`. Copiar el patrón de
+`jockeys.html` tal cual habría dejado un botón que miente.
+
+**2. El tipo fijo** (`profesionales.html` + `jockeys.html`). Entrenadores y jockeys son **la misma
+tabla** `profesionales`, separada por el ENUM `tipo_profesional`. Las dos pantallas escribían
+`tipo` desde una constante del código, así que un alta hecha desde Jockeys nacía `jockey` aunque
+fuera una entrenadora — invisible en los 5 selectores de entrenador de la app, y **sin forma de
+corregirlo desde la UI**. Y `ambos` no se podía crear desde ningún lado (1 sola fila en la base,
+por importación). Ahora hay un `<select id="f-tipo">` con los tres valores: en un alta arranca en el
+tipo de la pantalla, al editar se precarga el tipo **real** de la ficha (así un `ambos` sigue sin
+degradarse, pero visible y corregible en vez de implícito en un ternario). Si el tipo elegido saca
+la ficha del listado actual, un toast dice adónde fue.
+
+**3. `club_id` y las escrituras** (ISSUE-073). El `club_id` del alta **ya estaba bien** desde
+ISSUE-049; el probe lo fija con un assert para que no se pierda. Lo que faltaba era el acote del
+UPDATE: con `club_id` en el payload, un update por id sobre una ficha ajena no la editaría, la
+**movería** de hipódromo. Se acotan los cuatro caminos —modal, toggle de estado y DELETE de
+`profesionales.html`, modal y DELETE de `jockeys.html`— con `.eq('club_id', CLUB_ID).select('id')`
+y chequeo de 0 filas: PostgREST devuelve `error: null` cuando no matchea nada, así que sin contar
+filas la pantalla cantaba "actualizado" sobre una escritura que nunca ocurrió.
+Medido antes de tocar: 174 Dolores + 11 Mi Club Hípico, **0 huérfanas** — 0 filas dañadas.
+
+**4. Duplicados** (`profesionales-duplicados.js`, nuevo — ISSUE-079). `profesionales` **no tiene
+índice único por documento**; su hermana `propietarios` sí. Con la secretaría cargando de a uno,
+nada frena un alta repetida. El modal ahora muestra las fichas parecidas del mismo club al salir de
+Apellido o de N° de documento, con dos señales separadas: **mismo documento** (fuerte, en rojo — es
+un duplicado real) y **apellido parecido** (informativa). **No bloquea**, y no es pereza: en Dolores
+hay 5 DIESTRA, 5 GONZALEZ, 3 CANTO y 3 ALDAY, todas personas distintas, y el caso que motivó el
+pedido —ZUBIARRAIN SANTIAGO (DNI 14527442) vs ZUBIRIA SANTIAGO (DNI 39342378)— es justamente un
+falso positivo. Un corte duro se aprendería a saltear en una semana. El índice único queda como
+ISSUE-079: es DDL y hay 0 duplicados exactos hoy, así que se puede crear cuando se decida.
+
+### Probe
+
+`tests/probe_alta_entrenador_operador.mjs` — **30 asserts, 14 mutantes, todos muertos**. Corre el
+código real de las dos pantallas más el `buscarFichas()` de `solicitudes.html`. El assert que
+importa es **A4**: la ficha recién creada tiene que ser encontrable por el buscador de la bandeja.
+Teardown verificado por estado y por conteo.
+
 ## [2026-09-07] — propietarios.html: alta con `club_id` y listado acotado por club (ISSUE-072)
 
 > Yesi no podía aprobar la solicitud de Fede. La bandeja le decía "creá la ficha desde Propietarios

@@ -1499,8 +1499,12 @@ propietario). Relacionado: ISSUE-049 (antecedente), **ISSUE-073** (la deuda sim�
 
 ### ISSUE-073: el UPDATE de `profesionales.html` y `jockeys.html` no está acotado por club — una escritura por API mueve la ficha de hipódromo
 
-**Estado**: 🟡 **ABIERTO**. No se hace ahora, a propósito: sale del cierre de ISSUE-072 y merece su
-propio diff. Ticket abierto para que el razonamiento no se pierda.
+**Estado**: 🟢 **FIX LISTO, PENDIENTE DE MERGE** (2026-09-10). Branch
+`fix/alta-entrenador-operador`, sin mergear a `main` — va junto con ISSUE-078, porque habilitar el
+alta a la secretaría sin acotar el UPDATE sería abrir la escritura y dejar el agujero. Los tres
+caminos de la tabla de abajo quedaron acotados (`:413` modal, `:287` toggle, `jockeys.html:402`) y
+se sumó el DELETE, que tenía el mismo problema de 0 filas silenciosas. Probe:
+`tests/probe_alta_entrenador_operador.mjs`, asserts A8/A8b/A8c/A9/A10, mutantes M8-M11.
 
 **De dónde sale**: al cerrar ISSUE-072 en `propietarios.html` quedó claro que el acote del UPDATE
 **no es una decisión separada del fix del INSERT: es su consecuencia**. ISSUE-049 hizo la mitad del
@@ -1559,14 +1563,25 @@ acá. El `delete().eq('id', id)` (`profesionales.html:424`, `jockeys.html:413`,
 `propietarios.html:464`) queda tal cual: la policy de DELETE ya exige `fn_is_super_admin()`, y el
 super_admin es cross-club por diseño.
 
-**Probe**: cuando se haga, clonar `tests/probe_club_id_alta_propietarios.mjs` — los asserts A5/A5b
-(el no-op sobre la ficha ajena y el aviso en vez del falso "actualizado") y A6 (que el UPDATE
-legítimo siga andando) trasladan tal cual, con los mutantes M5, M6 y M7.
+**Probe**: se clonó `tests/probe_club_id_alta_propietarios.mjs` como se había previsto. Los asserts
+A5/A5b/A6 de allá son A8/A8b/A8c acá, y los mutantes M5/M6/M7 son M8/M9/M11.
+
+**Lo que se sumó sobre el plan original**: el `deleteRecord()` de las dos pantallas tenía la misma
+falla de fondo. `profesionales_delete` es `fn_is_super_admin()`, así que para un `operador` el
+DELETE vuelve con `error: null` y 0 filas — y la pantalla cantaba "Entrenador eliminado" sobre
+nada. Con el alta habilitada a la secretaría ese botón pasa a estar al alcance de más gente, así
+que se le puso el mismo `.eq('club_id', CLUB_ID).select('id')` + chequeo de 0 filas. En
+`profesionales.html` además el botón Eliminar directamente no se le muestra a quien no es
+`super_admin`: un botón que no puede funcionar no debería estar. Assert A10, mutantes M3 y M11.
+
+**Impacto real medido antes de tocar** (2026-09-10): `select club_id, count(*) from profesionales
+group by 1` → 174 Dolores, 11 Mi Club Hípico, **0 con `club_id NULL`**. Igual que en ISSUE-049 y
+ISSUE-072: 0 filas dañadas, el camino sólo era alcanzable por API.
 
 Módulo: `profesionales.html`, `jockeys.html`. Prioridad: Media — no alcanzable desde la UI, 0 filas
 dañadas medidas, pero es una regresión introducida por ISSUE-049 que hoy está viva en `main`.
 Antecedentes: ISSUE-072 (el mismo fix, ya aplicado en `propietarios.html`), ISSUE-049 (el fix a
-medias), ISSUE-017 (las policies sin club).
+medias), ISSUE-017 (las policies sin club). Va con **ISSUE-078**.
 
 ---
 
@@ -1947,3 +1962,135 @@ como único control), ISSUE-068 y ISSUE-065 (policies de DELETE abiertas), ISSUE
 Antecedente del patrón bueno: `rpc_inscribir` / `rpc_baja_inscripcion`
 (`migrations/rpc_baja_inscripcion_forfait.sql`).
 Informe: `docs/diagnosticos/2026-09-08_plan-issue-075-ventana-ratificacion.md` §1.3.
+
+---
+
+### ISSUE-078: la secretaría no podía crear un entrenador — el botón estaba oculto para todo rol que no fuera super_admin
+
+**Estado**: 🟢 **FIX LISTO, PENDIENTE DE MERGE** (2026-09-10). Branch `fix/alta-entrenador-operador`.
+
+**Cómo apareció**: por un caso real, no por auditoría. Yesi (`yesica@sgh.com`, rol **`operador`**)
+no podía aprobar la solicitud de Luciana Lo Gioia (`fee3566e…`, DNI 29785194, `pendiente` desde el
+2026-09-08). Reportó que en Caballerizas y en Jockeys hay un botón "Nuevo" y en Entrenadores no lo
+encontraba. Diagnóstico completo:
+`docs/diagnosticos/2026-09-10_alta-entrenador-desde-solicitudes.md`.
+
+**El defecto**: `profesionales.html:268-270` escondía `#btn-nuevo` por JS para todo rol que no
+fuera `super_admin`, y `:338` hacía lo mismo con Editar. Viene del commit `302e684`
+("Formato de montos con puntos y permisos por rol", 08/05/2026), cuyo mensaje dice
+*"secretario_carreras solo puede activar/desactivar, super_admin mantiene crear/editar/eliminar"*.
+La condición escrita es `!== 'super_admin'`, así que `operador` cae del mismo lado.
+
+**Por qué era bloqueante y no una prolijidad**: es el mismo circuito roto de ISSUE-072, por el otro
+extremo. La bandeja de solicitudes, cuando no hay match, dice *"creá la ficha desde **Entrenadores**
+y volvé"* (`solicitudes.html:324-327`) — un link a la pantalla donde el botón no estaba. Sin ficha
+no hay aprobación posible: `rpc_aprobar_solicitud` exige `p_entidad_id` y la UI mantiene el botón
+deshabilitado hasta que se elige una. **2 de las 4 solicitudes pendientes de Dolores** al 2026-09-10
+(Lo Gioia y Caporale) no tenían ficha ni por DNI ni por apellido y estaban trabadas ahí.
+
+**Tres cosas que el gate NO era:**
+
+1. **No era la RLS.** `profesionales_insert` es `WITH CHECK (fn_is_staff())`, y `fn_is_staff()`
+   incluye `operador`. La base siempre la dejó crear: el bloqueo era 100 % de pantalla.
+2. **No era el criterio del repo.** `jockeys.html` y `caballerizas.html` nunca tuvieron gate de rol
+   sobre "Nuevo" (`git log -S"style.display = 'none'"` sobre esos dos archivos no devuelve ningún
+   commit que lo agregue). El criterio vigente es *la pantalla no gatea, gatea la policy*.
+3. **No era una decisión.** Fede confirmó el 2026-09-10 que no hay motivo para que el alta de
+   entrenadores esté más restringida que la de jockeys o caballerizas. Descuido.
+
+**Fix**:
+
+- Se quita el gate de `#btn-nuevo` y el de Editar. Queda el criterio de `jockeys.html` /
+  `caballerizas.html`.
+- **Eliminar sigue oculto para quien no es `super_admin`**, y eso es a propósito: la policy
+  `profesionales_delete` es `fn_is_super_admin()`, así que para un `operador` ese botón vuelve con
+  0 filas y `error: null` — un botón que miente. Copiar el patrón de `jockeys.html` *tal cual* lo
+  habría introducido. Ver ISSUE-073 para el chequeo de 0 filas que se le puso igual, por si algún
+  día se muestra.
+- `club_id` en el payload del alta: **ya estaba bien** desde ISSUE-049 (`profesionales.html:397`).
+  No hizo falta tocarlo, pero el probe lo fija con un assert para que no se pierda — es exactamente
+  lo que sí había pasado en `propietarios.html` (ISSUE-072).
+
+**Y en el mismo cambio, el tipo fijo.** `jockeys.html:386` y `profesionales.html:398` escribían
+`tipo` desde una constante del código (`prev?.tipo === 'ambos' ? 'ambos' : 'jockey'`). Entrenadores
+y jockeys son **la misma tabla** `profesionales`, separada por el ENUM `tipo_profesional`
+(`jockey` / `entrenador` / `ambos`). Consecuencias del tipo fijo, todas reales:
+
+- Si Yesi creaba a una entrenadora desde Jockeys —el camino que conoce—, la ficha nacía `jockey`:
+  invisible en los 5 selectores de entrenador de la app (`inscripciones.html:406`, `spcs.html:317`,
+  `sanciones.html:259`, `index.html:253`, `profesionales.html:273`) y elegible por error como
+  conductor. Y **no lo podía arreglar**: la ficha no aparece en Entrenadores, y el `update` de
+  Jockeys volvía a forzar `'jockey'`.
+- **`ambos` no se podía crear desde ninguna pantalla.** Hay 1 sola fila con ese tipo en toda la
+  base (185 filas: 133 entrenador, 51 jockey, 1 ambos) y entró por importación.
+
+Se agrega un `<select id="f-tipo">` con los tres valores a las dos pantallas. En un alta arranca en
+el tipo de la pantalla (`TIPO_DEFAULT`); al editar se precarga el tipo **real** de la ficha, así un
+`ambos` sigue sin degradarse — la garantía vieja se conserva, pero ahora es visible y corregible en
+vez de estar implícita en un ternario. Si el tipo elegido saca la ficha del listado actual, un toast
+dice adónde fue: si no, parece que se perdió.
+
+**Probe**: `tests/probe_alta_entrenador_operador.mjs` — 30 asserts, 14 mutantes, todos muertos.
+Corre los `load()`, `saveRecord()`, `cardHTML()`, `openModal()`, `toggleEstado()` y
+`deleteRecord()` reales de las dos pantallas, el `buscarFichas()` real de `solicitudes.html` y el
+helper nuevo, con cliente Supabase real y mini-DOM. El assert que importa es **A4**: la ficha
+recién creada tiene que ser encontrable por el buscador de la bandeja — el circuito que estaba
+roto. Teardown verificado por estado y por conteo.
+
+Módulo: `profesionales.html`, `jockeys.html`. Prioridad: **Alta** — bloqueaba la operación real de
+la secretaría. Relacionado: **ISSUE-073** (va en el mismo branch), ISSUE-072 (el mismo circuito
+roto por el lado de propietarios), **ISSUE-079** (los duplicados que el alta manual habilita).
+
+---
+
+### ISSUE-079: `profesionales` no tiene índice único por documento — nada en la base frena un alta repetida
+
+**Estado**: 🟡 **ABIERTO**. Se mitigó por UI en `fix/alta-entrenador-operador`; el índice queda
+pendiente porque es DDL y merece su propio diff.
+
+**De dónde sale**: de habilitar el alta manual (ISSUE-078). Medido el 2026-09-10:
+
+```sql
+select indexname, indexdef from pg_indexes where tablename='profesionales';
+-- profesionales_pkey       UNIQUE (id)
+-- idx_profesionales_club   btree (club_id)
+```
+
+Eso es todo. Su tabla hermana `propietarios` sí tiene
+`ux_propietarios_club_doc UNIQUE (club_id, documento_tipo, documento_nro) WHERE documento_nro IS NOT NULL`
+— es lo que hace que el assert A7 del probe de ISSUE-072 rechace el alta repetida. En
+`profesionales` no hay nada equivalente: dos fichas con el mismo DNI entran sin chistar.
+
+Hasta ahora no dolía porque el padrón entró por importación y el alta por pantalla estaba reservada
+a `super_admin`. Con la secretaría cargando entrenadores de a uno, el alta pasa a ser el camino
+habitual.
+
+**Se puede crear**: hoy hay **0 duplicados exactos** por `(club_id, documento_tipo, documento_nro)`
+sobre las 145 filas con documento cargado. No hace falta limpieza previa. Las 40 filas sin documento
+quedan fuera por el `WHERE`, igual que en `propietarios`.
+
+**La mitigación que sí entró** (`profesionales-duplicados.js`): al salir de Apellido o de N° de
+documento en un alta nueva, el modal muestra las fichas parecidas del mismo club. Dos señales
+separadas a propósito:
+
+| señal | fuerza | por qué |
+|---|---|---|
+| mismo `documento_nro` en el club | fuerte, en rojo | es un duplicado real, y la base no lo frena |
+| apellido parecido | débil, informativa | en este padrón es lo NORMAL |
+
+**No bloquea, y no es pereza.** Compartir apellido acá es lo esperable, no la excepción: en Dolores
+hay **5 DIESTRA, 5 GONZALEZ, 3 CANTO y 3 ALDAY**, todas personas distintas. Y el caso que motivó el
+pedido es justamente un falso positivo: **ZUBIARRAIN, SANTIAGO** (entrenador, DNI 14527442) y
+**ZUBIRIA, SANTIAGO** (jockey, DNI 39342378) son dos personas con el mismo nombre de pila y
+apellidos parecidos. Un aviso que corta el alta se volvería ruido y se aprendería a saltear en una
+semana. Por eso informa, y por eso muestra **siempre el documento y el tipo** al lado de cada
+parecido: es el dato con el que se descartan. Assert A13b del probe, con esos dos registros reales.
+
+**Lo que falta**: el índice. `CREATE UNIQUE INDEX ux_profesionales_club_doc ON profesionales
+(club_id, documento_tipo, documento_nro) WHERE documento_nro IS NOT NULL`, con su migración
+versionada en `migrations/` y aplicada por `apply_migration`. Con eso el alta repetida del mismo DNI
+pasa a dar error en la base y no sólo un aviso en pantalla, y la UI ya está preparada para mostrarlo
+(el `toast(error.message)` del `saveRecord`).
+
+Módulo: tabla `profesionales`. Prioridad: Media. Relacionado: ISSUE-078 (lo habilita), ISSUE-072
+(el índice equivalente que ya existe en `propietarios`).

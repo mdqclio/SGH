@@ -90,6 +90,7 @@ node tests/probe_carta_hora_local.mjs   # carta-llamados: las cuatro ventanas va
 node tests/probe_forfait_portal.mjs     # forfait desde el portal: dos ventanas, dos resultados (inscripción→DELETE, ratificación→estado='forfait'); guards de canal/autor/estado/ventana (real-code, fixture 9989 + teardown, --mutantes; los 11 mutantes de SQL se aplican por MCP sobre una función gemela)
 node tests/probe_bolsa_efectiva.mjs     # la bolsa mostrada es la EFECTIVA (con piso ganancia_minima), no bolsa_total crudo: chip del portal y de inscripciones contra repartoDisplay Y contra los once números concretos de R9 (real-code, fixture 9990 + teardown, --mutantes)
 node tests/probe_paridad_llamado_inscripciones.mjs # Llamado abierto (portal) ↔ encabezado de turno (inscripciones): mismos 8 campos, condición larga sin romper la tarjeta, hora en 24 h sin "a. m." ni "hs" duplicado (real-code, fixture 9992 + teardown, --mutantes)
+node tests/probe_alta_entrenador_operador.mjs # ISSUE-078/073/079: el rol operador ve "+ Nuevo Entrenador", el alta pone club_id y la ficha aparece en la bandeja; tipo elegible (jockey/entrenador/ambos); UPDATE, toggle y DELETE acotados por club; aviso de fichas parecidas (real-code, ESCRIBE, --mutantes)
 node tests/probe_cuerpos_oficial.mjs     # Ventaja de llegada en la vista oficial: cotejo de R6 contra la planilla (real-code, sólo lectura)
 node tests/probe_reordenar_turnos.mjs    # RPC reordenar_turnos: permutación + 4 validaciones (→ R9, snapshot→restore)
 node tests/probe_orden_ui.mjs            # Lógica ▲▼ de carta-llamados: payload a la RPC y confirmación (real-code, sin DB)
@@ -160,6 +161,47 @@ node tests/probe_club_id_alta_propietarios.mjs --mutantes=M1,M3    # los dos bug
 M1 y M3 son **los dos bugs originales tal cual estaban** en `main`: el runner de mutantes los
 resucita sobre una copia en `/tmp` y verifica que el probe los mate. Si algún día alguien vuelve a
 sacar el `club_id` del payload, M1 lo dice con esas palabras.
+
+### `probe_alta_entrenador_operador.mjs` — ISSUE-078 / 073 / 079 (ESCRIBE EN PRODUCCIÓN)
+
+30 asserts + 14 mutantes. Es el gemelo del de arriba, por el otro extremo del mismo circuito: allá
+la ficha nacía sin club y la bandeja no la encontraba; acá la ficha **no se podía crear**, porque
+`profesionales.html` escondía "+ Nuevo Entrenador" para todo rol que no fuera `super_admin` y Yesi
+es `operador`.
+
+Extrae de los HTML los cuerpos reales de `load()`, `saveRecord()`, `cardHTML()`, `openModal()`,
+`toggleEstado()` y `deleteRecord()` de **`profesionales.html` y `jockeys.html`**, el
+`buscarFichas()` real de `solicitudes.html`, y carga de verdad `profesionales-duplicados.js`. Las
+constantes `TIPO_DEFAULT` / `TIPOS_PANTALLA` se **leen del archivo**, no se hardcodean: si alguien
+las cambia, el probe corre con el valor nuevo.
+
+Cuatro piezas, y lo que arrastran:
+
+| assert | qué fija |
+|---|---|
+| **A1** | el `load()` real corrido como `operador` **no** esconde `#btn-nuevo` |
+| **A2 / A2b** | `cardHTML()` le da Editar y **no** Eliminar (la policy de DELETE es `fn_is_super_admin`: mostrarlo sería un botón que miente) |
+| **A3** | el alta persiste `club_id` |
+| **A4** ⭐ | la ficha recién creada es encontrable por el `buscarFichas()` de la bandeja — **el circuito que estaba roto** |
+| **A5b / A6** | el `tipo` sale del `<select>`: se puede crear un jockey desde Entrenadores y un entrenador desde Jockeys |
+| **A6d / A7** | se puede crear un `ambos`, y editarlo no lo degrada |
+| **A8-A10** | ISSUE-073: UPDATE, toggle y DELETE acotados por club, con chequeo de 0 filas |
+| **A13b** | ISSUE-079: con `ZUBI` salen **ZUBIARRAIN** (DNI 14527442) y **ZUBIRIA** (DNI 39342378), dos personas distintas — el falso positivo real que obliga a que el aviso **no bloquee** |
+
+Usa `SUPABASE_SECRET_KEY`, que **bypasea RLS a propósito**: lo que se prueba es el filtro del
+CLIENTE. Crea 5 fixtures (4 en Dolores, 1 en "Mi Club Hípico") y las borra en el `finally`;
+teardown verificado por estado (Z1, apellido `ZZPROBEALTAENT`) y por conteo (Z2). Barrido preflight
+por apellido antes de empezar.
+
+```bash
+set -a; . ./.env; set +a
+node tests/probe_alta_entrenador_operador.mjs
+node tests/probe_alta_entrenador_operador.mjs --mutantes            # los 14
+node tests/probe_alta_entrenador_operador.mjs --mutantes=M1,M5,M6   # los tres bugs originales
+```
+
+M1, M2, M5 y M6 son **los bugs originales tal cual estaban** en `main`: el gate de rol sobre el
+botón, el gate sobre Editar, y el `tipo` fijo en cada una de las dos pantallas.
 
 ### `probe_solicitar_cuenta_existente.mjs` — A DEMANDA, no en la rutina
 
