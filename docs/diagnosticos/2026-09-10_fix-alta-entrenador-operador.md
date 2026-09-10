@@ -738,4 +738,32 @@ Tres cosas para tener en cuenta:
 
 ## Verificación de push a `origin`
 
-(se completa abajo, después del primer push)
+### La rama de trabajo
+
+```bash
+git ls-remote origin fix/alta-entrenador-operador
+```
+```
+e5050cdf04c290cad078324e8c95cc8bd065d525	refs/heads/fix/alta-entrenador-operador
+```
+
+Coincide con el `git rev-parse HEAD` de la rama, transcripto en la sección GATE. El código está
+en `origin`.
+
+### Este informe
+
+```bash
+git push origin reports
+git ls-remote origin reports
+git rev-parse HEAD
+```
+```
+To github.com:mdqclio/SGH.git
+   1dfd1a3..31fabf7  reports -> reports
+31fabf717fa122fbbce37c0b5d2c38c5152efe28	refs/heads/reports
+31fabf717fa122fbbce37c0b5d2c38c5152efe28
+```
+
+Coinciden: el contenido de arriba está en `origin/reports` en el commit
+`31fabf717fa122fbbce37c0b5d2c38c5152efe28`. Este bloque de verificación viaja en un segundo
+commit — el primero no puede contener el SHA de sí mismo.
