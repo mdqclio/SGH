@@ -965,4 +965,26 @@ Luciana sigue sin acceso al portal.
 
 ## Verificación de push a `origin`
 
-(se completa abajo, después del primer push)
+```bash
+git push -u origin reports
+git ls-remote origin reports
+git rev-parse HEAD
+```
+
+```
+To github.com:mdqclio/SGH.git
+   42a48d2..77f50ec  reports -> reports
+branch 'reports' set up to track 'origin/reports'.
+=== ls-remote ===
+77f50ecdb153749410414c98748888dcf10b7023	refs/heads/reports
+=== rev-parse HEAD ===
+77f50ecdb153749410414c98748888dcf10b7023
+```
+
+Coinciden: el contenido de arriba está en `origin/reports` en el commit
+`77f50ecdb153749410414c98748888dcf10b7023`.
+
+Este bloque de verificación se agrega en un segundo commit (el primero no puede contener
+el SHA de sí mismo). Verificación de ese segundo push:
+
+(abajo)
