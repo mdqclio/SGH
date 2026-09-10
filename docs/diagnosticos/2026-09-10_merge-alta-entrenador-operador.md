@@ -391,4 +391,32 @@ Actualizado en `842aa43`:
 
 ## Verificación de push a `origin`
 
-(se completa abajo, después del primer push)
+### `main` — el código que sirve producción
+
+```bash
+git ls-remote origin main
+```
+```
+842aa43709c9c50850b536ad2a66bc253adbc88c	refs/heads/main
+```
+
+Coincide con el `git rev-parse HEAD` de `main` transcripto arriba. El merge `c540aa0` es su
+ancestro directo (`842aa43` es el commit de estados de issues que va encima).
+
+### Este informe
+
+```bash
+git push origin reports
+git ls-remote origin reports
+git rev-parse HEAD
+```
+```
+To github.com:mdqclio/SGH.git
+   26b729d..14f32a6  reports -> reports
+14f32a62d903c30ce1abccf24f1c0288324e82c3	refs/heads/reports
+14f32a62d903c30ce1abccf24f1c0288324e82c3
+```
+
+Coinciden: el contenido de arriba está en `origin/reports` en el commit
+`14f32a62d903c30ce1abccf24f1c0288324e82c3`. Este bloque viaja en un segundo commit — el primero
+no puede contener el SHA de sí mismo.
