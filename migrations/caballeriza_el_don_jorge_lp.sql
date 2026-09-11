@@ -1,7 +1,9 @@
 -- ============================================================
 -- caballeriza_el_don_jorge_lp.sql — alta de la caballeriza "EL DON JORGE (LP)" con propietario provisorio
 -- ============================================================
--- ⏳ PROPUESTA — NO EJECUTADA. Espera gate de Leo.
+-- ✅ EJECUTADA el 11/09/2026 por MCP apply_migration (nombre: caballeriza_el_don_jorge_lp), con OK de Leo.
+--    Pre-chequeos 0/0 y 300/264/40/263. DO de aborto sobre conteos (301/265/41/264) y titulares=1.
+--    Resultado: cab 5c9890a5-392b-4915-97a7-f7ea6c7c2d7d · prop 7ae60b44-7144-4549-92a8-2118b4141f95 · hip 'LP'.
 --
 -- Pedido de Yesi (11/09/2026): la planilla de R9 la trae como "DON JORGE" (T4 NIÑO OCEANICO,
 -- T3 MARIA CATULENGA; cuidador TAVAGNUTTI RICARDO H). El nombre correcto es con "EL".
