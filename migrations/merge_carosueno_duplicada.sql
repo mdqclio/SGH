@@ -1,7 +1,9 @@
 -- ============================================================
 -- merge_carosueno_duplicada.sql — unificar "CAROSUEÑO (DOL)" (historia, sin titular) y "CAROSUEÑO" (titular, sin historia)
 -- ============================================================
--- ⏳ PROPUESTA — NO EJECUTADA. Espera gate de Leo.
+-- ✅ EJECUTADA el 11/09/2026 por MCP apply_migration (nombre: merge_carosueno_duplicada), con OK de Leo
+--    (paso 4 sobre las 7, no sólo las 3 de R9). DO con ROW_COUNT 1/1/1/7, 0 inscripciones con propietario
+--    distinto de a7b7fe52, 1 sola CAROSUEÑO, caballerizas 299, liquidaciones 189/493 sin cambio.
 --
 -- Estado medido el 11/09/2026 (docs/diagnosticos/2026-09-11_plan-merge-carosueno.md):
 --
