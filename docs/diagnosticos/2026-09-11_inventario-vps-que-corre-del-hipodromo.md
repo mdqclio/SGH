@@ -712,3 +712,15 @@ tmp/probe-run-1                          | NINGUNO    |   1 | 1
 == tmp/probe-run-1 (2026-07-29)
    docs/PROBE_RUN_1.md                                                    main: existe(otra versión)  reports: existe(otra versión)
 ```
+
+---
+
+## 8. Verificación de push
+
+```
+$ git push origin reports
+$ git ls-remote origin reports
+1836483515a9ad845055a79819e4d9721c94f669	refs/heads/reports
+$ git rev-parse HEAD
+1836483515a9ad845055a79819e4d9721c94f669
+```
