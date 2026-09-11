@@ -437,3 +437,15 @@ Menor, sin decisión pendiente: `cierre_inscripcion` de R9 es hoy 12:00 ARG — 
 2. Chequeos 3-4-5 de §6c sobre el JSON.
 3. Escribir `migrations/spcs_r9_tanda_1.sql` con los INSERTs **propuestos** + reporte de `NO_RESUELTOS` para Yesi.
 4. Recién con OK sobre el SQL: aplicar por MCP, actualizar baseline de `spcs` en `CLAUDE.md` (181 → 181+N), probe de verificación.
+
+---
+
+## 10. Verificación de push
+
+```
+$ git push -u origin reports
+$ git ls-remote origin reports
+175d9240162a734049b1f6ffc090586a2c244403	refs/heads/reports
+$ git rev-parse HEAD
+175d9240162a734049b1f6ffc090586a2c244403
+```
