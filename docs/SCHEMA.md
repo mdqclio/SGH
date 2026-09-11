@@ -48,7 +48,7 @@ NOTA: categoria_jockey cambió de ENUM a VARCHAR(50) — sesión may-2026. Valor
 CORRECCIÓN: entrenadores NO son globales — tienen hipodromo_patente igual que jockeys (patente otorgada por un hipódromo específico).
 
 ### spcs (GLOBALES — club_id nullable)
-id UUID PK, club_id FK nullable, nombre, registro_stud_book, studbook_id TEXT UNIQUE-parcial (Idcaballo del Stud Book Argentino para integrar con su API; distinto de registro_stud_book), fecha_nacimiento DATE, sexo ENUM(macho/hembra/castrado), color, marcas, padrillo_nombre, madre_nombre, abuela_materna, pais_origen DEFAULT 'Argentina', caballeriza_id FK, entrenador_id FK, estado ENUM(activo/retirado/suspendido/fallecido/vendido) DEFAULT 'activo', notas, doc_url, foto_url, certificado_correr BOOLEAN DEFAULT FALSE, ult_performances TEXT
+id UUID PK, club_id FK nullable, nombre, registro_stud_book, studbook_id TEXT UNIQUE-parcial (Idcaballo del Stud Book Argentino; distinto de registro_stud_book. Desde 2026-09-11 lo llena `spcs.html` al elegir un candidato de la Edge Function `studbook-buscar` — campo visible read-only «Nº Stud Book (vínculo)»; y es el primer chequeo de `rpc_spcs_duplicados`), fecha_nacimiento DATE, sexo ENUM(macho/hembra/castrado), color, marcas, padrillo_nombre, madre_nombre, abuela_materna, pais_origen DEFAULT 'Argentina', caballeriza_id FK, entrenador_id FK, estado ENUM(activo/retirado/suspendido/fallecido/vendido) DEFAULT 'activo', notas, doc_url, foto_url, certificado_correr BOOLEAN DEFAULT FALSE, ult_performances TEXT
 NOTA ult_performances: texto libre (ej: `5D5P3L`). Ingreso manual hasta disponer de API Stud Book. Editable en spcs.html tab Origen. Celda en blanco en el programa si no hay dato (no dice "DEBUTA" — ese texto se agrega manualmente si corresponde).
 CRÍTICO: usar .eq('estado','activo') NO .eq('activo',true) — columna activo no existe
 
@@ -438,6 +438,26 @@ Todas con `STABLE SECURITY DEFINER SET search_path = public`. Ver SECURITY.md pa
 | `fn_auditoria_log()` | `() → TRIGGER` | Registra INSERT/UPDATE/DELETE en tabla auditoria |
 | `fn_purgar_auditoria()` | `() → INTEGER` | Borra registros viejos según auditoria_retencion_meses por club |
 | `fn_proteger_rol_club_id_usuario()` | `() → TRIGGER` | BEFORE UPDATE en usuarios — impide auto-promoción de rol/club_id |
+
+## RPC `rpc_spcs_duplicados` (2026-09-11) — chequeo de duplicados antes del alta de SPC
+
+`rpc_spcs_duplicados(p_studbook_id text, p_nombre text, p_fecha_nacimiento date, p_padrillo text, p_madre text)`
+→ `TABLE(motivo, id, nombre, fecha_nacimiento, sexo, color, padrillo_nombre, madre_nombre, studbook_id, estado)`.
+`STABLE SECURITY DEFINER`; sólo staff (`fn_is_staff()`, si no → `42501 solo staff`); `REVOKE public/anon`, `GRANT authenticated`.
+Los tres chequeos que se corrían a mano por SQL en las tandas R9, ahora en la base:
+
+| `motivo` | Condición | Qué hace `spcs.html` |
+|---|---|---|
+| `studbook_id` | `spcs.studbook_id = p_studbook_id` | **bloquea** (mismo animal) |
+| `nombre` | nombre normalizado igual (`upper(regexp_replace(translate(…)))`, sin `unaccent()` — GOTCHA #71) | permite "Guardar igual (es otro caballo)" |
+| `fecha_padre_madre` | misma `fecha_nacimiento` + padrillo + madre normalizados | **bloquea** (mismo animal) |
+
+Un argumento NULL desactiva su chequeo. Fuente: `migrations/rpc_spcs_duplicados.sql`. Probe: `tests/probe_rpc_spcs_duplicados.mjs`.
+
+## Edge Function `studbook-buscar` (2026-09-11)
+
+`POST /functions/v1/studbook-buscar` `{term}` → `{ ok, term, exactos:[Candidato], parciales:[Candidato], fuente }`. `verify_jwt:true` + `fn_is_staff()` (portal → 403).
+**No escribe en la base.** Fuente hoy: el buscador público del Stud Book (`/ejemplares/autocomplete`, scraping — **no** API acordada); cuando exista la API de Diego se cambia sólo el bloque «FUENTE» adentro de la función, la pantalla no se toca. `supabase/functions/studbook-buscar/index.ts`; probes `tests/probe_studbook_buscar_fn.mjs` (lógica), `…_e2e.mjs` (deployada), `tests/probe_spcs_studbook_alta.mjs` (pantalla).
 
 ## Triggers (12/05/2026)
 

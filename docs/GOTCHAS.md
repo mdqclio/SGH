@@ -1620,3 +1620,33 @@ tocan sólo el HTML sí corren solos.
 Relacionado: GOTCHA #77 (verificar por estado, no contando), GOTCHA #84.
 Probe: `tests/probe_forfait_portal.mjs`.
 Informe: `docs/diagnosticos/2026-09-08_forfait-portal-aplicado.md` §5.2.
+
+## 96. El autocomplete del Stud Book: header obligatorio, sin campo "muerto", homónimos que no se distinguen por nombre (2026-09-11)
+
+La búsqueda de ejemplares desde `spcs.html` (Edge Function `studbook-buscar`) usa el **buscador interno
+del sitio del Stud Book**, `GET https://www.studbook.org.ar/ejemplares/autocomplete?tipo=1&muerto=1&term=…`.
+**No es una API acordada**: es el mismo endpoint que usa su propia página. Tres trampas, todas medidas:
+
+1. **Sin `X-Requested-With: XMLHttpRequest` responde 404 con HTML**, no JSON. Cualquier cliente nuevo
+   (curl, otra función, un script) tiene que mandar ese header o parece que "el endpoint no existe".
+2. **No hay campo "muerto"** en el hit. `muerto=1` sólo hace que los muertos *aparezcan* en la
+   búsqueda; el JSON trae `icon, id, text, leyenda, padre, madre, abuelo_materno, tomo, folio, sexo,
+   nacimiento, pelo, raza, url_friendly, adn, pasaporte, mc, revisado` y ninguno lo marca. Por eso la
+   pantalla no muestra la cruz (†) que estaba en el plan: se distingue por **edad reglamentaria**
+   (BIEN COQUETA 1998 → 28 años). Si Diego lo da en su API, es un campo más en `Candidato`.
+3. **Los homónimos vuelven todos como "exactos"** y la función **no elige**: BIEN COQUETA son dos
+   (2021 y 1998), ambas hembra. Elige la persona en la pantalla con fecha/edad/sexo/pelaje/padres.
+   Cualquier automatización que tome `exactos[0]` va a cargar el caballo equivocado tarde o temprano.
+
+Además: **la pantalla no puede llamar al Stud Book directo** — el CSP de las páginas es
+`connect-src 'self' https://*.supabase.co` y el sitio no tiene CORS (el preflight da 404). De ahí la
+Edge Function. Y una Edge Function **no sale con IP fija**: si la API de Diego pide allowlist de IP,
+la consulta pasa por un proxy en el VPS (ver `docs/diagnosticos/2026-09-10_ips-fijas-consulta-studbook.md`).
+
+### La regla
+
+Al Stud Book se le habla **sólo desde `supabase/functions/studbook-buscar/index.ts`**, con el header,
+y se reemplaza **sólo el bloque «FUENTE — INICIO / FIN»** cuando cambie la fuente. La pantalla conoce
+`{ ok, term, exactos, parciales, fuente }` y nada más. Duplicados: `rpc_spcs_duplicados` antes del
+INSERT, siempre (también si se cargó a mano sin buscar); `studbook_id` y `fecha_padre_madre` bloquean,
+`nombre` solo permite "Guardar igual".

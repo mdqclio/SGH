@@ -36,7 +36,7 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 ├── jockeys.html                 ABM jockeys
 ├── profesionales.html           ABM entrenadores/profesionales
 ├── propietarios.html            ABM propietarios
-├── spcs.html                    Stud Book (ejemplares SPC)
+├── spcs.html                    Stud Book (ejemplares SPC) — alta con búsqueda en el Stud Book + chequeo de duplicados (11/09)
 ├── sanciones.html               Sanciones compartidas entre hipódromos
 ├── resoluciones.html            Resoluciones
 ├── usuarios.html                Gestión de usuarios por hipódromo
@@ -87,7 +87,12 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 │   ├── spcs_r9_tanda_1.sql      18 altas de SPCs de R9 (EJECUTADA 2026-09-11, spcs 181→199)
 │   ├── spcs_r9_tanda_2.sql      2 altas más (typos corregidos por Yesi; EJECUTADA 2026-09-11, 199→201)
 │   ├── spcs_r9_tanda_3.sql      BIEN COQUETA y EL MAS SABIO, turnos redefinidos por Yesi (EJECUTADA 2026-09-11, 201→203)
-│   └── spcs_conesera_sexo.sql   UPDATE sexo de Conesera macho→hembra (EJECUTADA 2026-09-11, confirmó Yesi)
+│   ├── spcs_conesera_sexo.sql   UPDATE sexo de Conesera macho→hembra (EJECUTADA 2026-09-11, confirmó Yesi)
+│   └── rpc_spcs_duplicados.sql  RPC de los 3 chequeos de duplicado de SPC (APLICADA 2026-09-11; la usa spcs.html antes del INSERT)
+├── supabase/functions/          Edge Functions (deploy por MCP `deploy_edge_function`)
+│   ├── reunion-json/            JSON de reunión para el Stud Book (v22, verify_jwt:false, token propio)
+│   ├── invite-user/             Alta de usuario por invitación (v5, verify_jwt:true)
+│   └── studbook-buscar/         Búsqueda de ejemplares en el Stud Book para spcs.html (v1, verify_jwt:true, solo staff; fuente = buscador público, NO API — GOTCHA #96)
 ```
 
 ---
@@ -344,6 +349,10 @@ node tests/probe_solicitar_falta_paso.mjs         # ISSUE-070 — pantalla "Ya c
 node tests/probe_club_id_alta_propietarios.mjs     # ISSUE-072 — alta con club_id + listado por club; ESCRIBE, teardown verificado
 node tests/probe_alta_entrenador_operador.mjs      # ISSUE-078/073/079 — operador ve "+ Nuevo Entrenador", tipo elegible, UPDATE/DELETE por club; ESCRIBE, teardown verificado
 node tests/probe_spcs_r9_tanda_1.mjs               # R9 tandas 1+2+3 — 22 altas vs evidencia del Stud Book, count 203, Conesera hembra; solo lectura
+node tests/probe_rpc_spcs_duplicados.mjs           # rpc_spcs_duplicados — 3 motivos, staff ok / portal 42501; ESCRIBE usuarios de prueba, teardown verificado
+node tests/probe_studbook_buscar_fn.mjs            # studbook-buscar — lógica extraída del index.ts contra el Stud Book real; sin Supabase
+node tests/probe_studbook_buscar_e2e.mjs           # studbook-buscar deployada — 200 staff / 403 portal / 401 sin token / preflight; ESCRIBE usuarios, teardown verificado
+node tests/probe_spcs_studbook_alta.mjs            # spcs.html — buscar, Usar, prellenado, panel de duplicados (bloquea / Guardar igual), INSERT real; ESCRIBE 1 spc + 1 usuario, teardown verificado, count 203
 ```
 
 **El patrón es código real sin browser.** Chromium no corre en este Ubuntu (`"Playwright does not support chromium on ubuntu26.04-x64"` — ver `docs/SERVER.md`), así que el probe **extrae del propio HTML** la función o el bloque a probar —por ancla, con balance de llaves—, lo corre con `new AsyncFunction(...)` inyectando dependencias reales (cliente Supabase con `SUPABASE_SECRET_KEY`, más stubs de DOM si hacen falta) y assertea contra la base. Nunca reimplementar la lógica dentro del test: si el archivo cambia, el probe corre el archivo cambiado. Para lo que escribe: **snapshot → run → assert → restore** en el `finally`.
@@ -469,7 +478,7 @@ salidas de queries, `git status`, `git log`, los diffs, y cualquier cosa pedida 
 17. **`signUp` no da error si el correo ya tiene cuenta confirmada** — GoTrue responde 200 con un
     user obfuscado y no manda mail (anti-enumeración). Mirar `identities.length === 0`, no `error`.
 
-Ver `docs/GOTCHAS.md` para la lista completa (95 entradas).
+Ver `docs/GOTCHAS.md` para la lista completa (96 entradas).
 
 ---
 
