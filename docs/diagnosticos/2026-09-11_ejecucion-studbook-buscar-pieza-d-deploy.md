@@ -105,3 +105,13 @@ $ grep -c 'studbook-buscar' prod.html
 - Ramas sin mergear (esperan OK): `chore/issue-081-pii-residual-vps`, `feat/buscador-spc-autocompletado`, `fix/condicion-sexo-t8-t10-r9`, `fix/hora-ventanas-r9`, `fix/llamado-chips-fede`.
 - Lunes 14/09 post-ratificación: re-correr el DO de provisorios R9 + query de control (CLAUDE.md § R9).
 - Cuando exista la API de Diego: reemplazar el bloque «FUENTE» en `studbook-buscar/index.ts`; si pide IP fija, proxy en el VPS.
+
+## 8. Verificación de push (reports)
+
+```
+$ git push -u origin reports
+$ git ls-remote origin reports
+ca10c07957c1261a27ab5f764ba97dd3c4cd03cf	refs/heads/reports
+$ git rev-parse HEAD
+ca10c07957c1261a27ab5f764ba97dd3c4cd03cf
+```
