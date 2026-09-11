@@ -205,3 +205,15 @@ GOIADORA  [norm GOIADORA]
 **Resultado: ninguno de los 22 es una grafía alternativa de algo que ya está.** El único par que merece una segunda mirada (INDIA/IDALIA MARO) se resuelve solo con los datos del Stud Book. Los tres "typo reales" del padrón (LOGUACIOUS ×3 grafías, Conesera/CONESERSA) ya quedaron fuera de la lista de altas en el informe base.
 
 Límite del método: esto compara contra los **nombres que hay en `spcs`**. Si un caballo está en la base con un nombre totalmente distinto (no un typo, otro nombre), ni Levenshtein ni tokens lo agarran — lo agarra el chequeo 4 de §6c del informe base (fecha + padre + madre del scrape contra la DB), que corre después del scrape.
+
+---
+
+## 4. Verificación de push
+
+```
+$ git push origin reports
+$ git ls-remote origin reports
+665d2cda8e8b68b1f1646dc33017a6914a90ec18	refs/heads/reports
+$ git rev-parse HEAD
+665d2cda8e8b68b1f1646dc33017a6914a90ec18
+```
