@@ -1,7 +1,8 @@
 -- ============================================================
 -- spcs_r9_tanda_3.sql — BIEN COQUETA (T11) y EL MAS SABIO (T6): los dos que quedaban de la planilla de R9
 -- ============================================================
--- ⏳ PROPUESTA — NO EJECUTADA. Espera gate de Leo.
+-- ✅ EJECUTADA el 11/09/2026 (noche) por MCP apply_migration (nombre: spcs_r9_tanda_3), con OK de Leo.
+--    DO de aborto (count<>203 / sb repetido / sexo). Resultado: spcs 201 -> 203.
 --
 -- Eran los 2 "edad no cierra" del informe del scrape (11/09): la planilla los tenía en T2 (4 años) y T5
 -- (3-4 años) y los dos son de 2021 (5 años). Yesi definió los turnos correctos:

@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-09-11 noche, 4] — R9 tanda 3: BIEN COQUETA (T11) y EL MAS SABIO (T6)
+
+> **EJECUTADA** (`spcs_r9_tanda_3`), con OK de Leo. `spcs` **201 → 203**. Probe 81/81.
+
+Eran los dos de la planilla cuya edad (2021 → 5 años) no cerraba con el turno anotado (T2 / T5). Yesi los
+reubicó en **T11** (5 y + perdedor) y **T6** (sólo 5 años, ganador de 1 o 2) y con eso cierran. Con esto
+los **66 caballos distintos** de la planilla de R9 están en el padrón. `migrations/spcs_r9_tanda_3.sql`.
+
 ## [2026-09-11 noche, 3] — Provisorios R9 + merge CAROSUEÑO: R9 sin caballos sin dueño
 
 > **EJECUTADAS en producción** (`merge_carosueno_duplicada`, `propietarios_provisorios_r9`), con OK de Leo.

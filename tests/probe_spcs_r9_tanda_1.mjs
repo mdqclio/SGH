@@ -6,7 +6,7 @@
  * edad + 2 typos de planilla), que están en migrations/spcs_r9_tanda_1.sql.
  *
  * Asserts:
- *   A) count(spcs) = 201 (181 + 18 tanda 1 + 2 tanda 2 — QUE BELLA DOÑA, INDIANA MARO)
+ *   A) count(spcs) = 203 (181 + 18 tanda 1 + 2 tanda 2 + 2 tanda 3 — BIEN COQUETA, EL MAS SABIO)
  *   B) las 18 filas existen por studbook_id, una sola vez cada una
  *   C) nombre / fecha_nacimiento / sexo / color / padre / madre iguales a la evidencia
  *   D) registro_stud_book NULL, club_id NULL, FK de asignación NULL, estado activo
@@ -35,6 +35,10 @@ const TANDA_2 = [
   { nombre_sb: 'QUE BELLA DOÑA', sb_id: '446458', fecha_nacimiento: '2023-10-08', sexo: 'hembra', color: 'Zaino',  padrillo_nombre: 'Sea Dog', madre_nombre: 'Paradise Nistel',  variante: 'BELLA DOÑA' },
   { nombre_sb: 'INDIANA MARO',   sb_id: '432433', fecha_nacimiento: '2021-09-15', sexo: 'hembra', color: 'Alazan', padrillo_nombre: 'Gokstad', madre_nombre: 'Ilusionada Chica', variante: 'INDIA MARO' },
 ];
+const TANDA_3 = [
+  { nombre_sb: 'BIEN COQUETA', sb_id: '429819', fecha_nacimiento: '2021-10-15', sexo: 'hembra', color: 'Zaino Colorado', padrillo_nombre: 'Bien Terminado',    madre_nombre: 'Gritty' },
+  { nombre_sb: 'EL MAS SABIO', sb_id: '431662', fecha_nacimiento: '2021-10-26', sexo: 'macho',  color: 'Alazan',         padrillo_nombre: 'Il Campione (CHI)', madre_nombre: 'Indigirka' },
+];
 const GRUPO_A = ['ETERNA DOCTORA','DESERT OF DUBAI','HERMANOSDEMIPATRIA','ALHENA','OLA DOCTOR','DEL CAMPEON','TORO MAÑERO','BACON','NISTEL WIN','HALLOTOP','EL RISKO','ATOMIZADOR','THE BEAST PARTY','ABARAJALA','GOIADORA'];
 const MANUALES = [
   { nombre_sb: 'QUERELLANTE',     sb_id: '416936', fecha_nacimiento: '2019-10-11', sexo: 'macho',  color: 'Zaino', padrillo_nombre: 'Daniel Boone (BRZ)', madre_nombre: 'Que Felicidad',   url_perfil: 'https://www.studbook.org.ar/ejemplares/perfil/416936/querellante' },
@@ -54,7 +58,7 @@ const ok = (t, c, n = '') => { results.push({ t, s: c ? '✅' : '❌', n }); ret
 // A
 const { count: total, error: eC } = await sb.from('spcs').select('id', { count: 'exact', head: true });
 if (eC) throw eC;
-ok('A count(spcs) = 201', total === BASELINE_ANTES + 18 + TANDA_2.length, `real ${total}`);
+ok('A count(spcs) = 203', total === BASELINE_ANTES + 18 + TANDA_2.length + TANDA_3.length, `real ${total}`);
 
 // B–F
 const { data: filas, error: eF } = await sb.from('spcs')
@@ -103,6 +107,18 @@ for (const e of TANDA_2) {
     !!r && r.nombre === e.nombre_sb && r.fecha_nacimiento === e.fecha_nacimiento && r.sexo === 'hembra' && r.color === e.color
       && r.padrillo_nombre === e.padrillo_nombre && r.madre_nombre === e.madre_nombre && r.registro_stud_book === null
       && typeof r.notas === 'string' && r.notas.startsWith(`SB ${e.sb_id} ·`) && r.notas.includes(`Planilla R9: ${e.variante}`),
+    r ? r.notas : 'no existe');
+}
+
+// J — tanda 3
+const { data: t3, error: eJ } = await sb.from('spcs').select('nombre,fecha_nacimiento,sexo,color,padrillo_nombre,madre_nombre,studbook_id,registro_stud_book,notas').in('studbook_id', TANDA_3.map(x => x.sb_id));
+if (eJ) throw eJ;
+for (const e of TANDA_3) {
+  const r = t3.find(x => x.studbook_id === e.sb_id);
+  ok(`J ${e.nombre_sb} existe, datos = SB, registro NULL, nota con SB`,
+    !!r && r.nombre === e.nombre_sb && r.fecha_nacimiento === e.fecha_nacimiento && r.sexo === e.sexo && r.color === e.color
+      && r.padrillo_nombre === e.padrillo_nombre && r.madre_nombre === e.madre_nombre && r.registro_stud_book === null
+      && typeof r.notas === 'string' && r.notas.startsWith(`SB ${e.sb_id} ·`),
     r ? r.notas : 'no existe');
 }
 

@@ -86,6 +86,7 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 │   ├── liberar_linea.sql        RPC liberar_linea (liberación manual del doping)
 │   ├── spcs_r9_tanda_1.sql      18 altas de SPCs de R9 (EJECUTADA 2026-09-11, spcs 181→199)
 │   ├── spcs_r9_tanda_2.sql      2 altas más (typos corregidos por Yesi; EJECUTADA 2026-09-11, 199→201)
+│   ├── spcs_r9_tanda_3.sql      BIEN COQUETA y EL MAS SABIO, turnos redefinidos por Yesi (EJECUTADA 2026-09-11, 201→203)
 │   └── spcs_conesera_sexo.sql   UPDATE sexo de Conesera macho→hembra (EJECUTADA 2026-09-11, confirmó Yesi)
 ```
 
@@ -253,11 +254,11 @@ Antes de cualquier operación de escritura sobre producción, verificar los tres
 
 ```
 pwd                          → /home/clio/dev/SGH
-SELECT count(*) FROM spcs    → 201        (baseline al 2026-09-11, noche)
+SELECT count(*) FROM spcs    → 203        (baseline al 2026-09-11, noche, tanda 3)
 ref del proyecto             → unlhcuanfrtpatoipwve
 ```
 
-⚠️ El 201 **incluye caballos de prueba**: `spcs` es global sin `club_id` (GOTCHA #13) y los
+⚠️ El 203 **incluye caballos de prueba**: `spcs` es global sin `club_id` (GOTCHA #13) y los
 ejemplares de test de "Mi Club Hípico" (`Pampa Libre`, `Don Facundo`) suman al conteo. Sirve para lo
 que se usa —detectar proyecto equivocado— pero **no es el padrón real de Dolores**. GOTCHA #75,
 ISSUE-061.
@@ -266,7 +267,8 @@ El baseline de `spcs` **cambia cada vez que se dan de alta o de baja ejemplares*
 cuando pase. Historial: 179 → 183 (tanda 5) → **181** (2026-08-23, se unificaron los dos pares de
 duplicados: se borraron `Fist Queen` y `Malenuchi`, ver `docs/PLAN_DUPLICADOS_SPC.md`) → **199**
 (2026-09-11, R9 tanda 1: 18 altas de la planilla de anotaciones, `migrations/spcs_r9_tanda_1.sql`) → **201**
-(2026-09-11 noche, R9 tanda 2: QUE BELLA DOÑA e INDIANA MARO, `migrations/spcs_r9_tanda_2.sql`).
+(2026-09-11 noche, R9 tanda 2: QUE BELLA DOÑA e INDIANA MARO, `migrations/spcs_r9_tanda_2.sql`) → **203**
+(2026-09-11 noche, R9 tanda 3: BIEN COQUETA y EL MAS SABIO, `migrations/spcs_r9_tanda_3.sql`).
 
 Los guards que aparecen dentro de los planes y bitácoras de `docs/` son **fotos de su fecha**, no el
 baseline vigente: no se reescriben.
@@ -341,7 +343,7 @@ node tests/probe_solicitar_cuenta_existente.mjs   # ISSUE-069 — A DEMANDA: man
 node tests/probe_solicitar_falta_paso.mjs         # ISSUE-070 — pantalla "Ya casi"; sin red, no manda nada
 node tests/probe_club_id_alta_propietarios.mjs     # ISSUE-072 — alta con club_id + listado por club; ESCRIBE, teardown verificado
 node tests/probe_alta_entrenador_operador.mjs      # ISSUE-078/073/079 — operador ve "+ Nuevo Entrenador", tipo elegible, UPDATE/DELETE por club; ESCRIBE, teardown verificado
-node tests/probe_spcs_r9_tanda_1.mjs               # R9 tandas 1+2 — 20 altas vs evidencia del Stud Book, count 201, Conesera hembra; solo lectura
+node tests/probe_spcs_r9_tanda_1.mjs               # R9 tandas 1+2+3 — 22 altas vs evidencia del Stud Book, count 203, Conesera hembra; solo lectura
 ```
 
 **El patrón es código real sin browser.** Chromium no corre en este Ubuntu (`"Playwright does not support chromium on ubuntu26.04-x64"` — ver `docs/SERVER.md`), así que el probe **extrae del propio HTML** la función o el bloque a probar —por ancla, con balance de llaves—, lo corre con `new AsyncFunction(...)` inyectando dependencias reales (cliente Supabase con `SUPABASE_SECRET_KEY`, más stubs de DOM si hacen falta) y assertea contra la base. Nunca reimplementar la lógica dentro del test: si el archivo cambia, el probe corre el archivo cambiado. Para lo que escribe: **snapshot → run → assert → restore** en el `finally`.
