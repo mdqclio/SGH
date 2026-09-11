@@ -329,3 +329,19 @@ from caballerizas c where c.id in (…las 7…) order by c.nombre
  {"cab":"MONTE DEL TORDILLO","id":"01cbb031-50cd-43ed-9665-5c5bc4e7f99f","hip":null,"estado":"activo","notas":"Alta para inscripciones reunión 2026-06-20 (planilla Yesica)","prop_homonimo":null,"n_spcs":1,"inscr_sin_prop_por_reunion":[{"n":1,"r":6},{"n":2,"r":9}]},
  {"cab":"SAICA","id":"58b52430-ebb8-4d79-966e-60403c5a9100","hip":"DOL","estado":"activo","notas":null,"prop_homonimo":null,"n_spcs":1,"inscr_sin_prop_por_reunion":[{"n":1,"r":8},{"n":1,"r":9}]}]
 ```
+
+---
+
+## 7. Verificación de push
+
+```
+$ git ls-remote origin main
+c64fdc36ef1824b514ef8b8354e6839e3344b175	refs/heads/main
+$ git ls-remote origin feat/provisorios-r9
+5f30fa30680371539f778960067f2f40dc093ba1	refs/heads/feat/provisorios-r9
+$ git push origin reports
+$ git ls-remote origin reports
+afcee3bc6ee1204949b9de9b9b7f66dc80b45b0f	refs/heads/reports
+$ git rev-parse HEAD
+afcee3bc6ee1204949b9de9b9b7f66dc80b45b0f
+```
