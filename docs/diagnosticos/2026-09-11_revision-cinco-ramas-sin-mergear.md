@@ -263,3 +263,13 @@ Ninguna conflictúa con `main` (`git merge-tree --write-tree`, §2.3). Orden por
 5. `feat/buscador-spc-autocompletado` — UI del portal → **deploy**, cambia cómo busca el entrenador (padrón completo en cliente, acento-insensible). Cierra drift #3. Correr `tests/probe_buscador_spc.mjs` después del merge. **Alternativa** si no se quiere la UI: borrar rama + `DROP FUNCTION public.rpc_padron_spcs();` por `apply_migration` (con su `.sql` en `migrations/`) para que la base y el repo queden parejos.
 
 Cada merge `--no-ff`, con OK explícito, como siempre. Después de todos: `git branch -d` de las mergeadas (local y `origin`) si querés; no lo hago sin pedido.
+
+## 5. Verificación de push (reports)
+
+```
+$ git push -u origin reports
+$ git ls-remote origin reports
+eaa9eb055dd8a1a90dbfb4782748ab1f78a450bf	refs/heads/reports
+$ git rev-parse HEAD
+eaa9eb055dd8a1a90dbfb4782748ab1f78a450bf
+```
