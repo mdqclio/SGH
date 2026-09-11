@@ -174,3 +174,15 @@ Opcional, para bajar ruido: si el modal se abre **desde Inscripciones** con un t
 Riesgos que no dependen de nosotros: el Stud Book cambia/cierra el autocomplete (hoy también nos pegaría), o empieza a bloquear IPs de datacenter (**sin verificar**; hoy responde al VPS que es Hetzner, y Deno Deploy también es datacenter). Mitigación barata: si la función recibe un 404 con HTML en vez de JSON, devolver `{ error: 'studbook_no_disponible' }` y que la pantalla diga "cargalo a mano" — que es lo que Yesi hace hoy.
 
 Lo que **no** resuelve: caballeriza, entrenador y propietario del caballo — eso no está en el Stud Book y sigue viniendo de la planilla.
+
+---
+
+## 8. Verificación de push
+
+```
+$ git push origin reports
+$ git ls-remote origin reports
+cc6e4e19d0ccd2aee720d37e5c0bb53c0cc88948	refs/heads/reports
+$ git rev-parse HEAD
+cc6e4e19d0ccd2aee720d37e5c0bb53c0cc88948
+```
