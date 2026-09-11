@@ -83,7 +83,9 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 ├── migrations/                  SQL versionado (fuente de verdad de DDL; aplicar por MCP)
 │   ├── emitir_recibo_fase4.sql  RPC emitir_recibo v1 (cobro atómico)
 │   ├── emitir_recibo_v1_1.sql   RPC emitir_recibo v1.1 (pagable = solo impago)
-│   └── liberar_linea.sql        RPC liberar_linea (liberación manual del doping)
+│   ├── liberar_linea.sql        RPC liberar_linea (liberación manual del doping)
+│   ├── spcs_r9_tanda_1.sql      18 altas de SPCs de R9 (EJECUTADA 2026-09-11, spcs 181→199)
+│   └── spcs_conesera_sexo.sql   UPDATE sexo de Conesera (PROPUESTO, espera a Yesi)
 ```
 
 ---
@@ -250,7 +252,7 @@ Antes de cualquier operación de escritura sobre producción, verificar los tres
 
 ```
 pwd                          → /home/clio/dev/SGH
-SELECT count(*) FROM spcs    → 181        (baseline al 2026-08-23)
+SELECT count(*) FROM spcs    → 199        (baseline al 2026-09-11)
 ref del proyecto             → unlhcuanfrtpatoipwve
 ```
 
@@ -261,7 +263,8 @@ ISSUE-061.
 
 El baseline de `spcs` **cambia cada vez que se dan de alta o de baja ejemplares** — actualizarlo acá
 cuando pase. Historial: 179 → 183 (tanda 5) → **181** (2026-08-23, se unificaron los dos pares de
-duplicados: se borraron `Fist Queen` y `Malenuchi`, ver `docs/PLAN_DUPLICADOS_SPC.md`).
+duplicados: se borraron `Fist Queen` y `Malenuchi`, ver `docs/PLAN_DUPLICADOS_SPC.md`) → **199**
+(2026-09-11, R9 tanda 1: 18 altas de la planilla de anotaciones, `migrations/spcs_r9_tanda_1.sql`).
 
 Los guards que aparecen dentro de los planes y bitácoras de `docs/` son **fotos de su fecha**, no el
 baseline vigente: no se reescriben.
@@ -336,6 +339,7 @@ node tests/probe_solicitar_cuenta_existente.mjs   # ISSUE-069 — A DEMANDA: man
 node tests/probe_solicitar_falta_paso.mjs         # ISSUE-070 — pantalla "Ya casi"; sin red, no manda nada
 node tests/probe_club_id_alta_propietarios.mjs     # ISSUE-072 — alta con club_id + listado por club; ESCRIBE, teardown verificado
 node tests/probe_alta_entrenador_operador.mjs      # ISSUE-078/073/079 — operador ve "+ Nuevo Entrenador", tipo elegible, UPDATE/DELETE por club; ESCRIBE, teardown verificado
+node tests/probe_spcs_r9_tanda_1.mjs               # R9 tanda 1 — 18 altas vs evidencia del Stud Book, count 199, Conesera intacta; solo lectura
 ```
 
 **El patrón es código real sin browser.** Chromium no corre en este Ubuntu (`"Playwright does not support chromium on ubuntu26.04-x64"` — ver `docs/SERVER.md`), así que el probe **extrae del propio HTML** la función o el bloque a probar —por ancla, con balance de llaves—, lo corre con `new AsyncFunction(...)` inyectando dependencias reales (cliente Supabase con `SUPABASE_SECRET_KEY`, más stubs de DOM si hacen falta) y assertea contra la base. Nunca reimplementar la lógica dentro del test: si el archivo cambia, el probe corre el archivo cambiado. Para lo que escribe: **snapshot → run → assert → restore** en el `finally`.

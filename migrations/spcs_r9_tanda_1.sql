@@ -1,7 +1,11 @@
 -- ============================================================
 -- spcs_r9_tanda_1.sql — altas de SPCs de la planilla de anotaciones de R9 (20/09/2026)
 -- ============================================================
--- ⏳ PROPUESTA — NO EJECUTADA. Espera gate de Leo.
+-- ✅ EJECUTADA el 11/09/2026 por MCP apply_migration (nombre: spcs_r9_tanda_1), con OK de Leo.
+--    Bloque aplicado: los 18 INSERTs + un DO que aborta si count <> 199, si hay
+--    studbook_id repetido o si ABARAJALA no queda hembra. Resultado: spcs 181 -> 199.
+--    Pre-chequeos §0 corridos justo antes: 181 / 0 / 0 / 0.
+--    Probe: tests/probe_spcs_r9_tanda_1.mjs 77/77.
 --
 -- Pedido de Yesi el 11/09/2026: planilla de anotaciones de R9, 11 turnos,
 -- 75 líneas, 66 caballos distintos. 44 ya estaban (42 exactos + Conesera +
