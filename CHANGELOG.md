@@ -1,5 +1,31 @@
 # Changelog
 
+## [2026-09-11 noche, 6] — Alta de SPC desde el Stud Book: Edge Function `studbook-buscar` + `rpc_spcs_duplicados` + pantalla
+
+> Con OK de Leo pieza por pieza (A → B → D-función → C → D-pantalla → deploy). Diagnósticos en `reports`:
+> `2026-09-11_relevamiento-scraper-studbook-como-edge-function.md`, `…_plan-studbook-buscar-edge-function.md`,
+> `…_ejecucion-studbook-buscar-pieza-{a,b,c,d-deploy}.md`.
+
+- **`rpc_spcs_duplicados(p_studbook_id, p_nombre, p_fecha_nacimiento, p_padrillo, p_madre)`** (APLICADA):
+  los tres chequeos de duplicado que se corrían a mano en las tandas R9 (mismo `studbook_id` / mismo nombre
+  normalizado / misma fecha + padre + madre), en la base, sólo staff. `migrations/rpc_spcs_duplicados.sql`;
+  probe `tests/probe_rpc_spcs_duplicados.mjs` (10/10, sesiones reales).
+- **Edge Function `studbook-buscar` v1** (`verify_jwt:true` + `fn_is_staff()`; portal → 403). `POST {term}` →
+  `{ ok, term, exactos, parciales, fuente }`. **Fuente = el buscador público del Stud Book
+  (`/ejemplares/autocomplete`, scraping — no API acordada)**; está escrito en la cabecera que cuando exista la
+  API de Diego se cambia sólo el bloque «FUENTE» adentro de la función y la pantalla no se toca. No escribe en
+  la base, no guarda secretos. Homónimos vuelven todos: no elige. Probes `tests/probe_studbook_buscar_fn.mjs`
+  (11/11 contra el Stud Book real) y `…_e2e.mjs` (8/8 contra la deployada).
+- **`spcs.html`**: en el alta, bloque "Buscar en el Stud Book" (candidatos con fecha, edad reglamentaria,
+  sexo, pelaje, padre × madre, abuelo materno, nº SB, chips de alerta; botón **Usar** prellena nombre, fecha,
+  sexo, color, padres, país y notas `SB <id> · url · alta desde spcs.html <fecha> · …`). Campo nuevo visible
+  read-only **"Nº Stud Book (vínculo)"** → `spcs.studbook_id`. Antes del INSERT corre `rpc_spcs_duplicados`
+  (siempre, también cargando a mano): `studbook_id` o `fecha_padre_madre` **bloquean** con "Abrir esa
+  ficha"; `nombre` solo ofrece "Guardar igual (es otro caballo)". 502 del Stud Book → "Cargalo a mano".
+  Probe `tests/probe_spcs_studbook_alta.mjs` (24/24: código real extraído del HTML, DOM stub, función y
+  RPC reales, 1 INSERT real con teardown verificado, count 203).
+- Sin † de muerto: el autocomplete no lo trae (GOTCHA #96). `docs/SCHEMA.md` ampliado (RPC + Edge Function).
+
 ## [2026-09-11 noche, 5] — Stud Book: condición en 5 campos (ganadas), 5 sexos corregidos, reunion-json v22
 
 > Todo ejecutado con OK de Leo, paso a paso. Diagnósticos en `reports`: `2026-09-11_relevamiento-studbook-tres-pedidos-diego.md`,
