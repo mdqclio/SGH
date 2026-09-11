@@ -351,3 +351,17 @@ BEGIN
   RETURN NEW;
 END; $function$
 ```
+
+---
+
+## 8. Verificación de push
+
+```
+$ git ls-remote origin feat/caballeriza-el-don-jorge-lp
+dfcd136d0bab7db99afaf8f92e91de7ff1b86869	refs/heads/feat/caballeriza-el-don-jorge-lp
+$ git push origin reports
+$ git ls-remote origin reports
+7c877420eb5ec1f2664b40f8b2a4d6d02e0f20e2	refs/heads/reports
+$ git rev-parse HEAD
+7c877420eb5ec1f2664b40f8b2a4d6d02e0f20e2
+```
