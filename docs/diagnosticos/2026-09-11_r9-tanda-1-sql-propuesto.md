@@ -512,3 +512,17 @@ COMMIT;
 4. Si Yesi confirma Conesera: `apply_migration` con `spcs_conesera_sexo.sql`. Count sigue 199.
 5. Probe post-insert (`tests/probe_spcs_r9_tanda_1.mjs`, a escribir): 18 filas por `studbook_id`, sexo/fecha iguales al JSON, ABARAJALA hembra, `registro_stud_book` NULL en las 18, count = 199, 0 `studbook_id` repetidos.
 6. `CLAUDE.md`: baseline `spcs` 181 → 199. CHANGELOG. Merge a `main` con OK.
+
+---
+
+## 7. Verificación de push
+
+```
+$ git ls-remote origin fix/spcs-r9-tanda-1
+221fb12d08ef2c6f162c79f28083fad37c1b2ffb	refs/heads/fix/spcs-r9-tanda-1
+$ git push origin reports
+$ git ls-remote origin reports
+e41f948797cef8e09a1461f7ba60ab87808f4415	refs/heads/reports
+$ git rev-parse HEAD
+e41f948797cef8e09a1461f7ba60ab87808f4415
+```
