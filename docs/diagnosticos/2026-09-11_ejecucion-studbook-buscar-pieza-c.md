@@ -418,3 +418,13 @@ c39f2fa feat(studbook): Edge Function studbook-buscar DEPLOYADA v1 (verify_jwt, 
 - **Pieza D(pantalla)** — `tests/probe_spcs_studbook_alta.mjs`: extraer de `spcs.html` `renderCandidatos`/`candidatoHTML`/`usarCandidato`/`mostrarPanelDuplicados` y el tramo de `saveRecord` con stubs de DOM; casos: BIEN COQUETA → 2 candidatos y ninguno prellenado; Usar(0) → form con sb 429819 y notas con SB + url; alta con `studbook_id` 431567 (LOGUACIOUS) → panel bloqueado sin botón; alta "WAVE RIMOUT" sin sb → panel con "Guardar igual"; `omitirDuplicados` → llega al INSERT (contra sandbox, con teardown).
 - Docs: `CLAUDE.md` (árbol: función + probes; sección Supabase MCP no cambia), `docs/GOTCHAS.md` #96 (autocomplete: header obligatorio, sin campo muerto, homónimos), `docs/SCHEMA.md` (RPC `rpc_spcs_duplicados`), `CHANGELOG.md`.
 - Merge a `main` (= deploy de la pantalla) sólo con OK.
+
+## 8. Verificación de push (reports)
+
+```
+$ git push -u origin reports
+$ git ls-remote origin reports
+ffbc2ac1e4e8a0c13c9e3af0460ed96be1365429	refs/heads/reports
+$ git rev-parse HEAD
+ffbc2ac1e4e8a0c13c9e3af0460ed96be1365429
+```
