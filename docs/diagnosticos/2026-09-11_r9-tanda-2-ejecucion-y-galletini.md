@@ -157,3 +157,17 @@ Lo verificado, en orden:
 3. **Lo está buscando en Inscripciones**, en el selector de entrenador, no lo encuentra (porque no existe) y lo cuenta como "no lo puedo cargar". El camino es Entrenadores → + Nuevo Entrenador → volver a Inscripciones.
 
 Para cerrar necesito de Yesi: (a) si después de `Ctrl+Shift+R` ve "+ Nuevo Entrenador"; (b) si lo ve y falla, el texto exacto del mensaje rojo; (c) el DNI de Galletini.
+
+---
+
+## 4. Verificación de push
+
+```
+$ git ls-remote origin main
+95b7369eaaeb54b89591d68c6d29b2008067959f	refs/heads/main
+$ git push origin reports
+$ git ls-remote origin reports
+61b6381b76607ffe1c058b4c3d0bfdbd29bfe797	refs/heads/reports
+$ git rev-parse HEAD
+61b6381b76607ffe1c058b4c3d0bfdbd29bfe797
+```
