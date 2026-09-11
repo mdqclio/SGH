@@ -2100,3 +2100,52 @@ pasa a dar error en la base y no sólo un aviso en pantalla, y la UI ya está pr
 
 Módulo: tabla `profesionales`. Prioridad: Media. Relacionado: ISSUE-078 (lo habilita), ISSUE-072
 (el índice equivalente que ya existe en `propietarios`).
+
+### ISSUE-080: `caballerizas.html` no guía a completar un provisorio — Yesi creó una caballeriza duplicada para cargar al titular
+
+**Estado**: 🟡 **ABIERTO** (2026-09-11). El caso concreto ya se resolvió a mano
+(`migrations/merge_los_urones_duplicada.sql`, ejecutada el 11/09); la pantalla sigue igual.
+
+**El caso**: `LOS URONES` existía desde el 18/08 con el propietario **provisorio** de R8 (`380bb7cb`,
+`notas='provisorio R8 15/08'`, sin documento) y una línea de $100.000 ya saldada colgando de él. El
+11/09 a las 16:57 Yesi tenía el dato real del titular (HUGO FABIAN TRUPPA, DNI 24525603) y, en vez de
+abrir `LOS URONES` y cargarle el responsable, **creó otra `LOS URONES`** (`34fdf68d`) con el
+responsable adentro. El trigger `fn_caballeriza_resp_set_propietario` creó un segundo propietario
+(`484b14a9`, `"HUGO FABIAN, TRUPPA"` — además con apellido y nombre invertidos porque los tipeó al
+revés en el formulario) y la inscripción de DOCTOR SKY en R9 quedó apuntando a la nueva. Resultado:
+dos caballerizas, dos propietarios para la misma persona, la plata de R8 en uno y la de R9 por caer
+en el otro. Es el **segundo duplicado del día por el mismo motivo** (el primero fue el propietario
+mismo, que nació por el mismo camino); y es el **primer provisorio de los 41 que se completa con
+datos reales** — se hizo por SQL, no por la pantalla.
+
+Diagnóstico y merge: `docs/diagnosticos/2026-09-11_plan-merge-los-urones.md` y
+`…_ejecucion-merge-los-urones.md` (branch `reports`).
+
+**Por qué la pantalla lo permite**:
+1. `caballerizas` **no tiene índice único por nombre** (`pg_indexes`: sólo `caballerizas_pkey`), y
+   `caballerizas.html` no busca parecidos antes de insertar — a diferencia de `profesionales.html`,
+   que desde el 10/09 tiene `profesionales-duplicados.js` (ISSUE-078/079). El alta pasa igual con el
+   nombre repetido, sin aviso.
+2. Nada en la ficha dice "esta caballeriza tiene un titular **provisorio**, completalo acá". La card
+   muestra `responsable` vacío (los 40 provisorios de R8 tienen `caballerizas.responsable` NULL) y el
+   modal presenta la sección de responsables como cualquier otra. Para Yesi, "sin responsable" y
+   "no existe" se ven igual, y el camino corto es crear una nueva.
+3. El formulario de responsable tiene los campos *Apellido* y *Nombre* separados, y no valida ni
+   sugiere el orden; el trigger arma `apellido, nombre` a ciegas.
+
+**Qué haría** (tres cosas independientes, de menor a mayor):
+- **Aviso de parecidos al crear** una caballeriza, mismo patrón que `profesionales-duplicados.js`:
+  nombre normalizado (`unaccent` manual + sin espacios/paréntesis) contra las del club; si hay match,
+  mostrarla con su titular y un botón "Abrir esa" en lugar de "Guardar igual". No bloquea.
+- **Marcar el provisorio en la card y en el modal**: si el titular activo tiene `notas LIKE
+  'provisorio R%'` (o `documento_nro IS NULL`), rótulo "titular provisorio — completar" y que el
+  botón lleve directo a editar ese responsable (rellenar DNI/nombre sobre la fila existente, que es
+  lo que hace el merge a mano). Es la regla de Fede del 15/08 llevada a la pantalla.
+- **Índice único parcial** `(club_id, upper(btrim(nombre)))` en `caballerizas`, DDL versionado,
+  después de confirmar que no hay más duplicados que este (barrido por nombre normalizado sobre las
+  300: **sin verificar** al 11/09).
+
+Módulo: `caballerizas.html`, tabla `caballerizas`. Prioridad: Media (vuelve a pasar cada vez que
+llega el dato de un titular). Relacionado: ISSUE-072/073/078/079 (misma familia de pantallas),
+GOTCHA #47 (los provisorios), `docs/RUNBOOK_R8_PROVISORIOS.md` §B4-B5 (el `LIMIT 1` del trigger
+cuando hay dos titulares activos).
