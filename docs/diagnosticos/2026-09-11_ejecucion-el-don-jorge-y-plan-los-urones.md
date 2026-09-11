@@ -247,3 +247,17 @@ COMMIT;
 - Merge de `feat/caballeriza-el-don-jorge-lp` a `main` (con OK): trae el SQL ejecutado de EL DON JORGE y el propuesto de LOS URONES.
 - OK para ejecutar el merge de LOS URONES (§3), idealmente antes del lunes.
 - Avisar a Yesi: (a) EL DON JORGE (LP) ya está para asignar; (b) para un stud que ya existe sin titular, no crear otro — editar el existente y cargarle el responsable.
+
+---
+
+## 6. Verificación de push
+
+```
+$ git ls-remote origin feat/caballeriza-el-don-jorge-lp
+3f35445a894bef9fe32bb654f56d0ca2de52adb9	refs/heads/feat/caballeriza-el-don-jorge-lp
+$ git push origin reports
+$ git ls-remote origin reports
+e15545e34be993e04c1ad4b56759cbf55223e9fc	refs/heads/reports
+$ git rev-parse HEAD
+e15545e34be993e04c1ad4b56759cbf55223e9fc
+```
