@@ -26,7 +26,8 @@
 -- propietario. Es decisión aparte (bloque §4, comentado).
 -- ============================================================
 
-\set marca 'provisorio R9 14/09'     -- ajustar a la fecha de ejecución (formato: 'provisorio R<n> DD/MM')
+-- MARCA: 'provisorio R9 14/09' — ajustar a la fecha real de ejecución (formato 'provisorio R<n> DD/MM', como 'provisorio R8 15/08').
+-- Aparece 5 veces abajo; reemplazar las 5 si cambia.
 
 -- ------------------------------------------------------------
 -- 0. Pre-chequeos (fuera de la tx)
@@ -82,7 +83,7 @@ WITH falta AS (
 ),
 nuevos AS (
   INSERT INTO propietarios (club_id, tipo, nombre, activo, estado, notas)
-  SELECT f.club_id, 'persona', f.nombre, true, 'activo', :'marca'
+  SELECT f.club_id, 'persona', f.nombre, true, 'activo', 'provisorio R9 14/09'
   FROM falta f
   WHERE NOT EXISTS (
     SELECT 1 FROM propietarios p
@@ -137,7 +138,7 @@ JOIN caballerizas c ON c.id = cr.caballeriza_id
 JOIN inscripciones i ON i.caballeriza_id = c.id AND i.propietario_id = p.id
 JOIN carreras ca ON ca.id = i.carrera_id AND ca.reunion_id = 'cafa37d6-89f4-45cb-a0d9-835bc27407e9'
 JOIN spcs s ON s.id = i.spc_id
-WHERE p.notas = :'marca'
+WHERE p.notas = 'provisorio R9 14/09'
 GROUP BY p.nombre, p.notas, c.nombre ORDER BY p.nombre;
 
 -- Conteos: propietarios +N, provisorios +N, responsables +N, r9_sin_prop = sólo las sin caballeriza.
@@ -161,10 +162,10 @@ COMMIT;
 -- ============================================================
 -- BEGIN;
 -- UPDATE inscripciones i SET propietario_id = NULL
---   WHERE i.propietario_id IN (SELECT id FROM propietarios WHERE notas = :'marca')
+--   WHERE i.propietario_id IN (SELECT id FROM propietarios WHERE notas = 'provisorio R9 14/09')
 --     AND i.carrera_id IN (SELECT id FROM carreras WHERE reunion_id = 'cafa37d6-89f4-45cb-a0d9-835bc27407e9');
--- DELETE FROM caballeriza_responsables WHERE propietario_id IN (SELECT id FROM propietarios WHERE notas = :'marca');
--- DELETE FROM propietarios WHERE notas = :'marca'
+-- DELETE FROM caballeriza_responsables WHERE propietario_id IN (SELECT id FROM propietarios WHERE notas = 'provisorio R9 14/09');
+-- DELETE FROM propietarios WHERE notas = 'provisorio R9 14/09'
 --   AND NOT EXISTS (SELECT 1 FROM liquidaciones l WHERE l.propietario_id = propietarios.id)
 --   AND NOT EXISTS (SELECT 1 FROM recibos r WHERE r.propietario_id = propietarios.id);
 -- COMMIT;
