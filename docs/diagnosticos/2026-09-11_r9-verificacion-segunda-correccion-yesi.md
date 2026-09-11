@@ -187,3 +187,15 @@ Las mismas 5 de la mañana. Ninguna nueva, ninguna modificada (trigger de audito
 3. Conesera: sigue esperando confirmación de Yesi (sexo).
 4. Los 4 que vuelven a Yesi (BELLA DOÑA, BIEN COQUETA, EL MAS SABIO, INDIA MARO): sin novedad — no cargó ninguno a mano.
 5. **Corrección a mi informe de la tarde** (`…_relevamiento-docs-fase-1.md` §3.8, §7 ítem 1.9): `MODULOS.md:67-68` **no está mal** — Yesi destraba bajando a borrador y vuelve a publicar. Lo que sí sigue viejo de ese ítem es la instrucción "`UPDATE reuniones SET estado='borrador'`" por SQL cuando hoy se hace desde la UI. Baja de grupo 1 a grupo 3. Lo dejo asentado acá; el informe de la tarde no se reescribe (es foto).
+
+---
+
+## 7. Verificación de push
+
+```
+$ git push origin reports
+$ git ls-remote origin reports
+b37a5752bc5c19f025d3556b63d3407f9dbf0e62	refs/heads/reports
+$ git rev-parse HEAD
+b37a5752bc5c19f025d3556b63d3407f9dbf0e62
+```
