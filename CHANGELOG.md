@@ -1,5 +1,30 @@
 # Changelog
 
+## [2026-09-11 noche, 3] — Provisorios R9 + merge CAROSUEÑO: R9 sin caballos sin dueño
+
+> **EJECUTADAS en producción** (`merge_carosueno_duplicada`, `propietarios_provisorios_r9`), con OK de Leo.
+> Es la prevención de lo que en R8 costó una regularización manual (GOTCHA #47/#74): al cargar la planilla
+> de R9, **8 inscripciones tenían caballeriza sin ningún titular** → `propietario_id NULL` → el motor no
+> liquidaría al propietario. Las 8 más 3 de CAROSUEÑO ya derivan.
+
+- **CAROSUEÑO (DOL) / CAROSUEÑO**: dos fichas del mismo stud, una con la historia (2 SPC, 7 inscripciones,
+  3 en R9) y sin titular, otra con la titular (BRIGANTI MARIA LAURA) y vacía. Sobrevive la de la historia,
+  recibe el responsable, se limpia el sufijo, `hipodromo_patente='DOL'`; 7 inscripciones re-derivadas.
+  `migrations/merge_carosueno_duplicada.sql`. caballerizas 300 → 299.
+- **Provisorios R9** (`migrations/propietarios_provisorios_r9.sql`): para toda caballeriza de Dolores con
+  inscripción en R9 y sin titular activo → propietario provisorio (forma de los 40 de R8 y de EL DON JORGE:
+  `persona`, sin documento, `notas 'provisorio R9 11/09'`) + vínculo `rol propietario` activo +
+  re-derivación explícita de **todas** sus inscripciones sin dueño (R6 8, R8 5, R9 8 = 21). Siete
+  caballerizas: 2 DE ABRIL MAIPU, Abuelo Calin, HARAS EL ORIGEN, LA COLONIA, LOS 6 CORAZONES, MONTE DEL
+  TORDILLO, SAICA. **Data-driven y re-ejecutable**: la lista se calcula al correr; si Yesi asigna una
+  caballeriza sin titular antes del lunes, se vuelve a correr el mismo `DO` y la agarra.
+  propietarios 264 → 271, provisorios 40 → 47 (= 40 R8 − 1 completado + 1 EL DON JORGE + 7).
+- Estado R9 al cierre: 76 inscripciones · 68 con propietario · **0 con caballeriza sin propietario** ·
+  8 sin caballeriza todavía (los SPC dados de alta hoy). Liquidaciones sin cambio (189 / 493).
+- Barrido de duplicados por nombre normalizado en `caballerizas`: además de LOS URONES había 4 pares
+  (CAROSUEÑO resuelto; quedan LA NARCISA vacía, SANTA BARBARA / (DOL), EL LINYE Y RAMI provisorio+real con
+  plata en los dos). Ver `reports`: `2026-09-11_barrido-caballerizas-duplicadas.md`.
+
 ## [2026-09-11 noche, 2] — Caballerizas: EL DON JORGE (LP) + merge de LOS URONES duplicada
 
 > **EJECUTADAS en producción** por MCP `apply_migration` (`caballeriza_el_don_jorge_lp`,

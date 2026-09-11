@@ -1,7 +1,19 @@
 -- ============================================================
 -- propietarios_provisorios_r9.sql — propietario PROVISORIO para toda caballeriza con inscripción en R9 y sin titular
 -- ============================================================
--- ⏳ PROPUESTA — NO EJECUTADA. Espera gate de Leo.
+-- ✅ EJECUTADA el 11/09/2026 (noche) por MCP apply_migration (nombre: propietarios_provisorios_r9), con OK de Leo.
+--    Marca usada: 'provisorio R9 11/09'. Resultado: 7 provisorios + 7 vínculos; 21 inscripciones re-derivadas
+--    (R6 8, R8 5, R9 8 — Leo pidió incluir las viejas: no generan plata, dejan el historial con dueño).
+--    R9 quedó 76 inscripciones / 68 con propietario / 0 con caballeriza sin propietario / 8 sin caballeriza.
+--    propietarios 264→271, provisorios 40→47, responsables 263→270, liquidaciones sin cambio (189/493).
+--
+-- RE-EJECUTABLE (pedido de Leo): la lista se calcula al correr. Si entre hoy y el lunes aparece otra
+-- caballeriza sin titular con inscripción en R9, volver a correr el bloque DO de abajo tal cual
+-- (con la marca de la fecha) — es idempotente: no duplica provisorios ni vínculos, y aborta si no hay nada.
+--
+-- Lo que se aplicó fue el bloque DO (§EJECUTADO, al final), no el BEGIN/COMMIT de abajo: misma lógica,
+-- con los conteos esperados calculados adentro y RAISE en cada desvío. El BEGIN/COMMIT queda como
+-- lectura paso a paso.
 --
 -- Medido el 11/09/2026 (docs/diagnosticos/2026-09-11_r9-cuadro-72-y-plan-provisorios.md):
 --   R9 = 72 inscripciones · 56 con propietario_id · 8 con caballeriza SIN ningún responsable → propietario_id NULL
@@ -21,9 +33,8 @@
 -- ratificación: entran sólo caballerizas con inscripciones definitivas.
 -- Idempotente: no crea un segundo provisorio si ya hay uno con ese nombre y marca; no crea responsable si la
 -- caballeriza ya tiene titular activo.
--- Re-derivación (§3): sólo inscripciones de R9. Las de R6/R8 de estas mismas caballerizas también están en
--- NULL (R6: 9, R8: 5 — ver informe) y NO se tocan acá: R8 ya está saldada y R6 liquidada sin líneas de
--- propietario. Es decisión aparte (bloque §4, comentado).
+-- Re-derivación (§3): TODAS las inscripciones sin propietario de esas caballerizas (R6, R8 y R9) — decisión
+-- de Leo 11/09: no genera plata (no re-liquida) y deja el historial con dueño.
 -- ============================================================
 
 -- MARCA: 'provisorio R9 14/09' — ajustar a la fecha real de ejecución (formato 'provisorio R<n> DD/MM', como 'provisorio R8 15/08').
@@ -170,3 +181,58 @@ COMMIT;
 --   AND NOT EXISTS (SELECT 1 FROM recibos r WHERE r.propietario_id = propietarios.id);
 -- COMMIT;
 -- (Seguro sólo antes de liquidar R9. Después, los provisorios tienen plata y se completan, no se borran.)
+
+
+-- ============================================================
+-- EJECUTADO — bloque DO tal como se aplicó (re-ejecutable; cambiar `marca` a la fecha del día)
+-- ============================================================
+DO $$
+DECLARE n_cabs int; n_null int; n int; k int; liq0 int; det0 int; liq1 int; det1 int; p0 int; r0 int; p1 int; r1 int;
+  r9 uuid := 'cafa37d6-89f4-45cb-a0d9-835bc27407e9';
+  dol uuid := '0649e9c5-9e87-4aad-842f-101458e6b33c';
+  marca text := 'provisorio R9 11/09';
+BEGIN
+  CREATE TEMP TABLE falta ON COMMIT DROP AS
+    SELECT DISTINCT c.id AS cab_id, c.club_id, c.nombre
+    FROM caballerizas c
+    JOIN inscripciones i ON i.caballeriza_id = c.id AND i.propietario_id IS NULL
+    JOIN carreras ca ON ca.id = i.carrera_id AND ca.reunion_id = r9
+    WHERE c.club_id = dol
+      AND NOT EXISTS (SELECT 1 FROM caballeriza_responsables r WHERE r.caballeriza_id = c.id AND r.rol = 'propietario' AND r.activo);
+  SELECT count(*) INTO n_cabs FROM falta;
+  SELECT count(*) INTO n_null FROM inscripciones i WHERE i.caballeriza_id IN (SELECT cab_id FROM falta) AND i.propietario_id IS NULL;
+  IF n_cabs = 0 THEN RAISE EXCEPTION 'nada que hacer: 0 caballerizas sin titular con inscripciones en R9'; END IF;
+  SELECT count(*) INTO k FROM inscripciones i JOIN carreras ca ON ca.id = i.carrera_id
+    WHERE ca.reunion_id = r9 AND i.caballeriza_id IS NOT NULL AND i.propietario_id IS NULL
+      AND EXISTS (SELECT 1 FROM caballeriza_responsables r WHERE r.caballeriza_id = i.caballeriza_id AND r.rol = 'propietario' AND r.activo);
+  IF k <> 0 THEN RAISE EXCEPTION '% inscripciones de R9 con titular y propietario NULL (trigger?) -> rollback', k; END IF;
+  SELECT count(*) INTO k FROM propietarios p WHERE p.club_id = dol AND upper(btrim(p.nombre)) IN (SELECT upper(btrim(nombre)) FROM falta);
+  IF k <> 0 THEN RAISE EXCEPTION '% propietarios homónimos de caballerizas de falta -> resolver a mano', k; END IF;
+  SELECT count(*) INTO p0 FROM propietarios; SELECT count(*) INTO r0 FROM caballeriza_responsables;
+  SELECT count(*) INTO liq0 FROM liquidaciones; SELECT count(*) INTO det0 FROM liquidacion_detalle;
+  INSERT INTO propietarios (club_id, tipo, nombre, activo, estado, notas)
+  SELECT f.club_id, 'persona', f.nombre, true, 'activo', marca FROM falta f
+  WHERE NOT EXISTS (SELECT 1 FROM propietarios p WHERE p.club_id = f.club_id AND upper(btrim(p.nombre)) = upper(btrim(f.nombre)) AND p.notas LIKE 'provisorio R%');
+  GET DIAGNOSTICS n = ROW_COUNT; IF n <> n_cabs THEN RAISE EXCEPTION 'propietarios insertados % <> caballerizas % -> rollback', n, n_cabs; END IF;
+  INSERT INTO caballeriza_responsables (caballeriza_id, propietario_id, rol, activo, nombre, documento_tipo)
+  SELECT f.cab_id, p.id, 'propietario', true, f.nombre, 'DNI'
+  FROM falta f
+  JOIN LATERAL (SELECT p.id FROM propietarios p WHERE p.club_id = f.club_id AND upper(btrim(p.nombre)) = upper(btrim(f.nombre)) AND p.notas LIKE 'provisorio R%' ORDER BY p.created_at, p.id LIMIT 1) p ON true;
+  GET DIAGNOSTICS n = ROW_COUNT; IF n <> n_cabs THEN RAISE EXCEPTION 'responsables insertados % <> caballerizas % -> rollback', n, n_cabs; END IF;
+  UPDATE inscripciones i SET propietario_id = cr.propietario_id
+  FROM falta f
+  JOIN caballeriza_responsables cr ON cr.caballeriza_id = f.cab_id AND cr.rol = 'propietario' AND cr.activo AND cr.propietario_id IS NOT NULL
+  WHERE i.caballeriza_id = f.cab_id AND i.propietario_id IS NULL;
+  GET DIAGNOSTICS n = ROW_COUNT; IF n <> n_null THEN RAISE EXCEPTION 're-derivadas % <> esperadas % -> rollback', n, n_null; END IF;
+  SELECT count(*) INTO k FROM inscripciones i WHERE i.caballeriza_id IN (SELECT cab_id FROM falta) AND i.propietario_id IS NULL;
+  IF k <> 0 THEN RAISE EXCEPTION 'quedan % inscripciones en NULL -> rollback', k; END IF;
+  SELECT count(*) INTO k FROM inscripciones i JOIN carreras ca ON ca.id = i.carrera_id WHERE ca.reunion_id = r9 AND i.caballeriza_id IS NOT NULL AND i.propietario_id IS NULL;
+  IF k <> 0 THEN RAISE EXCEPTION 'R9: % inscripciones con caballeriza y sin propietario -> rollback', k; END IF;
+  SELECT count(*) INTO k FROM (SELECT caballeriza_id FROM caballeriza_responsables WHERE rol = 'propietario' AND activo GROUP BY 1 HAVING count(*) > 1) x;
+  IF k <> 0 THEN RAISE EXCEPTION '% caballerizas con más de un titular activo -> rollback', k; END IF;
+  SELECT count(*) INTO p1 FROM propietarios; SELECT count(*) INTO r1 FROM caballeriza_responsables;
+  IF p1 <> p0 + n_cabs OR r1 <> r0 + n_cabs THEN RAISE EXCEPTION 'conteos propietarios %->% responsables %->% (esperaba +%) -> rollback', p0, p1, r0, r1, n_cabs; END IF;
+  SELECT count(*) INTO liq1 FROM liquidaciones; SELECT count(*) INTO det1 FROM liquidacion_detalle;
+  IF liq1 <> liq0 OR det1 <> det0 THEN RAISE EXCEPTION 'liquidaciones cambiaron -> rollback'; END IF;
+  RAISE NOTICE 'OK: % caballerizas, % inscripciones re-derivadas', n_cabs, n_null;
+END $$;
