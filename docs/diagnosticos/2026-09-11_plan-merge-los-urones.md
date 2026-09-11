@@ -258,3 +258,17 @@ union all select 'refs_nuevos', (select jsonb_build_object('inscr_cab_nueva',(se
  {"k":"fk_a_caballerizas","v":["profesionales.caballeriza_id","spcs.caballeriza_id","inscripciones.caballeriza_id","caballeriza_responsables.caballeriza_id"]},
  {"k":"refs_nuevos","v":{"det_prop_nueva":0,"liq_prop_nueva":0,"prof_cab_nueva":0,"rec_prop_nueva":0,"spc_prop_nueva":0,"spcs_cab_nueva":0,"inscr_cab_nueva":1,"inscr_prop_nueva":1,"usuarios_entidad":0}}]
 ```
+
+---
+
+## 8. Verificación de push
+
+```
+$ git ls-remote origin main
+9843e8042d472a6d4972717691b7bfb42b556aea	refs/heads/main
+$ git push origin reports
+$ git ls-remote origin reports
+4c20b5182e3f79343a4bf7571f2c513a6706f445	refs/heads/reports
+$ git rev-parse HEAD
+4c20b5182e3f79343a4bf7571f2c513a6706f445
+```
