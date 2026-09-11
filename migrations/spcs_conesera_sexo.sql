@@ -1,7 +1,9 @@
 -- ============================================================
 -- spcs_conesera_sexo.sql — corrección de sexo + studbook_id de Conesera
 -- ============================================================
--- ⏳ PROPUESTA — NO EJECUTADA. Espera gate de Leo (y confirmación de Yesi).
+-- ✅ EJECUTADA el 11/09/2026 por MCP apply_migration (nombre: spcs_conesera_sexo), con OK de Leo
+--    y confirmación de Yesi ("hembra del 2023"). Envuelta en un DO que aborta si ROW_COUNT <> 1.
+--    Resultado: sexo=hembra, nombre=CONESERA, studbook_id=444373, color=Alazan. spcs sigue 199.
 --
 -- Fila: spcs 1f645327-a6da-449b-8a62-fdb577a8658e — 'Conesera', cargada a
 -- mano el 09/05/2026 (sin studbook_id, sin color). Corrió R6, inscripta en
