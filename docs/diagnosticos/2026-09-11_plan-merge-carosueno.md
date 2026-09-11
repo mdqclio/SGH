@@ -230,3 +230,17 @@ union all select 'cab_rows', (select jsonb_agg(to_jsonb(c)) from caballerizas c 
  {"k":"cab_rows","v":[{"id":"46cc818b-aac4-4d39-b3c9-0b0c156fc6cc","notas":"Alta para inscripciones reunión 2026-06-20 (planilla Yesica)","activo":true,"estado":"activo","nombre":"CAROSUEÑO (DOL)","club_id":"0649e9c5-9e87-4aad-842f-101458e6b33c","telefono":null,"domicilio":null,"responsable":null,"chaquetilla_url":null,"hipodromo_patente":null,"chaquetilla_descripcion":null},{"id":"e6830f69-2474-4d98-881a-2fcddc56b1b4","notas":null,"activo":true,"estado":"activo","nombre":"CAROSUEÑO","club_id":"0649e9c5-9e87-4aad-842f-101458e6b33c","telefono":null,"domicilio":"LOBOS","responsable":"BRIGANTI MARIA LAURA (propietario)","chaquetilla_url":null,"hipodromo_patente":"DOL","chaquetilla_descripcion":null}]}]
 ```
 (`posicion: null` en las de R6 con resultado oficial: **sin verificar** si fue `no_largo` o resultado sin cargar para esas dos; en cualquier caso no hay líneas.)
+
+---
+
+## 8. Verificación de push
+
+```
+$ git ls-remote origin fix/merge-carosueno
+dfbe64052382164d4218d41cf240ed4a81f5ebd9	refs/heads/fix/merge-carosueno
+$ git push origin reports
+$ git ls-remote origin reports
+db0c53bf8c675e047cc08229952b9d2c3cc7a58c	refs/heads/reports
+$ git rev-parse HEAD
+db0c53bf8c675e047cc08229952b9d2c3cc7a58c
+```
