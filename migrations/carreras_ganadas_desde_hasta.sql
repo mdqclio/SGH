@@ -1,7 +1,9 @@
 -- ============================================================
 -- carreras_ganadas_desde_hasta.sql — condición "ganadas" en columnas (pedido Stud Book, campos 4 y 5 de 5)
 -- ============================================================
--- ⏳ PROPUESTA — NO EJECUTADA. Espera gate de Leo. DDL: aplicar por apply_migration.
+-- ✅ EJECUTADA el 11/09/2026 en dos migraciones por MCP: carreras_ganadas_desde_hasta_ddl (columnas + CHECK)
+--    y carreras_ganadas_backfill (46 filas; vista previa 2.a revisada por Leo fila por fila; DO que aborta si
+--    no son 46 o la distribución no es 25/3/13/1/3/1 + 3 NULL). Formatter + reunion-json v22 deployados el mismo día.
 --
 -- Hoy la cantidad de carreras ganadas que exige el turno ("perdedores", "ganadores de 1 o 2", "de 2 o +")
 -- vive sólo en el texto libre condicion_handicap. El JSON del Stud Book manda ganadadesde/ganadahasta

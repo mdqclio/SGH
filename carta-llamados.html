@@ -351,6 +351,14 @@
           <input type="number" id="f-edad-max" min="1" max="20" placeholder="5">
         </div>
         <div class="form-group">
+          <label>Ganadas desde</label>
+          <input type="number" id="f-ganadas-desde" min="0" max="50" placeholder="0 = perdedores">
+        </div>
+        <div class="form-group">
+          <label>Ganadas hasta</label>
+          <input type="number" id="f-ganadas-hasta" min="0" max="50" placeholder="vacío = o más">
+        </div>
+        <div class="form-group">
           <label>Condición sexo</label>
           <select id="f-cond-sexo">
             <option value="ambos">Ambos</option>
@@ -1140,6 +1148,9 @@ function openModal(rec=null) {
   document.getElementById('f-hora').value = rec?.hora_estimada||'';
   document.getElementById('f-edad-min').value = rec?.edad_minima_anos||'';
   document.getElementById('f-edad-max').value = rec?.edad_maxima_anos||'';
+  // Ganadas: 0 es un valor válido ("perdedores"), por eso `??` y no `||` como en edad.
+  document.getElementById('f-ganadas-desde').value = rec?.ganadas_desde ?? '';
+  document.getElementById('f-ganadas-hasta').value = rec?.ganadas_hasta ?? '';
   document.getElementById('f-cond-sexo').value = rec?.condicion_sexo||'ambos';
   document.getElementById('f-handicap').value = rec?.condicion_handicap||'';
   document.getElementById('f-cond-adicional').value = rec?.condicion_adicional||'';
@@ -1202,6 +1213,10 @@ async function saveRecord() {
     hora_estimada: document.getElementById('f-hora').value || null,
     edad_minima_anos: document.getElementById('f-edad-min').value ? parseInt(document.getElementById('f-edad-min').value) : null,
     edad_maxima_anos: document.getElementById('f-edad-max').value ? parseInt(document.getElementById('f-edad-max').value) : null,
+    // Ganadas (condición del Stud Book, GOTCHA: hasta NULL con desde cargado = "o más").
+    // `!== ''` y no truthy: "0" tiene que viajar como 0, no como null.
+    ganadas_desde: document.getElementById('f-ganadas-desde').value !== '' ? parseInt(document.getElementById('f-ganadas-desde').value) : null,
+    ganadas_hasta: document.getElementById('f-ganadas-hasta').value !== '' ? parseInt(document.getElementById('f-ganadas-hasta').value) : null,
     condicion_sexo: document.getElementById('f-cond-sexo').value,
     condicion_handicap: document.getElementById('f-handicap').value.trim() || null,
     condicion_adicional: document.getElementById('f-cond-adicional').value.trim() || null,

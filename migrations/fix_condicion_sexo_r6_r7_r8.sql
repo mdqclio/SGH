@@ -1,7 +1,9 @@
 -- ============================================================
 -- fix_condicion_sexo_r6_r7_r8.sql — 5 carreras con condicion_sexo='ambos' y texto de yeguas / exclusión de yeguas
 -- ============================================================
--- ⏳ PROPUESTA — NO EJECUTADA. Espera gate de Leo.
+-- ✅ EJECUTADA el 11/09/2026 por MCP apply_migration (nombre: fix_condicion_sexo_r6_r7_r8), con OK de Leo.
+--    DO con foto to_jsonb de liquidaciones/liquidacion_detalle/resultados/resultado_posiciones/inscripciones
+--    de R6 T2 y R8 T12 antes y después (idéntica), 2 + 3 filas, 0 desacuerdos texto/columna al final.
 --
 -- Mismo defecto que R9 T8/T10 (fix del 08/09, migrations/fix_condicion_sexo_r9_t8_t10.sql en la rama
 -- fix/condicion-sexo-t8-t10-r9): la columna dice 'ambos' y el texto dice otra cosa. Detectado el 11/09
