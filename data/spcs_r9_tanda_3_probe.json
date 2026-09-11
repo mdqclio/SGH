@@ -1,0 +1,82 @@
+{
+  "_meta": {
+    "fuente": "www.studbook.org.ar",
+    "endpoint": "/ejemplares/autocomplete?tipo=1&muerto=1&term=",
+    "escribe_en_db": false,
+    "terminos": 2
+  },
+  "TERMINOS": [
+    {
+      "termino": "BIEN COQUETA",
+      "hits": 2,
+      "resultados": [
+        {
+          "icon": "/img/banderas/10.png",
+          "id": 429819,
+          "text": "BIEN COQUETA",
+          "leyenda": "(2021 H SP)",
+          "padre": "Bien Terminado",
+          "madre": "Gritty",
+          "abuelo_materno": "Luhuk (USA)",
+          "tomo": 1241,
+          "folio": 202,
+          "sexo": "Hembra",
+          "nacimiento": "15/10/2021",
+          "pelo": "Zaino Colorado",
+          "raza": 4,
+          "url_friendly": "bien-coqueta",
+          "adn": 1,
+          "pasaporte": 1,
+          "mc": 1,
+          "revisado": 1
+        },
+        {
+          "icon": "/img/banderas/10.png",
+          "id": 216248,
+          "text": "BIEN COQUETA",
+          "leyenda": "(1998 H SP)",
+          "padre": "Yale Twentyniner (USA)",
+          "madre": "Coquetisima",
+          "abuelo_materno": "Friul",
+          "tomo": 1057,
+          "folio": 260,
+          "sexo": "Hembra",
+          "nacimiento": "29/07/1998",
+          "pelo": "Alazan",
+          "raza": 4,
+          "url_friendly": "bien-coqueta",
+          "adn": 0,
+          "pasaporte": 0,
+          "mc": 0,
+          "revisado": 0
+        }
+      ]
+    },
+    {
+      "termino": "EL MAS SABIO",
+      "hits": 1,
+      "resultados": [
+        {
+          "icon": "/img/banderas/10.png",
+          "id": 431662,
+          "text": "EL MAS SABIO",
+          "leyenda": "(2021 M SP)",
+          "padre": "Il Campione (CHI)",
+          "madre": "Indigirka",
+          "abuelo_materno": "Interprete",
+          "tomo": 1242,
+          "folio": 998,
+          "sexo": "Macho",
+          "nacimiento": "26/10/2021",
+          "pelo": "Alazan",
+          "raza": 4,
+          "url_friendly": "el-mas-sabio",
+          "adn": 1,
+          "pasaporte": 1,
+          "mc": 1,
+          "revisado": 1
+        }
+      ]
+    }
+  ]
+}
