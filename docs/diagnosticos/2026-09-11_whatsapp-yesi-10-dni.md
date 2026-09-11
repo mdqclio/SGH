@@ -43,3 +43,15 @@ jockeys sin DNI: ["GONZALEZ EDUARDO CECILIO","GONZALEZ LUCAS","HAHN GONZALO"]
 sin entrenador: ["DESERT OF DUBAI (T1)","QUE BELLA DOÑA (T1)","NIÑO OCEANICO (T4)","BIEN COQUETA (T4)","EL RISKO (T7)","THE BEAST PARTY (T9)","INDIANA MARO (T10)","GOIADORA (T11)"]
 r9_total: 78
 ```
+
+---
+
+## Verificación de push
+
+```
+$ git push origin reports
+$ git ls-remote origin reports
+11eaa06f25e2481089b006307cfd3993cf90b9e6	refs/heads/reports
+$ git rev-parse HEAD
+11eaa06f25e2481089b006307cfd3993cf90b9e6
+```
