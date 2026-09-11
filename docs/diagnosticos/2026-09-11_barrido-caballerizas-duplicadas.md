@@ -125,3 +125,17 @@ Origen probable de 3.3 y 3.4 (**sin verificar**): dos importaciones — una con 
 4. **3.1 EL LINYE Y RAMI** — mueve una línea pagada de un propietario a otro. Con Fede.
 
 Para ISSUE-080: el índice único parcial por `(club_id, nombre normalizado)` **no se puede crear hoy** — chocaría con los pares 1 y 2 (exactos). Con 3.1 y 3.2 resueltos ya no choca (3.3 y 3.4 difieren en el sufijo, el índice exacto no los ve — por eso el aviso de parecidos en pantalla tiene que normalizar el sufijo, no sólo mayúsculas).
+
+---
+
+## 5. Verificación de push
+
+```
+$ git ls-remote origin main
+1f381c799bb6de706ae0fc6b2fbd72a47a0f5c4b	refs/heads/main
+$ git push origin reports
+$ git ls-remote origin reports
+eee83762a67b4407405b5f0b2ff86f4a53ea2484	refs/heads/reports
+$ git rev-parse HEAD
+eee83762a67b4407405b5f0b2ff86f4a53ea2484
+```
