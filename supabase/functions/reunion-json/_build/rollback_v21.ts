@@ -5,7 +5,7 @@
 // entre en el tope de ~32 KB del deploy inline por MCP.
 //   node supabase/functions/reunion-json/_build/slim.mjs
 // fuente : _build/index.ts
-// sha256 : e446a31c2aa9391f90113502efcfac8f9b95930ef85379162ce1b78cae34281f
+// sha256 : 5798ef6f4221ef94812e8b77e067cb5b855dda64482d9b42a0b99c68f53071c5
 // ============================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -287,8 +287,8 @@ function buildReunionJson({
         edaddesde: c.edad_minima_anos,
         edadhasta: c.edad_maxima_anos,
         sexo: mapSexo(c.condicion_sexo),
-        ganadadesde: c.ganadas_desde ?? null,
-        ganadahasta: c.ganadas_hasta ?? null,
+        ganadadesde: null,
+        ganadahasta: null,
       },
       tiempo: parseTiempo(res?.tiempo_ganador),
       premios,

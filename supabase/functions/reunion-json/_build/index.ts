@@ -490,8 +490,11 @@ function buildReunionJson({
         edaddesde: c.edad_minima_anos,
         edadhasta: c.edad_maxima_anos,
         sexo: mapSexo(c.condicion_sexo),
-        ganadadesde: null,
-        ganadahasta: null,
+        // carreras.ganadas_desde/hasta (11/09/2026). hasta NULL con desde cargado = "o más",
+        // misma convención que edad_maxima_anos. Si el Stud Book quiere un tope, se traduce ACÁ
+        // (`?? 99`), no en la base.
+        ganadadesde: c.ganadas_desde ?? null,
+        ganadahasta: c.ganadas_hasta ?? null,
       },
       tiempo: parseTiempo(res?.tiempo_ganador),
       // Array simple [ {...} ]. El doble-anidado [[...]] del formato de

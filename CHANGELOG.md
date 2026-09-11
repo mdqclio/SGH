@@ -1,5 +1,28 @@
 # Changelog
 
+## [2026-09-11 noche, 5] — Stud Book: condición en 5 campos (ganadas), 5 sexos corregidos, reunion-json v22
+
+> Todo ejecutado con OK de Leo, paso a paso. Diagnósticos en `reports`: `2026-09-11_relevamiento-studbook-tres-pedidos-diego.md`,
+> `…_plan-studbook-condicion-5-campos.md`, `…_ejecucion-studbook-paso1-ddl-vista-previa.md`, `…_ejecucion-studbook-ganadas-ui-v22.md`.
+
+- **`carreras.ganadas_desde` / `ganadas_hasta`** (nuevas, nullable, CHECK `carreras_ganadas_rango`). Convención:
+  `hasta` NULL con `desde` cargado = **"o más"** — la misma que `edad_maxima_anos`; si el Stud Book quiere un
+  tope, se traduce en el formatter, no en la base. Backfill por regex desde `condicion_handicap`: **46/46**
+  parsean (0-0 ×25, 1-1 ×3, 1-2 ×13, 2-3 ×1, 2-∞ ×3, 3-∞ ×1); las 3 de la 9999 quedan NULL.
+  `migrations/carreras_ganadas_desde_hasta.sql`.
+- **`carta-llamados.html`**: dos inputs "Ganadas desde / hasta" al lado de edad; carga con `??` y payload con
+  `!== ''` para que el 0 (perdedores) viaje como 0. Probe sin red `tests/probe_ganadas_carta_llamados.mjs` (10/10).
+- **`studbook_format.mjs`**: `condicion.ganadadesde/ganadahasta` dejan de ir `null` hardcodeado y leen las
+  columnas. **`reunion-json` v21 → v22** (`verify_jwt:false` preservado; build → slim → dry-run contra R8 →
+  deploy). Rollback pre-staged en `_build/rollback_v21.ts`. 401 sin token verificado en frío; el 200 no se
+  pudo probar desde el VPS (el `STUDBOOK_API_TOKEN` no está acá) — el dry-run local con el mismo builder sí.
+- **5 carreras con `condicion_sexo='ambos'` y texto de yeguas / exclusión de yeguas** corregidas (R6 T2, T4 →
+  `machos`; R6 T10, R7 T7, R8 T12 → `hembras`), mismo defecto que R9 T8/T10 del 08/09. Verificado dentro de
+  la transacción que liquidaciones, líneas, resultados, posiciones e inscripciones de las dos oficiales
+  quedaron byte a byte iguales (`to_jsonb`). `migrations/fix_condicion_sexo_r6_r7_r8.sql`.
+- Para Yesi: 10 entrenadores con caballos en R9 sin DNI (lista en el plan §4). Para Diego: valores de
+  pista (plan §5) + convención NULL + pedido de la doc del endpoint.
+
 ## [2026-09-11 noche, 4] — R9 tanda 3: BIEN COQUETA (T11) y EL MAS SABIO (T6)
 
 > **EJECUTADA** (`spcs_r9_tanda_3`), con OK de Leo. `spcs` **201 → 203**. Probe 81/81.
