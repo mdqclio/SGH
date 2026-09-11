@@ -223,3 +223,15 @@ Los tres chequeos son **los mismos** que corrimos por SQL en las tandas 1, 2 y 3
 **Medio día largo / un día.** Riesgos: el Stud Book cambia el autocomplete (igual que hoy; la función devuelve 502 y Yesi carga a mano); un JWT de staff para el probe e2e (**sin verificar**); y el único cambio de comportamiento que puede molestar a Yesi es que el alta **bloquea** cuando el animal ya está — que es exactamente lo que queremos.
 
 Fuera de alcance (v1): caballeriza/entrenador/propietario del caballo (no están en el Stud Book); búsqueda por Nº de Stud Book en vez de nombre (trivial de agregar: el autocomplete no lo soporta, pero el perfil `/ejemplares/perfil/<id>` sí — **sin verificar** que devuelva algo parseable); reemplazar el scraper CLI.
+
+---
+
+## 8. Verificación de push
+
+```
+$ git push origin reports
+$ git ls-remote origin reports
+9e67d84b90aff18447c98986d9e490318dbcc831	refs/heads/reports
+$ git rev-parse HEAD
+9e67d84b90aff18447c98986d9e490318dbcc831
+```
