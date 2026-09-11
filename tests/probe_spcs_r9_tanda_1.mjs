@@ -6,14 +6,15 @@
  * edad + 2 typos de planilla), que están en migrations/spcs_r9_tanda_1.sql.
  *
  * Asserts:
- *   A) count(spcs) = 199 (baseline 181 + 18)
+ *   A) count(spcs) = 201 (181 + 18 tanda 1 + 2 tanda 2 — QUE BELLA DOÑA, INDIANA MARO)
  *   B) las 18 filas existen por studbook_id, una sola vez cada una
  *   C) nombre / fecha_nacimiento / sexo / color / padre / madre iguales a la evidencia
  *   D) registro_stud_book NULL, club_id NULL, FK de asignación NULL, estado activo
  *   E) notas empieza con 'SB <id> · <url_perfil>' y los 2 typos llevan 'Planilla R9: <variante>'
  *   F) ABARAJALA es hembra (yeguas T10)
  *   G) ningún studbook_id repetido en toda la tabla
- *   H) Conesera (1f645327-…) NO fue tocada: sigue macho, sin studbook_id (el UPDATE espera a Yesi)
+ *   H) CONESERA (1f645327-…) corregida el 11/09 con confirmación de Yesi: hembra, sb 444373, Alazan
+ *   I) tanda 2: QUE BELLA DOÑA (446458) e INDIANA MARO (432433) existen, hembras, notas con la variante de planilla
  *
  *   set -a; . ./.env; set +a
  *   node tests/probe_spcs_r9_tanda_1.mjs
@@ -30,6 +31,10 @@ const sb = createClient(SUPABASE_URL, KEY, { auth: { autoRefreshToken: false, pe
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 const BASELINE_ANTES = 181;
+const TANDA_2 = [
+  { nombre_sb: 'QUE BELLA DOÑA', sb_id: '446458', fecha_nacimiento: '2023-10-08', sexo: 'hembra', color: 'Zaino',  padrillo_nombre: 'Sea Dog', madre_nombre: 'Paradise Nistel',  variante: 'BELLA DOÑA' },
+  { nombre_sb: 'INDIANA MARO',   sb_id: '432433', fecha_nacimiento: '2021-09-15', sexo: 'hembra', color: 'Alazan', padrillo_nombre: 'Gokstad', madre_nombre: 'Ilusionada Chica', variante: 'INDIA MARO' },
+];
 const GRUPO_A = ['ETERNA DOCTORA','DESERT OF DUBAI','HERMANOSDEMIPATRIA','ALHENA','OLA DOCTOR','DEL CAMPEON','TORO MAÑERO','BACON','NISTEL WIN','HALLOTOP','EL RISKO','ATOMIZADOR','THE BEAST PARTY','ABARAJALA','GOIADORA'];
 const MANUALES = [
   { nombre_sb: 'QUERELLANTE',     sb_id: '416936', fecha_nacimiento: '2019-10-11', sexo: 'macho',  color: 'Zaino', padrillo_nombre: 'Daniel Boone (BRZ)', madre_nombre: 'Que Felicidad',   url_perfil: 'https://www.studbook.org.ar/ejemplares/perfil/416936/querellante' },
@@ -49,7 +54,7 @@ const ok = (t, c, n = '') => { results.push({ t, s: c ? '✅' : '❌', n }); ret
 // A
 const { count: total, error: eC } = await sb.from('spcs').select('id', { count: 'exact', head: true });
 if (eC) throw eC;
-ok('A count(spcs) = 199', total === BASELINE_ANTES + 18, `real ${total}`);
+ok('A count(spcs) = 201', total === BASELINE_ANTES + 18 + TANDA_2.length, `real ${total}`);
 
 // B–F
 const { data: filas, error: eF } = await sb.from('spcs')
@@ -87,7 +92,19 @@ ok('G 0 studbook_id repetidos en spcs', dups.length === 0, JSON.stringify(dups))
 // H
 const { data: con, error: eH } = await sb.from('spcs').select('nombre,sexo,studbook_id').eq('id', CONESERA_ID).single();
 if (eH) throw eH;
-ok('H Conesera intacta (macho, sin studbook_id)', con.nombre === 'Conesera' && con.sexo === 'macho' && con.studbook_id === null, JSON.stringify(con));
+ok('H CONESERA corregida (hembra, sb 444373)', con.nombre === 'CONESERA' && con.sexo === 'hembra' && con.studbook_id === '444373', JSON.stringify(con));
+
+// I — tanda 2
+const { data: t2, error: eI } = await sb.from('spcs').select('nombre,fecha_nacimiento,sexo,color,padrillo_nombre,madre_nombre,studbook_id,registro_stud_book,notas').in('studbook_id', TANDA_2.map(x => x.sb_id));
+if (eI) throw eI;
+for (const e of TANDA_2) {
+  const r = t2.find(x => x.studbook_id === e.sb_id);
+  ok(`I ${e.nombre_sb} existe, hembra, datos = SB, nota con variante`,
+    !!r && r.nombre === e.nombre_sb && r.fecha_nacimiento === e.fecha_nacimiento && r.sexo === 'hembra' && r.color === e.color
+      && r.padrillo_nombre === e.padrillo_nombre && r.madre_nombre === e.madre_nombre && r.registro_stud_book === null
+      && typeof r.notas === 'string' && r.notas.startsWith(`SB ${e.sb_id} ·`) && r.notas.includes(`Planilla R9: ${e.variante}`),
+    r ? r.notas : 'no existe');
+}
 
 for (const r of results) console.log(`${r.s} ${r.t}${r.n ? '  → ' + r.n : ''}`);
 const fails = results.filter(r => r.s === '❌').length;

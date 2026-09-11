@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026-09-11 noche] — R9 tanda 2 (QUE BELLA DOÑA, INDIANA MARO) + Conesera corregida
+
+> **EJECUTADAS en producción** por MCP `apply_migration` (`spcs_r9_tanda_2`, `spcs_conesera_sexo`), con OK de Leo.
+> `spcs` **199 → 201**. Probe `tests/probe_spcs_r9_tanda_1.mjs` extendido: 79/79.
+
+- Yesi confirmó que **BELLA DOÑA** e **INDIA MARO** eran typos de la planilla: los nombres reales son
+  **QUE BELLA DOÑA** (sb 446458, 2023, hembra, Zaino, Sea Dog × Paradise Nistel → T1) e **INDIANA MARO**
+  (sb 432433, 2021, hembra, Alazan, Gokstad × Ilusionada Chica → T10). Match exacto y único en el Stud
+  Book; chequeo de duplicados 199/0/0/0. Mismo criterio que la tanda 1 (`registro_stud_book` NULL,
+  `notas` con SB + url + `Planilla R9: <variante>`). `migrations/spcs_r9_tanda_2.sql`.
+- **Conesera**: Yesi confirmó "hembra del 2023" = Stud Book sb 444373. UPDATE aplicado: `sexo` macho →
+  **hembra**, `nombre` → `CONESERA`, `studbook_id` 444373, `color` Alazan. `migrations/spcs_conesera_sexo.sql`.
+  Está inscripta en R9 T1 (descargo 2 kg a las hembras).
+- Quedan sin resolver de la planilla: **BIEN COQUETA** (2021, 5 años vs T2 = 4) y **EL MAS SABIO** (2021, 5 vs T5 = 3-4).
+- Colateral: Yesi acomodó el llamado de R9 en dos tandas (15:19 y 16:12 AR) — T5 3-4, T9 4+, T6 sólo 5,
+  T10/T11 máximo abierto. Los 11 turnos consistentes con su texto. Ventanas intactas.
+  Diagnósticos en `reports`: `docs/diagnosticos/2026-09-11_r9-*.md`.
+
 ## [2026-09-11] — R9 tanda 1: 18 altas de SPCs de la planilla de anotaciones
 
 > **EJECUTADA en producción** por MCP `apply_migration` (`spcs_r9_tanda_1`), con OK de Leo.

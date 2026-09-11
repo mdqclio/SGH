@@ -1,0 +1,55 @@
+{
+  "_meta": {
+    "fuente": "www.studbook.org.ar",
+    "endpoint": "/ejemplares/autocomplete?tipo=1&muerto=1&term=",
+    "tanda": "r9-2",
+    "escribe_en_db": false,
+    "nombres_pedidos": 2,
+    "altas_propuestas": 2,
+    "casos_no_resueltos": 0,
+    "snapshot_spcs": 199
+  },
+  "ALTAS": [
+    {
+      "nombre_pedido": "QUE BELLA DOÑA",
+      "nombre_sb": "QUE BELLA DOÑA",
+      "sb_id": "446458",
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/446458/que-bella-dona",
+      "fecha_nacimiento": "2023-10-08",
+      "sexo_sb": "Hembra",
+      "sexo": "hembra",
+      "color": "Zaino",
+      "padrillo_nombre": "Sea Dog",
+      "madre_nombre": "Paradise Nistel",
+      "abuelo_materno": "Van Nistelrooy (USA)",
+      "leyenda": "(2023 H SP)",
+      "tomo": 1257,
+      "folio": 587,
+      "pais_origen": "Argentina",
+      "icon": "/img/banderas/10.png",
+      "raza": 4,
+      "alertas": []
+    },
+    {
+      "nombre_pedido": "INDIANA MARO",
+      "nombre_sb": "INDIANA MARO",
+      "sb_id": "432433",
+      "url_perfil": "https://www.studbook.org.ar/ejemplares/perfil/432433/indiana-maro",
+      "fecha_nacimiento": "2021-09-15",
+      "sexo_sb": "Hembra",
+      "sexo": "hembra",
+      "color": "Alazan",
+      "padrillo_nombre": "Gokstad",
+      "madre_nombre": "Ilusionada Chica",
+      "abuelo_materno": "Iberique",
+      "leyenda": "(2021 H SP)",
+      "tomo": 1243,
+      "folio": 758,
+      "pais_origen": "Argentina",
+      "icon": "/img/banderas/10.png",
+      "raza": 4,
+      "alertas": []
+    }
+  ],
+  "NO_RESUELTOS": []
+}
