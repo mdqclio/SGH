@@ -1,7 +1,9 @@
 -- ============================================================
 -- spcs_r9_tanda_2.sql — altas de SPCs de R9, tanda 2 (los dos typos de la planilla)
 -- ============================================================
--- ⏳ PROPUESTA — NO EJECUTADA. Espera gate de Leo.
+-- ✅ EJECUTADA el 11/09/2026 por MCP apply_migration (nombre: spcs_r9_tanda_2), con OK de Leo.
+--    2 INSERTs + DO que aborta si count <> 201, sb repetido o alguna no hembra. Pre-chequeos 199/0/0/0.
+--    Resultado: spcs 199 -> 201. Probe: tests/probe_spcs_r9_tanda_1.mjs (extendido, assert I).
 --
 -- Yesi confirmó el 11/09 que la planilla tenía dos errores de tipeo:
 --   BELLA DOÑA  -> QUE BELLA DOÑA  (T1, 3 años perdedores)
