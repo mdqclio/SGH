@@ -90,3 +90,17 @@ Estado de los 5 campos para Diego, hoy en producción (v22):
 | `ganadadesde` / `ganadahasta` | **nuevas** | 11/11 | 46/49 (las 3 de la 9999 en NULL) |
 
 Pendientes que no son de esta tanda: 10 DNI de entrenadores (Yesi), pista con labels (Diego), `edad` de R8, doc del endpoint (Diego).
+
+---
+
+## 5. Verificación de push
+
+```
+$ git ls-remote origin feat/studbook-condicion-5-campos
+06183ddf2cf74f96ad5d048ebc6f559d250ccaf3	refs/heads/feat/studbook-condicion-5-campos
+$ git push origin reports
+$ git ls-remote origin reports
+9865d7df0ca738a948004ad9cde8fe087e2b647a	refs/heads/reports
+$ git rev-parse HEAD
+9865d7df0ca738a948004ad9cde8fe087e2b647a
+```
