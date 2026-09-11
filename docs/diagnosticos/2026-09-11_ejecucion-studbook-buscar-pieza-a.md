@@ -53,3 +53,17 @@ Lo que prueba, contra los casos reales de hoy:
 ## 3. Siguiente — Pieza B, con tu OK
 
 Edge Function `supabase/functions/studbook-buscar/index.ts` (plan §3): `POST {term}`, `verify_jwt:true` + `getUser` + `fn_is_staff()`, `autocomplete()` copiada del scraper, devuelve `{exactos, parciales, fuente}`, sin secretos, sin DB; cabecera con la nota de "endpoint interno del buscador, no API acordada; cuando exista la de Diego se reemplaza `autocomplete()` adentro sin tocar la pantalla". + probe de la función (extrae `autocomplete` y la clasificación **del archivo**) + deploy.
+
+---
+
+## 4. Verificación de push
+
+```
+$ git ls-remote origin feat/studbook-buscar
+6646da4e6319cffced49db2fc3a8a917d0a14653	refs/heads/feat/studbook-buscar
+$ git push origin reports
+$ git ls-remote origin reports
+7cc18bb804eaf94422a08c7b1fe8ea0d014ab16d	refs/heads/reports
+$ git rev-parse HEAD
+7cc18bb804eaf94422a08c7b1fe8ea0d014ab16d
+```
