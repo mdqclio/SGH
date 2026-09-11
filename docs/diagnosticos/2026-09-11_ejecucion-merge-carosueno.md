@@ -113,3 +113,17 @@ union all select 'cabs_sin_titular_en_r9', (select jsonb_agg(jsonb_build_object(
 [{"k":"r9_totales","v":{"inscr":72,"con_cab":64,"sin_cab":8,"con_prop":56,"con_cab_sin_prop":8}},
  {"k":"cabs_sin_titular_en_r9","v":[{"cab":"MONTE DEL TORDILLO","hip":null,"spcs":["KRISTALINA","KRISTALINA"],"cab_id":"01cbb031-50cd-43ed-9665-5c5bc4e7f99f","n_inscr_r9":2,"responsables":null,"r8_inscr_sin_prop":0},{"cab":"2 DE ABRIL MAIPU","hip":null,"spcs":["DEL CAMPEON"],"cab_id":"b562b75e-f1f8-4e6a-8d68-cbfcb2c61d5e","n_inscr_r9":1,"responsables":null,"r8_inscr_sin_prop":0},{"cab":"Abuelo Calin","hip":"DOL","spcs":["ALHENA"],"cab_id":"7f7cee40-beed-42fb-807a-70c900259be5","n_inscr_r9":1,"responsables":null,"r8_inscr_sin_prop":0},{"cab":"HARAS EL ORIGEN","hip":null,"spcs":["DOCTORA MIA"],"cab_id":"e664ce7c-78dd-4d1d-904b-c25cf0f92b96","n_inscr_r9":1,"responsables":null,"r8_inscr_sin_prop":4},{"cab":"LA COLONIA","hip":null,"spcs":["TOY BOY"],"cab_id":"559b97a6-ac5a-4d73-a160-99f8b8872756","n_inscr_r9":1,"responsables":null,"r8_inscr_sin_prop":0},{"cab":"LOS 6 CORAZONES","hip":null,"spcs":["SEMBRADOR CHUCK"],"cab_id":"a9da0600-320f-4aa9-baac-1eba3e981d7e","n_inscr_r9":1,"responsables":null,"r8_inscr_sin_prop":0},{"cab":"SAICA","hip":"DOL","spcs":["SI TIN"],"cab_id":"58b52430-ebb8-4d79-966e-60403c5a9100","n_inscr_r9":1,"responsables":null,"r8_inscr_sin_prop":1}]}]
 ```
+
+---
+
+## 6. Verificación de push
+
+```
+$ git ls-remote origin fix/merge-carosueno
+298acde5d23d4f42b198dfcc2789838f5b14bfa9	refs/heads/fix/merge-carosueno
+$ git push origin reports
+$ git ls-remote origin reports
+6a55c21b38a5bbf41c3d72e7c88969e2925b77dd	refs/heads/reports
+$ git rev-parse HEAD
+6a55c21b38a5bbf41c3d72e7c88969e2925b77dd
+```
