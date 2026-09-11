@@ -490,6 +490,18 @@ Ver `docs/GOTCHAS.md` para la lista completa (95 entradas).
 - **ISSUE-007**: Calendario puede mostrar N-1 reuniones (bug de timezone).
 - **cantidad_gateras** no se carga en el alta de hipódromo (queda en DEFAULT 12).
 
+### R9 (20/09/2026) — pendiente operativo del lunes 14/09
+- **Después de la ratificación, volver a correr el `DO` de `migrations/propietarios_provisorios_r9.sql`**
+  (cambiando `marca` a la fecha del día). Es data-driven: agarra cualquier caballeriza de Dolores que tenga
+  inscripción en R9 sin `propietario_id` y sin titular activo → crea el provisorio + vínculo + re-deriva.
+  Motivo: al 11/09 quedaban **8 inscripciones sin caballeriza** (los SPC dados de alta ese día); cuando Yesi
+  les asigne el stud, si ese stud no tiene titular caen en el mismo pozo (GOTCHA #47 — lo que en R8 se
+  regularizó a mano). Control: `select count(*) from inscripciones i join carreras ca on ca.id=i.carrera_id
+  where ca.reunion_id='cafa37d6-89f4-45cb-a0d9-835bc27407e9' and i.estado='ratificado' and i.propietario_id is null;`
+  → tiene que dar **0**. Ver `docs/diagnosticos/2026-09-11_ejecucion-provisorios-r9.md` (reports).
+- Los provisorios se **completan** cuando llega el titular real (no se crea otra caballeriza ni otro
+  propietario): ISSUE-080, caso LOS URONES.
+
 ### Pendiente confirmar con Fede
 - Formato K E S P en programa oficial.
 - Campos `div_inc`, `val_apu`, `pozo`, `vales` — ¿los usa Dolores?
