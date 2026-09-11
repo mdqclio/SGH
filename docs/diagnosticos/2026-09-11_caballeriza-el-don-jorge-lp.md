@@ -152,3 +152,15 @@ Menor, mismo patrón que ISSUE-073: el UPDATE (`:635`) va `.eq('id', id)` sin `.
 1. **EL DON JORGE**: que Yesi la cree desde Caballerizas con `EL DON JORGE (LP)` + hipódromo `LP` (si aprobás la propuesta de §4). Después, en Inscripciones, asignarla a MARIA CATULENGA (T3, ya inscripta con caballeriza NULL) y a NIÑO OCEANICO cuando lo anote.
 2. **LOS URONES duplicada** — decidir: (a) borrar la del 18/08 (sin responsable, sin `hipodromo_patente`) si no tiene inscripciones ni SPC colgados — **sin verificar** todavía, no lo consulté; o (b) fusionar. Lo miro si querés, es otro pedido.
 3. **Deuda nueva**: aviso de parecidos (o unique `(club_id, nombre normalizado)`) en `caballerizas.html`. Candidato a ISSUE-080.
+
+---
+
+## 7. Verificación de push
+
+```
+$ git push origin reports
+$ git ls-remote origin reports
+7d080e2d78ec1228f31a7336011801fb546e571d	refs/heads/reports
+$ git rev-parse HEAD
+7d080e2d78ec1228f31a7336011801fb546e571d
+```
