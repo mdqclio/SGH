@@ -270,3 +270,15 @@ $ grep -n "condicion\|edad\|sexo\|pista\|ganad\|documento\|dni\|cuidador\|entren
 323:        ganadahasta: null,
 $ list_edge_functions → reunion-json: version 21, status ACTIVE, verify_jwt false, updated_at 1787495325640 (= 2026-08-23)
 ```
+
+---
+
+## 8. Verificación de push
+
+```
+$ git push origin reports
+$ git ls-remote origin reports
+92889b6a67c3cceb0e607ed94d0c2d812d0a0ff6	refs/heads/reports
+$ git rev-parse HEAD
+92889b6a67c3cceb0e607ed94d0c2d812d0a0ff6
+```
