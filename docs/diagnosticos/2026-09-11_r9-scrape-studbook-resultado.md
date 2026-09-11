@@ -831,3 +831,15 @@ No afecta el gate de T1 (`condicion_sexo = ambos`) pero sí el **descargo de 2 k
 - Armar `migrations/spcs_r9_tanda_1.sql` con **18 INSERTs** (grupo A, grafía del Stud Book, `registro_stud_book` NULL, `notas` = `studbook_id` + `url_perfil`, `club_id` NULL como el resto del padrón global) + el UPDATE de Conesera si lo aprobás. Los 3 de B y el de C **fuera del SQL** hasta que Yesi conteste.
 - Baseline `spcs` pasaría de 181 a **199** (o 199 + lo que se sume de B).
 - Probe post-insert: 18 filas nuevas por `studbook_id`, sexo/fecha iguales al JSON de evidencia, y `count(*)`.
+
+---
+
+## 9. Verificación de push
+
+```
+$ git push origin reports
+$ git ls-remote origin reports
+12e1b9fde867e69065803af2d2e20e318898f1ef	refs/heads/reports
+$ git rev-parse HEAD
+12e1b9fde867e69065803af2d2e20e318898f1ef
+```
