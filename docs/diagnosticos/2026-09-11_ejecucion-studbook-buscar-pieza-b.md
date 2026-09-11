@@ -171,3 +171,13 @@ Archivos en la rama (sobre `main`): `migrations/rpc_spcs_duplicados.sql`, `tests
 - **Pieza D(pantalla)** — probe de `spcs.html` con código real.
 - Docs: `CLAUDE.md` (árbol + guard), `docs/GOTCHAS.md` #96, `docs/SCHEMA.md`, `CHANGELOG.md`.
 - Merge a `main` sólo con OK.
+
+## 10. Verificación de push (reports)
+
+```
+$ git push -u origin reports
+$ git ls-remote origin reports
+beb267923f8827033e676f30d07d6c9a4761ca32	refs/heads/reports
+$ git rev-parse HEAD
+beb267923f8827033e676f30d07d6c9a4761ca32
+```
