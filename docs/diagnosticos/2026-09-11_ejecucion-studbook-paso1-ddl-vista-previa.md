@@ -130,3 +130,15 @@ Salida cruda de la query, tal cual:
 | 6 | Yesi: lista de 10 DNI (plan §4) — independiente, se manda ya | en tus manos |
 | 7 | Diego: valores de pista (plan §5) + convención NULL + doc del endpoint | en tus manos |
 | — | SQLs en la rama marcados EJECUTADA / CHANGELOG / merge | al final, con todo |
+
+---
+
+## 5. Verificación de push
+
+```
+$ git push origin reports
+$ git ls-remote origin reports
+7e81bf502202631977d5419d83bf5f6993de3633	refs/heads/reports
+$ git rev-parse HEAD
+7e81bf502202631977d5419d83bf5f6993de3633
+```
