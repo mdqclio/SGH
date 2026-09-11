@@ -131,3 +131,15 @@ Nota: la edición fue a las 15:19 AR, **después** del `cierre_inscripcion` (12:
 1. **T9 `edad_minima_anos` 5 → 4** — sigue pendiente. Es el único turno que el gate rechaza mal. Yesi lo puede hacer desde el mismo modal (le faltó ese) o va en SQL con `auditoria`, como prefieras.
 2. **T6 "de 5 años"** — ambiguo. Si es "5 y +", las columnas están bien y sobra un "y +" en el texto; si es "solo 5", `edad_maxima_anos` tendría que ser 5. Pregunta para Yesi, no urgente (los anotados en T6 son todos de 2021 = 5 años, entra cualquiera de las dos lecturas).
 3. Con T5 y T11 arreglados, del informe del scrape cambia una cosa: **EL MAS SABIO (2021, 5 años) ahora NO entra en T5** por columna ni por texto. Sigue en el grupo B (vuelve a Yesi). THE BEAST PARTY (4 años) sigue chocando con T9 hasta el ítem 1.
+
+---
+
+## 6. Verificación de push
+
+```
+$ git push origin reports
+$ git ls-remote origin reports
+a38d8579d72bb9046693358f86b36a93b1f66b0b	refs/heads/reports
+$ git rev-parse HEAD
+a38d8579d72bb9046693358f86b36a93b1f66b0b
+```
