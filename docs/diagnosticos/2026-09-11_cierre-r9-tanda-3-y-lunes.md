@@ -137,3 +137,19 @@ El `DO` aborta con "nada que hacer" si el lunes no hay ninguna — no deja rastr
 | ISSUEs nuevos | ISSUE-080 (caballerizas: sin aviso de parecidos, sin guía para completar el provisorio) |
 | ramas sin mergear | `fix/spcs-r9-tanda-3` (esta), `feat/buscador-spc-autocompletado`, `fix/condicion-sexo-t8-t10-r9`, `fix/hora-ventanas-r9`, `fix/llamado-chips-fede` (las 4 últimas del 08/09) |
 | docs | Fase 1 del relevamiento entregada (`2026-09-11_relevamiento-docs-fase-1.md`); fase 2 espera tu agrupación |
+
+---
+
+## 5. Verificación de push
+
+```
+$ git ls-remote origin main
+194e02fcab426217571147f0efba3a52051fd750	refs/heads/main
+$ git ls-remote origin fix/spcs-r9-tanda-3
+3e670a0f89f0440a1c785fa6cfe1761ae630baae	refs/heads/fix/spcs-r9-tanda-3
+$ git push origin reports
+$ git ls-remote origin reports
+99ebe48bcd703514ec9061c586b60353ae44a21e	refs/heads/reports
+$ git rev-parse HEAD
+99ebe48bcd703514ec9061c586b60353ae44a21e
+```
