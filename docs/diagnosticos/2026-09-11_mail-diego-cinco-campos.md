@@ -52,3 +52,17 @@ Notas para vos (no van en el mail):
 - El ejemplo `260816` (R8) sale con `ganadadesde/hasta` cargados y `edaddesde/hasta` **null** (las 12 de R8 no tienen edad en columna — pendiente aparte, derivable del texto). Si preferís un ejemplo completo, `260620` (R6) tiene edad y ganadas.
 - `sexo` manda los labels nuestros (`machos`/`hembras`) y `T` para ambos. Si Diego usa otro vocabulario, es `mapSexo()` en el formatter.
 - `hipodromo.id` sigue `null` y `tipo_codo` `null` (deltas #8 y #3 del diagnóstico del 22/08) — no los pidió ahora, no los mencioné.
+
+---
+
+## Verificación de push
+
+```
+$ git ls-remote origin main
+4f6ff1338f7b7a7797804ba69beb0de25771749a	refs/heads/main
+$ git push origin reports
+$ git ls-remote origin reports
+8b154c7f04f24171ee9edea2725a27a58f7125ab	refs/heads/reports
+$ git rev-parse HEAD
+8b154c7f04f24171ee9edea2725a27a58f7125ab
+```
