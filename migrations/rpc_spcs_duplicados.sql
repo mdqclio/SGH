@@ -18,6 +18,7 @@
 --                        con otro nombre (una yegua pare una cría por año).
 --
 -- Guard adentro (GOTCHA #80: la RLS no protege una SECURITY DEFINER): sólo staff.
+-- ✅ APLICADA el 11/09/2026 por MCP apply_migration (nombre: rpc_spcs_duplicados). Probe tests/probe_rpc_spcs_duplicados.mjs 10/10.
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION public.rpc_spcs_duplicados(
