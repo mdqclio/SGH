@@ -385,3 +385,17 @@ node tests/probe_spcs_r9_tanda_1.mjs
 3. **T9 `edad_minima_anos` 5 → 4** — sigue pendiente (THE BEAST PARTY ya está en el padrón pero el gate de T9 lo rechaza hasta que se corrija).
 4. Los 4 que vuelven a Yesi: BELLA DOÑA, BIEN COQUETA, EL MAS SABIO, INDIA MARO.
 5. Grafías con variante: se queda como está (nota en la ficha), sin matcheo en el autocompletado. Decisión tuya, anotada.
+
+---
+
+## 7. Verificación de push
+
+```
+$ git ls-remote origin fix/spcs-r9-tanda-1
+03aef1dfdd2ec313af579ac8465b3eb8b10518ee	refs/heads/fix/spcs-r9-tanda-1
+$ git push origin reports
+$ git ls-remote origin reports
+a8d147cc2749bb85bf760c758dddab5b414f9ed1	refs/heads/reports
+$ git rev-parse HEAD
+a8d147cc2749bb85bf760c758dddab5b414f9ed1
+```
