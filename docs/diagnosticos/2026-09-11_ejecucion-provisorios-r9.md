@@ -100,3 +100,17 @@ select count(*) from inscripciones i join carreras ca on ca.id=i.carrera_id wher
 2. Lunes 14/09 post-ratificación: re-correr el `DO` si hace falta + la query de control (§4).
 3. Los otros tres pares del barrido (LA NARCISA, SANTA BARBARA, EL LINYE Y RAMI) — sin urgencia de R9.
 4. ISSUE-080 (pantalla no guía a completar / no avisa parecidos): abierto.
+
+---
+
+## 6. Verificación de push
+
+```
+$ git ls-remote origin feat/provisorios-r9
+c97f2f029e412fb39c33aac877920e47b4829300	refs/heads/feat/provisorios-r9
+$ git push origin reports
+$ git ls-remote origin reports
+8ef9e817c9176f232307388ff5e6c30964e06eb1	refs/heads/reports
+$ git rev-parse HEAD
+8ef9e817c9176f232307388ff5e6c30964e06eb1
+```
