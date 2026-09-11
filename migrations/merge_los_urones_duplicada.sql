@@ -1,7 +1,11 @@
 -- ============================================================
 -- merge_los_urones_duplicada.sql — unificar las dos "LOS URONES" (la del 18/08 y la que Yesi creó el 11/09)
 -- ============================================================
--- ⏳ PROPUESTA — NO EJECUTADA. Espera gate de Leo.
+-- ✅ EJECUTADA el 11/09/2026 por MCP apply_migration (nombre: merge_los_urones_duplicada), con OK de Leo.
+--    Los 7 pasos dentro de un DO con ROW_COUNT=1 por paso, la línea 8e67d828 comparada byte a byte
+--    (to_jsonb antes/después) y conteos 300/264/40/263. Resultado: sobrevive 6d5138dc con TRUPPA, HUGO
+--    FABIAN (DNI 24525603) como titular sobre el propietario 380bb7cb; borrados 34fdf68d y 484b14a9.
+--    ISSUE-080 abierto con el caso.
 --
 -- Estado medido el 11/09/2026 (docs/diagnosticos/2026-09-11_ejecucion-el-don-jorge-y-plan-los-urones.md):
 --

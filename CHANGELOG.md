@@ -1,5 +1,26 @@
 # Changelog
 
+## [2026-09-11 noche, 2] — Caballerizas: EL DON JORGE (LP) + merge de LOS URONES duplicada
+
+> **EJECUTADAS en producción** por MCP `apply_migration` (`caballeriza_el_don_jorge_lp`,
+> `merge_los_urones_duplicada`), con OK de Leo. `spcs` sigue **201**.
+
+- **EL DON JORGE (LP)** (pedido de Yesi; en la planilla de R9 figura "DON JORGE", T3 MARIA CATULENGA y
+  T4 NIÑO OCEANICO, cuidador TAVAGNUTTI). Sin datos del titular → **propietario provisorio** con la forma
+  exacta de los 40 de R8 (`tipo persona`, sin documento, `notas 'provisorio R9 11/09'`) + vínculo
+  `rol propietario, activo`. `hipodromo_patente='LP'` (columna consultable, además del sufijo en el
+  nombre). El trigger `fn_inscripcion_set_propietario` deriva el propietario cuando Yesi asigne la
+  caballeriza en Inscripciones. `migrations/caballeriza_el_don_jorge_lp.sql`.
+- **LOS URONES duplicada**: Yesi había creado una segunda `LOS URONES` para cargar al titular real
+  (TRUPPA, HUGO FABIAN, DNI 24525603) en vez de completar el provisorio de R8. Merge: **sobrevive la
+  vieja** (`6d5138dc`, tiene R8 y la línea de $100.000 saldada), su provisorio `380bb7cb` se completa
+  con nombre y DNI (nombre corregido: el trigger lo había armado invertido), la inscripción de R9 se
+  re-apunta y se borran caballeriza + propietario nuevos. La línea pagada quedó byte a byte igual
+  (verificado dentro de la transacción). **Primer provisorio de los 41 que se completa.**
+  `migrations/merge_los_urones_duplicada.sql`. Conteos: caballerizas 300, propietarios 264, provisorios 40.
+- **ISSUE-080** (nuevo): `caballerizas.html` no avisa parecidos ni guía a completar un provisorio —
+  el camino natural de Yesi fue crear otra. Con el caso concreto y tres propuestas.
+
 ## [2026-09-11 noche] — R9 tanda 2 (QUE BELLA DOÑA, INDIANA MARO) + Conesera corregida
 
 > **EJECUTADAS en producción** por MCP `apply_migration` (`spcs_r9_tanda_2`, `spcs_conesera_sexo`), con OK de Leo.
