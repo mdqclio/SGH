@@ -69,3 +69,17 @@ También en esa rama: `migrations/merge_los_urones_duplicada.sql` marcado **EJEC
 1. Merge de `chore/issue-080-caballerizas-duplicadas` a `main`.
 2. Barrido de duplicados por nombre normalizado en las 300 caballerizas (para saber si LOS URONES era la única antes de pensar el índice único). No lo corrí.
 3. Convención de `notas` para provisorios completados: usé `'ex provisorio R8 15/08 — completado <fecha> …'` (sale del `LIKE 'provisorio R%'`). Primer caso; si te sirve, queda como regla para los 40 que faltan.
+
+---
+
+## 5. Verificación de push
+
+```
+$ git ls-remote origin chore/issue-080-caballerizas-duplicadas
+5a3a3855409276fab35f078929231e8c52de431a	refs/heads/chore/issue-080-caballerizas-duplicadas
+$ git push origin reports
+$ git ls-remote origin reports
+878ef8d465700917c7ad56dfad421779b6b84f2a	refs/heads/reports
+$ git rev-parse HEAD
+878ef8d465700917c7ad56dfad421779b6b84f2a
+```
