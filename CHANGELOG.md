@@ -1,5 +1,55 @@
 # Changelog
 
+## [2026-09-11] — R9 tanda 1: 18 altas de SPCs de la planilla de anotaciones
+
+> **EJECUTADA en producción** por MCP `apply_migration` (`spcs_r9_tanda_1`), con OK de Leo.
+> `spcs` **181 → 199**. Probe `tests/probe_spcs_r9_tanda_1.mjs` 77/77 (solo lectura).
+> Bitácora completa en `reports`: `docs/diagnosticos/2026-09-11_r9-*.md` (cruce, addendum,
+> scrape, SQL propuesto, ejecución).
+
+Yesi mandó la planilla de anotaciones de R9 (20/09): 11 turnos, 75 líneas, **66 caballos
+distintos**. 44 ya estaban (42 por nombre exacto + `Conesera` y `LOGUACIOUS` por variante
+ortográfica — LOGUARCIUS/LOGUARCIOUS son typos del mismo animal). Faltaban 22.
+
+### Qué se cargó (18)
+
+Scrape del Stud Book (`tools/studbook_scrape_tanda.mjs`, match exacto por nombre normalizado;
+homónimos desambiguados por la edad del turno; 2 typos resueltos con sondeo por prefijo). Los 18
+cierran en edad y sexo con su turno. Criterio: `registro_stud_book` **NULL**, `studbook_id` en
+columna, `notas` = `SB <id> · <url_perfil> · alta R9 tanda 1 11/09/2026`.
+
+- ETERNA DOCTORA · DESERT OF DUBAI · HERMANOSDEMIPATRIA (T1) · ALHENA · OLA DOCTOR · DEL CAMPEON
+  (T2) · TORO MAÑERO · **MARIA CATULENGA** (T3, planilla decía CATULANGA) · BACON · NISTEL WIN ·
+  **NIÑO OCEANICO** (T4, planilla decía OSEANICO) · HALLOTOP (T6) · EL RISKO · ATOMIZADOR (T7) ·
+  QUERELLANTE · THE BEAST PARTY (T9) · ABARAJALA (T10, hembra ✓) · GOIADORA (T11).
+- Los dos typos van con la grafía del Stud Book y `Planilla R9: <variante>` en `notas`. El
+  autocompletado **no** matchea la variante (decisión de Leo: son dos casos, se ve si Yesi lo pide).
+- Chequeo de duplicados antes del INSERT, contra las 181: por `studbook_id`, por nombre
+  normalizado (`translate` manual, `unaccent()` no está) y por fecha + padre + madre → 0 / 0 / 0.
+  DEL CAMPEON comparte padrillo y fecha con YO SOY TANGO: medio hermanos, distinta madre.
+- El bloque aplicado lleva un `DO` que aborta la transacción si el count no da 199, si hay
+  `studbook_id` repetido o si ABARAJALA no queda hembra.
+
+### Qué NO se cargó (4) — vuelven a Yesi
+
+- **BELLA DOÑA** (T1, 3 años): el único del Stud Book es un macho de 2017 (9 años).
+- **BIEN COQUETA** (T2, 4 años): la única viable es de 2021 (5 años).
+- **EL MAS SABIO** (T5, 3-4 años): es de 2021 (5 años).
+- **INDIA MARO** (T10): no existe en el Stud Book con ese nombre ni con variantes.
+
+### Conesera — pendiente, no se tocó
+
+`spcs` dice `macho`; el Stud Book (sb 444373, misma fecha 20/09/2023, mismos padres Emmanuel ×
+Milonga Burrera) dice **Hembra**. Es el mismo animal con el sexo mal cargado a mano. El UPDATE está
+escrito en `migrations/spcs_conesera_sexo.sql` y **espera confirmación de Yesi** — el sexo es dato
+de ella. Está inscripta en R9 T1 ("descargo 2 kg a las hembras").
+
+### Colateral: Yesi acomodó el llamado de R9 (11/09, desde carta-llamados)
+
+T5 → 3-4 años, T11 y T10 → máximo abierto. **T9 sigue con `edad_minima_anos = 5`** y el texto
+dice "4 años y +" — THE BEAST PARTY (4) lo rechaza el gate hasta que se corrija. Las cuatro fechas
+de ventana de los 11 turnos quedaron intactas (el fix de hora local funcionó en edición real).
+
 ## [2026-09-10] — la secretaría puede crear entrenadores (ISSUE-078, ISSUE-073, ISSUE-079)
 
 > **VIVO en `sigh.com.ar`** — merge `--no-ff` `c540aa0` desde `fix/alta-entrenador-operador`.
