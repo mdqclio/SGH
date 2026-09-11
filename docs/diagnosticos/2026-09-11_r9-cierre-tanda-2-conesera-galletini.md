@@ -297,3 +297,17 @@ Lo que le pediría a Yesi para cerrar: (a) que haga `Ctrl+Shift+R` en Entrenador
 2. **Conesera**: hecho. Falta mergear `fix/spcs-r9-tanda-2` para que `migrations/spcs_conesera_sexo.sql` en `main` diga EJECUTADA (hoy `main` la tiene como PROPUESTA).
 3. **GALLETINI**: esperar respuesta de Yesi (a/b/c de arriba). Si el DNI que tipea coincide con `GALLETTINI, GUSTAVO JAVIER` (25041080) sería otra historia — pero eso es `propietarios`, y el aviso no mira ahí.
 4. BIEN COQUETA y EL MAS SABIO siguen sin resolver (edad no cierra con T2 / T5).
+
+---
+
+## 5. Verificación de push
+
+```
+$ git ls-remote origin fix/spcs-r9-tanda-2
+c392f6c0e86c24af979198e23f5f8ccbf617342a	refs/heads/fix/spcs-r9-tanda-2
+$ git push origin reports
+$ git ls-remote origin reports
+eac2ecfd3ffcb1971ac75b1af0a5ec6174d4b112	refs/heads/reports
+$ git rev-parse HEAD
+eac2ecfd3ffcb1971ac75b1af0a5ec6174d4b112
+```
