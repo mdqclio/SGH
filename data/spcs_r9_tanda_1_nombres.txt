@@ -1,0 +1,27 @@
+# R9 (20/09/2026) — nombres a scrapear del Stud Book. Planilla de Yesi, 11/09.
+# 22 altas (no existen en spcs por nombre normalizado ni por parecido)
+ETERNA DOCTORA
+DESERT OF DUBAI
+HERMANOSDEMIPATRIA
+BELLA DOÑA
+ALHENA
+OLA DOCTOR
+BIEN COQUETA
+DEL CAMPEON
+TORO MAÑERO
+MARIA CATULANGA
+BACON
+NISTEL WIN
+NIÑO OSEANICO
+EL MAS SABIO
+HALLOTOP
+EL RISKO
+ATOMIZADOR
+QUERELLANTE
+THE BEAST PARTY
+INDIA MARO
+ABARAJALA
+GOIADORA
+# 2 confirmaciones (ya existen, se scrapean sólo para cotejar pedigree y completar studbook_id/color; NO son alta)
+CONESERA
+LOGUACIOUS
