@@ -394,3 +394,17 @@ carta-llamados.html:1143 / :1205 · inscripciones.html:466,558,882,885,890,958 �
 $ grep -n "edad_minima_anos\|edad_maxima_anos\|f-edad-min\|f-edad-max" carta-llamados.html → 347, 351, 1141, 1142, 1203, 1204
 $ grep -n "from('carreras')" -A3 supabase/functions/reunion-json/index.ts → 112: .from('carreras').select('*').eq('reunion_id', reunionId)
 ```
+
+---
+
+## 9. Verificación de push
+
+```
+$ git ls-remote origin feat/studbook-condicion-5-campos
+6bcbc87644d54bf1d950d55dec599d648a50913c	refs/heads/feat/studbook-condicion-5-campos
+$ git push origin reports
+$ git ls-remote origin reports
+a9454fed6faaf732d1a2754676e0b7004ebd7ff6	refs/heads/reports
+$ git rev-parse HEAD
+a9454fed6faaf732d1a2754676e0b7004ebd7ff6
+```
