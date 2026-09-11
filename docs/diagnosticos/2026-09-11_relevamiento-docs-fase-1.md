@@ -643,3 +643,15 @@ chore/rls-audit: 5 · chore/ticket-github-gc: 1 · feat/buscador-spc-autocomplet
 $ grep -n "^## \[" CHANGELOG.md | head -5 → [2026-09-11], [2026-09-10], [2026-09-07], [2026-09-05], [2026-09-02]   (no hay [2026-09-08] ni [2026-08-27/29])
 $ grep -n "eyJ\|toLocaleString\|mdqclio\|SQL Editor" docs/*.md README.md CLAUDE.md | grep -v diagnosticos   → (salida en §2 fila 10 y §3.5/3.6/3.7/3.11)
 ```
+
+---
+
+## 10. Verificación de push
+
+```
+$ git push origin reports
+$ git ls-remote origin reports
+6080d7af8acaeffc10b40901103916910c6d710f	refs/heads/reports
+$ git rev-parse HEAD
+6080d7af8acaeffc10b40901103916910c6d710f
+```
