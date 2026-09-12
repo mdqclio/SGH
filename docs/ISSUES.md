@@ -2149,3 +2149,53 @@ Módulo: `caballerizas.html`, tabla `caballerizas`. Prioridad: Media (vuelve a p
 llega el dato de un titular). Relacionado: ISSUE-072/073/078/079 (misma familia de pantallas),
 GOTCHA #47 (los provisorios), `docs/RUNBOOK_R8_PROVISORIOS.md` §B4-B5 (el `LIMIT 1` del trigger
 cuando hay dos titulares activos).
+
+### ISSUE-081: PII de terceros (DNI) todavía viva en el VPS — ramas locales `[gone]` y `tmp/` — fuera de `main` desde el scrub del 20/08
+
+**Estado**: 🟡 **ABIERTO** (2026-09-11). No urgente, no bloquea nada. **La limpieza la hace Leo a mano, no una
+sesión de Claude Code por su cuenta**: borra historia de git y archivos de disco, y toca dato personal — es
+una decisión del dueño, no un fix.
+
+**Qué es**: el 20/08 se auditó el repo por PII (`docs/AUDITORIA_PII_2026-08-20.md`) y el 21/08 se aplicó
+el scrub (`docs/SCRUB_PII_APLICADO.md`): los archivos con documentos de cuidadores, jockeys y propietarios
+salieron de `main`, y `tmp/` quedó fuera del índice. Eso limpió **GitHub**. En el **VPS** (`ubuntu-8gb-fsn1-1`,
+`/home/clio/dev/SGH`) los blobs siguen en `.git` —en ramas locales cuyo remoto ya no existe— y los CSV
+siguen en disco. Relevado el 2026-09-11 en el inventario del VPS
+(`docs/diagnosticos/2026-09-11_inventario-vps-que-corre-del-hipodromo.md` §4.3, branch `reports`),
+cotejando **contenido** (blob por blob) contra `origin/main` y `origin/reports`, no hashes.
+
+**Ramas locales `[gone]` que contienen los archivos** (`git for-each-ref` + `git diff --name-only origin/main...rama`):
+
+| rama | archivos con DNI / datos personales que no están en ningún remoto |
+|---|---|
+| `fix/dni-jockeys` | `docs/DNI_CUIDADORES_PADRON.md` (23 DNI), `docs/DNI_JOCKEYS_PADRON.md` (34), `migrations/dni_cuidadores_padron_yesi.sql` (23), `migrations/dni_jockeys_padron_yesi.sql` (36) — los conteos son los de la auditoría del 20/08, §54-57 |
+| `fix/dni-cuidadores` | `docs/DNI_CUIDADORES_PADRON.md`, `migrations/dni_cuidadores_padron_yesi.sql` |
+| `chore/propietarios-provisorios-r8` y su copia `bkp/chore/propietarios-provisorios-r8` | `data/sb_propietarios_r8_entrada.json`, `data/sb_propietarios_r8_evidencia.json`, `docs/r8_caballerizas_propietarios_sugeridos.csv`, `docs/r8_caballerizas_sin_propietario.csv` (propietarios con documento, scrape del Stud Book) |
+| `chore/reunion-prueba-9998` y `bkp/chore/reunion-prueba-9998` | los mismos 4 de arriba |
+
+En esas mismas ramas hay código **sin** PII que sólo existe ahí: `tests/diag_caballerizas_homonimas.mjs`,
+`tests/verificacion_previa_r8.mjs`, `tools/sb_propietarios_caballerizas.py`, `tests/diag_cotejo_r6.mjs`
+(en `diag/cotejo-resultados-r6` / `bkp/diag/cotejo-resultados-r6`). Si se quieren conservar, rescatarlos a
+una rama limpia y pushearla **antes** de borrar.
+
+**Archivos en disco fuera del índice** (`tmp/`, ignorado por `.gitignore` desde el scrub):
+`R8 propietarios para Yesi.csv`, `R8 propietarios certeza ALTA.csv`, `R8 propietarios detalle por ejemplar.csv`,
+`R8 caballerizas sin propietario.csv`, `R5 resultados planilla.json`, `R6 resultados planilla.json`.
+**Sin verificar** el contenido de cada uno (no se abrieron); se los lista por nombre y por lo que dice
+`SCRUB_PII_APLICADO.md` §4 sobre `tmp/`.
+
+**Qué no es**: no es un riesgo para el hipódromo ni para el sitio (nada de esto se sirve ni se lee). Es dato
+personal de terceros en una máquina personal, después de haber decidido que no tenía que estar en el repo.
+Mientras el VPS no se filtre, no pasa nada; el día que el VPS se apague, desaparece solo.
+
+**Qué haría Leo, cuando quiera** (no antes de rescatar el código sin PII, si lo quiere):
+1. `git branch -D` de las 8 ramas de la tabla (las `bkp/` incluidas).
+2. `rm tmp/*.csv tmp/*.json` (o mover a un lugar fuera del repo y cifrado).
+3. `git reflog expire --expire=now --all && git gc --prune=now` — sin esto los blobs siguen alcanzables por
+   reflog (es la nota de la auditoría del 20/08, línea 267, sobre "los clones").
+4. Las otras 17 ramas `[gone]` con commits huérfanos son versiones viejas de `.md` que ya están en `main`
+   (verificado por blob): se pueden borrar en el mismo `branch -D`, no tienen PII ni valor.
+5. Las 27 ramas locales **sin** upstream tienen 0 commits fuera de `origin/main`: ruido, borrar.
+
+Módulo: repo / VPS. Prioridad: Baja. Relacionado: `docs/AUDITORIA_PII_2026-08-20.md`, `docs/SCRUB_PII_APLICADO.md`,
+`docs/JWT_SERVICE_ROLE_ESTADO.md` (misma familia: lo que quedó en la historia).
