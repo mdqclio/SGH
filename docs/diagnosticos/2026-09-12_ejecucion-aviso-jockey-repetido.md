@@ -586,4 +586,11 @@ git rev-parse HEAD
 
 ## Verificación de publicación de este informe
 
-(se completa en el commit siguiente)
+Commit del informe: `58c79137c6cda193fca56c580f31098d21cc7c3d`
+
+```
+58c79137c6cda193fca56c580f31098d21cc7c3d	refs/heads/reports
+58c79137c6cda193fca56c580f31098d21cc7c3d
+```
+
+(Este bloque va en un segundo commit; su `ls-remote` queda en el mensaje de commit.)
