@@ -503,3 +503,99 @@ df2db9616186e4d487868f7e5f9d937f2ccde45d
 ```
 
 (Este bloque va en un segundo commit; su `ls-remote` queda en el mensaje de commit.)
+
+---
+
+## Merge y deploy (segunda tanda, mismo día)
+
+```bash
+git merge --no-ff fix/orden-inscriptos-es
+git push origin main
+git ls-remote origin main
+git rev-parse HEAD
+```
+
+```
+e95188471f8b52b4d771d982c0783a34f5d942e6	refs/heads/main
+e95188471f8b52b4d771d982c0783a34f5d942e6
+```
+
+### md5 contra `sigh.com.ar` (con `-L`)
+
+```bash
+git show e951884:inscripciones.html > local.html
+curl -sL "https://sigh.com.ar/inscripciones.html?v=$RANDOM" -o prod.html   # cada 15 s hasta que coincida
+md5sum local.html prod.html
+```
+
+```
+MATCH tras 4 intentos
+b62678d3e32f14e6c3f7eb6daad40c63  local.html
+b62678d3e32f14e6c3f7eb6daad40c63  prod.html
+```
+
+### Probe contra el HTML servido (`INSC_HTML=prod.html`)
+
+```bash
+INSC_HTML=prod.html node tests/probe_orden_inscriptos.mjs
+```
+
+```
+✅ D1) pantalla: comparador con locale 'es'  — (a, b) =>
+    (a.spcs?.nombre || '').localeCompare(b.spcs?.nombre || '', 'es')
+✅ D2) PDF: comparador con locale 'es'  — (a, b) => (a.spcs?.nombre || '').localeCompare(b.spcs?.nombre || '', 'es')
+✅ D3) pantalla ya no ordena por created_at
+✅ D4) ratificacion.html: todos sus sorts por nombre llevan 'es'  — total: 3, sin 'es': 0
+✅ D5) inscripciones.html: ningún localeCompare sin 'es'
+✅ C) pantalla: Ñ después de toda la N (ANZUELO < AÑO NUEVO)  — ANA < ANZUELO < AÑO NUEVO < AOTO
+✅ C) PDF: Ñ después de toda la N (ANZUELO < AÑO NUEVO)  — ANA < ANZUELO < AÑO NUEVO < AOTO
+✅ C) pantalla: Ñ entre N y O (NUBE < ÑANDU < OSO)  — NUBE < ÑANDU < OSO
+✅ C) PDF: Ñ entre N y O (NUBE < ÑANDU < OSO)  — NUBE < ÑANDU < OSO
+✅ C) pantalla: tilde no separa (MARIA ≈ MARÍA, antes que ...GB)  — MARIA CATULENGA < MARÍA CATULENGA < MARIA CATULENGB
+✅ C) PDF: tilde no separa (MARIA ≈ MARÍA, antes que ...GB)  — MARIA CATULENGA < MARÍA CATULENGA < MARIA CATULENGB
+✅ C) pantalla: caso real: CHINITA SALTEÑA entre SALTENA y SALTEO  — CHINITA SALTENA < CHINITA SALTEÑA < CHINITA SALTEO
+✅ C) PDF: caso real: CHINITA SALTEÑA entre SALTENA y SALTEO  — CHINITA SALTENA < CHINITA SALTEÑA < CHINITA SALTEO
+✅ C) pantalla: mayúsculas/minúsculas no separan (La Porteña / LA PORTEÑO)  — LA CITY < La Porteña < LA PORTEÑO
+✅ C) PDF: mayúsculas/minúsculas no separan (La Porteña / LA PORTEÑO)  — LA CITY < La Porteña < LA PORTEÑO
+✅ A0) R9 tiene turnos  — 11 turnos
+✅ A) T1: pantalla en alfabético 'es' (9)  — ARMOÑOZO | CONESERA | DESERT OF DUBAI | DOCTORA APASIONADA | ETERNA DOCTORA | HERMANOSDEMIPATRIA | MOSQUITA GARDEN | QUE BELLA DOÑA | SI TIN
+✅ A) T1: PDF == pantalla, id por id
+✅ A) T1: todas las filas traen spcs.nombre por JOIN
+✅ A) T2: pantalla en alfabético 'es' (8)  — ALHENA | ASTUTO NOTES | DEL CAMPEON | DOCTOR SKY | DOCTORA MIA | LOCA DUBAI | OLA DOCTOR | TOUCH OF BLUE
+✅ A) T2: PDF == pantalla, id por id
+✅ A) T2: todas las filas traen spcs.nombre por JOIN
+✅ A) T3: pantalla en alfabético 'es' (7)  — BAHIA ROMANA | DAHUA | LOCA DUBAI | MARIA CATULENGA | OLA DOCTOR | TORO MAÑERO | VISION SECURITY
+✅ A) T3: PDF == pantalla, id por id
+✅ A) T3: todas las filas traen spcs.nombre por JOIN
+✅ A) T4: pantalla en alfabético 'es' (13)  — BACON | BIEN COQUETA | COLONIAL JOHAN | GRILLADA RYE | KRISTALINA | LIVIA DRUSA | LOGUACIOUS | MARUKA PLUS | NIÑO OCEANICO | NISTEL WIN | REY DE PILA | SOUTH GOTICO | TOY BOY
+✅ A) T4: PDF == pantalla, id por id
+✅ A) T4: todas las filas traen spcs.nombre por JOIN
+✅ A) T5: pantalla en alfabético 'es' (4)  — AMIGUITO JESUS | KUCCINI | NELIDA RIM | NOCHE EN VELA
+✅ A) T5: PDF == pantalla, id por id
+✅ A) T5: todas las filas traen spcs.nombre por JOIN
+✅ A) T6: pantalla en alfabético 'es' (6)  — EL MAS SABIO | FALAYS | FREE CRY | HALLOTOP | IDALIA MARO | REINA EDITION
+✅ A) T6: PDF == pantalla, id por id
+✅ A) T6: todas las filas traen spcs.nombre por JOIN
+✅ A) T7: pantalla en alfabético 'es' (8)  — ATOMIZADOR | ECHO IN THE SKY | EL RISKO | LATIN PRESUMIDA | LE BATEAU | SEMBRADOR CHUCK | SEÑOR MONCHI | YOOKY
+✅ A) T7: PDF == pantalla, id por id
+✅ A) T7: todas las filas traen spcs.nombre por JOIN
+✅ A) T8: pantalla en alfabético 'es' (3)  — IDALIA MARO | LATIN PRESUMIDA | YOOKY
+✅ A) T8: PDF == pantalla, id por id
+✅ A) T8: todas las filas traen spcs.nombre por JOIN
+✅ A) T9: pantalla en alfabético 'es' (6)  — CHINITA SALTEÑA | ESPLENDID CRAF | LE BATEAU | QUERELLANTE | THE BEAST PARTY | WISLA KEN
+✅ A) T9: PDF == pantalla, id por id
+✅ A) T9: todas las filas traen spcs.nombre por JOIN
+✅ A) T10: pantalla en alfabético 'es' (8)  — ABARAJALA | BABY PARADISE | GRILLADA RYE | INDIANA MARO | KRISTALINA | LATIN RAIN | LOGUACIOUS | QUINIELA TREND
+✅ A) T10: PDF == pantalla, id por id
+✅ A) T10: todas las filas traen spcs.nombre por JOIN
+✅ A) T11: pantalla en alfabético 'es' (9)  — BABY PARADISE | BUEN MANUEL | DESTINADO JOHAN | EL GRAN HECTOR | ES SABALERO | GOIADORA | HEART OF GOLD | INDIO VALIDO | TERRIBLE KING
+✅ A) T11: PDF == pantalla, id por id
+✅ A) T11: todas las filas traen spcs.nombre por JOIN
+✅ B1) T4 contiene NIÑO OCEANICO y NISTEL WIN  — 8/9
+✅ B2) T4: NIÑO OCEANICO antes que NISTEL WIN  — BACON | BIEN COQUETA | COLONIAL JOHAN | GRILLADA RYE | KRISTALINA | LIVIA DRUSA | LOGUACIOUS | MARUKA PLUS | NIÑO OCEANICO | NISTEL WIN | REY DE PILA | SOUTH GOTICO | TOY BOY
+✅ B3) discriminante: por codepoint saldrían al revés (NISTEL < NIÑO)  — BACON | BIEN COQUETA | COLONIAL JOHAN | GRILLADA RYE | KRISTALINA | LIVIA DRUSA | LOGUACIOUS | MARUKA PLUS | NISTEL WIN | NIÑO OCEANICO | REY DE PILA | SOUTH GOTICO | TOY BOY
+
+52/52 asserts OK
+```
+
+Pendiente: `probe_spcs_studbook_alta.mjs` (escribe) cuando Yesi no esté cargando.
