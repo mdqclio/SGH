@@ -196,7 +196,7 @@ try {
   const { data: restSpc } = await admin.from('spcs').select('id').like('nombre', 'PROBE SBALTA %');
   ok('T) teardown: 0 spcs de prueba', (restSpc || []).length === 0, JSON.stringify(restSpc));
   const { count } = await admin.from('spcs').select('id', { count: 'exact', head: true });
-  ok('T) count spcs = 203 (baseline CLAUDE.md)', count === 203, String(count));
+  ok('T) count spcs = 205 (baseline CLAUDE.md)', count === 205, String(count));
   const { data: rest } = await admin.from('usuarios').select('email').like('email', `probe.sbalta.%.${RUN}@sgh.test`);
   ok('T) teardown: 0 usuarios de prueba', (rest || []).length === 0, JSON.stringify(rest));
   const { data: au } = await admin.auth.admin.listUsers({ perPage: 200 });

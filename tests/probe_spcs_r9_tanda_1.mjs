@@ -6,7 +6,8 @@
  * edad + 2 typos de planilla), que están en migrations/spcs_r9_tanda_1.sql.
  *
  * Asserts:
- *   A) count(spcs) = 203 (181 + 18 tanda 1 + 2 tanda 2 + 2 tanda 3 — BIEN COQUETA, EL MAS SABIO)
+ *   A) count(spcs) = 205 (181 + 18 tanda 1 + 2 tanda 2 + 2 tanda 3 + 2 altas de Yesi por spcs.html
+ *      el 12/09 — DAHUA, SOUTH GOTICO; ver ALTAS_UI_12_09)
  *   B) las 18 filas existen por studbook_id, una sola vez cada una
  *   C) nombre / fecha_nacimiento / sexo / color / padre / madre iguales a la evidencia
  *   D) registro_stud_book NULL, club_id NULL, FK de asignación NULL, estado activo
@@ -31,6 +32,9 @@ const sb = createClient(SUPABASE_URL, KEY, { auth: { autoRefreshToken: false, pe
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 const BASELINE_ANTES = 181;
+// Altas hechas por Yesi desde spcs.html (buscador del Stud Book) el 12/09/2026, fuera de las
+// tandas SQL: DAHUA (SB 438313) y SOUTH GOTICO (SB 424339). Suman al count pero no son de este probe.
+const ALTAS_UI_12_09 = 2;
 const TANDA_2 = [
   { nombre_sb: 'QUE BELLA DOÑA', sb_id: '446458', fecha_nacimiento: '2023-10-08', sexo: 'hembra', color: 'Zaino',  padrillo_nombre: 'Sea Dog', madre_nombre: 'Paradise Nistel',  variante: 'BELLA DOÑA' },
   { nombre_sb: 'INDIANA MARO',   sb_id: '432433', fecha_nacimiento: '2021-09-15', sexo: 'hembra', color: 'Alazan', padrillo_nombre: 'Gokstad', madre_nombre: 'Ilusionada Chica', variante: 'INDIA MARO' },
@@ -58,7 +62,7 @@ const ok = (t, c, n = '') => { results.push({ t, s: c ? '✅' : '❌', n }); ret
 // A
 const { count: total, error: eC } = await sb.from('spcs').select('id', { count: 'exact', head: true });
 if (eC) throw eC;
-ok('A count(spcs) = 203', total === BASELINE_ANTES + 18 + TANDA_2.length + TANDA_3.length, `real ${total}`);
+ok('A count(spcs) = 205', total === BASELINE_ANTES + 18 + TANDA_2.length + TANDA_3.length + ALTAS_UI_12_09, `real ${total}`);
 
 // B–F
 const { data: filas, error: eF } = await sb.from('spcs')

@@ -596,11 +596,21 @@ async function loadInscripciones() {
   // El nombre del cargador va por JOIN explícito: inscripciones tiene DOS FK a
   // usuarios (inscripto_por y ratificado_por), así que PostgREST necesita el
   // nombre del constraint o falla por ambigüedad.
+  // El nombre del SPC viene por JOIN y no del cache `spcs` (que sólo trae
+  // activos): un inscripto cuyo SPC se desactivó quedaría sin nombre y caería
+  // al principio de la lista.
   const { data, error } = await sb.from('inscripciones')
-    .select('*, cargador:usuarios!inscripciones_inscripto_por_fkey(nombre_completo)')
-    .eq('carrera_id', currentCarreraId).order('created_at');
+    .select('*, cargador:usuarios!inscripciones_inscripto_por_fkey(nombre_completo), spcs(nombre)')
+    .eq('carrera_id', currentCarreraId);
   if (error) { toast(error.message,'error'); return; }
-  inscripciones = data||[];
+  // Alfabético por nombre del SPC, colación castellana — el mismo orden que el
+  // PDF de inscriptos y que la hoja "ORDEN DE LARGADA". Yesi carga la gatera
+  // leyendo el papel contra esta pantalla (pedido 12/09/2026). Mismo comparador
+  // que ratificacion.html: 'es' explícito, la Ñ va después de la N y la tilde
+  // no separa. Se ordena en cliente y no con ORDER BY porque la colación de
+  // Postgres no es la castellana (NISTEL WIN < NIÑO OCEANICO).
+  inscripciones = (data||[]).sort((a, b) =>
+    (a.spcs?.nombre || '').localeCompare(b.spcs?.nombre || '', 'es'));
   renderInscripciones();
 }
 
@@ -658,7 +668,7 @@ function renderInscripciones() {
       ? `<span style="color:var(--muted)">—</span>`
       : `<input type="number" min="1" step="1" class="gatera-input" value="${i.numero_partidor??''}" data-prev="${i.numero_partidor??''}" onchange="guardarGatera('${i.id}', this)" style="width:60px;text-align:center" title="N° de gatera (sorteo)">`;
     return `<tr>
-      <td><div class="spc-name">${spc?.nombre||i.spc_id}</div></td>
+      <td><div class="spc-name">${i.spcs?.nombre||spc?.nombre||i.spc_id}</div></td>
       <td>${gateraCell}</td>
       <td>${certCell}</td>
       <td>${cab?`${cab.nombre}${cab.hipodromo_patente?` (${cab.hipodromo_patente})`:''}`:'—'}</td>
@@ -669,7 +679,7 @@ function renderInscripciones() {
       <td>${cargadaCell}</td>
       <td><span class="badge badge-${i.estado}">${i.estado?.replace('_',' ')||'—'}</span></td>
       <td class="actions-cell">
-        <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify({ ...i, cargador: undefined })})'>✏️</button>
+        <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify({ ...i, cargador: undefined, spcs: undefined })})'>✏️</button>
         <button class="btn-sm btn-delete" onclick="deleteRecord('${i.id}')">🗑️</button>
       </td>
     </tr>`;
@@ -876,12 +886,15 @@ async function printInscriptos() {
 
   const inscs = inscsData || [];
 
-  // Pre-ordenar inscriptos por nombre de SPC por carrera (reutilizado en bloques y matriz)
+  // Pre-ordenar inscriptos por nombre de SPC por carrera (reutilizado en bloques y matriz).
+  // 'es' explícito: sin locale, localeCompare usa el del navegador que imprime, y en
+  // inglés la Ñ cuenta como N (AÑO < ANZUELO). Mismo comparador que la pantalla y
+  // que ratificacion.html.
   const inscsByCarrera = new Map();
   allCars.forEach(car => {
     inscsByCarrera.set(car.id, inscs
       .filter(i => i.carrera_id === car.id)
-      .sort((a, b) => (a.spcs?.nombre || '').localeCompare(b.spcs?.nombre || '')));
+      .sort((a, b) => (a.spcs?.nombre || '').localeCompare(b.spcs?.nombre || '', 'es')));
   });
 
   // Texto de sexo derivado de condicion_sexo, y regex para detectar si el texto libre
