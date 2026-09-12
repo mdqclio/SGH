@@ -732,4 +732,17 @@ Esto es decisión de producto (Fede/Yesi). Lo dejo planteado, no implementado.
 
 ## 9. Verificación de publicación
 
-(se completa en el commit siguiente)
+Commit del informe: `cdec0e7a15dd033226104100fc62317fd4e9b3de`
+
+```bash
+git push origin reports
+git ls-remote origin reports
+git rev-parse HEAD
+```
+
+```
+cdec0e7a15dd033226104100fc62317fd4e9b3de	refs/heads/reports
+cdec0e7a15dd033226104100fc62317fd4e9b3de
+```
+
+(Este bloque va en un segundo commit; su `ls-remote` queda en el mensaje de commit.)
