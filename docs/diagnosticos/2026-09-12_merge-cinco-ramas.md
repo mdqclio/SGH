@@ -138,3 +138,13 @@ $ node tests/probe_paridad_llamado_inscripciones.mjs
 ## 4. Ramas
 
 Las cinco siguen existiendo (local y `origin`). No se borran sin pedido. Ramas de trabajo sin mergear que quedan: **ninguna** (`feat/studbook-buscar` mergeada ayer).
+
+## 5. Verificación de push (reports)
+
+```
+$ git push -u origin reports
+$ git ls-remote origin reports
+324115ab9b6cf9a2d1ab7b98a3ee53db5166766f	refs/heads/reports
+$ git rev-parse HEAD
+324115ab9b6cf9a2d1ab7b98a3ee53db5166766f
+```
