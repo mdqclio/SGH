@@ -1,5 +1,24 @@
 # Changelog
 
+## [2026-09-12] — Inscriptos en orden alfabético castellano en pantalla (= PDF); baseline spcs 205
+
+> Pedido de Yesi: para el sorteo de gateras lee el papel (alfabético) y carga el partidor en la pantalla,
+> que estaba en orden de carga. Relevamiento en `reports`: `2026-09-12_orden-inscriptos-pantalla-vs-pdf.md`.
+
+- **`inscripciones.html`**: `loadInscripciones()` trae `spcs(nombre)` por JOIN y ordena en cliente con
+  `localeCompare(nombre, 'es')` (antes `.order('created_at')`, sin criterio documentado ni uso). La fila
+  muestra el nombre del JOIN (el cache `spcs` sólo trae activos). `printInscriptos()`: el sort por nombre
+  lleva `'es'` explícito — sin locale usaba el del navegador que imprimía, y en inglés la Ñ ordena como N
+  (`AÑO < ANZUELO`). Mismo comparador que `ratificacion.html` (`:306`, `:430`, `:610`).
+- **Probe `tests/probe_orden_inscriptos.mjs`** (52/52, sólo lectura): corre la `loadInscripciones` real contra
+  los 11 turnos de R9 y compara id por id con el comparador del PDF; caso real T4 `NIÑO OCEANICO < NISTEL WIN`
+  (por codepoint sale al revés); sintéticos Ñ/tilde/mayúsculas por los dos comparadores; texto: ningún
+  `localeCompare` sin `'es'` en inscripciones ni ratificación. Mutante sin `'es'`: 7 rojos; archivo de `main`
+  anterior: 25 rojos.
+- **Baseline `spcs` 203 → 205** (`CLAUDE.md`, `probe_spcs_r9_tanda_1.mjs`, `probe_spcs_studbook_alta.mjs`):
+  Yesi dio de alta DAHUA y SOUTH GOTICO el 12/09 desde `spcs.html` con el buscador del Stud Book —
+  primeras altas por UI, sin migración. `probe_spcs_r9_tanda_1` 81/81 con el nuevo count.
+
 ## [2026-09-11 noche, 6] — Alta de SPC desde el Stud Book: Edge Function `studbook-buscar` + `rpc_spcs_duplicados` + pantalla
 
 > Con OK de Leo pieza por pieza (A → B → D-función → C → D-pantalla → deploy). Diagnósticos en `reports`:
