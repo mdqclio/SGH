@@ -619,10 +619,18 @@ async function loadLlamado() {
         <div class="carrera-num">${esc(c.numero_turno)}</div>
         <div class="carrera-info">
           <div class="carrera-name">${esc(c.nombre || 'Turno ' + c.numero_turno)}</div>
+          <!-- Chips: distancia, pista, edad, bolsa, cupo, cierre. El de SEXO se
+               sacó el 08/09/2026 a pedido de Fede ("sacaría tierra ambos"): en
+               las 49 carreras del club el texto de la condición ya declara el
+               sexo cuando hay restricción —"Yeguas…" o "Caballos…"— y cuando no
+               la hay el chip decía "ambos", que no informa nada. Sacarlo no
+               pierde el dato.
+               La PISTA se queda: en 49 de 49 el texto NO la menciona, así que
+               el chip es el único lugar donde aparece. Ver
+               docs/diagnosticos/2026-09-08_chips-llamado-pista-y-sexo.md -->
           <div class="carrera-chips">
             <span class="chip">${esc(c.distancia_metros)}m</span>
             ${c.tipo_pista ? `<span class="chip">${esc(c.tipo_pista)}</span>` : ''}
-            ${c.condicion_sexo ? `<span class="chip">${esc(c.condicion_sexo)}</span>` : ''}
             ${textoEdad(c) ? `<span class="chip">${esc(textoEdad(c))}</span>` : ''}
             ${bolsaChip(c)}
             ${c.cupo_maximo ? `<span class="chip">Cupo ${esc(c.cupo_maximo)}</span>` : ''}

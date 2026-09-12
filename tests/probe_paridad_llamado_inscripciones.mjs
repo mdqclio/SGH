@@ -313,6 +313,27 @@ const MUTANTES = [
   return \`<span class="chip">💰 \${esc(formatARS(total))}</span>\`;`,
     to: `  return \`<span class="chip">💰 \${esc(formatARS(c.bolsa_total))}</span>\`;` },
 
+  // ── El pedido de Fede del 08/09: el sexo se fue, la pista se queda ───────
+  { id: 'M14', archivo: 'portal', desc: 'vuelve el chip de sexo al llamado',
+    mata: ['P4', 'D6'],
+    from: `            \${c.tipo_pista ? \`<span class="chip">\${esc(c.tipo_pista)}</span>\` : ''}`,
+    to:   `            \${c.tipo_pista ? \`<span class="chip">\${esc(c.tipo_pista)}</span>\` : ''}
+            \${c.condicion_sexo ? \`<span class="chip">\${esc(c.condicion_sexo)}</span>\` : ''}` },
+
+  { id: 'M15', archivo: 'insc', desc: 'vuelve el chip de sexo a inscripciones',
+    mata: ['Q4', 'D6'],
+    from: `    c.tipo_pista || '',`,
+    to:   `    c.tipo_pista || '',\n    c.condicion_sexo || '',` },
+
+  { id: 'M16', archivo: 'portal', desc: 'se va también la PISTA — perdería el dato en 49 de 49 carreras',
+    mata: ['P3', 'D1'],
+    from: `            \${c.tipo_pista ? \`<span class="chip">\${esc(c.tipo_pista)}</span>\` : ''}\n`,
+    to:   `` },
+
+  { id: 'M17', archivo: 'insc', desc: 'se va también la PISTA en inscripciones',
+    mata: ['Q3', 'D1'],
+    from: `    c.tipo_pista || '',\n`, to: `` },
+
   { id: 'M13', archivo: 'insc', desc: 'vuelve el bug: el chip de inscripciones muestra bolsa_total crudo',
     mata: ['Q6', 'D1', 'D5'],
     from: `c.bolsa_total ? \`💰 \${formatMonto(repartoDisplay(c.bolsa_total, c.distribucion_premios).total)}\` : '',`,
@@ -472,8 +493,18 @@ async function ins(tabla, fila, bucket) {
 
     const chipsL = divChips(filaL);
     ok('P2) chip de distancia', chipsL.includes('>1100m<'), chipsTxt(filaL));
-    ok('P3) chip de pista', chipsL.includes('>tierra<'));
-    ok('P4) chip de sexo', chipsL.includes('>ambos<'));
+    // La PISTA se queda a propósito: en las 49 carreras del club el texto de la
+    // condición no la menciona nunca, así que el chip es el único lugar donde
+    // aparece. Sacarla perdería el dato — ver el informe del 08/09.
+    ok('P3) el llamado SIGUE mostrando el chip de pista', chipsL.includes('>tierra<'));
+    // El chip de SEXO se sacó el 08/09/2026 (Fede). El assert se invierte: ya no
+    // se verifica que esté, se verifica que NO esté — y contra el VALOR
+    // esperado ('ambos', que es lo que tiene el fixture), no contra la otra
+    // pantalla. Comparar pantalla contra pantalla dejaría pasar que las dos lo
+    // sigan mostrando (GOTCHA #93).
+    ok('P4) el llamado YA NO muestra el chip de sexo',
+       !chipsL.includes('>ambos<') && !/>(?:ambos|machos|hembras|machos_castrados)</.test(chipsL),
+       chipsTxt(filaL));
     ok('P5) chip de rango de edad', chipsL.includes('>5 a 10 años<'));
     // ⚠️ NO comparar contra el otro chip: eso fue lo que dejó pasar el bug del
     // 08/09. El esperado viene del oráculo (premios-utils.js cargado aparte).
@@ -498,8 +529,10 @@ async function ins(tabla, fila, bucket) {
 
     const chipsQL = divChips(headL);
     ok('Q2) chip de distancia', chipsQL.includes('>1100m<'), chipsTxt(headL));
-    ok('Q3) chip de pista', chipsQL.includes('>tierra<'));
-    ok('Q4) chip de sexo', chipsQL.includes('>ambos<'));
+    ok('Q3) inscripciones SIGUE mostrando el chip de pista', chipsQL.includes('>tierra<'));
+    ok('Q4) inscripciones YA NO muestra el chip de sexo',
+       !chipsQL.includes('>ambos<') && !/>(?:ambos|machos|hembras|machos_castrados)</.test(chipsQL),
+       chipsTxt(headL));
     ok('Q5) chip de rango de edad', chipsQL.includes('>5 a 10 años<'));
     ok('Q6) el chip de bolsa de inscripciones == repartoDisplay, NO el nominal',
        chipsQL.includes(I.formatMonto(BOLSA_EFECTIVA)) && !chipsQL.includes(I.formatMonto(BOLSA)),
@@ -518,7 +551,6 @@ async function ins(tabla, fila, bucket) {
       ['número de turno', '>9<', '>9<'],
       ['distancia', '>1100m<', '>1100m<'],
       ['pista', '>tierra<', '>tierra<'],
-      ['sexo', '>ambos<', '>ambos<'],
       ['rango de edad', '>5 a 10 años<', '>5 a 10 años<'],
       ['bolsa', P.formatARS(BOLSA_EFECTIVA), I.formatMonto(BOLSA_EFECTIVA)],
       ['cierre', `cierra ${HORA_ESPERADA}`, `cierra ${HORA_ESPERADA}`],
@@ -526,8 +558,10 @@ async function ins(tabla, fila, bucket) {
     ];
     const faltan = CAMPOS.filter(([, a, b]) => !(filaL.includes(a) && headL.includes(b)))
       .map(([n]) => n);
-    ok('D1) los ocho campos aparecen en LAS DOS pantallas',
-       faltan.length === 0, faltan.length ? `faltan: ${faltan.join(', ')}` : '8/8');
+    // Eran ocho hasta el 08/09; el sexo salió a pedido de Fede y quedan siete.
+    ok(`D1) los ${CAMPOS.length} campos aparecen en LAS DOS pantallas`,
+       faltan.length === 0,
+       faltan.length ? `faltan: ${faltan.join(', ')}` : `${CAMPOS.length}/${CAMPOS.length}`);
 
     ok('D2) la condición se arma igual en las dos (mismo separador)',
        P.textoCondicion({ condicion_handicap: HC_LARGA, condicion_adicional: AD_LARGA })
@@ -543,6 +577,20 @@ async function ins(tabla, fila, bucket) {
     // El assert que faltaba: paridad NO alcanza. Aunque las dos coincidan, el
     // valor tiene que ser el del oráculo. Si las dos volvieran al nominal, D1 y
     // D4 seguirían en verde y sólo este las agarra.
+    // La paridad de lo AUSENTE también hay que fijarla: si una pantalla volviera
+    // a mostrar el sexo y la otra no, D1 no se entera (sólo mira lo que TIENE
+    // que estar). Y se compara contra el valor concreto del fixture, no entre
+    // pantallas.
+    ok('D6) NINGUNA de las dos muestra el sexo, y el fixture SÍ lo tiene cargado',
+       !/>(?:ambos|machos|hembras|machos_castrados)</.test(divChips(filaL))
+       && !/>(?:ambos|machos|hembras|machos_castrados)</.test(divChips(headL)),
+       `fixture condicion_sexo='ambos' · portal=[${chipsTxt(filaL)}] · insc=[${chipsTxt(headL)}]`);
+
+    ok('D7) las dos SIGUEN mostrando los cuatro que Fede quiere: distancia, edad, bolsa y cierre',
+       ['>1100m<', '>5 a 10 años<'].every(t => filaL.includes(t) && headL.includes(t))
+       && filaL.includes(P.formatARS(BOLSA_EFECTIVA)) && headL.includes(I.formatMonto(BOLSA_EFECTIVA))
+       && filaL.includes(`cierra ${HORA_ESPERADA}`) && headL.includes(`cierra ${HORA_ESPERADA}`));
+
     ok('D5) las dos coinciden CON EL ORÁCULO, no sólo entre sí',
        filaL.includes(P.formatARS(BOLSA_EFECTIVA)) && headL.includes(I.formatMonto(BOLSA_EFECTIVA))
        && !filaL.includes(P.formatARS(BOLSA)) && !headL.includes(I.formatMonto(BOLSA)),
