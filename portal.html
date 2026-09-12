@@ -287,6 +287,11 @@
      ganancia_minima aplicado (GOTCHA #63, regla de Yesica). El portal era la
      única pantalla que no cargaba este helper y por eso mostraba el nominal. -->
 <script src="premios-utils.js"></script>
+<!-- edadSPC(): la regla del 1° de julio, la MISMA que usa la secretaría y que
+     fn_edad_reglamentaria en la base. Se carga el helper compartido en vez de
+     reimplementarla acá: una tercera copia de la misma regla es una tercera
+     copia que se puede desincronizar. -->
+<script src="edad-spc.js"></script>
 <script>
 let sb, currentUser, miUsuarioId = null, esEntrenador = false, miProfesionalId = null;
 let misCaballos = [], misInscripciones = [];
@@ -662,27 +667,87 @@ let carreraSeleccionada = null;
 // entrenador puede anotar cualquier SPC). null = no hay búsqueda activa y el
 // modal muestra la lista corta de caballos propios, que es el caso frecuente.
 let resultadosBusqueda = null;
-let buscarTimer = null;
 
+// ── El padrón, traído UNA vez al abrir el modal ─────────────────────────────
+// 181 ejemplares: 42,5 kB de JSON, ~11 kB por el cable con gzip (medido el
+// 08/09/2026). Filtrar en el cliente en vez de consultar por tecla da respuesta
+// instantánea y —lo que importa— búsqueda insensible a
+// ACENTOS: `unaccent` no está instalada en la base (GOTCHA #71) e `ILIKE` no es
+// acento-insensible, así que contra el servidor "saltena" no encontraba
+// "CHINITA SALTEÑA". En JS se resuelve con normalize('NFD').
+let padronSpcs = null;
+
+async function cargarPadronSpcs() {
+  if (padronSpcs !== null) return;
+  const { data, error } = await sb.rpc('rpc_padron_spcs');
+  if (error) { console.error('[rpc_padron_spcs]', error); throw error; }
+  padronSpcs = (data || []).map(r => ({ ...r, _busca: normalizarBusqueda(r.nombre) }));
+}
+
+// Minúsculas + sin acentos ni ñ. NFD separa la letra base del diacrítico y el
+// rango \u0300-\u036f los borra: "SALTEÑA" → "saltena", "Río" → "rio".
+// El nombre solo no alcanza para elegir: en el padrón hay un duplicado exacto
+// ("Wave Rimout" ×2) y un par casi igual ("TATA FOOT" / "ZETA FOOT"). Se
+// muestra, además del sexo:
+//   · EDAD — cobertura 100%, y es el dato que decide si el caballo entra en la
+//     condición del turno, que siempre tiene rango de edad;
+//   · PADRE × MADRE — cobertura 99%, y es como se identifica un ejemplar en el
+//     ambiente cuando dos comparten nombre;
+//   · Stud Book — cobertura 37%, así que va sólo cuando existe.
+// El color quedó afuera: 88% de cobertura y no desambigua el duplicado real.
+//
+// La edad sale de edadSPCTexto() (edad-spc.js), la regla del 1° de julio. Sin
+// fecha de referencia usa hoy, que es lo correcto acá: el buscador no cuelga de
+// ninguna reunión.
+function edadYNacimiento(fechaNac) {
+  const txt = edadSPCTexto(fechaNac);
+  const corta = fechaCorta(fechaNac);
+  return txt ? `${txt} · ${corta}` : corta;
+}
+
+function normalizarBusqueda(s) {
+  return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+// Desde cuántos caracteres se sugiere. El nombre más corto del padrón tiene 5,
+// así que 3 no deja ningún ejemplar fuera de alcance.
+const MIN_CHARS_BUSQUEDA = 3;
+
+// Sugerencias mientras se tipea, contra el padrón ya cargado en memoria.
+// Sin debounce y sin viaje al servidor: filtrar 181 nombres es instantáneo.
+// Coincidencia parcial en CUALQUIER posición —"quita" encuentra "MOSQUITA
+// GARDEN"— e insensible a mayúsculas y acentos.
 function onBuscarSpc(q) {
-  clearTimeout(buscarTimer);
-  const t = (q || '').trim();
-  // El RPC exige 2 caracteres; abajo de eso se vuelve a la lista propia.
-  if (t.length < 2) { resultadosBusqueda = null; renderListaCaballosModal(); return; }
-
-  const cont = document.getElementById('minsc-lista');
-  cont.innerHTML = '<div class="loading-state"><div class="spinner"></div> Buscando…</div>';
-
-  buscarTimer = setTimeout(async () => {
-    const { data, error } = await sb.rpc('rpc_buscar_spc', { p_q: t });
-    if (error) {
-      console.error('[rpc_buscar_spc]', error);
-      cont.innerHTML = `<div style="font-size:13px;color:var(--danger);padding:8px 0;">${esc(error.message)}</div>`;
-      return;
-    }
-    resultadosBusqueda = data || [];
+  const t = normalizarBusqueda(q);
+  if (t.length < MIN_CHARS_BUSQUEDA) {
+    resultadosBusqueda = null;
     renderListaCaballosModal();
-  }, 250);
+    return;
+  }
+  if (padronSpcs === null) {
+    // El padrón se pide al abrir el modal; si todavía no llegó, se avisa en vez
+    // de mostrar "sin resultados", que sería mentira.
+    document.getElementById('minsc-lista').innerHTML =
+      '<div class="loading-state"><div class="spinner"></div> Cargando el padrón…</div>';
+    return;
+  }
+  resultadosBusqueda = buscarEnPadron(t);
+  renderListaCaballosModal();
+}
+
+// Separada de onBuscarSpc para poder probarla sin DOM.
+// Los que empiezan con el término van primero: "rio" tiene que traer
+// "Río Salado" antes que "BESO CURIOSO", que también contiene "rio".
+function buscarEnPadron(termino) {
+  const t = normalizarBusqueda(termino);
+  if (t.length < MIN_CHARS_BUSQUEDA) return [];
+  return (padronSpcs || [])
+    .filter(r => r._busca.includes(t))
+    .sort((a, b) => {
+      const pa = a._busca.startsWith(t) ? 0 : 1;
+      const pb = b._busca.startsWith(t) ? 0 : 1;
+      return pa !== pb ? pa - pb : a._busca.localeCompare(b._busca);
+    });
 }
 
 // Inscripciones crudas del usuario. La policy de SELECT ya las limita a los
@@ -785,7 +850,6 @@ function abrirInscripcion(carreraId, reunionId) {
   vm.style.display = 'none'; vm.className = 'validation-msg';
 
   resultadosBusqueda = null;
-  clearTimeout(buscarTimer);
   document.getElementById('minsc-buscar').value = '';
   renderListaCaballosModal();
   document.getElementById('modal-inscribir').classList.add('open');
@@ -793,6 +857,10 @@ function abrirInscripcion(carreraId, reunionId) {
   // El padrón se carga después de abrir: el modal se ve al instante y los
   // selects pasan de "Cargando…" a la lista. Si falla, se avisa en el mismo
   // bloque de validación en vez de dejar tres selects mudos.
+  // El padrón del buscador se pide junto con el de monta: así, para cuando el
+  // usuario tipea la tercera letra, ya está en memoria.
+  cargarPadronSpcs().catch(err => console.error('[padron spcs]', err));
+
   cargarCaballerizaPorDefecto()
     .then(cargarPadronMonta)
     .then(renderSelectsMonta)
@@ -858,7 +926,10 @@ function renderListaCaballosModal() {
         <div style="font-family:'Playfair Display',serif;color:var(--accent);font-size:15px;">${esc(c.nombre)}</div>
         <div class="carrera-chips" style="margin-top:4px;">
           <span class="chip">${esc(c.sexo || '—')}</span>
-          ${c.fecha_nacimiento ? `<span class="chip">${esc(fechaCorta(c.fecha_nacimiento))}</span>` : ''}
+          ${c.fecha_nacimiento ? `<span class="chip">${esc(edadYNacimiento(c.fecha_nacimiento))}</span>` : ''}
+          ${c.studbook_id ? `<span class="chip">SB ${esc(c.studbook_id)}</span>` : ''}
+          ${c.padrillo_nombre || c.madre_nombre
+            ? `<span class="chip">${esc(c.padrillo_nombre || '?')} × ${esc(c.madre_nombre || '?')}</span>` : ''}
           ${noHabilitado ? `<span class="chip" style="color:var(--danger);border-color:rgba(224,82,82,0.35);">no habilitado (${esc(c.estado || '—')})</span>` : ''}
           ${aviso}
         </div>
@@ -876,7 +947,6 @@ function closeModalInscribir() {
   document.getElementById('modal-inscribir').classList.remove('open');
   carreraSeleccionada = null;
   resultadosBusqueda = null;
-  clearTimeout(buscarTimer);
 }
 
 // Toda la escritura pasa por rpc_inscribir. El portal NO tiene INSERT sobre
