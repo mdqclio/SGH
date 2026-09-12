@@ -594,3 +594,178 @@ Commit del informe: `58c79137c6cda193fca56c580f31098d21cc7c3d`
 ```
 
 (Este bloque va en un segundo commit; su `ls-remote` queda en el mensaje de commit.)
+
+---
+
+## Merge y deploy
+
+```bash
+git merge --no-ff fix/aviso-jockey-repetido
+git push origin main
+git ls-remote origin main
+git rev-parse HEAD
+```
+
+```
+c0e7803730fbe93d4e418df3c0468040778820d7	refs/heads/main
+c0e7803730fbe93d4e418df3c0468040778820d7
+```
+
+### md5 contra `sigh.com.ar` (con `-L`), los 5 archivos del merge
+
+```bash
+for f in jockey-repetido.js inscripciones.html portal.html ratificacion.html resultados.html; do
+  git show c0e7803:$f > local_$f
+  curl -sL "https://sigh.com.ar/$f?v=$RANDOM" -o $f      # cada 15 s hasta que los 5 coincidan
+  md5sum local_$f $f
+done
+```
+
+```
+MATCH tras 3 intentos
+5488429ed8fa645ccf2e818de7940aee  local_jockey-repetido.js
+5488429ed8fa645ccf2e818de7940aee  jockey-repetido.js
+5540c48fd72c81834595609d7fb24f37  local_inscripciones.html
+5540c48fd72c81834595609d7fb24f37  inscripciones.html
+9306a961fa81c705843d2fc930252841  local_portal.html
+9306a961fa81c705843d2fc930252841  portal.html
+53992707a2f7bb6a4927844e45e09ab9  local_ratificacion.html
+53992707a2f7bb6a4927844e45e09ab9  ratificacion.html
+63a6460fdc40498c1a6e73d5f34053b3  local_resultados.html
+63a6460fdc40498c1a6e73d5f34053b3  resultados.html
+```
+
+### Probes contra el HTML servido
+
+```bash
+SRC_JOCKEY_REPETIDO_JS=prod/jockey-repetido.js SRC_INSCRIPCIONES_HTML=prod/inscripciones.html \
+SRC_PORTAL_HTML=prod/portal.html SRC_RATIFICACION_HTML=prod/ratificacion.html SRC_RESULTADOS_HTML=prod/resultados.html \
+node tests/probe_aviso_jockey_repetido.mjs
+```
+
+```
+✅ H1) forfait + ratificado, mismo jockey → NO repetido
+✅ H2) mal_inscrito + ratificado, mismo jockey → NO repetido
+✅ H3) inscripto + inscripto, mismo jockey → repetido
+✅ H4) ratificado + ratificado, mismo jockey → repetido
+✅ H5) inscripto + ratificado, mismo jockey → repetido
+✅ H6) dos jockeys distintos → nada
+✅ H7) sin jockey no cuenta
+✅ H8) conteo ×3
+✅ H9) badge lleva ⚠ dup. y la cantidad
+✅ R9) T1 sin aviso
+✅ R9) T2 avisa: GONZALEZ, LUCAS  — GONZALEZ, LUCAS
+✅ R9) T3 sin aviso
+✅ R9) T4 sin aviso
+✅ R9) T5 avisa: CANTO, TOBIAS  — CANTO, TOBIAS
+✅ R9) T6 sin aviso
+✅ R9) T7 sin aviso
+✅ R9) T8 sin aviso
+✅ R9) T9 sin aviso
+✅ R9) T10 avisa: AGUIRRE, HUGO  — AGUIRRE, HUGO
+✅ R9) T11 avisa: CANTO, TOBIAS  — CANTO, TOBIAS
+✅ R9) T2 Gonzalez ×3
+✅ R9) T10 Aguirre ×3
+✅ R8) R6 T9 PRESA, DANIEL: forfait/mal_inscrito + ratificado → ya no avisa  — (nada)
+✅ R8) R8 T2 LOPEZ, ALEXIS: forfait/mal_inscrito + ratificado → ya no avisa  — (nada)
+✅ R8) R8 T3 GONZALEZ, LUCAS: forfait/mal_inscrito + ratificado → ya no avisa  — (nada)
+✅ R8) R8 T5 DELLI QUADRI, IGNACIO DANIEL: forfait/mal_inscrito + ratificado → ya no avisa  — AGUIRRE, HUGO
+✅ R8) R8 T8 PRESA, DANIEL: forfait/mal_inscrito + ratificado → ya no avisa  — (nada)
+✅ R8) R8 T10 TORRES, ANIBAL: forfait/mal_inscrito + ratificado → ya no avisa  — (nada)
+✅ R8) R8 T11 CONTRERAS, JUAN CRUZ: forfait/mal_inscrito + ratificado → ya no avisa  — (nada)
+✅ R8) T5 AGUIRRE, HUGO: los dos ratificados → avisa en ratificación (correcto)  — AGUIRRE, HUGO
+✅ A0) inscripciones.html carga jockey-repetido.js
+✅ A1) R9 T2: 3 filas con ⚠ dup. (Gonzalez ×3)  — badges: 3
+✅ A2) R9 T2: las filas marcadas son las de Gonzalez
+✅ A3) R9 T2: ALHENA (Hahn, único) sin badge
+✅ A4) R9 T1 (turno limpio): 0 badges
+✅ A5) R8 T2 (Lopez: ratificado + forfait): 0 badges
+✅ A6) saveRecord llama avisarJockeyRepetido (toast, no return antes del insert)
+✅ A7) toast de aviso al guardar con Gonzalez en T2, tipo warning  — [["⚠ GONZALEZ, LUCAS queda en 3 caballos de este turno. Es un aviso: se define en la ratificación.","warning"]]
+✅ B0) portal.html carga jockey-repetido.js y pide jockey_titular_id
+✅ B1) jockey ya en 2 caballos míos del turno → aviso visible con los nombres  — ⚠ Ya declaraste este jockey en DEL CAMPEON, TOUCH OF BLUE para este turno. Podés anotar igual: la monta se define en la ratificación.
+✅ B2) los otros en forfait → sin aviso
+✅ B3) otro turno → sin aviso
+✅ B4) sin jockey elegido → sin aviso
+✅ B5) el aviso dice que se puede anotar igual (no bloqueo)
+✅ C0) ratificacion.html carga jockey-repetido.js
+✅ C1) render: jockeyCount = conteoJockeysActivos(insc)
+✅ C2) el conteo viejo sobre todas las filas ya no está
+✅ C3) recalcJockeyColisiones cuenta por estado de fila
+✅ C4) updateCounter recalcula el aviso tras cada cambio de estado
+✅ C5) ratificar() sigue sin mirar colisiones (no bloqueo)
+✅ C6) estadoDeFila lee badge-ratificado / badge-mal_inscrito
+✅ D0) resultados.html carga jockey-repetido.js
+✅ D1) R8 T5: NOCHE EN VELA no largó (dato persistido)  — noLargo mandiles: 4
+✅ D2) R8 T5: Aguirre en los dos, ratificados
+✅ D3) estado actual (Aguirre ×2, NOCHE EN VELA no largó) → moJockeysRepetidos sin repetidos  — {"654dc3ea-5c90-46cd-a579-eb0efa3bd1c0":1,"a66df20c-cd72-4125-a1d7-b32e48fcf037":1,"8f24be30-e951-4287-82bd-2db54d0e32dc":1,"484361c0-abb5-41af-b20e-3090535cb075":1,"2e3428cb-be99-4c91-9b99-13c3b499e147":1,"005caa02-fc91-45b3-9ae6-6f55d989fa2e":1,"0bbe6666-bdf5-446b-8ee2-5279eafdc844":1}
+✅ D4) backfill R8 T5: saveMontas emite el UPDATE de LA LAGUNERA J (no bloqueado)  — [{"jockey_titular_id":"a66df20c-cd72-4125-a1d7-b32e48fcf037","id":"4370d235-6dd9-479a-b7af-cd7c4d81c82f"}]
+✅ D5) backfill R8 T5: toast de guardado y NINGÚN aviso de repetido (el otro no largó)  — [["1 monta(s) guardada(s)","success"]]
+✅ D6) Aguirre en dos que largaron → se guarda igual (UPDATE emitido) + toast warning  — {"updates":[{"jockey_titular_id":"a66df20c-cd72-4125-a1d7-b32e48fcf037","id":"b6ef2dbb-59aa-45c7-8385-386197acb0e8"}],"toasts":[["1 monta(s) guardada(s)","success"],["⚠ Jockey repetido entre caballos que largaron: AGUIRRE, HUGO. Se guardó igual — revisalo antes de oficializar.","warning"]]}
+✅ D7) montasFaltantes usa noLargoIds (refactor sin cambio de criterio)
+✅ D8) la base no se tocó: LA LAGUNERA J y el tercer caballo siguen como estaban  — [{"id":"4370d235-6dd9-479a-b7af-cd7c4d81c82f","jockey_titular_id":"a66df20c-cd72-4125-a1d7-b32e48fcf037","estado":"ratificado"},{"id":"b6ef2dbb-59aa-45c7-8385-386197acb0e8","jockey_titular_id":"654dc3ea-5c90-46cd-a579-eb0efa3bd1c0","estado":"ratificado"}]
+
+60/60 asserts OK
+```
+
+```bash
+INSC_HTML=prod/inscripciones.html node tests/probe_orden_inscriptos.mjs     # el fix de la mañana sigue en pie sobre el mismo archivo
+```
+
+```
+✅ D1) pantalla: comparador con locale 'es'  — (a, b) =>
+    (a.spcs?.nombre || '').localeCompare(b.spcs?.nombre || '', 'es')
+✅ D2) PDF: comparador con locale 'es'  — (a, b) => (a.spcs?.nombre || '').localeCompare(b.spcs?.nombre || '', 'es')
+✅ D3) pantalla ya no ordena por created_at
+✅ D4) ratificacion.html: todos sus sorts por nombre llevan 'es'  — total: 3, sin 'es': 0
+✅ D5) inscripciones.html: ningún localeCompare sin 'es'
+✅ C) pantalla: Ñ después de toda la N (ANZUELO < AÑO NUEVO)  — ANA < ANZUELO < AÑO NUEVO < AOTO
+✅ C) PDF: Ñ después de toda la N (ANZUELO < AÑO NUEVO)  — ANA < ANZUELO < AÑO NUEVO < AOTO
+✅ C) pantalla: Ñ entre N y O (NUBE < ÑANDU < OSO)  — NUBE < ÑANDU < OSO
+✅ C) PDF: Ñ entre N y O (NUBE < ÑANDU < OSO)  — NUBE < ÑANDU < OSO
+✅ C) pantalla: tilde no separa (MARIA ≈ MARÍA, antes que ...GB)  — MARIA CATULENGA < MARÍA CATULENGA < MARIA CATULENGB
+✅ C) PDF: tilde no separa (MARIA ≈ MARÍA, antes que ...GB)  — MARIA CATULENGA < MARÍA CATULENGA < MARIA CATULENGB
+✅ C) pantalla: caso real: CHINITA SALTEÑA entre SALTENA y SALTEO  — CHINITA SALTENA < CHINITA SALTEÑA < CHINITA SALTEO
+✅ C) PDF: caso real: CHINITA SALTEÑA entre SALTENA y SALTEO  — CHINITA SALTENA < CHINITA SALTEÑA < CHINITA SALTEO
+✅ C) pantalla: mayúsculas/minúsculas no separan (La Porteña / LA PORTEÑO)  — LA CITY < La Porteña < LA PORTEÑO
+✅ C) PDF: mayúsculas/minúsculas no separan (La Porteña / LA PORTEÑO)  — LA CITY < La Porteña < LA PORTEÑO
+✅ A0) R9 tiene turnos  — 11 turnos
+✅ A) T1: pantalla en alfabético 'es' (9)  — ARMOÑOZO | CONESERA | DESERT OF DUBAI | DOCTORA APASIONADA | ETERNA DOCTORA | HERMANOSDEMIPATRIA | MOSQUITA GARDEN | QUE BELLA DOÑA | SI TIN
+✅ A) T1: PDF == pantalla, id por id
+✅ A) T1: todas las filas traen spcs.nombre por JOIN
+✅ A) T2: pantalla en alfabético 'es' (8)  — ALHENA | ASTUTO NOTES | DEL CAMPEON | DOCTOR SKY | DOCTORA MIA | LOCA DUBAI | OLA DOCTOR | TOUCH OF BLUE
+✅ A) T2: PDF == pantalla, id por id
+✅ A) T2: todas las filas traen spcs.nombre por JOIN
+✅ A) T3: pantalla en alfabético 'es' (7)  — BAHIA ROMANA | DAHUA | LOCA DUBAI | MARIA CATULENGA | OLA DOCTOR | TORO MAÑERO | VISION SECURITY
+✅ A) T3: PDF == pantalla, id por id
+✅ A) T3: todas las filas traen spcs.nombre por JOIN
+✅ A) T4: pantalla en alfabético 'es' (13)  — BACON | BIEN COQUETA | COLONIAL JOHAN | GRILLADA RYE | KRISTALINA | LIVIA DRUSA | LOGUACIOUS | MARUKA PLUS | NIÑO OCEANICO | NISTEL WIN | REY DE PILA | SOUTH GOTICO | TOY BOY
+✅ A) T4: PDF == pantalla, id por id
+✅ A) T4: todas las filas traen spcs.nombre por JOIN
+✅ A) T5: pantalla en alfabético 'es' (4)  — AMIGUITO JESUS | KUCCINI | NELIDA RIM | NOCHE EN VELA
+✅ A) T5: PDF == pantalla, id por id
+✅ A) T5: todas las filas traen spcs.nombre por JOIN
+✅ A) T6: pantalla en alfabético 'es' (6)  — EL MAS SABIO | FALAYS | FREE CRY | HALLOTOP | IDALIA MARO | REINA EDITION
+✅ A) T6: PDF == pantalla, id por id
+✅ A) T6: todas las filas traen spcs.nombre por JOIN
+✅ A) T7: pantalla en alfabético 'es' (8)  — ATOMIZADOR | ECHO IN THE SKY | EL RISKO | LATIN PRESUMIDA | LE BATEAU | SEMBRADOR CHUCK | SEÑOR MONCHI | YOOKY
+✅ A) T7: PDF == pantalla, id por id
+✅ A) T7: todas las filas traen spcs.nombre por JOIN
+✅ A) T8: pantalla en alfabético 'es' (3)  — IDALIA MARO | LATIN PRESUMIDA | YOOKY
+✅ A) T8: PDF == pantalla, id por id
+✅ A) T8: todas las filas traen spcs.nombre por JOIN
+✅ A) T9: pantalla en alfabético 'es' (6)  — CHINITA SALTEÑA | ESPLENDID CRAF | LE BATEAU | QUERELLANTE | THE BEAST PARTY | WISLA KEN
+✅ A) T9: PDF == pantalla, id por id
+✅ A) T9: todas las filas traen spcs.nombre por JOIN
+✅ A) T10: pantalla en alfabético 'es' (8)  — ABARAJALA | BABY PARADISE | GRILLADA RYE | INDIANA MARO | KRISTALINA | LATIN RAIN | LOGUACIOUS | QUINIELA TREND
+✅ A) T10: PDF == pantalla, id por id
+✅ A) T10: todas las filas traen spcs.nombre por JOIN
+✅ A) T11: pantalla en alfabético 'es' (9)  — BABY PARADISE | BUEN MANUEL | DESTINADO JOHAN | EL GRAN HECTOR | ES SABALERO | GOIADORA | HEART OF GOLD | INDIO VALIDO | TERRIBLE KING
+✅ A) T11: PDF == pantalla, id por id
+✅ A) T11: todas las filas traen spcs.nombre por JOIN
+✅ B1) T4 contiene NIÑO OCEANICO y NISTEL WIN  — 8/9
+✅ B2) T4: NIÑO OCEANICO antes que NISTEL WIN  — BACON | BIEN COQUETA | COLONIAL JOHAN | GRILLADA RYE | KRISTALINA | LIVIA DRUSA | LOGUACIOUS | MARUKA PLUS | NIÑO OCEANICO | NISTEL WIN | REY DE PILA | SOUTH GOTICO | TOY BOY
+✅ B3) discriminante: por codepoint saldrían al revés (NISTEL < NIÑO)  — BACON | BIEN COQUETA | COLONIAL JOHAN | GRILLADA RYE | KRISTALINA | LIVIA DRUSA | LOGUACIOUS | MARUKA PLUS | NISTEL WIN | NIÑO OCEANICO | REY DE PILA | SOUTH GOTICO | TOY BOY
+
+52/52 asserts OK
+```
