@@ -135,6 +135,7 @@
     .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 320px; animation: slideIn 0.3s ease; }
     .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
     .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
+    .toast-warning { background: #4a3a10; border: 1px solid #f59e0b; color: var(--text); }
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     #auth-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; align-items: center; justify-content: center; }
 
@@ -246,7 +247,8 @@
           </label>
           <label style="display:block;font-size:12px;color:var(--muted);">
             Jockey <span style="opacity:.7;">(opcional — se puede definir hasta el martes)</span>
-            <select id="minsc-jockey" class="minsc-select"><option value="">Cargando…</option></select>
+            <select id="minsc-jockey" class="minsc-select" onchange="avisoJockeyRepetidoPortal()"><option value="">Cargando…</option></select>
+            <div id="minsc-jockey-aviso" hidden style="margin-top:6px;font-size:12px;color:#f59e0b;line-height:1.5;"></div>
           </label>
           <label style="display:block;font-size:12px;color:var(--muted);">
             Suplente <span style="opacity:.7;">(opcional)</span>
@@ -292,6 +294,10 @@
      reimplementarla acá: una tercera copia de la misma regla es una tercera
      copia que se puede desincronizar. -->
 <script src="edad-spc.js"></script>
+<!-- conteoJockeysActivos(): aviso de jockey repetido en el turno, el mismo
+     helper que inscripciones / ratificación / Montas. Acá sólo puede mirar las
+     inscripciones propias: las ajenas no se ven hasta que sale el listado. -->
+<script src="jockey-repetido.js"></script>
 <script>
 let sb, currentUser, miUsuarioId = null, esEntrenador = false, miProfesionalId = null;
 let misCaballos = [], misInscripciones = [];
@@ -754,7 +760,7 @@ function buscarEnPadron(termino) {
 // caballos propios, así que no hace falta filtrar por spc_id acá.
 async function cargarInscripcionesCrudas() {
   const { data, error } = await sb.from('inscripciones')
-    .select('id,estado,canal,inscripto_por,spc_id,carrera_id,created_at,spcs(nombre),'
+    .select('id,estado,canal,inscripto_por,spc_id,carrera_id,created_at,jockey_titular_id,spcs(nombre),'
           // apertura/cierre_ratificacion: son la fuente de verdad de la ventana de
           // forfait (ver modoRetiro). Sin ellas el front no puede decidir el modo.
           + 'carreras(numero_turno,nombre,estado,apertura_inscripcion,cierre_inscripcion,'
@@ -821,6 +827,26 @@ function renderSelectsMonta() {
     || (padronEntrenadores.some(p => p.id === miProfesionalId) ? miProfesionalId : '');
   selJoc.value = prev.joc || '';
   selSup.value = prev.sup || '';
+  avisoJockeyRepetidoPortal();
+}
+
+// Aviso (no bloqueo): el jockey elegido ya está en otro caballo MÍO, activo, de
+// este turno. Sólo se ven las inscripciones propias, así que es parcial — el
+// aviso completo lo da la secretaría en inscripciones/ratificación.
+function avisoJockeyRepetidoPortal() {
+  const el = document.getElementById('minsc-jockey-aviso');
+  const jockeyId = document.getElementById('minsc-jockey').value || null;
+  if (!el) return;
+  el.hidden = true; el.textContent = '';
+  if (!jockeyId || !carreraSeleccionada) return;
+  const otras = misInscripciones.filter(i =>
+    i.carrera_id === carreraSeleccionada.id
+    && i.jockey_titular_id === jockeyId
+    && ESTADOS_ACTIVOS_MONTA.includes(i.estado));
+  if (!otras.length) return;
+  const nombres = otras.map(i => i.spcs?.nombre || '—').join(', ');
+  el.textContent = `⚠ Ya declaraste este jockey en ${nombres} para este turno. Podés anotar igual: la monta se define en la ratificación.`;
+  el.hidden = false;
 }
 
 // Caballeriza de la ficha del propio entrenador: sólo es un valor inicial,
@@ -1001,6 +1027,13 @@ async function anotar(spcId) {
   await cargarInscripcionesCrudas();
   renderListaCaballosModal();
   loadLlamado();
+  // Con la fila nueva ya en misInscripciones, el aviso cuenta el caballo recién
+  // anotado: si el jockey quedó en 2+ caballos míos del turno, se dice.
+  if (jockeyId) {
+    const n = conteoJockeysActivos(misInscripciones.filter(i => i.carrera_id === carreraSeleccionada?.id))[jockeyId] || 0;
+    if (n >= 2) toast(`⚠ Ese jockey queda en ${n} caballos tuyos de este turno. Es un aviso: la monta se define en la ratificación.`, 'warning');
+  }
+  avisoJockeyRepetidoPortal();
 }
 
 /* ========== MIS INSCRIPCIONES ========== */
