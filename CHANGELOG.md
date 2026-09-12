@@ -1,5 +1,27 @@
 # Changelog
 
+## [2026-09-12, 2] — Aviso de jockey repetido en el turno, en las 4 pantallas (sin bloqueo)
+
+> Pedido de Yesi. Relevamiento en `reports`: `2026-09-12_jockey-repetido-misma-carrera.md` — no había control
+> en ningún lado salvo un aviso en ratificación que contaba forfaits (7 de 8 casos históricos eran ruido).
+
+- **`jockey-repetido.js`** (nuevo, compartido): `conteoJockeysActivos()` / `jockeysRepetidos()` cuentan sólo
+  `inscripto` + `ratificado`; `badgeJockeyDup(n)` es el mismo badge en las cuatro pantallas.
+- **`inscripciones.html`**: fila naranja + `⚠ dup. ×N` junto al jockey; toast warning al guardar si el jockey
+  elegido queda en 2+ caballos del turno. No bloquea (en inscripción es normal — R9 hoy: T2, T5, T10, T11).
+- **`portal.html`**: hint bajo el select de jockey al anotar ("Ya declaraste este jockey en …, podés anotar
+  igual") + toast tras anotar. Sólo ve las inscripciones propias del turno (`jockey_titular_id` agregado al
+  select de `cargarInscripcionesCrudas`).
+- **`ratificacion.html`**: el aviso existente pasa a contar sólo activos (render y `recalcJockeyColisiones`,
+  que ahora lee el estado del badge de cada fila); `updateCounter` lo recalcula tras ratificar / volver /
+  forfait / mal inscripto. `ratificar()` sigue sin mirarlo.
+- **`resultados.html` Montas**: badge live por fila excluyendo los "no corrió" (`noLargoIds()`, extraído de
+  `montasFaltantes`); al guardar, toast warning si un jockey queda en 2+ que largaron — **se guarda igual**
+  (R8 T5: Aguirre en NOCHE EN VELA que no largó + LA LAGUNERA J, el backfill del 17/08, no se bloquea).
+- Probe `tests/probe_aviso_jockey_repetido.mjs` (60/60, sólo lectura; el `saveMontas` corre contra un `sb`
+  falso que registra el UPDATE): helper sintético, R9 4 turnos avisan y 7 no, los 7 casos históricos de
+  forfait+ratificado ya no avisan, R8 T5 avisa en ratificación y no en Montas, backfill no bloqueado.
+
 ## [2026-09-12] — Inscriptos en orden alfabético castellano en pantalla (= PDF); baseline spcs 205
 
 > Pedido de Yesi: para el sorteo de gateras lee el papel (alfabético) y carga el partidor en la pantalla,

@@ -200,6 +200,7 @@
   <script src="premios-utils.js"></script>
   <script src="active-reunion.js"></script>
   <script src="renumerar-chapas.js"></script>
+  <script src="jockey-repetido.js"></script>
 </head>
 <body>
 <div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;"></div></div>
@@ -615,8 +616,10 @@ function renderAll(carreras, inscripciones) {
     const mal = insc.filter(i=>i.estado==='mal_inscrito').length;
     const activos = rat + pre;
     const carCerrada = isCerrada || car.estado === 'confirmada' || car.estado === 'anulada';
-    const jockeyCount = {};
-    insc.forEach(i => { if (i.jockey_titular_id) jockeyCount[i.jockey_titular_id] = (jockeyCount[i.jockey_titular_id]||0)+1; });
+    // Sólo inscripto + ratificado (jockey-repetido.js): un forfait o mal
+    // inscripto con el mismo jockey no es colisión — antes se contaban y 7 de
+    // los 8 casos históricos del aviso eran eso (relevamiento 12/09/2026).
+    const jockeyCount = conteoJockeysActivos(insc);
     const chapaMap = renumerarChapas(insc);
     const rows = insc.map((i, idx) => {
       const spc = getSpc(i.spc_id);
@@ -630,7 +633,7 @@ function renderAll(carreras, inscripciones) {
         <td class="num-part print-hide">${chapaMap[i.id] || ''}</td>
         <td><div class="spc-name">${spc?.nombre||i.spc_id}</div></td>
         <td style="font-size:12px;color:var(--muted)">${cab?.nombre||'—'}</td>
-        <td class="jockey-cell">${buildJockeySelect(i, carCerrada)}${hasColision?'<span class="badge-jockey-dup">⚠ dup.</span>':''}</td>
+        <td class="jockey-cell">${buildJockeySelect(i, carCerrada)}${hasColision?badgeJockeyDup(jockeyCount[i.jockey_titular_id]):''}</td>
         <td class="col-peso-display">${i.peso_final?`<strong>${i.peso_final} kg</strong>`:i.peso_declarado?`${i.peso_declarado} kg`:'—'}</td>
         <td><input class="peso-input print-hide" type="number" id="peso-${i.id}" value="${i.peso_final||i.peso_declarado||''}" min="40" max="80" step="0.1" placeholder="kg" onblur="updatePeso('${i.id}', this.value)"${carCerrada?' disabled':''}></td>
         <td><span class="badge badge-${i.estado}" id="badge-${i.id}">${i.estado?.replace('_',' ')||'—'}</span></td>
@@ -808,30 +811,36 @@ function updateCounter(inscId) {
   });
   const counter = document.getElementById(`counter-${carreraId}`);
   if (counter) counter.innerHTML = buildCounterHtml(total, rat, pre, fort, mal);
+  // El estado cambió (ratificar / volver / forfait / mal inscripto): el aviso de
+  // jockey repetido sólo cuenta activos, así que se recalcula acá.
+  recalcJockeyColisiones(carreraId);
+}
+
+// Estado de la fila según el badge de estado (es lo que actualizan ratificar /
+// volverInscripto / forfait / mal inscripto sin re-renderizar la sección).
+function estadoDeFila(row) {
+  const b = row.querySelector('.badge');
+  if (!b) return null;
+  const cls = [...b.classList].find(c => c.startsWith('badge-') && c !== 'badge');
+  return cls ? cls.slice('badge-'.length) : null;
 }
 
 function recalcJockeyColisiones(carreraId) {
   const sec = document.getElementById(`csec-${carreraId}`);
   if (!sec) return;
-  const conteo = {};
-  sec.querySelectorAll('.jockey-select').forEach(sel => {
-    if (sel.value) conteo[sel.value] = (conteo[sel.value]||0)+1;
-  });
-  sec.querySelectorAll('.jockey-select').forEach(sel => {
-    const row = sel.closest('tr');
-    const cell = sel.closest('.jockey-cell');
-    if (!row || !cell) return;
-    const hasColision = !!sel.value && conteo[sel.value] >= 2;
+  // Mismo criterio que el render inicial: sólo inscripto + ratificado.
+  const filas = [...sec.querySelectorAll('.jockey-select')].map(sel => ({
+    sel, row: sel.closest('tr'), cell: sel.closest('.jockey-cell'),
+  })).filter(f => f.row && f.cell);
+  const conteo = conteoJockeysActivos(filas.map(f => ({
+    jockey_titular_id: f.sel.value || null, estado: estadoDeFila(f.row),
+  })));
+  filas.forEach(({ sel, row, cell }) => {
+    const hasColision = !!sel.value && (conteo[sel.value] || 0) >= 2;
     row.classList.toggle('jockey-duplicado', hasColision);
-    let badge = cell.querySelector('.badge-jockey-dup');
-    if (hasColision && !badge) {
-      badge = document.createElement('span');
-      badge.className = 'badge-jockey-dup';
-      badge.textContent = '⚠ dup.';
-      cell.appendChild(badge);
-    } else if (!hasColision && badge) {
-      badge.remove();
-    }
+    const badge = cell.querySelector('.badge-jockey-dup');
+    if (badge) badge.remove();
+    if (hasColision) cell.insertAdjacentHTML('beforeend', badgeJockeyDup(conteo[sel.value]));
   });
 }
 

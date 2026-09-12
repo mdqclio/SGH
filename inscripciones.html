@@ -77,6 +77,8 @@
     .badge-inscripto  { background: rgba(76,175,130,0.15);  color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
     .badge-ratificado { background: rgba(201,168,76,0.15);  color: var(--accent);  border: 1px solid rgba(201,168,76,0.3); }
     .badge-forfait      { background: rgba(224,82,82,0.1);    color: var(--danger);  border: 1px solid rgba(224,82,82,0.3); }
+    tr.jockey-duplicado td { background: rgba(245,158,11,0.06) !important; }
+    .badge-jockey-dup { display: inline-block; margin-left: 4px; font-size: 10px; font-weight: 700; color: #f59e0b; vertical-align: middle; white-space: nowrap; }
     .badge-mal_inscrito { background: rgba(232,168,76,0.15); color: #e8a84c;        border: 1px solid rgba(232,168,76,0.3); }
     .badge-reabierta    { background: rgba(232,168,76,0.15); color: #e8a84c;        border: 1px solid rgba(232,168,76,0.3); }
     .badge-anulada      { background: rgba(160,160,160,0.15); color: var(--muted); border: 1px solid rgba(160,160,160,0.3); }
@@ -121,6 +123,7 @@
     .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 320px; animation: slideIn 0.3s ease; }
     .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
     .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
+    .toast-warning { background: #4a3a10; border: 1px solid #f59e0b; color: var(--text); }
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     /* PRINT — estilo Palermo */
     #print-only { display: none; }
@@ -198,6 +201,7 @@
   <script src="premios-utils.js"></script>
   <script src="active-reunion.js"></script>
   <script src="edad-spc.js"></script>
+  <script src="jockey-repetido.js"></script>
 </head>
 <body>
 <div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;"></div></div>
@@ -649,8 +653,12 @@ function renderInscripciones() {
     const cEl=document.getElementById('inscriptos-count'); cEl.textContent='0 inscriptos'; cEl.style.display='';
     return;
   }
+  // Aviso de jockey repetido en el turno (jockey-repetido.js): sólo cuenta
+  // inscripto + ratificado; no bloquea nada.
+  const jockeyCount = conteoJockeysActivos(inscripciones);
   const rows = inscripciones.map(i => {
     const spc = getSpc(i.spc_id);
+    const jockeyDup = ESTADOS_ACTIVOS_MONTA.includes(i.estado) && !!i.jockey_titular_id && jockeyCount[i.jockey_titular_id] >= 2;
     const cab = getCab(i.caballeriza_id);
     const jkey = getProf(i.jockey_titular_id);
     const jkeySup = getProf(i.jockey_suplente_id);
@@ -667,13 +675,13 @@ function renderInscripciones() {
     const gateraCell = (i.estado==='forfait'||i.estado==='mal_inscrito')
       ? `<span style="color:var(--muted)">—</span>`
       : `<input type="number" min="1" step="1" class="gatera-input" value="${i.numero_partidor??''}" data-prev="${i.numero_partidor??''}" onchange="guardarGatera('${i.id}', this)" style="width:60px;text-align:center" title="N° de gatera (sorteo)">`;
-    return `<tr>
+    return `<tr${jockeyDup ? ' class="jockey-duplicado"' : ''}>
       <td><div class="spc-name">${i.spcs?.nombre||spc?.nombre||i.spc_id}</div></td>
       <td>${gateraCell}</td>
       <td>${certCell}</td>
       <td>${cab?`${cab.nombre}${cab.hipodromo_patente?` (${cab.hipodromo_patente})`:''}`:'—'}</td>
       <td>${entr?`${entr.apellido}, ${entr.nombre}`:'-'}</td>
-      <td>${jkey?`${jkey.apellido}, ${jkey.nombre}`:'-'}</td>
+      <td>${jkey?`${jkey.apellido}, ${jkey.nombre}`:'-'}${jockeyDup ? badgeJockeyDup(jockeyCount[i.jockey_titular_id]) : ''}</td>
       <td>${jkeySup?`${jkeySup.apellido}, ${jkeySup.nombre}`:'—'}</td>
       <td>${(() => { const l=[]; if(i.peon) l.push(`Peón: ${i.peon}`); if(i.capataz) l.push(`Cap: ${i.capataz}`); if(i.sereno) l.push(`Sereno: ${i.sereno}`); return l.length?`<div style="font-size:12px;color:var(--muted);">${l.join('<br>')}</div>`:''; })()}</td>
       <td>${cargadaCell}</td>
@@ -844,6 +852,19 @@ async function saveRecord() {
   toast(id ? 'Inscripción actualizada' : 'SPC inscripto');
   closeModal();
   await loadInscripciones();
+  avisarJockeyRepetido(payload.jockey_titular_id);
+}
+
+// Aviso (no bloqueo) al guardar: el jockey elegido ya está en otro caballo
+// activo de este turno. La tabla ya lo marca con ⚠ dup.; el toast es para que
+// no pase inadvertido si la fila quedó fuera de la vista.
+function avisarJockeyRepetido(jockeyId) {
+  if (!jockeyId) return;
+  const n = conteoJockeysActivos(inscripciones)[jockeyId] || 0;
+  if (n < 2) return;
+  const j = getProf(jockeyId);
+  const nombre = j ? `${j.apellido}, ${j.nombre}` : 'Este jockey';
+  toast(`⚠ ${nombre} queda en ${n} caballos de este turno. Es un aviso: se define en la ratificación.`, 'warning');
 }
 
 async function deleteRecord(id) {

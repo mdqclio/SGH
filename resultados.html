@@ -62,6 +62,7 @@
     .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 340px; animation: slideIn 0.3s ease; }
     .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
     .toast-error   { background: #4a1a1a; border: 1px solid var(--danger);  color: var(--text); }
+    .toast-warning { background: #4a3a10; border: 1px solid #f59e0b;      color: var(--text); }
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
     /* ── Estados vacíos / loading ── */
@@ -293,6 +294,8 @@
     .pb-input { width:80px; padding:6px 8px; font-size:13px; border-radius:8px; background:var(--input-bg); border:1px solid var(--border); color:var(--text); text-align:right; font-family:'DM Sans',sans-serif; }
     .mo-select { width:100%; padding:6px 8px; font-size:13px; border-radius:8px; background:var(--input-bg); border:1px solid var(--border); color:var(--text); font-family:'DM Sans',sans-serif; }
     .mo-select.mo-vacio { border-color:#e5a55e; background:rgba(229,165,94,0.10); }
+    .badge-jockey-dup { display:inline-block; margin-left:6px; font-size:10px; font-weight:700; color:#f59e0b; vertical-align:middle; white-space:nowrap; }
+    tr.jockey-duplicado td { background: rgba(245,158,11,0.06) !important; }
     .mo-alta { display:flex; gap:8px; align-items:center; padding:10px 14px; border-top:1px solid var(--border); }
     .mo-alta input { flex:1; min-width:0; padding:6px 8px; font-size:13px; border-radius:8px; background:var(--input-bg); border:1px solid var(--border); color:var(--text); font-family:'DM Sans',sans-serif; }
 
@@ -399,6 +402,7 @@
 <script src="partidor-colors.js"></script>
 <script src="chapas.js"></script>
 <script src="renumerar-chapas.js"></script>
+<script src="jockey-repetido.js"></script>
 <script>
 /* ═══════════════════════════════════════════════
    AUTH
@@ -1963,15 +1967,55 @@ function moRenderFilas() {
   const chapaForInsc = renumerarChapas(insc);
   document.getElementById('mo-tbody').innerHTML = insc.map(i => {
     const spc = spcsMap[i.spc_id];
-    return `<tr>
+    return `<tr id="mo-row-${i.id}">
       <td class="pb-td">${chapaForInsc[i.id] ?? '—'}</td>
       <td class="pb-td" style="font-weight:600;">${spc?.nombre || '—'}</td>
       <td class="pb-td">
         <select class="mo-select${i.jockey_titular_id ? '' : ' mo-vacio'}" id="mo-${i.id}"
-                onchange="this.classList.toggle('mo-vacio', !this.value)">${moOpciones(i)}</select>
+                onchange="this.classList.toggle('mo-vacio', !this.value); moRecalcJockeyDup()">${moOpciones(i)}</select><span id="mo-dup-${i.id}"></span>
       </td>
     </tr>`;
   }).join('');
+  moRecalcJockeyDup();
+}
+
+// Ratificados de la carrera que NO largaron, por id de inscripción. Cuando la
+// carrera es la abierta sale del marcador (noLargoMandiles, que a su vez se
+// inicializa desde lo persistido); si no, de resultado_posiciones.
+function noLargoIds(carreraId) {
+  const insc = moInscripciones(carreraId);
+  if (carreraId === currentCarreraId) {
+    const chapaForInsc = renumerarChapas(insc);
+    return new Set(insc.filter(i => noLargoMandiles.has(chapaForInsc[i.id])).map(i => i.id));
+  }
+  const res = resultados[carreraId];
+  const pos = (res && posicionesMap[res.id]) || [];
+  return new Set(pos.filter(p => p.no_largo).map(p => p.inscripcion_id));
+}
+
+// Aviso (no bloqueo) de jockey repetido en Montas, sobre lo que hay en los
+// selects. Los "no corrió" quedan afuera: el caso normal después de la carrera
+// es que el jockey siga cargado en el caballo que no largó mientras se lo
+// carga en el que sí corrió (R8 T5, Aguirre). Ahí no hay nada que avisar.
+function moJockeysRepetidos() {
+  const noLargo = noLargoIds(currentCarreraId);
+  const filas = moInscripciones(currentCarreraId)
+    .filter(i => !noLargo.has(i.id))
+    .map(i => ({ id: i.id, estado: 'ratificado', jockey_titular_id: document.getElementById(`mo-${i.id}`)?.value || null }));
+  return { filas, conteo: conteoJockeysActivos(filas) };
+}
+
+function moRecalcJockeyDup() {
+  const { filas, conteo } = moJockeysRepetidos();
+  const conDup = new Set(filas.filter(f => f.jockey_titular_id && conteo[f.jockey_titular_id] >= 2).map(f => f.id));
+  moInscripciones(currentCarreraId).forEach(i => {
+    const slot = document.getElementById(`mo-dup-${i.id}`);
+    const row  = document.getElementById(`mo-row-${i.id}`);
+    if (!slot || !row) return;
+    const dup = conDup.has(i.id);
+    slot.innerHTML = dup ? badgeJockeyDup(conteo[filas.find(f => f.id === i.id).jockey_titular_id]) : '';
+    row.classList.toggle('jockey-duplicado', dup);
+  });
 }
 
 function openMontas() {
@@ -2066,6 +2110,14 @@ async function saveMontas() {
   }
   if (errors.length) { toast(`Error al guardar ${errors.length} monta(s)`, 'error'); return; }
   toast(`${updates.length} monta(s) guardada(s)`, 'success');
+  // Aviso, no bloqueo: se guardó igual. Si un jockey quedó en 2+ caballos que
+  // largaron, la liquidación va a generar dos líneas de monta para él.
+  const { conteo } = moJockeysRepetidos();
+  const repetidos = Object.keys(conteo).filter(id => conteo[id] >= 2);
+  if (repetidos.length) {
+    const nombres = repetidos.map(id => { const p = profsMap[id]; return p ? `${p.apellido}, ${p.nombre}` : id; }).join('; ');
+    toast(`⚠ Jockey repetido entre caballos que largaron: ${nombres}. Se guardó igual — revisalo antes de oficializar.`, 'warning');
+  }
   document.getElementById('modal-montas').classList.remove('open');
 }
 
@@ -2076,15 +2128,7 @@ async function saveMontas() {
 // Mismo criterio que el armado de perfInserts en oficializar().
 function montasFaltantes(carreraId) {
   const insc = moInscripciones(carreraId);
-  let noLargo;
-  if (carreraId === currentCarreraId) {
-    const chapaForInsc = renumerarChapas(insc);
-    noLargo = new Set(insc.filter(i => noLargoMandiles.has(chapaForInsc[i.id])).map(i => i.id));
-  } else {
-    const res = resultados[carreraId];
-    const pos = (res && posicionesMap[res.id]) || [];
-    noLargo = new Set(pos.filter(p => p.no_largo).map(p => p.inscripcion_id));
-  }
+  const noLargo = noLargoIds(carreraId);
   return insc
     .filter(i => !noLargo.has(i.id) && !i.jockey_titular_id)
     .map(i => spcsMap[i.spc_id]?.nombre || '(sin nombre)');

@@ -52,6 +52,7 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 ├── chapas.js                    Paleta SVG de chapas SBARG por mandil
 ├── partidor-colors.js           Colores SBARG para chips de mandil
 ├── renumerar-chapas.js          renumerarChapas(inscripciones) → {id → 1..N}
+├── jockey-repetido.js           Aviso (no bloqueo) de jockey repetido en el turno: sólo inscripto+ratificado (4 pantallas)
 ├── premios-utils.js             Utilitarios de liquidación de premios
 ├── profesionales-duplicados.js  Aviso de fichas parecidas en el alta de entrenadores/jockeys
 ├── supabase.js                  createClient centralizado
@@ -356,6 +357,7 @@ node tests/probe_studbook_buscar_fn.mjs            # studbook-buscar — lógica
 node tests/probe_studbook_buscar_e2e.mjs           # studbook-buscar deployada — 200 staff / 403 portal / 401 sin token / preflight; ESCRIBE usuarios, teardown verificado
 node tests/probe_spcs_studbook_alta.mjs            # spcs.html — buscar, Usar, prellenado, panel de duplicados (bloquea / Guardar igual), INSERT real; ESCRIBE 1 spc + 1 usuario, teardown verificado, count 205
 node tests/probe_orden_inscriptos.mjs             # inscripciones.html — pantalla y PDF en alfabético 'es' (= ratificacion); R9 T4 NIÑO OCEANICO < NISTEL WIN; solo lectura
+node tests/probe_aviso_jockey_repetido.mjs         # jockey repetido en el turno — aviso en 4 pantallas, sólo activos; R9 4 turnos avisan, R8 T5 backfill no bloqueado; solo lectura
 ```
 
 **El patrón es código real sin browser.** Chromium no corre en este Ubuntu (`"Playwright does not support chromium on ubuntu26.04-x64"` — ver `docs/SERVER.md`), así que el probe **extrae del propio HTML** la función o el bloque a probar —por ancla, con balance de llaves—, lo corre con `new AsyncFunction(...)` inyectando dependencias reales (cliente Supabase con `SUPABASE_SECRET_KEY`, más stubs de DOM si hacen falta) y assertea contra la base. Nunca reimplementar la lógica dentro del test: si el archivo cambia, el probe corre el archivo cambiado. Para lo que escribe: **snapshot → run → assert → restore** en el `finally`.
