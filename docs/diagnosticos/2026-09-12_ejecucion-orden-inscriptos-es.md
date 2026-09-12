@@ -495,4 +495,11 @@ d49dd47cda8e875ed522b4b29bc55193357dd86f
 
 ## Verificación de publicación de este informe
 
-(se completa en el commit siguiente)
+Commit del informe: `df2db9616186e4d487868f7e5f9d937f2ccde45d`
+
+```
+df2db9616186e4d487868f7e5f9d937f2ccde45d	refs/heads/reports
+df2db9616186e4d487868f7e5f9d937f2ccde45d
+```
+
+(Este bloque va en un segundo commit; su `ls-remote` queda en el mensaje de commit.)
