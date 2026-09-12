@@ -656,4 +656,20 @@ Dos altas de hoy 14:34 UTC, con `studbook_id` cargado (o sea, por el buscador de
 
 ## 9. Verificación de publicación
 
-(se completa abajo, tras el push)
+Commit del informe: `40a96e92c675464adf35d40459728230f08e933c`
+
+```bash
+git push -u origin reports
+git ls-remote origin reports
+git rev-parse HEAD
+```
+
+```
+--- ls-remote
+40a96e92c675464adf35d40459728230f08e933c	refs/heads/reports
+--- HEAD
+40a96e92c675464adf35d40459728230f08e933c
+```
+
+(Este bloque se agrega en un segundo commit sobre el anterior; el `ls-remote` de ese segundo push
+va en el commit message.)
