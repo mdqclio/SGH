@@ -368,3 +368,15 @@ funciona pero deja gateras huérfanas si después hay forfaits.
   ratificación — decisión de producto, no la tomo acá.
 - El input de gatera aparece también en `inscripto` (sin ratificar). ¿Conviene mostrarlo sólo en
   `ratificado` para forzar el orden ratificar → sortear? Hoy no bloquea nada.
+
+---
+
+## 8. Verificación de publicación
+
+```
+$ git push -u origin reports
+$ git ls-remote origin reports
+52fe599c36d51315924a8b12cdbd61d69e7b7f8d	refs/heads/reports
+$ git rev-parse HEAD
+52fe599c36d51315924a8b12cdbd61d69e7b7f8d
+```
