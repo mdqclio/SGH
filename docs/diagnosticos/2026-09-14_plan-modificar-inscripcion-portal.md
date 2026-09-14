@@ -1173,4 +1173,15 @@ el merge. No hay DDL sobre tablas, no hay backfill, no hay cambio de policies ni
 
 ## 10. Verificación de publicación
 
-(se completa al pushear; ver abajo)
+Primer commit del informe:
+
+```
+$ git push -u origin reports
+$ git ls-remote origin reports
+8bf9946c5f06234328cb2081e53a455210c537aa	refs/heads/reports
+$ git rev-parse HEAD
+8bf9946c5f06234328cb2081e53a455210c537aa
+```
+
+Coinciden. Esta sección se agregó en un segundo commit sobre `reports` (mismo archivo); el SHA
+final es el que muestra `git log -1 -- docs/diagnosticos/2026-09-14_plan-modificar-inscripcion-portal.md`.
