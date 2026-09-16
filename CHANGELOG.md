@@ -1,5 +1,22 @@
 # Changelog
 
+## [2026-09-16, 2] — Caballerizas: titular opcional en el alta; la edición ya no borra lo que no se tocó (commit B)
+
+> Yesi no podía crear una caballeriza sin titular: `caballerizas.html` exigía apellido+nombre+DNI del propietario desde
+> `d5b441a` (11/05), y la misma validación bloqueaba la **edición** de 95/295 (43 sin titular + 52 con titular provisorio
+> sin DNI). Contradice el criterio de Fede del 15/08. Diagnóstico y plan en `reports`:
+> `2026-09-16_alta-caballeriza-exige-titular.md`, `2026-09-16_plan-caballeriza-titular-opcional-provisorio.md`.
+> Este commit es la opción **B** del plan (mergeable solo si aprieta el domingo); el siguiente agrega el provisorio automático (A).
+
+- **`caballerizas.html`**: `validateResponsables` — el propietario es **opcional, todo-o-nada** (los tres vacíos = no lo
+  conozco; alguno cargado = los tres). Rótulos sin asterisco, hint explicando el provisorio. `openModal` guarda un
+  **snapshot** del bloque de responsables (`responsablesAlCargar`) y muestra un aviso si el titular es provisorio
+  (`esProvisorio()`: `propietarios.notas` empieza con `provisorio`, o sin DNI y sin apellido). `saveRecord`: en edición,
+  **si el bloque no cambió no se valida ni se toca `caballeriza_responsables`** — antes hacía `delete` + `insert` siempre,
+  lo que con un provisorio lo borraba o creaba otro propietario por el trigger (ISSUE-080). El `delete` ahora chequea error.
+- Probe `tests/probe_caballeriza_provisorio.mjs` (UI: 8 asserts + restore; se adapta al commit B o A según el HTML;
+  `CABALLERIZAS_HTML` acepta URL). Mutantes P1–P4, P6: 5/5 muertos.
+
 ## [2026-09-16] — "Modificar" en Mis inscripciones del portal (caballeriza / entrenador / jockey / suplente)
 
 > Pedido de Yesi (14/09). Plan en `reports`: `2026-09-14_plan-modificar-inscripcion-portal.md`; ejecución:

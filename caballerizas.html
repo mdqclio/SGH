@@ -209,16 +209,25 @@
             <!-- Fila fija: propietario -->
             <div class="resp-row" id="row-propietario">
               <div class="resp-row-header">
-                <span class="resp-row-label">Propietario *</span>
+                <span class="resp-row-label">Propietario <span style="font-weight:400;color:var(--muted);">(si lo conocés)</span></span>
                 <div id="rp-badge" class="badge-prof" style="display:none">✓ Entrenador con patente</div>
               </div>
+              <!-- Criterio de Fede (15/08/2026): sin titular conocido, la caballeriza se crea igual y el
+                   dueño queda PROVISORIO (por ahora lo pone la secretaría con el DO de provisorios).
+                   El form exigía apellido+nombre+DNI desde el 11/05 y bloqueaba alta y edición (ISSUE-083). -->
+              <div id="rp-provisorio-aviso" hidden style="font-size:12px;color:#f59e0b;margin-bottom:8px;line-height:1.5;"></div>
               <div class="resp-inputs">
-                <input id="rp-apellido" placeholder="Apellido *">
-                <input id="rp-nombre"   placeholder="Nombre *">
-                <input id="rp-dni"      placeholder="DNI *" inputmode="numeric"
+                <input id="rp-apellido" placeholder="Apellido">
+                <input id="rp-nombre"   placeholder="Nombre">
+                <input id="rp-dni"      placeholder="DNI" inputmode="numeric"
                        onblur="this.value = formatDNI(this.value); checkProfesional(this, document.getElementById('rp-badge'))">
                 <input id="rp-fnac"     type="date" title="Fecha de nacimiento">
                 <input id="rp-localidad" placeholder="Localidad" class="span2">
+              </div>
+              <div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;">
+                Si no conocés al titular, dejá los tres campos vacíos: la caballeriza se crea sin propietario
+                y la secretaría le pone después un <strong>propietario provisorio</strong> a su nombre.
+                Si cargás alguno, completá apellido, nombre y DNI.
               </div>
             </div>
 
@@ -244,6 +253,13 @@ async function initAuth(){const{createClient}=supabase;sb=createClient('https://
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
 let allData = [];
+// Snapshot (JSON) del bloque de responsables tal como lo prellenó openModal. Si al
+// guardar está igual, NO se toca caballeriza_responsables: el camino viejo hacía
+// delete + insert siempre, y con un titular provisorio (sin DNI) eso lo borraba o
+// creaba otro propietario por el trigger (ISSUE-080). Ver saveRecord.
+let responsablesAlCargar = null;
+// caballeriza_id → { titular: bool, provisorio: bool } para badges y botón "Crear provisorio".
+let titularPorCaballeriza = {};
 
 // Escapa datos tipeados por el usuario antes de interpolarlos en innerHTML (anti-XSS).
 function escapeHtml(s) {
@@ -420,6 +436,16 @@ async function checkProfesional(dniInput, badgeEl) {
   if (data) badgeEl.style.display = 'inline-flex';
 }
 
+// Un titular es provisorio si su propietarios.notas empieza con 'provisorio' (marcas
+// 'provisorio R8 15/08', 'provisorio R9 11/09', 'provisorio alta DD/MM/YYYY'). Las
+// 'ex provisorio … completado' NO cuentan. Sin propietario embebido, se infiere por
+// "sin DNI y sin apellido" (la forma de los 47 del backfill).
+function esProvisorio(resp) {
+  const notas = resp?.propietarios?.notas;
+  if (typeof notas === 'string') return /^provisorio/i.test(notas.trim());
+  return !resp?.documento_nro && !resp?.apellido;
+}
+
 function getResponsableData() {
   const rows = [{
     rol:              'propietario',
@@ -443,10 +469,18 @@ function getResponsableData() {
   return rows;
 }
 
+// El propietario es OPCIONAL (criterio Fede 15/08): los tres vacíos = "no lo conozco"
+// → provisorio automático. Si viene alguno, vienen los tres: el DNI es la llave con la
+// que el trigger deriva `propietarios`.
+function propietarioVacio(rows) {
+  const p = rows[0] || {};
+  return !p.apellido && !p.nombre && !p.documento_nro;
+}
+
 function validateResponsables(rows) {
   const prop = rows[0];
-  if (!prop.apellido || !prop.nombre || !prop.documento_nro) {
-    return 'El propietario requiere apellido, nombre y DNI.';
+  if (!propietarioVacio(rows) && (!prop.apellido || !prop.nombre || !prop.documento_nro)) {
+    return 'Si cargás el propietario, completá apellido, nombre y DNI. Si todavía no lo sabés, dejá los tres vacíos: la secretaría le pone después un propietario provisorio con el nombre de la caballeriza.';
   }
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
@@ -539,17 +573,26 @@ async function openModal(rec = null) {
   clearPropietario();
   clearCopropietarios();
 
+  const avisoProv = document.getElementById('rp-provisorio-aviso');
+  avisoProv.hidden = true; avisoProv.textContent = '';
+
   if (rec?.id) {
-    const { data: respons } = await sb
+    // propietarios(notas): para saber si el titular es provisorio (notas 'provisorio …').
+    const { data: respons, error: errResp } = await sb
       .from('caballeriza_responsables')
-      .select('*')
+      .select('*, propietarios(notas)')
       .eq('caballeriza_id', rec.id)
       .order('rol', { ascending: false })
       .order('id',  { ascending: true });
+    if (errResp) { console.error('[caballeriza_responsables]', errResp); toast(errResp.message, 'error'); }
 
     if (respons?.length) {
       const prop = respons.find(r => r.rol === 'propietario');
       if (prop) {
+        if (esProvisorio(prop)) {
+          avisoProv.textContent = `Titular provisorio «${prop.nombre || rec.nombre}» (sin DNI), creado por la secretaría para poder liquidar. Completarlo desde acá todavía crea un propietario NUEVO en vez de completar el provisorio (ISSUE-080): si tenés el titular real, avisale a Leo. Si no tocás este bloque, se guarda todo lo demás sin cambiar el titular.`;
+          avisoProv.hidden = false;
+        }
         document.getElementById('rp-apellido').value  = prop.apellido        || '';
         document.getElementById('rp-nombre').value    = prop.nombre          || '';
         document.getElementById('rp-dni').value       = formatDNI(prop.documento_nro);
@@ -565,6 +608,9 @@ async function openModal(rec = null) {
       respons.filter(r => r.rol === 'copropietario').forEach(cp => addCopropRow(cp));
     }
   }
+
+  // Foto del bloque tal como quedó prellenado: saveRecord compara contra esto.
+  responsablesAlCargar = JSON.stringify(getResponsableData());
 
   document.getElementById('f-hipodromo-patente').value = rec?.hipodromo_patente || (rec ? '' : 'DOL');
   document.getElementById('f-chaq-desc').value = rec?.chaquetilla_descripcion || '';
@@ -587,13 +633,18 @@ async function saveRecord(e) {
   e.preventDefault();
 
   const rows = getResponsableData();
-  const validErr = validateResponsables(rows);
-  if (validErr) { toast(validErr, 'error'); return; }
+  const id = document.getElementById('f-id').value;
+  // Edición sin tocar el bloque de responsables → no se valida ni se reescribe: así las
+  // caballerizas con titular provisorio (sin DNI) o sin titular se pueden editar igual.
+  const responsablesSinCambios = !!id && JSON.stringify(rows) === responsablesAlCargar;
+  if (!responsablesSinCambios) {
+    const validErr = validateResponsables(rows);
+    if (validErr) { toast(validErr, 'error'); return; }
+  }
 
   const btn = document.getElementById('btn-save');
   btn.disabled = true; btn.textContent = 'Guardando…';
 
-  const id = document.getElementById('f-id').value;
   const nuevoEstado = document.getElementById('f-estado').value;
   const estadoOriginal = document.getElementById('f-estado-original').value;
   if (nuevoEstado === 'baja' && estadoOriginal !== 'baja') {
@@ -640,8 +691,18 @@ async function saveRecord(e) {
     cabId = data.id;
   }
 
+  if (responsablesSinCambios) {
+    // Datos de la caballeriza guardados; el titular (real, provisorio o ninguno) queda como estaba.
+    btn.disabled = false; btn.textContent = 'Guardar';
+    toast('Caballeriza actualizada');
+    closeModal();
+    load();
+    return;
+  }
+
   if (id) {
-    await sb.from('caballeriza_responsables').delete().eq('caballeriza_id', cabId);
+    const { error: delErr } = await sb.from('caballeriza_responsables').delete().eq('caballeriza_id', cabId);
+    if (delErr) { btn.disabled = false; btn.textContent = 'Guardar'; toast(delErr.message, 'error'); return; }
   }
 
   try {
