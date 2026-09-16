@@ -837,4 +837,12 @@ e5c7094be19a814ae4c07d0c35eb4342ec699b38	refs/heads/feat/caballeriza-titular-opc
 
 ## 10. Verificación de publicación
 
-(se completa en el commit siguiente)
+```
+$ git push origin reports
+$ git rev-parse HEAD
+23b1db154e42c436eb3bc93117e6255d1681c208
+$ git ls-remote origin reports
+23b1db154e42c436eb3bc93117e6255d1681c208	refs/heads/reports
+```
+
+Coinciden. Esta sección va en un segundo commit sobre el mismo archivo.
