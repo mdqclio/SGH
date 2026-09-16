@@ -2208,3 +2208,14 @@ $ PORTAL_HTML=prod_portal.html node tests/probe_forfait_portal.mjs
 | Para Yesi | el botón **Modificar** está en el portal, pero en R9 sale `—` en todas las filas: las dos ventanas cerraron el 14/09. Si lo quiere usar antes del domingo, extiende `cierre_ratificacion` desde `carta-llamados.html`. |
 | Pendiente R9 | 13 ratificados sin caballeriza + `DO` de provisorios sin correr (§24.3b). No es de esta rama. |
 | Pendiente producto | ISSUE-082 (tenencia = quién cargó; ejecutado B). |
+
+## 28. Verificación ls-remote (Parte 3)
+
+```
+$ git rev-parse HEAD
+62788877e0290b6222c8b154e8c989a9e6bb7cfd
+$ git ls-remote origin reports
+62788877e0290b6222c8b154e8c989a9e6bb7cfd	refs/heads/reports
+```
+
+Coinciden. Esta sección va en un commit más sobre el mismo archivo.
