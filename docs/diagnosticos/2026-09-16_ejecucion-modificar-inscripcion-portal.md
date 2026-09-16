@@ -2005,3 +2005,15 @@ stud (en `inscripciones.html`, o desde el portal con Modificar si extiende la ve
    datos, no por código. ¿Lo desacoplo?
 3. Los 13 ratificados sin caballeriza de R9: ¿los carga Yesi, o querés que arme la lista para ella?
 4. ISSUE-082 (tenencia): B ejecutado. ¿Confirmás?
+
+## 23. Verificación ls-remote (Parte 2)
+
+```
+$ git push origin reports
+$ git rev-parse HEAD
+7e06a3d01b50bbfbe08fcfe90fc2115dda9337ed
+$ git ls-remote origin reports
+7e06a3d01b50bbfbe08fcfe90fc2115dda9337ed	refs/heads/reports
+```
+
+Coinciden. Esta sección va en un commit más sobre el mismo archivo.
