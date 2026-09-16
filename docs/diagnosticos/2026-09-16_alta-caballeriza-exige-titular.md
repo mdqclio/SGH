@@ -353,4 +353,12 @@ un DNI" de §3.
 
 ## 7. Verificación de publicación
 
-(se completa en el commit siguiente)
+```
+$ git push origin reports
+$ git rev-parse HEAD
+72f62f4ebd93e86d3c9e1f3a438c35e0a6b93bd5
+$ git ls-remote origin reports
+72f62f4ebd93e86d3c9e1f3a438c35e0a6b93bd5	refs/heads/reports
+```
+
+Coinciden. Esta sección va en un segundo commit sobre el mismo archivo.
