@@ -94,6 +94,13 @@ UNIQUE (carrera_id, spc_id)
 ESTADOS VISIBLES EN UI: inscripto / mal_inscrito / ratificado / forfait. mal_inscrito agregado en sesión may-2026.
 CRÍTICO: estado es ENUM rígido (estado_inscripcion). Para agregar valores usar ALTER TYPE ADD VALUE, NO migrar a VARCHAR (v_inscriptos_carrera depende del ENUM).
 
+### RPC del portal sobre `inscripciones` (SECURITY DEFINER — el portal no tiene INSERT/UPDATE/DELETE por RLS)
+- `rpc_inscribir(p_spc_id, p_carrera_id, p_caballeriza_id, p_entrenador_id, p_jockey_titular_id?, p_jockey_suplente_id?) → uuid`: alta con `canal='portal', inscripto_por=yo`, ventana de inscripción, padrón del club de la reunión, `validar_inscripcion`.
+- `rpc_baja_inscripcion(p_inscripcion_id) → boolean`: ventana de inscripción → DELETE; ventana de ratificación → `estado='forfait'`. `migrations/rpc_baja_inscripcion_forfait.sql`.
+- `rpc_modificar_inscripcion(p_inscripcion_id, p_caballeriza_id, p_entrenador_id, p_jockey_titular_id?, p_jockey_suplente_id?) → jsonb` (16/09/2026): mismos guards que la baja; `SET` sólo de esas 4 columnas; `FOR UPDATE`; `ratificado` exige jockey. Devuelve `{ok, inscripcion_id, propietario_id, sin_propietario, cambio_entrenador, sigue_siendo_mia}`. NO transfiere `inscripto_por` (ISSUE-082). `migrations/rpc_modificar_inscripcion.sql`.
+- Tenencia para el portal en las tres: `canal='portal' AND inscripto_por = usuarios.id del que llama`. `entrenador_id` es declaración de quién presenta, no clave de tenencia.
+- Cadena del propietario: `trg_insc_set_propietario` (`BEFORE INSERT OR UPDATE OF caballeriza_id`) re-deriva `propietario_id` desde `caballeriza_responsables` (rol propietario, activo) y deja NULL en silencio si no hay titular (GOTCHA #47).
+
 ### resultados
 id UUID PK, carrera_id FK UNIQUE, estado ENUM(provisional/oficial/en_protesta), tiempo_ganador, estado_pista VARCHAR(20) CHECK (IN 'seca','buena','algo_pesada','pesada','muy_pesada'), dividendos JSONB, incidentes, observaciones, oficializado_por FK, oficializado_at, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 

@@ -1,5 +1,37 @@
 # Changelog
 
+## [2026-09-16] — "Modificar" en Mis inscripciones del portal (caballeriza / entrenador / jockey / suplente)
+
+> Pedido de Yesi (14/09). Plan en `reports`: `2026-09-14_plan-modificar-inscripcion-portal.md`; ejecución:
+> `2026-09-16_ejecucion-modificar-inscripcion-portal.md`. Rama `feat/portal-modificar-inscripcion`.
+
+- **`migrations/rpc_modificar_inscripcion.sql`** (nueva, `SECURITY DEFINER`, devuelve `jsonb`; **pendiente de
+  `apply_migration`** — el classifier del auto mode lo denegó el 16/09; compila, validada con `ROLLBACK`): mismos guards
+  que `rpc_baja_inscripcion` en el mismo orden — propia (`canal='portal' AND inscripto_por = yo`), reunión
+  `publicada`, turno no `anulada`, ventana de inscripción **o** de ratificación fail-closed sobre `carreras.*`,
+  estado admitido por rama (`inscripto` en inscripción; `inscripto`/`ratificado` en ratificación). Validaciones
+  de padrón de `rpc_inscribir` contra el club de la reunión. `FOR UPDATE` sobre la fila. El `SET` lista **sólo**
+  `caballeriza_id, entrenador_id, jockey_titular_id, jockey_suplente_id` — `spc_id`, `carrera_id`, `estado`,
+  `numero_partidor`, `canal`, `inscripto_por` no se pueden tocar. Un `ratificado` no puede quedar sin jockey.
+  Mira **antes** si la caballeriza nueva tiene titular activo y devuelve `sin_propietario` (el trigger
+  `trg_insc_set_propietario` re-deriva `propietario_id` y deja NULL en silencio si no hay — GOTCHA #47; 43 de 295
+  caballerizas activas de Dolores están así). Chequeo post-trigger defensivo. **GATE-1 = B**: cambiar el
+  entrenador que presenta **no** transfiere la tenencia (ISSUE-082); el bloque A queda comentado en el SQL.
+- **`portal.html`**: botón **Modificar** al lado de Retirar/Dar forfait con el **mismo predicado** (`modoRetiro`,
+  extraído a `accionesFila(i)`); modal `#modal-modificar` con los 4 selects prellenados (`opcionesMonta()`
+  extraída de `renderSelectsMonta`); `cargarInscripcionesCrudas` pide `caballeriza_id, entrenador_id,
+  jockey_suplente_id, propietario_id`. Tres avisos: caballeriza sin titular (inline al elegir + `confirm()` al
+  guardar + toast warning si el RPC lo confirma en la base), cambio de entrenador (`confirm()` que dice la
+  verdad del modelo: "seguís pudiendo modificarla porque la cargaste vos"), jockey repetido en el turno
+  (`avisoJockeyRepetido()` generalizada con `excluirInscId` — la propia fila no cuenta). Nada cambia en
+  `inscripciones.html`, `ratificacion.html`, policies ni triggers.
+- Probe `tests/probe_modificar_inscripcion_portal.mjs` (41 asserts; fixture reuniones 9987/9986 fecha 2099,
+  teardown por estado; `PORTAL_HTML` acepta URL para correr contra el HTML servido). `--mutantes`: 9 de portal
+  automáticos + 15 de SQL sobre gemela `rpc_modificar_inscripcion_mut` por MCP. M15 (`FOR UPDATE`) declarado
+  no cubierto (concurrencia).
+- Baseline `spcs` **205 → 210** (Yesi dio de alta 5 SPC el 14/09 por `spcs.html`: LEONADA CHAT, OJO EXCELENTE,
+  GRAN RAUL, CANDIDATA PIRANERA, ARTHURUS — todos inscriptos en R9).
+
 ## [2026-09-12, 2] — Aviso de jockey repetido en el turno, en las 4 pantallas (sin bloqueo)
 
 > Pedido de Yesi. Relevamiento en `reports`: `2026-09-12_jockey-repetido-misma-carrera.md` — no había control
