@@ -69,6 +69,7 @@
     .btn-delete { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
     .btn-danger { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
     .btn-success { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .btn-modificar { background: rgba(201,168,76,0.12); color: var(--accent); border: 1px solid rgba(201,168,76,0.35); }
     .btn-primary { background: var(--accent); color: #1a1a0a; border: none; padding: 10px 20px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; white-space: nowrap; }
     .btn-primary:hover { opacity: 0.9; }
 
@@ -279,6 +280,54 @@
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeModalInscribir()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MODIFICAR (pedido de Yesi 14/09/2026). No reusa #modal-inscribir:
+     ese está atado a carreraSeleccionada y a la búsqueda del padrón de SPC.
+     Acá el caballo y el turno son fijos — sólo se edita la monta. -->
+<div class="modal-overlay" id="modal-modificar">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="mmod-title">Modificar inscripción</h2>
+      <button class="btn-close" onclick="cerrarModificar()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="mmod-info" style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;color:var(--muted);"></div>
+      <div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px;">
+        <div style="font-size:12px;color:var(--accent);margin-bottom:10px;letter-spacing:.04em;text-transform:uppercase;">Datos de la monta</div>
+        <div style="display:grid;gap:10px;">
+          <label style="display:block;font-size:12px;color:var(--muted);">
+            Caballeriza <span style="color:var(--danger);">*</span>
+            <select id="mmod-caballeriza" class="minsc-select" onchange="avisoCaballerizaSinTitular()"><option value="">Cargando…</option></select>
+            <div id="mmod-cab-aviso" hidden style="margin-top:6px;font-size:12px;color:#f59e0b;line-height:1.5;"></div>
+          </label>
+          <label style="display:block;font-size:12px;color:var(--muted);">
+            Entrenador que presenta <span style="color:var(--danger);">*</span>
+            <select id="mmod-entrenador" class="minsc-select"><option value="">Cargando…</option></select>
+          </label>
+          <label style="display:block;font-size:12px;color:var(--muted);">
+            Jockey <span style="opacity:.7;">(opcional mientras el caballo no esté ratificado)</span>
+            <select id="mmod-jockey" class="minsc-select" onchange="avisoJockeyRepetidoModificar()"><option value="">Cargando…</option></select>
+            <div id="mmod-jockey-aviso" hidden style="margin-top:6px;font-size:12px;color:#f59e0b;line-height:1.5;"></div>
+          </label>
+          <label style="display:block;font-size:12px;color:var(--muted);">
+            Suplente <span style="opacity:.7;">(opcional)</span>
+            <select id="mmod-suplente" class="minsc-select"><option value="">Sin suplente</option></select>
+          </label>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5;">
+          El caballo y el turno no se cambian desde acá: para eso, retirá la
+          inscripción y anotá de nuevo. Cambiar el entrenador que presenta no
+          cambia quién la cargó: seguís pudiendo modificarla o retirarla vos.
+        </div>
+      </div>
+      <div id="mmod-msg" class="validation-msg"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="cerrarModificar()">Cancelar</button>
+      <button class="btn-primary" id="mmod-guardar" onclick="guardarModificacion()">Guardar</button>
     </div>
   </div>
 </div>
@@ -761,6 +810,10 @@ function buscarEnPadron(termino) {
 async function cargarInscripcionesCrudas() {
   const { data, error } = await sb.from('inscripciones')
     .select('id,estado,canal,inscripto_por,spc_id,carrera_id,created_at,jockey_titular_id,spcs(nombre),'
+          // caballeriza/entrenador/suplente/propietario: prellenan el modal de
+          // Modificar. propietario_id sólo se lee para saber si la fila ya quedó
+          // sin propietario (GOTCHA #47) — no se edita desde acá.
+          + 'caballeriza_id,entrenador_id,jockey_suplente_id,propietario_id,'
           // apertura/cierre_ratificacion: son la fuente de verdad de la ventana de
           // forfait (ver modoRetiro). Sin ellas el front no puede decidir el modo.
           + 'carreras(numero_turno,nombre,estado,apertura_inscripcion,cierre_inscripcion,'
@@ -799,6 +852,23 @@ function nombreProfesional(p) {
   return p.matricula_nro ? `${n} (mat. ${p.matricula_nro})` : n;
 }
 
+// Los <option> de los cuatro selects de monta. Misma lista para el modal de
+// anotar y el de modificar: si un día cambia el padrón, cambia en los dos.
+function opcionesMonta() {
+  const optsCab = padronCaballerizas
+    .map(c => `<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('');
+  const optsEnt = padronEntrenadores
+    .map(p => `<option value="${esc(p.id)}">${esc(nombreProfesional(p))}</option>`).join('');
+  const optsJoc = padronJockeys
+    .map(p => `<option value="${esc(p.id)}">${esc(nombreProfesional(p))}</option>`).join('');
+  return {
+    cab: `<option value="">Elegí una caballeriza…</option>${optsCab}`,
+    ent: `<option value="">Elegí un entrenador…</option>${optsEnt}`,
+    joc: `<option value="">Elegí un jockey…</option>${optsJoc}`,
+    sup: `<option value="">Sin suplente</option>${optsJoc}`,
+  };
+}
+
 // Se repuebla en cada apertura del modal, pero conservando lo ya elegido: el
 // entrenador suele anotar varios caballos seguidos con la misma caballeriza.
 function renderSelectsMonta() {
@@ -808,17 +878,11 @@ function renderSelectsMonta() {
   const selSup = document.getElementById('minsc-suplente');
   const prev = { cab: selCab.value, ent: selEnt.value, joc: selJoc.value, sup: selSup.value };
 
-  const optsCab = padronCaballerizas
-    .map(c => `<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('');
-  const optsEnt = padronEntrenadores
-    .map(p => `<option value="${esc(p.id)}">${esc(nombreProfesional(p))}</option>`).join('');
-  const optsJoc = padronJockeys
-    .map(p => `<option value="${esc(p.id)}">${esc(nombreProfesional(p))}</option>`).join('');
-
-  selCab.innerHTML = `<option value="">Elegí una caballeriza…</option>${optsCab}`;
-  selEnt.innerHTML = `<option value="">Elegí un entrenador…</option>${optsEnt}`;
-  selJoc.innerHTML = `<option value="">Elegí un jockey…</option>${optsJoc}`;
-  selSup.innerHTML = `<option value="">Sin suplente</option>${optsJoc}`;
+  const opts = opcionesMonta();
+  selCab.innerHTML = opts.cab;
+  selEnt.innerHTML = opts.ent;
+  selJoc.innerHTML = opts.joc;
+  selSup.innerHTML = opts.sup;
 
   selCab.value = prev.cab || caballerizaPorDefecto || '';
   // El caso frecuente sigue siendo "me anoto yo": el propio entrenador viene
@@ -833,20 +897,28 @@ function renderSelectsMonta() {
 // Aviso (no bloqueo): el jockey elegido ya está en otro caballo MÍO, activo, de
 // este turno. Sólo se ven las inscripciones propias, así que es parcial — el
 // aviso completo lo da la secretaría en inscripciones/ratificación.
-function avisoJockeyRepetidoPortal() {
-  const el = document.getElementById('minsc-jockey-aviso');
-  const jockeyId = document.getElementById('minsc-jockey').value || null;
+// `excluirInscId`: la fila que se está modificando no cuenta contra sí misma —
+// si no, dejar el mismo jockey ya sería "colisión".
+function avisoJockeyRepetido(el, jockeyId, carreraId, excluirInscId = null) {
   if (!el) return;
   el.hidden = true; el.textContent = '';
-  if (!jockeyId || !carreraSeleccionada) return;
+  if (!jockeyId || !carreraId) return;
   const otras = misInscripciones.filter(i =>
-    i.carrera_id === carreraSeleccionada.id
+    i.carrera_id === carreraId
+    && i.id !== excluirInscId
     && i.jockey_titular_id === jockeyId
     && ESTADOS_ACTIVOS_MONTA.includes(i.estado));
   if (!otras.length) return;
   const nombres = otras.map(i => i.spcs?.nombre || '—').join(', ');
   el.textContent = `⚠ Ya declaraste este jockey en ${nombres} para este turno. Podés anotar igual: la monta se define en la ratificación.`;
   el.hidden = false;
+}
+
+function avisoJockeyRepetidoPortal() {
+  avisoJockeyRepetido(
+    document.getElementById('minsc-jockey-aviso'),
+    document.getElementById('minsc-jockey').value || null,
+    carreraSeleccionada?.id || null);
 }
 
 // Caballeriza de la ficha del propio entrenador: sólo es un valor inicial,
@@ -1118,14 +1190,7 @@ async function loadMisInscripciones() {
       <td>Turno ${esc(car?.numero_turno ?? '—')}</td>
       <td><span class="badge ${estadoBadge[i.estado] || ''}">${esc((i.estado || '—').replace('_', ' '))}</span></td>
       <td style="font-size:12px;color:var(--muted);">${esc(origen)}</td>
-      <td>${(() => {
-        const modo = modoRetiro(i);
-        if (!modo) return '<span style="color:var(--muted);font-size:12px;">—</span>';
-        // "Dar forfait" es la palabra del ambiente y la consecuencia es distinta
-        // de retirar: el caballo queda listado como borrado en el programa.
-        const rotulo = modo === 'ratificacion' ? 'Dar forfait' : 'Retirar';
-        return `<button class="btn-sm btn-danger" onclick="retirar('${esc(i.id)}')">${rotulo}</button>`;
-      })()}</td>
+      <td>${accionesFila(i)}</td>
     </tr>`;
   }).join('');
 
@@ -1138,8 +1203,24 @@ async function loadMisInscripciones() {
     Mientras la inscripción está abierta, <strong>Retirar</strong> borra la anotación.
     Durante la ratificación, <strong>Dar forfait</strong> deja el caballo registrado
     como borrado en el programa. Fuera de esas dos ventanas, y para lo que cargó la
-    secretaría, se da de baja hablando con ${TEL}.
+    secretaría, se da de baja hablando con ${TEL}.<br>
+    <strong>Modificar</strong> cambia la caballeriza, el entrenador que presenta, el
+    jockey o el suplente, en las mismas ventanas. El caballo y el turno no se cambian:
+    para eso, retirá y anotá de nuevo.
   </p>`;
+}
+
+// Última celda de la fila: Retirar / Dar forfait + Modificar, o "—".
+// Los dos botones salen con el MISMO predicado (modoRetiro): propia, cargada
+// desde el portal, ventana abierta y estado admitido. El RPC revalida todo.
+function accionesFila(i) {
+  const modo = modoRetiro(i);
+  if (!modo) return '<span style="color:var(--muted);font-size:12px;">—</span>';
+  // "Dar forfait" es la palabra del ambiente y la consecuencia es distinta
+  // de retirar: el caballo queda listado como borrado en el programa.
+  const rotulo = modo === 'ratificacion' ? 'Dar forfait' : 'Retirar';
+  return `<button class="btn-sm btn-danger" onclick="retirar('${esc(i.id)}')">${rotulo}</button>`
+       + ` <button class="btn-sm btn-modificar" onclick="abrirModificar('${esc(i.id)}')">Modificar</button>`;
 }
 
 async function retirar(inscId) {
@@ -1164,9 +1245,184 @@ async function retirar(inscId) {
   loadMisInscripciones();
 }
 
+/* ========== MODIFICAR (pedido de Yesi 14/09/2026) ========== */
+// Se puede modificar EXACTAMENTE lo que se puede retirar: fila propia, cargada
+// desde el portal, ventana de inscripción o de ratificación abierta, estado
+// admitido. Lo editable es la monta (caballeriza, entrenador que presenta,
+// jockey, suplente). El SPC y el turno no: rpc_modificar_inscripcion ni los
+// recibe. Plan: docs/diagnosticos/2026-09-14_plan-modificar-inscripcion-portal.md.
+let inscModificando = null;   // la fila de misInscripciones abierta en el modal
+// Set de caballeriza_id con propietario titular activo. null = no cargado.
+// trg_insc_set_propietario deja propietario_id NULL en silencio si la
+// caballeriza no tiene titular (GOTCHA #47): se avisa ANTES de guardar.
+let cabsConTitular = null;
+
+const AVISO_CAB_SIN_TITULAR = '⚠ Esta caballeriza no tiene propietario titular cargado. Si la guardás, la inscripción queda SIN PROPIETARIO para la liquidación de premios hasta que la secretaría lo cargue.';
+
+function puedeModificar(i) { return modoRetiro(i) !== null; }
+
+// La policy de SELECT de caballeriza_responsables es por club, sin exclusión
+// de portal: se lee sólo caballeriza_id (nada de DNI).
+async function cargarCaballerizasConTitular() {
+  if (cabsConTitular !== null) return;
+  const { data, error } = await sb.from('caballeriza_responsables')
+    .select('caballeriza_id').eq('rol', 'propietario').eq('activo', true);
+  if (error) { console.error('[caballeriza_responsables]', error); throw error; }
+  cabsConTitular = new Set((data || []).map(r => r.caballeriza_id));
+}
+
+// true sólo si el Set está cargado y la caballeriza no figura. Con el Set sin
+// cargar no se afirma nada: el RPC lo mira en la base y avisa después igual.
+function caballerizaSinTitular(cabId) {
+  return !!cabId && cabsConTitular !== null && !cabsConTitular.has(cabId);
+}
+
+function avisoCaballerizaSinTitular() {
+  const el = document.getElementById('mmod-cab-aviso');
+  const cabId = document.getElementById('mmod-caballeriza').value || null;
+  if (!el) return;
+  const sin = caballerizaSinTitular(cabId);
+  el.textContent = sin ? AVISO_CAB_SIN_TITULAR : '';
+  el.hidden = !sin;
+}
+
+function avisoJockeyRepetidoModificar() {
+  avisoJockeyRepetido(
+    document.getElementById('mmod-jockey-aviso'),
+    document.getElementById('mmod-jockey').value || null,
+    inscModificando?.carrera_id || null,
+    inscModificando?.id || null);
+}
+
+async function abrirModificar(inscId) {
+  const i = misInscripciones.find(x => x.id === inscId);
+  if (!i || !puedeModificar(i)) return;
+  inscModificando = i;
+
+  const car = i.carreras, reun = car?.reuniones;
+  document.getElementById('mmod-title').textContent = `Modificar — ${i.spcs?.nombre || 'inscripción'}`;
+  document.getElementById('mmod-info').innerHTML =
+    `<strong style="color:var(--text)">${esc(car?.nombre || 'Turno ' + (car?.numero_turno ?? ''))}</strong>`
+    + ` — Turno ${esc(car?.numero_turno ?? '')}, Reunión ${esc(reun?.numero_publico ?? reun?.numero ?? '')}, ${esc(fechaCorta(reun?.fecha))}`
+    + `<br>Estado: ${esc((i.estado || '—').replace('_', ' '))}`
+    + (i.caballeriza_id && !i.propietario_id
+        ? `<br><span style="color:#f59e0b;">Esta inscripción hoy no tiene propietario asignado.</span>` : '');
+
+  const vm = document.getElementById('mmod-msg');
+  vm.style.display = 'none'; vm.className = 'validation-msg';
+  document.getElementById('mmod-cab-aviso').hidden = true;
+  document.getElementById('mmod-jockey-aviso').hidden = true;
+  document.getElementById('modal-modificar').classList.add('open');
+
+  try {
+    await Promise.all([cargarPadronMonta(), cargarCaballerizasConTitular()]);
+  } catch (err) {
+    console.error('[padron modificar]', err);
+    vm.textContent = '❌ No se pudo cargar el padrón de caballerizas, entrenadores y jockeys: ' + err.message;
+    vm.className = 'validation-msg validation-err';
+    vm.style.display = 'block';
+    return;
+  }
+  if (inscModificando !== i) return;   // cerraron el modal mientras cargaba
+
+  const opts = opcionesMonta();
+  const selCab = document.getElementById('mmod-caballeriza');
+  const selEnt = document.getElementById('mmod-entrenador');
+  const selJoc = document.getElementById('mmod-jockey');
+  const selSup = document.getElementById('mmod-suplente');
+  selCab.innerHTML = opts.cab; selEnt.innerHTML = opts.ent;
+  selJoc.innerHTML = opts.joc; selSup.innerHTML = opts.sup;
+  // Prellenado con lo que tiene la fila. Si un valor ya no está en el padrón
+  // (inactivo), el select queda en vacío y el usuario tiene que elegir otro.
+  selCab.value = i.caballeriza_id || '';
+  selEnt.value = i.entrenador_id || '';
+  selJoc.value = i.jockey_titular_id || '';
+  selSup.value = i.jockey_suplente_id || '';
+  avisoCaballerizaSinTitular();
+  avisoJockeyRepetidoModificar();
+}
+
+function cerrarModificar() {
+  document.getElementById('modal-modificar').classList.remove('open');
+  inscModificando = null;
+}
+
+// Toda la escritura pasa por rpc_modificar_inscripcion: el portal NO tiene
+// UPDATE sobre `inscripciones` (la policy lo excluye explícitamente).
+async function guardarModificacion() {
+  const i = inscModificando;
+  if (!i) return;
+  const vm = document.getElementById('mmod-msg');
+  vm.style.display = 'none';
+  const falla = (msg) => {
+    vm.textContent = '❌ ' + msg;
+    vm.className = 'validation-msg validation-err';
+    vm.style.display = 'block';
+  };
+
+  const caballerizaId = document.getElementById('mmod-caballeriza').value || null;
+  const entrenadorId  = document.getElementById('mmod-entrenador').value || null;
+  const jockeyId      = document.getElementById('mmod-jockey').value || null;
+  const suplenteId    = document.getElementById('mmod-suplente').value || null;
+
+  // Mismos cortes que anotar(): el RPC revalida todo contra el padrón del
+  // club de la reunión, acá sólo se evita el viaje.
+  if (!caballerizaId) return falla('Tenés que elegir la caballeriza.');
+  if (!entrenadorId)  return falla('Tenés que elegir el entrenador que presenta el caballo.');
+  if (suplenteId && !jockeyId) return falla('No se puede declarar un suplente sin jockey titular.');
+  if (suplenteId && suplenteId === jockeyId) return falla('El suplente no puede ser el mismo jockey que el titular.');
+  // Un ratificado no se queda sin jockey (D2 del plan; el RPC también lo corta).
+  if (i.estado === 'ratificado' && !jockeyId) return falla('Un caballo ratificado tiene que tener jockey. Para sacarlo, hablá con la secretaría.');
+
+  // Cambio de entrenador que presenta: se dice la verdad del modelo (GATE-1 = B).
+  // La tenencia de la fila es "quién la cargó", no "quién presenta".
+  if (entrenadorId !== i.entrenador_id) {
+    const nuevo = padronEntrenadores.find(p => p.id === entrenadorId);
+    const nombre = nuevo ? nombreProfesional(nuevo) : 'otro entrenador';
+    if (!confirm(`Estás cambiando el entrenador que presenta a ${nombre}.\n\nEn el programa y en la liquidación el caballo figura presentado por ${nombre}. Vos seguís pudiendo modificar o retirar esta inscripción porque la cargaste vos.\n\n¿Confirmás?`)) return;
+  }
+
+  // Caballeriza sin titular: se avisa ANTES (con el Set del front) y DESPUÉS
+  // (con lo que el RPC vio en la base). Doble a propósito: el Set puede estar
+  // viejo si la secretaría cargó el titular hace un rato.
+  if (caballerizaSinTitular(caballerizaId)) {
+    if (!confirm(`${AVISO_CAB_SIN_TITULAR}\n\n¿Guardar igual?`)) return;
+  }
+
+  const { data, error } = await sb.rpc('rpc_modificar_inscripcion', {
+    p_inscripcion_id: i.id,
+    p_caballeriza_id: caballerizaId,
+    p_entrenador_id: entrenadorId,
+    p_jockey_titular_id: jockeyId,
+    p_jockey_suplente_id: suplenteId,
+  });
+  if (error) {
+    console.error('[rpc_modificar_inscripcion]', error);
+    // Los mensajes del RPC están escritos para que los lea una persona.
+    return falla(error.message.replace(/^.*?:\s*/, ''));
+  }
+
+  toast('Inscripción modificada');
+  if (data?.sin_propietario) toast(AVISO_CAB_SIN_TITULAR, 'warning');
+  if (data && data.sigue_siendo_mia === false) {
+    toast('La inscripción pasó a otro usuario del portal. Ya no la vas a ver acá.', 'warning');
+  }
+  cerrarModificar();
+  await loadMisInscripciones();
+  // Con la fila ya actualizada en misInscripciones: si el jockey quedó en 2+
+  // caballos míos del turno, se dice. Aviso, no bloqueo.
+  if (jockeyId) {
+    const n = conteoJockeysActivos(misInscripciones.filter(x => x.carrera_id === i.carrera_id))[jockeyId] || 0;
+    if (n >= 2) toast(`⚠ Ese jockey queda en ${n} caballos tuyos de este turno. Es un aviso: la monta se define en la ratificación.`, 'warning');
+  }
+}
+
 /* ========== INIT ========== */
 document.getElementById('modal-inscribir').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeModalInscribir();
+});
+document.getElementById('modal-modificar').addEventListener('click', e => {
+  if (e.target === e.currentTarget) cerrarModificar();
 });
 
 (async () => {

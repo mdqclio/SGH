@@ -181,7 +181,10 @@ for (const [r, m, t, jockey] of SIN_COLISION) {
 // ═══════════════════ B — portal.html avisoJockeyRepetidoPortal ══════════════
 {
   ok('B0) portal.html carga jockey-repetido.js y pide jockey_titular_id', /<script src="jockey-repetido\.js"><\/script>/.test(PORTAL) && /created_at,jockey_titular_id,spcs\(nombre\)/.test(PORTAL));
-  const src = extractFn(PORTAL, 'function avisoJockeyRepetidoPortal() {');
+  // Desde el 16/09 (Modificar) el wrapper del modal de anotar delega en
+  // avisoJockeyRepetido(el, jockeyId, carreraId, excluirInscId): se extraen las dos.
+  const src = extractFn(PORTAL, 'function avisoJockeyRepetido(el, jockeyId, carreraId, excluirInscId = null) {')
+    + '\n' + extractFn(PORTAL, 'function avisoJockeyRepetidoPortal() {');
   const corre = (misInscripciones, jockeyId, carreraId) => {
     const dom = mkDom();
     dom.getElementById('minsc-jockey').value = jockeyId;

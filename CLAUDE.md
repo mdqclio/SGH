@@ -89,7 +89,8 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 │   ├── spcs_r9_tanda_2.sql      2 altas más (typos corregidos por Yesi; EJECUTADA 2026-09-11, 199→201)
 │   ├── spcs_r9_tanda_3.sql      BIEN COQUETA y EL MAS SABIO, turnos redefinidos por Yesi (EJECUTADA 2026-09-11, 201→203)
 │   ├── spcs_conesera_sexo.sql   UPDATE sexo de Conesera macho→hembra (EJECUTADA 2026-09-11, confirmó Yesi)
-│   └── rpc_spcs_duplicados.sql  RPC de los 3 chequeos de duplicado de SPC (APLICADA 2026-09-11; la usa spcs.html antes del INSERT)
+│   ├── rpc_spcs_duplicados.sql  RPC de los 3 chequeos de duplicado de SPC (APLICADA 2026-09-11; la usa spcs.html antes del INSERT)
+│   └── rpc_modificar_inscripcion.sql  RPC Modificar desde el portal (caballeriza/entrenador/jockey/suplente; GATE-1=B; ver CHANGELOG 2026-09-16)
 ├── supabase/functions/          Edge Functions (deploy por MCP `deploy_edge_function`)
 │   ├── reunion-json/            JSON de reunión para el Stud Book (v22, verify_jwt:false, token propio)
 │   ├── invite-user/             Alta de usuario por invitación (v5, verify_jwt:true)
@@ -260,11 +261,11 @@ Antes de cualquier operación de escritura sobre producción, verificar los tres
 
 ```
 pwd                          → /home/clio/dev/SGH
-SELECT count(*) FROM spcs    → 205        (baseline al 2026-09-12, altas de Yesi por spcs.html)
+SELECT count(*) FROM spcs    → 210        (baseline al 2026-09-16, altas de Yesi por spcs.html el 14/09)
 ref del proyecto             → unlhcuanfrtpatoipwve
 ```
 
-⚠️ El 205 **incluye caballos de prueba**: `spcs` es global sin `club_id` (GOTCHA #13) y los
+⚠️ El 210 **incluye caballos de prueba**: `spcs` es global sin `club_id` (GOTCHA #13) y los
 ejemplares de test de "Mi Club Hípico" (`Pampa Libre`, `Don Facundo`) suman al conteo. Sirve para lo
 que se usa —detectar proyecto equivocado— pero **no es el padrón real de Dolores**. GOTCHA #75,
 ISSUE-061.
@@ -276,7 +277,8 @@ duplicados: se borraron `Fist Queen` y `Malenuchi`, ver `docs/PLAN_DUPLICADOS_SP
 (2026-09-11 noche, R9 tanda 2: QUE BELLA DOÑA e INDIANA MARO, `migrations/spcs_r9_tanda_2.sql`) → **203**
 (2026-09-11 noche, R9 tanda 3: BIEN COQUETA y EL MAS SABIO, `migrations/spcs_r9_tanda_3.sql`) → **205**
 (2026-09-12, Yesi dio de alta DAHUA y SOUTH GOTICO desde `spcs.html` con el buscador del Stud Book — primeras
-altas por UI, sin migración; ambos inscriptos en R9 T3 y T4).
+altas por UI, sin migración; ambos inscriptos en R9 T3 y T4) → **210** (2026-09-14, Yesi dio de alta LEONADA CHAT,
+OJO EXCELENTE, GRAN RAUL, CANDIDATA PIRANERA y ARTHURUS desde `spcs.html`; todos inscriptos en R9).
 
 Los guards que aparecen dentro de los planes y bitácoras de `docs/` son **fotos de su fecha**, no el
 baseline vigente: no se reescriben.
@@ -358,6 +360,7 @@ node tests/probe_studbook_buscar_e2e.mjs           # studbook-buscar deployada �
 node tests/probe_spcs_studbook_alta.mjs            # spcs.html — buscar, Usar, prellenado, panel de duplicados (bloquea / Guardar igual), INSERT real; ESCRIBE 1 spc + 1 usuario, teardown verificado, count 205
 node tests/probe_orden_inscriptos.mjs             # inscripciones.html — pantalla y PDF en alfabético 'es' (= ratificacion); R9 T4 NIÑO OCEANICO < NISTEL WIN; solo lectura
 node tests/probe_aviso_jockey_repetido.mjs         # jockey repetido en el turno — aviso en 4 pantallas, sólo activos; R9 4 turnos avisan, R8 T5 backfill no bloqueado; solo lectura
+node tests/probe_modificar_inscripcion_portal.mjs   # Modificar desde el portal — rpc_modificar_inscripcion (guards = baja, cadena del propietario, GATE-1=B) + UI; ESCRIBE fixture 9987/9986, teardown verificado, count 210; PORTAL_HTML=https://sigh.com.ar/portal.html corre contra el HTML servido
 ```
 
 **El patrón es código real sin browser.** Chromium no corre en este Ubuntu (`"Playwright does not support chromium on ubuntu26.04-x64"` — ver `docs/SERVER.md`), así que el probe **extrae del propio HTML** la función o el bloque a probar —por ancla, con balance de llaves—, lo corre con `new AsyncFunction(...)` inyectando dependencias reales (cliente Supabase con `SUPABASE_SECRET_KEY`, más stubs de DOM si hacen falta) y assertea contra la base. Nunca reimplementar la lógica dentro del test: si el archivo cambia, el probe corre el archivo cambiado. Para lo que escribe: **snapshot → run → assert → restore** en el `finally`.
@@ -517,6 +520,10 @@ Ver `docs/GOTCHAS.md` para la lista completa (96 entradas).
   → tiene que dar **0**. Ver `docs/diagnosticos/2026-09-11_ejecucion-provisorios-r9.md` (reports).
 - Los provisorios se **completan** cuando llega el titular real (no se crea otra caballeriza ni otro
   propietario): ISSUE-080, caso LOS URONES.
+- **Al 16/09 el `DO` NO se corrió**: R9 quedó ratificada el 14/09 (74 ratificados, T2/T8/T10 anulados) y hay
+  **16 ratificados con `propietario_id IS NULL`** (T1:1, T3:4, T4:3, T5:1, T6:1, T7:2, T9:2, T11:1). Sigue pendiente.
+- **Modificar desde el portal** (`rpc_modificar_inscripcion`, 16/09): no aplica a R9 salvo que Yesi extienda
+  `cierre_ratificacion` desde `carta-llamados.html` — las dos ventanas cerraron el 14/09.
 
 ### Pendiente confirmar con Fede
 - Formato K E S P en programa oficial.

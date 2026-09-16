@@ -280,6 +280,38 @@ El cliente debe almacenar `updated_at` devuelto y enviarlo como `p_expected_upda
 
 ---
 
+## RPC `rpc_modificar_inscripcion` (portal, 16/09/2026)
+
+```sql
+CREATE OR REPLACE FUNCTION public.rpc_modificar_inscripcion(
+  p_inscripcion_id     uuid,
+  p_caballeriza_id     uuid,
+  p_entrenador_id      uuid,
+  p_jockey_titular_id  uuid DEFAULT NULL,
+  p_jockey_suplente_id uuid DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+```
+
+Fuente: `migrations/rpc_modificar_inscripcion.sql`. El entrenador modifica desde el portal la monta de una
+inscripción **propia** (`canal='portal' AND inscripto_por = yo`). Guards, en orden: entidad de portal → usuario
+activo → fila existe (`FOR UPDATE`) → propia → reunión `publicada` y turno no `anulada` → ventana de
+inscripción **o** de ratificación (fail-closed sobre `carreras.apertura/cierre_*`) → estado admitido
+(`inscripto` en inscripción; `inscripto`/`ratificado` en ratificación) → padrón del club de la reunión
+(caballeriza activa; entrenador `entrenador|ambos`; jockey/suplente `jockey|ambos`; suplente ≠ titular; sin
+titular no hay suplente) → un `ratificado` exige jockey. El `UPDATE` lista **sólo** `caballeriza_id,
+entrenador_id, jockey_titular_id, jockey_suplente_id`. `trg_insc_set_propietario` re-deriva `propietario_id`;
+la función mira antes si la caballeriza nueva tiene titular y verifica después que la derivación coincide.
+
+Retorno: `{ ok, inscripcion_id, propietario_id, sin_propietario, cambio_entrenador, sigue_siendo_mia }`.
+`sigue_siendo_mia` es siempre `true` mientras GATE-1 = B (no se transfiere `inscripto_por`, ISSUE-082).
+`GRANT EXECUTE TO authenticated`; `REVOKE` de `PUBLIC` y `anon`.
+
+---
+
 ## Table `inscripciones` (columnas relevantes para resultados)
 
 Una fila por caballo inscripto en una carrera.

@@ -2199,3 +2199,26 @@ Mientras el VPS no se filtre, no pasa nada; el día que el VPS se apague, desapa
 
 Módulo: repo / VPS. Prioridad: Baja. Relacionado: `docs/AUDITORIA_PII_2026-08-20.md`, `docs/SCRUB_PII_APLICADO.md`,
 `docs/JWT_SERVICE_ROLE_ESTADO.md` (misma familia: lo que quedó en la historia).
+
+### ISSUE-082: La tenencia de una inscripción del portal es `inscripto_por` (quién la cargó), no `entrenador_id` (quién presenta) — Yesi cree lo contrario
+
+**Estado**: 🟡 **ABIERTO** (2026-09-16). Decisión de producto pendiente de Yesi; el sistema está documentado y
+probado con el modelo vigente (GATE-1 = B del plan `2026-09-14_plan-modificar-inscripcion-portal.md`).
+
+**El hecho**: `rpc_inscribir`, `rpc_baja_inscripcion` y `rpc_modificar_inscripcion` definen "propia" como
+`canal='portal' AND inscripto_por = usuarios.id del que llama`. `entrenador_id` es una **declaración** ("quién
+presenta el caballo"), no la clave de tenencia. Consecuencias hoy: (a) un propietario que anota con entrenador X
+puede retirar/modificar esa fila; X no puede tocarla desde el portal; (b) cambiar el entrenador que presenta
+desde Modificar **no** le saca la fila al que la cargó ni se la da al nuevo; (c) `fn_mis_spc_visibles` hace
+visible el SPC a quien lo cargó, no a quien lo presenta.
+
+**Lo que dijo Yesi (14/09)**: "si cambia el entrenador, deja de ser suya" — como si fuera automático. No lo es.
+
+**Opciones**: **A** — el RPC transfiere `inscripto_por` al usuario del portal del entrenador nuevo (o NULL si no
+tiene cuenta): bloque comentado en `migrations/rpc_modificar_inscripcion.sql` + texto A del `confirm()` en
+`portal.html` + 2 asserts (A17/A18 cambian de sentido). Costo: la columna "Cargada por" de `inscripciones.html`
+deja de decir quién la cargó (el rastro queda sólo en `auditoria`), y un entrenador puede "empujar" un caballo al
+portal de otro sin que ese otro lo pida. **B** (vigente) — no se transfiere; el aviso dice la verdad.
+
+**Próximo paso**: preguntarle a Yesi con el caso concreto. Si elige A, es media hora sobre la rama y no toca
+nada más. Módulo: portal / RPCs de inscripción. Prioridad: Media (no bloquea R9: las ventanas cerraron el 14/09).
