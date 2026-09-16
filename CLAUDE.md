@@ -521,7 +521,9 @@ Ver `docs/GOTCHAS.md` para la lista completa (96 entradas).
 - Los provisorios se **completan** cuando llega el titular real (no se crea otra caballeriza ni otro
   propietario): ISSUE-080, caso LOS URONES.
 - **Al 16/09 el `DO` NO se corrió**: R9 quedó ratificada el 14/09 (74 ratificados, T2/T8/T10 anulados) y hay
-  **16 ratificados con `propietario_id IS NULL`** (T1:1, T3:4, T4:3, T5:1, T6:1, T7:2, T9:2, T11:1). Sigue pendiente.
+  **15 ratificados con `propietario_id IS NULL`** (T1:1, T3:4, T4:3, T5:1, T6:1, T7:2, T9:2, T11:1). **13 de los 15 no tienen
+  caballeriza** — a esos el `DO` no los arregla (agarra caballerizas sin titular, no inscripciones sin caballeriza): primero
+  Yesi les asigna el stud. Sigue pendiente.
 - **Modificar desde el portal** (`rpc_modificar_inscripcion`, 16/09): no aplica a R9 salvo que Yesi extienda
   `cierre_ratificacion` desde `carta-llamados.html` — las dos ventanas cerraron el 14/09.
 

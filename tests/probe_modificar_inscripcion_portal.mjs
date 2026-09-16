@@ -302,9 +302,9 @@ if (argMut) {
   if (sqlPendientes.length) {
     console.log(`\n── ${sqlPendientes.length} mutantes de SQL: requieren DDL, se aplican por MCP ──`);
     console.log('Para cada uno:');
-    console.log(`  1. apply_migration con el contenido del .sql  (crea ${GEMELA})`);
+    console.log(`  1. execute_sql con el contenido del .sql  (crea ${GEMELA}) — NO apply_migration: quedaría en schema_migrations (GOTCHAS "gemela que revive")`);
     console.log(`  2. RPC_MOD=${GEMELA} node tests/probe_modificar_inscripcion_portal.mjs`);
-    console.log(`  3. execute_sql: DROP FUNCTION IF EXISTS public.${GEMELA}(uuid,uuid,uuid,uuid,uuid);`);
+    console.log(`  3. execute_sql: DROP FUNCTION IF EXISTS public.${GEMELA}(uuid,uuid,uuid,uuid,uuid);  y verificar que schema_migrations no tenga nada de la gemela`);
     console.log('La función REAL rpc_modificar_inscripcion no se toca en ningún momento.\n');
     sqlPendientes.forEach(m => console.log(`  ${m.id}  mata ${m.mata.join(',')}  — ${m.desc}\n       ${m.path}`));
     console.log('');
@@ -503,7 +503,7 @@ function linea(src, ancla) {
     const r16a = await mod(sbA, i1, { ...base, joc: null, sup: j2 });
     const r16b = await mod(sbA, i1, { ...base, joc: j2, sup: j2 });
     ok('A16) suplente sin titular / suplente = titular → error',
-       !r16a.ok && /suplente sin jockey titular/.test(r16a.msg || '') && !r16b.ok && /mismo jockey que el titular/.test(r16b.msg || '') && r16b.fila?.jockey_suplente_id === null,
+       !r16a.ok && /suplente sin jockey titular/.test(r16a.msg || '') && !r16b.ok && /mismo jockey que el titular/.test(r16b.msg || '') && r16b.fila?.jockey_suplente_id === j1 /* intacto desde A1 */,
        `a=${r16a.msg} · b=${r16b.msg}`);
 
     // A17 · cambio de entrenador → GATE-1 = B: inscripto_por NO se transfiere
