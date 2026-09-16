@@ -231,4 +231,12 @@ rastro en repo, scratchpad ni base).
 
 ## 5. Verificación de publicación
 
-(se completa en el commit siguiente)
+```
+$ git push origin reports
+$ git rev-parse HEAD
+aa7e871a11a2705ed99335c45dc300f1e86c6129
+$ git ls-remote origin reports
+aa7e871a11a2705ed99335c45dc300f1e86c6129	refs/heads/reports
+```
+
+Coinciden. Esta sección va en un segundo commit sobre el mismo archivo.
