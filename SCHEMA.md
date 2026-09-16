@@ -312,6 +312,21 @@ Retorno: `{ ok, inscripcion_id, propietario_id, sin_propietario, cambio_entrenad
 
 ---
 
+## RPC `rpc_caballeriza_provisorio` (secretaría, 16/09/2026)
+
+```sql
+CREATE OR REPLACE FUNCTION public.rpc_caballeriza_provisorio(p_caballeriza_id uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
+```
+
+Fuente: `migrations/rpc_caballeriza_provisorio.sql`. Guards: `fn_is_staff()` → caballeriza existe (`FOR UPDATE`) → mismo
+club (salvo super_admin) → si ya tiene `rol propietario` activo, no-op → si hay `propietarios` real homónimo, error.
+Efecto: `propietarios` provisorio (o reuso del homónimo `notas ILIKE 'provisorio%'`), vínculo sin DNI, re-derivación de
+`inscripciones.propietario_id` NULL de esa caballeriza, `caballerizas.responsable`. `GRANT EXECUTE TO authenticated`;
+`REVOKE` de `PUBLIC` y `anon`. Lo llama `caballerizas.html` (alta/edición con titular vacío; botón Crear provisorio).
+
+---
+
 ## Table `inscripciones` (columnas relevantes para resultados)
 
 Una fila por caballo inscripto en una carrera.

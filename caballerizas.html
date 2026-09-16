@@ -53,6 +53,9 @@
     .btn-sm { padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; transition: all 0.2s; }
     .btn-edit { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
     .btn-edit:hover { background: rgba(201,168,76,0.25); }
+    .badge-sin-titular { background: rgba(224,82,82,0.12); color: var(--danger); border: 1px solid rgba(224,82,82,0.35); }
+    .badge-provisorio  { background: rgba(201,168,76,0.12); color: var(--accent); border: 1px solid rgba(201,168,76,0.35); }
+    .btn-provisorio    { background: rgba(201,168,76,0.12); color: var(--accent); border: 1px solid rgba(201,168,76,0.35); }
     .btn-delete { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
     .btn-delete:hover { background: rgba(224,82,82,0.2); }
     .btn-spcs { background: rgba(74,144,226,0.1); color: #74b0f7; border: 1px solid rgba(74,144,226,0.3); }
@@ -213,7 +216,7 @@
                 <div id="rp-badge" class="badge-prof" style="display:none">✓ Entrenador con patente</div>
               </div>
               <!-- Criterio de Fede (15/08/2026): sin titular conocido, la caballeriza se crea igual y el
-                   dueño queda PROVISORIO (por ahora lo pone la secretaría con el DO de provisorios).
+                   dueño queda PROVISORIO con el nombre de la caballeriza (rpc_caballeriza_provisorio).
                    El form exigía apellido+nombre+DNI desde el 11/05 y bloqueaba alta y edición (ISSUE-083). -->
               <div id="rp-provisorio-aviso" hidden style="font-size:12px;color:#f59e0b;margin-bottom:8px;line-height:1.5;"></div>
               <div class="resp-inputs">
@@ -225,8 +228,8 @@
                 <input id="rp-localidad" placeholder="Localidad" class="span2">
               </div>
               <div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;">
-                Si no conocés al titular, dejá los tres campos vacíos: la caballeriza se crea sin propietario
-                y la secretaría le pone después un <strong>propietario provisorio</strong> a su nombre.
+                Si no conocés al titular, dejá los tres campos vacíos: la caballeriza se crea con un
+                <strong>propietario provisorio</strong> a su nombre, que la secretaría completa después.
                 Si cargás alguno, completá apellido, nombre y DNI.
               </div>
             </div>
@@ -298,8 +301,46 @@ async function load() {
   const { data, error } = await query;
   if (error) { toast(error.message, 'error'); document.getElementById('list-container').innerHTML = ''; return; }
   allData = data || [];
+  await cargarTitulares();
   updateStats();
   filterRender();
+}
+
+// caballeriza_id → { titular, provisorio }. Una sola query por carga (policy por club).
+// Sirve para el badge de la card y para mostrar "Crear provisorio" sólo donde falta.
+async function cargarTitulares() {
+  const { data, error } = await sb.from('caballeriza_responsables')
+    .select('caballeriza_id, documento_nro, apellido, nombre, propietarios(notas)')
+    .eq('rol', 'propietario').eq('activo', true);
+  if (error) { console.error('[caballeriza_responsables]', error); toast(error.message, 'error'); titularPorCaballeriza = {}; return; }
+  titularPorCaballeriza = {};
+  (data || []).forEach(r => {
+    const prev = titularPorCaballeriza[r.caballeriza_id];
+    const prov = esProvisorio(r);
+    // si hubiera dos titulares activos (no debería), gana el real
+    titularPorCaballeriza[r.caballeriza_id] = { titular: true, provisorio: prev ? (prev.provisorio && prov) : prov };
+  });
+}
+
+// Badge de titular para la card: nada si es real, «provisorio» si es provisorio, «sin titular» si no hay.
+function titularBadge(cabId) {
+  const t = titularPorCaballeriza[cabId];
+  if (!t) return '<span class="badge badge-sin-titular" title="Sin propietario cargado: las inscripciones de esta caballeriza quedan sin propietario para la liquidación">⚠ sin titular</span>';
+  if (t.provisorio) return '<span class="badge badge-provisorio" title="Propietario provisorio con el nombre de la caballeriza (criterio Fede 15/08). La secretaría lo completa cuando aparece el titular real.">◐ provisorio</span>';
+  return '';
+}
+
+// Botón "Crear provisorio" de la card: mismo RPC que el alta sin titular.
+async function crearProvisorio(cabId, nombre) {
+  if (!confirm(`¿Crear un propietario provisorio «${nombre}» para esta caballeriza?
+
+Queda con el nombre de la caballeriza y sin DNI hasta que se cargue el titular real. Las inscripciones que hoy no tienen propietario pasan a él.`)) return;
+  const { data, error } = await sb.rpc('rpc_caballeriza_provisorio', { p_caballeriza_id: cabId });
+  if (error) { console.error('[rpc_caballeriza_provisorio]', error); toast(error.message.replace(/^.*?:\s*/, ''), 'error'); return; }
+  toast(data?.creado === false && !data?.responsable_id
+    ? 'Esa caballeriza ya tiene titular.'
+    : `Provisorio «${nombre}» creado${data?.inscripciones_rederivadas ? ` · ${data.inscripciones_rederivadas} inscripción(es) ahora con propietario` : ''}.`);
+  load();
 }
 
 function updateStats() {
@@ -334,16 +375,19 @@ function cardHTML(r) {
   const detailBlock = r.chaquetilla_url
     ? `<div class="chaq-row"><div class="card-detail">${detailInner}</div><div class="chaq-big-wrap"><img src="${encodeURI(r.chaquetilla_url)}" class="chaq-big" alt="Chaquetilla"></div></div>`
     : `<div class="card-detail">${detailInner}</div>`;
+  const tBadge = titularBadge(r.id);
   return `<div class="card">
     <div class="card-header">
       <div>
         <div class="card-name">${escapeHtml(r.nombre)}${r.hipodromo_patente ? ` (${escapeHtml(r.hipodromo_patente)})` : ''}</div>
+        ${tBadge ? `<div style="margin-top:6px;">${tBadge}</div>` : ''}
       </div>
       ${badge}
     </div>
     ${detailBlock}
     <div class="card-actions">
       <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(r)})'>✏️ Editar</button>
+      ${!titularPorCaballeriza[r.id] ? `<button class="btn-sm btn-provisorio" onclick="crearProvisorio('${r.id}','${escapeHtml(r.nombre||'').replace(/'/g,"&#39;")}')">◐ Crear provisorio</button>` : ''}
       <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}','${escapeHtml(r.nombre||'').replace(/'/g,"&#39;")}')">🗑️ Eliminar</button>
     </div>
   </div>`;
@@ -480,7 +524,7 @@ function propietarioVacio(rows) {
 function validateResponsables(rows) {
   const prop = rows[0];
   if (!propietarioVacio(rows) && (!prop.apellido || !prop.nombre || !prop.documento_nro)) {
-    return 'Si cargás el propietario, completá apellido, nombre y DNI. Si todavía no lo sabés, dejá los tres vacíos: la secretaría le pone después un propietario provisorio con el nombre de la caballeriza.';
+    return 'Si cargás el propietario, completá apellido, nombre y DNI. Si todavía no lo sabés, dejá los tres vacíos: se crea un propietario provisorio con el nombre de la caballeriza.';
   }
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
@@ -710,6 +754,22 @@ async function saveRecord(e) {
   } catch (insertErr) {
     btn.disabled = false; btn.textContent = 'Guardar';
     toast(insertErr.message, 'error');
+    return;
+  }
+
+  if (propietarioVacio(rows)) {
+    // Sin titular conocido → provisorio con el nombre de la caballeriza (Fede 15/08),
+    // igual que el DO de propietarios_provisorios_r9.sql pero para esta sola.
+    const { data: prov, error: provErr } = await sb.rpc('rpc_caballeriza_provisorio', { p_caballeriza_id: cabId });
+    btn.disabled = false; btn.textContent = 'Guardar';
+    if (provErr) {
+      console.error('[rpc_caballeriza_provisorio]', provErr);
+      toast(`Caballeriza ${id ? 'actualizada' : 'creada'}, pero quedó SIN propietario: ${provErr.message.replace(/^.*?:\s*/, '')}`, 'error');
+    } else {
+      toast(`Caballeriza ${id ? 'actualizada' : 'creada'} con propietario provisorio «${document.getElementById('f-nombre').value.trim()}». Completá el titular cuando lo tengas.`);
+    }
+    closeModal();
+    load();
     return;
   }
 

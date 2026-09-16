@@ -90,7 +90,8 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 │   ├── spcs_r9_tanda_3.sql      BIEN COQUETA y EL MAS SABIO, turnos redefinidos por Yesi (EJECUTADA 2026-09-11, 201→203)
 │   ├── spcs_conesera_sexo.sql   UPDATE sexo de Conesera macho→hembra (EJECUTADA 2026-09-11, confirmó Yesi)
 │   ├── rpc_spcs_duplicados.sql  RPC de los 3 chequeos de duplicado de SPC (APLICADA 2026-09-11; la usa spcs.html antes del INSERT)
-│   └── rpc_modificar_inscripcion.sql  RPC Modificar desde el portal (caballeriza/entrenador/jockey/suplente; GATE-1=B; ver CHANGELOG 2026-09-16)
+│   ├── rpc_modificar_inscripcion.sql  RPC Modificar desde el portal (caballeriza/entrenador/jockey/suplente; GATE-1=B; ver CHANGELOG 2026-09-16)
+│   └── rpc_caballeriza_provisorio.sql  RPC propietario provisorio para UNA caballeriza sin titular (= DO por fila; lo llama caballerizas.html; APLICADA 2026-09-16)
 ├── supabase/functions/          Edge Functions (deploy por MCP `deploy_edge_function`)
 │   ├── reunion-json/            JSON de reunión para el Stud Book (v22, verify_jwt:false, token propio)
 │   ├── invite-user/             Alta de usuario por invitación (v5, verify_jwt:true)
@@ -360,6 +361,7 @@ node tests/probe_studbook_buscar_e2e.mjs           # studbook-buscar deployada �
 node tests/probe_spcs_studbook_alta.mjs            # spcs.html — buscar, Usar, prellenado, panel de duplicados (bloquea / Guardar igual), INSERT real; ESCRIBE 1 spc + 1 usuario, teardown verificado, count 205
 node tests/probe_orden_inscriptos.mjs             # inscripciones.html — pantalla y PDF en alfabético 'es' (= ratificacion); R9 T4 NIÑO OCEANICO < NISTEL WIN; solo lectura
 node tests/probe_aviso_jockey_repetido.mjs         # jockey repetido en el turno — aviso en 4 pantallas, sólo activos; R9 4 turnos avisan, R8 T5 backfill no bloqueado; solo lectura
+node tests/probe_caballeriza_provisorio.mjs        # caballerizas.html titular opcional + rpc_caballeriza_provisorio (UI con stubs + RPC con sesiones reales); ESCRIBE fixture (reunión 9985), teardown verificado, count 210; CABALLERIZAS_HTML acepta URL
 node tests/probe_modificar_inscripcion_portal.mjs   # Modificar desde el portal — rpc_modificar_inscripcion (guards = baja, cadena del propietario, GATE-1=B) + UI; ESCRIBE fixture 9987/9986, teardown verificado, count 210; PORTAL_HTML=https://sigh.com.ar/portal.html corre contra el HTML servido
 ```
 
@@ -486,7 +488,7 @@ salidas de queries, `git status`, `git log`, los diffs, y cualquier cosa pedida 
 17. **`signUp` no da error si el correo ya tiene cuenta confirmada** — GoTrue responde 200 con un
     user obfuscado y no manda mail (anti-enumeración). Mirar `identities.length === 0`, no `error`.
 
-Ver `docs/GOTCHAS.md` para la lista completa (96 entradas).
+Ver `docs/GOTCHAS.md` para la lista completa (97 entradas).
 
 ---
 
@@ -523,7 +525,9 @@ Ver `docs/GOTCHAS.md` para la lista completa (96 entradas).
 - **Al 16/09 el `DO` NO se corrió**: R9 quedó ratificada el 14/09 (74 ratificados, T2/T8/T10 anulados) y hay
   **15 ratificados con `propietario_id IS NULL`** (T1:1, T3:4, T4:3, T5:1, T6:1, T7:2, T9:2, T11:1). **13 de los 15 no tienen
   caballeriza** — a esos el `DO` no los arregla (agarra caballerizas sin titular, no inscripciones sin caballeriza): primero
-  Yesi les asigna el stud. Sigue pendiente.
+  Yesi les asigna el stud. Sigue pendiente. **Desde el 16/09** (rama `feat/caballeriza-titular-opcional-provisorio`): el `DO` deja de ser
+  necesario — el alta sin titular crea el provisorio sola (`rpc_caballeriza_provisorio`) y las existentes sin titular (PARAJE LA TABLADA)
+  tienen el botón **Crear provisorio** en `caballerizas.html`.
 - **Modificar desde el portal** (`rpc_modificar_inscripcion`, 16/09): no aplica a R9 salvo que Yesi extienda
   `cierre_ratificacion` desde `carta-llamados.html` — las dos ventanas cerraron el 14/09.
 
