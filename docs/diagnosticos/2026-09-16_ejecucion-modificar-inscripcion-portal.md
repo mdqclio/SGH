@@ -596,3 +596,15 @@ Coinciden. `main` sin tocar.
    reales o lo dejamos como registro histórico?
 4. Los 16 ratificados sin propietario de R9 (§1.1.c): ¿corro el `DO` de provisorios ahora (con tu OK, misma
    denegación probable) o lo hace la secretaría?
+
+## 11. Verificación ls-remote del informe
+
+```
+$ git push origin reports
+$ git rev-parse HEAD
+253779dfe4bcf92d639c93f9696dbe2e2026fd61
+$ git ls-remote origin reports
+253779dfe4bcf92d639c93f9696dbe2e2026fd61	refs/heads/reports
+```
+
+Coinciden. Esta sección va en un segundo commit sobre el mismo archivo.
