@@ -2017,3 +2017,194 @@ $ git ls-remote origin reports
 ```
 
 Coinciden. Esta sección va en un commit más sobre el mismo archivo.
+
+
+---
+
+# Parte 3 — 16/09 18:26–18:32 UTC: re-chequeo pre-merge (las 3 cosas de Leo), merge a `main`, probe contra sigh.com.ar
+
+## 24. Las tres cosas, re-medidas en fresco antes del merge (18:26:05 UTC)
+
+Una sola query, `execute_sql`, salida cruda completa:
+
+```json
+[{"k":"now","v":"2026-09-16 18:26:05.759401+00"},
+ {"k":"1.huerfanas_1ct3tj_profesionales","v":"0"},
+ {"k":"1.huerfanas_1ct3tj_caballerizas","v":"0"},
+ {"k":"1.probe_mod_cualquier_run","v":"0"},
+ {"k":"1.spcs_total","v":"210"},
+ {"k":"2.pg_proc_rpc_modificar_inscripcion%","v":"rpc_modificar_inscripcion(p_inscripcion_id uuid, p_caballeriza_id uuid, p_entrenador_id uuid, p_jockey_titular_id uuid, p_jockey_suplente_id uuid)"},
+ {"k":"2.cualquier_gemela_o_mut","v":"(ninguna)"},
+ {"k":"2.schema_migrations_mut_o_probe","v":"0"},
+ {"k":"2.real_md5","v":"817327d8e340af8bc1e7d6e99d0b3994"},
+ {"k":"3.r9_ratificados","v":"74"},
+ {"k":"3.r9_ratificados_por_turno","v":"T1:9 T3:13 T4:11 T5:7 T6:7 T7:8 T9:6 T11:13"},
+ {"k":"3.r9_primera_ultima_ratificacion","v":"2026-09-14 20:42:36.384828+00 → 2026-09-14 22:26:50.662941+00"},
+ {"k":"3.r9_ratificados_sin_propietario","v":"15"},
+ {"k":"3.r9_ratif_sin_prop_sin_caballeriza","v":"13"},
+ {"k":"3.DO_provisorios_desde_14sep","v":"0"},
+ {"k":"3.DO_responsables_desde_14sep","v":"0"},
+ {"k":"3.DO_ultimo_provisorio_r9","v":"2026-09-11 21:07:26.930683+00"}]
+```
+
+**1. Huérfanas del run `1ct3tj`** — antes (18:10:45, §14): **6 profesionales + 1 caballeriza** (`PROBE-MOD-A/B/C/X/J1/J2 1ct3tj`,
+`PROBE-MOD-CAB-CON-1ct3tj`), dependencias 0. Borrado (§14): `cab_borradas=1, prof_borrados=6`. Después (18:26:05): **0 y 0**.
+Además, **0 filas `PROBE-MOD`/`probe-mod-` de cualquier run** en las 8 tablas del fixture (reuniones 9986/9987, spcs,
+caballerizas, profesionales, usuarios, auth.users, propietarios, responsables). `spcs` = 210 = baseline.
+
+**2. Mutantes vivos** — `pg_proc` con `proname LIKE 'rpc_modificar_inscripcion%'` devuelve **sólo la función a secas**.
+Ninguna `%_mut`, ninguna `%syntaxcheck%`, ninguna `probe%`. `schema_migrations` sin nada de gemelas (0). El md5 de la
+real sigue siendo `817327d8e340af8bc1e7d6e99d0b3994` — el mismo de antes de los 15 mutantes. **Nada que dropear.**
+
+**3a. ¿R9 tiene ratificados hoy?** — **Sí, 74**: T1:9 T3:13 T4:11 T5:7 T6:7 T7:8 T9:6 T11:13 (T2/T8/T10 anulados, sin
+ratificar). Se ratificó el **lunes 14/09 entre las 20:42 y las 22:26 UTC** (17:42–19:26 AR). El "cero" que viste el
+lunes era de antes de las 17:42 AR.
+
+**3b. ¿Corrió el `DO` de `propietarios_provisorios_r9.sql` después de la ratificación?** — **No.** Cero propietarios
+provisorios y cero `caballeriza_responsables` creados desde el 14/09; el último provisorio de R9 es del 11/09 21:07 UTC.
+Quedan **15 ratificados sin `propietario_id`**, y **13 de esos 15 no tienen caballeriza** (§20.2 tiene la lista con
+nombres): a esos el `DO` no los alcanza — primero hay que cargarles el stud. Los otros 2 (TIRSO T1, GRAN RAUL T6, ambos
+en PARAJE LA TABLADA sin titular) sí los arreglaría el `DO`.
+
+## 25. Merge a `main` y deploy
+
+```
+$ git status --short | wc -l
+0
+$ git checkout main && git pull origin main && git log --oneline -1
+c0e7803 merge: aviso de jockey repetido en el turno en las 4 pantallas (sin bloqueo); ratificación deja de contar forfaits — pedido de Yesi 12/09
+$ git merge --no-ff feat/portal-modificar-inscripcion -m "merge: \"Modificar\" en Mis inscripciones del portal — rpc_modificar_inscripcion (aplicada) + modal + probe 41/41 + 24/24 mutantes; GATE-1=B (ISSUE-082); baseline spcs 210 — pedido de Yesi 14/09"
+$ git push origin main
+$ git log --oneline -3
+7887a27 merge: "Modificar" en Mis inscripciones del portal — rpc_modificar_inscripcion (aplicada) + modal + probe 41/41 + 24/24 mutantes; GATE-1=B (ISSUE-082); baseline spcs 210 — pedido de Yesi 14/09
+83f2403 test(portal): probe Modificar — A16 assert corregido (suplente intacto = j1), runbook de gemelas por execute_sql; CLAUDE.md: 15 ratificados sin propietario (13 sin caballeriza)
+9596c1e feat(portal): "Modificar" en Mis inscripciones — caballeriza/entrenador/jockey/suplente (pedido Yesi 14/09)
+$ git rev-parse HEAD; git ls-remote origin main
+7887a27f2dc2cbf0d1c3a16a1e82b0b4d31d1ace
+7887a27f2dc2cbf0d1c3a16a1e82b0b4d31d1ace	refs/heads/main
+```
+
+md5 de `portal.html` servido vs el del commit de merge (`?v=$RANDOM`, un intento cada 15 s):
+
+```
+$ git show 7887a27:portal.html > local_portal.html
+18:26:54 intento 1 prod=9306a961fa81c705843d2fc930252841 local=ff070cef49ac04c6069cc4dad53c2298
+18:27:09 intento 2 prod=9306a961fa81c705843d2fc930252841 local=ff070cef49ac04c6069cc4dad53c2298
+18:27:24 intento 3 prod=ff070cef49ac04c6069cc4dad53c2298 local=ff070cef49ac04c6069cc4dad53c2298
+ff070cef49ac04c6069cc4dad53c2298  /tmp/claude-1000/-home-clio-dev-SGH/1e2af424-39ba-4437-adcf-21de00e67b56/scratchpad/local_portal.html
+ff070cef49ac04c6069cc4dad53c2298  /tmp/claude-1000/-home-clio-dev-SGH/1e2af424-39ba-4437-adcf-21de00e67b56/scratchpad/prod_portal.html
+$ grep -c "abrirModificar" prod_portal.html
+2
+```
+
+Coincide al tercer intento (~45 s después del push). El HTML servido tiene el botón.
+
+## 26. Probe contra el HTML servido — 41/41
+
+```
+$ PORTAL_HTML=https://sigh.com.ar/portal.html node tests/probe_modificar_inscripcion_portal.mjs
+
+── El RPC ──
+
+── La UI ──
+[rpc_modificar_inscripcion] { message: 'P0001: Fuera de plazo: hablá con la secretaría.' }
+
+── Probe · Modificar inscripción desde el portal ──
+   portal=https://sigh.com.ar/portal.html  ·  rpc=rpc_modificar_inscripcion  ·  run=lbzw9l
+ ✅ F0) fixture: la caballeriza CON titular tiene propietario derivado por el trigger de responsables  → propietario_id=d3d8a587-0492-4254-8929-a4e024ea1079
+ ✅ A1) A modifica lo suyo en la ventana de INSCRIPCIÓN (jockey j1→j2, suplente j1)  → ok=true msg=null data={"ok":true,"inscripcion_id":"5c95cc0f-6de0-4fe0-a9e4-501cc767049d","propietario_id":"d3d8a587-0492-4254-8929-a4e024ea1079","sin_propietario":false,"sigue_siendo_mia":true,"cambio_entrenador":false}
+ ✅ A2) A modifica lo suyo en la ventana de RATIFICACIÓN, estado inscripto  → ok=true msg=null
+ ✅ A3) un RATIFICADO cambia de jockey en la ventana de ratificación; estado y numero_partidor intactos  → ok=true msg=null estado=ratificado partidor=5
+ ✅ A4) un RATIFICADO no puede quedar sin jockey (D2); la fila no cambia  → msg=Un caballo ratificado tiene que tener jockey. Para cambiarlo, elegí otro; para sacarlo, hablá con la secretaría. jockey=7b7002a4-1e09-4707-aca9-cdfd799da126
+ ✅ A5) B no puede modificar lo que cargó A  → msg=Esa inscripción no la cargó usted desde el portal. Para modificarla, hablá con la secretaría.
+ ✅ A6) no se modifica lo que cargó la SECRETARÍA (canal manual), aunque inscripto_por sea yo  → msg=Esa inscripción no la cargó usted desde el portal. Para modificarla, hablá con la secretaría.
+ ✅ A7) las dos ventanas cerradas → Fuera de plazo  → msg=Fuera de plazo: se puede modificar mientras la inscripción está abierta o durante la ratificación. Hablá con la secretaría.
+ ✅ A8) el HUECO entre cierre de inscripción y apertura de ratificación → Fuera de plazo  → msg=Fuera de plazo: se puede modificar mientras la inscripción está abierta o durante la ratificación. Hablá con la secretaría.
+ ✅ A9) ratificación en NULL → fail-closed, Fuera de plazo  → msg=Fuera de plazo: se puede modificar mientras la inscripción está abierta o durante la ratificación. Hablá con la secretaría.
+ ✅ A10) reunión no publicada, rechaza  → msg=Fuera de plazo: esa reunión no está publicada. Hablá con la secretaría.
+ ✅ A22) turno anulado, rechaza  → msg=Ese turno está anulado.
+ ✅ A11-pre) la fila arranca con el propietario de cabCon (derivado en el INSERT)  → propietario=d3d8a587-0492-4254-8929-a4e024ea1079
+ ✅ A12) cambiar a una caballeriza SIN titular: ok, propietario_id queda NULL y el RPC lo DICE (sin_propietario=true)  → ok=true msg=null prop=null data={"ok":true,"inscripcion_id":"6806a87e-ec09-4c4d-8a1c-19107ad9f30e","propietario_id":null,"sin_propietario":true,"sigue_siendo_mia":true,"cambio_entrenador":false}
+ ✅ A13) volver a la caballeriza CON titular: el trigger re-deriva, propietario vuelve; sin_propietario=false  → ok=true prop=d3d8a587-0492-4254-8929-a4e024ea1079 data={"ok":true,"inscripcion_id":"6806a87e-ec09-4c4d-8a1c-19107ad9f30e","propietario_id":"d3d8a587-0492-4254-8929-a4e024ea1079","sin_propietario":false,"sigue_siendo_mia":true,"cambio_entrenador":false}
+ ✅ A11) con caballeriza CON titular, propietario_id = el titular y sin_propietario=false  → prop=d3d8a587-0492-4254-8929-a4e024ea1079
+ ✅ A14) cambiar sólo el jockey deja propietario_id intacto  → prop=d3d8a587-0492-4254-8929-a4e024ea1079
+ ✅ A15) entrenador inactivo / un jockey como entrenador / caballeriza inexistente → error de padrón; fila intacta  → a=El entrenador declarado no está en el padrón activo de este hipódromo. · b=El entrenador declarado no está en el padrón activo de este hipódromo. · c=Esa caballeriza no existe o no está activa en este hipódromo.
+ ✅ A16) suplente sin titular / suplente = titular → error  → a=No se puede declarar un suplente sin jockey titular. · b=El suplente no puede ser el mismo jockey que el titular.
+ ✅ A17) cambiar el entrenador a uno SIN cuenta: ok, cambio_entrenador=true, inscripto_por INTACTO (GATE-1=B), sigue_siendo_mia=true  → ok=true msg=null inscripto_por=c87372a0-9172-44ea-a4f1-9e008d20f6b9 data={"ok":true,"inscripcion_id":"5c95cc0f-6de0-4fe0-a9e4-501cc767049d","propietario_id":"d3d8a587-0492-4254-8929-a4e024ea1079","sin_propietario":false,"sigue_siendo_mia":true,"cambio_entrenador":true}
+ ✅ A18) cambiar el entrenador a B (con cuenta): A la sigue modificando, B NO (la tenencia es quién la cargó)  → A=true B=Esa inscripción no la cargó usted desde el portal. Para modificarla, hablá con la secretaría.
+ ✅ A17c) volver al entrenador original: cambio_entrenador=true (cambió respecto de la fila) y sin cambio → false
+ ✅ A19) una sesión de STAFF (sin entidad de portal) no puede usar el RPC  → msg=No autorizado: esta operación es para usuarios del portal.
+ ✅ A21) un FORFAIT no se modifica desde el portal  → msg=Ese caballo ya figura como forfait y no se puede modificar desde el portal.
+ ✅ A23) en ventana de INSCRIPCIÓN (sin ratificación) un ratificado ya fue procesado: rechaza  → msg=Esa inscripción ya fue procesada por la secretaría y no se puede modificar desde el portal.
+ ✅ A20) auditoria tiene el UPDATE de A1 con OLD/NEW (jockey j1→j2) y el usuario A  → fila={"accion":"UPDATE","usuario":"c87372a0-9172-44ea-a4f1-9e008d20f6b9","antes":"d8019ba7-374b-4cb3-a7c0-71cc8936cb17","despues":"7b7002a4-1e09-4707-aca9-cdfd799da126"}
+ ✅ A0) en 28 llamadas, spc_id/carrera_id/estado/numero_partidor/canal/inscripto_por NUNCA cambiaron
+ ✅ U1) el botón Modificar sale con el MISMO predicado que Retirar: en las dos ventanas sí; cerrada / de otro / secretaría / forfait no  → insc=true rat=true cerrada=false
+ ✅ U2) cargarInscripcionesCrudas pide caballeriza_id, entrenador_id, jockey_suplente_id y propietario_id
+ ✅ U3) cambiar el entrenador → confirm() con el texto de GATE-1=B ANTES de sb.rpc; "Cancelar" no llama al RPC  → confirm="Estás cambiando el entrenador que presenta a PROBE-MOD-C, lb" rpc=1 cancel→rpc=0
+ ✅ U3b) sin cambio de entrenador ni de caballeriza no se pregunta nada y se guarda
+ ✅ U4) caballeriza sin titular → confirm() con el aviso + "¿Guardar igual?"; si devuelve false, sb.rpc NO se llama  → confirm=1 rpc=1 cancel→rpc=0
+ ✅ U6) el RPC devuelve sin_propietario=true → toast warning con el aviso (aunque el front no lo haya detectado)  → toasts=["success","warning"]
+ ✅ U6b) error del RPC → mensaje en el modal, sin toast de éxito ni recarga  → msg=❌ Fuera de plazo: hablá con la secretaría.
+ ✅ U7) un ratificado sin jockey se corta en el front antes del RPC  → msg=❌ Un caballo ratificado tiene que tener jockey. Para sacarlo, hablá con la secretaría.
+ ✅ U7b) suplente sin titular se corta en el front  → msg=❌ No se puede declarar un suplente sin jockey titular.
+ ✅ U5) aviso de jockey repetido en Modificar: la PROPIA fila no cuenta; otra activa con el mismo jockey sí; un forfait no  → propia=true otra=false forfait=true
+ ✅ U8) el modal #modal-modificar existe con sus cuatro selects y el botón Guardar
+ ✅ U9) el pie de Mis inscripciones explica Modificar (caballo y turno no se cambian)
+ ✅ R1) restore: cero filas del run en reuniones/spcs/caballerizas/profesionales/usuarios/propietarios/responsables; spcs antes = después  → {"reuniones":0,"spcs":0,"caballerizas":0,"profesionales":0,"usuarios":0,"propietarios":0,"responsables":0} spcs 210→210
+ ✅ R2) count(*) FROM spcs = 210 (baseline de CLAUDE.md; si cambió, hubo altas/bajas y hay que actualizarlo)  → spcs=210
+
+41/41 OK
+```
+
+`portal=https://sigh.com.ar/portal.html`: los asserts U1–U9 corrieron sobre lo que sirve GitHub Pages, no sobre el
+archivo local; los A contra el RPC real. **41/41.**
+
+Regresión sobre el mismo archivo servido (descargado a `prod_portal.html`):
+
+```
+$ PORTAL_HTML=prod_portal.html node tests/probe_forfait_portal.mjs
+
+── El RPC ──
+
+── La UI ──
+
+── Probe · forfait desde el portal ──
+   portal=/tmp/claude-1000/-home-clio-dev-SGH/1e2af424-39ba-4437-adcf-21de00e67b56/scratchpad/prod_portal.html  ·  rpc=rpc_baja_inscripcion  ·  run=9ch4an
+ ✅ A1) retirar durante la INSCRIPCIÓN sigue funcionando, y BORRA la fila  → ok=true msg=null fila=null
+ ✅ A2) retirar durante la RATIFICACIÓN funciona y deja estado=forfait — la fila NO se borra  → ok=true msg=null fila={"id":"945fa826-e344-49de-b106-28f99e333b65","estado":"forfait","canal":"portal","inscripto_por":"a1c91b38-cf65-4a33-be0f-3d898e64ec71","numero_partidor":null,"motivo_estado":"Forfait desde el portal"}
+ ✅ A10) el forfait limpia numero_partidor  → numero_partidor=null
+ ✅ A11) el forfait CONSERVA canal e inscripto_por (el rastro no se pierde)  → canal=portal inscripto_por=a1c91b38-cf65-4a33-be0f-3d898e64ec71
+ ✅ A12) el forfait deja marca de origen en motivo_estado  → motivo_estado="Forfait desde el portal"
+ ✅ A14) un caballo ya RATIFICADO puede darse de forfait en esa ventana  → ok=true msg=null estado=forfait
+ ✅ A13) un caballo ya en forfait no se puede volver a retirar  → msg=Ese caballo ya figura como forfait y no se puede dar de baja desde el portal.
+ ✅ A3) antes de que abra ninguna ventana, rechaza  → msg=Fuera de plazo: se puede retirar mientras la inscripción está abierta, o dar forfait durante la ratificación. Hablá con la secretaría.
+ ✅ A4) EL HUECO entre el cierre de inscripción y la apertura de ratificación, rechaza  → msg=Fuera de plazo: se puede retirar mientras la inscripción está abierta, o dar forfait durante la ratificación. Hablá con la secretaría.
+ ✅ A5) después del cierre de ratificación, rechaza  → msg=Fuera de plazo: se puede retirar mientras la inscripción está abierta, o dar forfait durante la ratificación. Hablá con la secretaría.
+ ✅ A6) no se puede retirar lo que cargó OTRO usuario  → msg=Esa inscripción no la cargó usted desde el portal. Para darla de baja, hablá con la secretaría.
+ ✅ A7) no se puede retirar lo que cargó la SECRETARÍA (canal manual)  → msg=Esa inscripción no la cargó usted desde el portal. Para darla de baja, hablá con la secretaría.
+ ✅ A8) reunión no publicada, rechaza  → msg=Fuera de plazo: esa reunión no está publicada. Hablá con la secretaría.
+ ✅ A9) ventana de ratificación en NULL → fail-closed, rechaza  → msg=Fuera de plazo: se puede retirar mientras la inscripción está abierta, o dar forfait durante la ratificación. Hablá con la secretaría.
+ ✅ U1) modoRetiro distingue las dos ventanas y el fuera-de-plazo  → insc=inscripcion · rat=ratificacion
+ ✅ U2) el rótulo del botón es "Dar forfait" en ratificación y "Retirar" en inscripción
+ ✅ U3) cargarInscripcionesCrudas pide apertura_ratificacion y cierre_ratificacion
+ ✅ U4) ventanaRatificacion es fail-closed: sin las dos fechas, cerrada
+ ✅ U5) un RATIFICADO muestra botón en la ventana de ratificación, no en la de inscripción
+ ✅ U6) lo de otro y lo de la secretaría no muestran botón
+ ✅ T1) teardown: no quedaron reuniones 9988/9989 ni SPC del run  → reuniones=0 spcs=0
+
+21/21 OK
+```
+
+**21/21.** Retirar / Dar forfait siguen igual en prod.
+
+## 27. Estado final
+
+| | |
+|---|---|
+| `main` | `7887a27f2dc2cbf0d1c3a16a1e82b0b4d31d1ace` (merge `--no-ff`), pusheado, en `sigh.com.ar` |
+| RPC | `rpc_modificar_inscripcion` aplicada (`20260916175417`), md5 `817327d8…`, sin gemelas |
+| Probe | 41/41 local · 41/41 contra sigh.com.ar · mutantes 9/9 portal + 15/15 SQL |
+| Base | 0 fixtures, `spcs` 210 |
+| Para Yesi | el botón **Modificar** está en el portal, pero en R9 sale `—` en todas las filas: las dos ventanas cerraron el 14/09. Si lo quiere usar antes del domingo, extiende `cierre_ratificacion` desde `carta-llamados.html`. |
+| Pendiente R9 | 13 ratificados sin caballeriza + `DO` de provisorios sin correr (§24.3b). No es de esta rama. |
+| Pendiente producto | ISSUE-082 (tenencia = quién cargó; ejecutado B). |
