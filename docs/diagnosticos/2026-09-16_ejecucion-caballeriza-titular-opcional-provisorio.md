@@ -846,3 +846,100 @@ $ git ls-remote origin reports
 ```
 
 Coinciden. Esta sección va en un segundo commit sobre el mismo archivo.
+
+
+---
+
+# Parte 2 — merge a `main`, deploy y probe contra el HTML servido (20:13–20:17 UTC)
+
+## 11. Merge `--no-ff` (los dos commits)
+
+```
+$ git status --short | wc -l
+0
+$ git checkout main && git pull origin main && git log --oneline -1
+7887a27 merge: "Modificar" en Mis inscripciones del portal …
+$ git merge --no-ff feat/caballeriza-titular-opcional-provisorio -m "merge: caballerizas — titular opcional + propietario provisorio automático …"
+$ git push origin main
+$ git log --oneline -4
+a259783 merge: caballerizas — titular opcional + propietario provisorio automático (rpc_caballeriza_provisorio, aplicada) + edición no reescribe responsables; probe 22/22, mutantes 15/15; criterio Fede 15/08, pedido Yesi 16/09
+e5c7094 feat(caballerizas): propietario provisorio automático al crear sin titular — rpc_caballeriza_provisorio + badge y botón "Crear provisorio"
+bb27e8b fix(caballerizas): titular opcional en el alta (todo-o-nada); la edición no reescribe responsables si no se tocaron
+7887a27 merge: "Modificar" en Mis inscripciones del portal — rpc_modificar_inscripcion (aplicada) + modal + probe 41/41 + 24/24 mutantes; GATE-1=B (ISSUE-082); baseline spcs 210 — pedido de Yesi 14/09
+$ git rev-parse HEAD; git ls-remote origin main
+a25978372d1fec384a3d1a9b9a96ecb7681065e4
+a25978372d1fec384a3d1a9b9a96ecb7681065e4	refs/heads/main
+```
+
+**`main` = `a25978372d1fec384a3d1a9b9a96ecb7681065e4`**, pusheado (= `origin/main`).
+
+## 12. md5 de `caballerizas.html` contra sigh.com.ar (`curl -sL`, `?v=$RANDOM`, un intento cada 15 s)
+
+```
+$ git show a259783:caballerizas.html > local_cab.html
+20:14:28 intento 1 prod=c3420560416d3f0d5e9eafb704f73461 local=d7ae0f99bbfed753e0ea311101e607f8
+20:14:43 intento 2 prod=c3420560416d3f0d5e9eafb704f73461 local=d7ae0f99bbfed753e0ea311101e607f8
+20:14:58 intento 3 prod=c3420560416d3f0d5e9eafb704f73461 local=d7ae0f99bbfed753e0ea311101e607f8
+20:15:14 intento 4 prod=d7ae0f99bbfed753e0ea311101e607f8 local=d7ae0f99bbfed753e0ea311101e607f8
+d7ae0f99bbfed753e0ea311101e607f8  /tmp/claude-1000/-home-clio-dev-SGH/1e2af424-39ba-4437-adcf-21de00e67b56/scratchpad/local_cab.html
+d7ae0f99bbfed753e0ea311101e607f8  /tmp/claude-1000/-home-clio-dev-SGH/1e2af424-39ba-4437-adcf-21de00e67b56/scratchpad/prod_cab.html
+$ grep -c "rpc_caballeriza_provisorio" prod_cab.html
+5
+```
+
+Coincide al cuarto intento (~60 s). El HTML servido tiene la llamada al RPC, el badge y el botón.
+
+## 13. Probe contra el HTML servido — 22/22
+
+```
+$ CABALLERIZAS_HTML=https://sigh.com.ar/caballerizas.html node tests/probe_caballeriza_provisorio.mjs
+
+── La UI (caballerizas.html extraída) ──
+[rpc_caballeriza_provisorio] { message: 'P0001: Ya existe un propietario "X" en este hipódromo.' }
+
+── El RPC (sesiones reales) ──
+
+── Probe · caballeriza sin titular → provisorio ──
+   html=https://sigh.com.ar/caballerizas.html  ·  rpc=rpc_caballeriza_provisorio  ·  run=fe5ml1
+ ✅ U1) validateResponsables: vacío OK · parcial (sólo apellido / sin DNI) ERROR · completo OK · co-prop parcial ERROR  → vacio=null parcial=Si cargás el propietario, completá apellido, nombre y DNI. Si todavía no lo sabés, dejá los tres vacíos: se crea un propietario provisorio con el nombre de la caballeriza.
+ ✅ U2) ALTA con titular vacío → inserta la caballeriza, NO inserta responsables y llama a rpc_caballeriza_provisorio con el id nuevo; toast dice "provisorio"  → rpc=1 toasts=["Caballeriza creada con propietario provisorio «PRO"]
+ ✅ U3) EDICIÓN sin tocar el bloque (titular provisorio prellenado: nombre sin DNI) → guarda la caballeriza, NO toca caballeriza_responsables, NO valida, NO llama al RPC  → calls=["caballerizas:update({\"club_id\":\"0649e9c5-9e87-4aad-842f-101458e6b33c\",\"nombre\":\"PROBE-CAB-fe5ml1\",\"telefono\":\"2245-1\",\"estado\":\"activo\",\"activo\":true,\"notas\":null,\"hipodromo_patente\":\"DOL\",\"chaquetilla_descripcion\":null,\"chaquetilla_url\":null})"] toasts=["Caballeriza actualizada"]
+ ✅ U4) EDICIÓN con titular nuevo completo → delete + insert en caballeriza_responsables (camino actual), sin RPC  → calls=["caballerizas:update({\"club_id\":\"0649e9c5-9e87-4aad-842f-101458e6b33c\",\"nombre\":\"PROBE-CAB-fe5ml1\",\"telefono\":null,\"estado\":\"activo\",\"activo\":true,\"notas\":null,\"hipodromo_patente\":\"DOL\",\"chaquetilla_descripcion\":null,\"chaquetilla_url\":null})","caballeriza_responsables:delete()","profesionales:select(id)","caballeriza_responsables:insert([{\"caballeriza_id\":\"CAB-1\",\"profesional_id\":null,\"apellido\":\"PEREZ\",\"nombre\":\"JUAN\",\"documento_nro\":\"12345678\",\"fecha_nacimiento\":null,\"localidad\":null,\"rol\":\"propietario\",\"activo\":true}])","caballerizas:update({\"responsable\":\"PEREZ JUAN (propietario)\"})"]
+ ✅ U5) EDICIÓN vaciando el titular → delete de responsables + rpc_caballeriza_provisorio (no queda huérfana)  → calls=["caballerizas:update({\"club_id\":\"0649e9c5-9e87-4aad-842f-101458e6b33c\",\"nombre\":\"PROBE-CAB-fe5ml1\",\"telefono\":null,\"estado\":\"activo\",\"activo\":true,\"notas\":null,\"hipodromo_patente\":\"DOL\",\"chaquetilla_descripcion\":null,\"chaquetilla_url\":null})","caballeriza_responsables:delete()","rpc:rpc_caballeriza_provisorio:{\"p_caballeriza_id\":\"CAB-1\"}"]
+ ✅ U5b) si el RPC falla, el toast lo dice ("quedó SIN propietario: …") y la caballeriza ya está creada  → ["Caballeriza creada, pero quedó SIN propietario: Ya existe un propietario \"X\" en "]
+ ✅ U6) esProvisorio: marcas "provisorio R8 15/08" / "provisorio R9 11/09" / "provisorio alta 16/09/2026" → true; "ex provisorio … completado" → false; sin propietario embebido: sin DNI y sin apellido → true, con DNI → false
+ ✅ U7) el HTML: sólo f-nombre es required; el propietario ya no lleva asterisco; hay hint de provisorio y aviso rp-provisorio-aviso
+ ✅ U8) openModal pide propietarios(notas) al cargar responsables y toma el snapshot responsablesAlCargar
+ ✅ F0) fixture: cA con 2 inscripciones sin propietario (la caballeriza no tiene titular → el trigger dejó NULL) y 1 con propietario real  → {"i1":{"propietario_id":null,"estado":"inscripto","numero_partidor":null,"caballeriza_id":"abb49048-3465-4722-8cbb-62a614b140a2"},"i2":{"propietario_id":null,"estado":"ratificado","numero_partidor":3,"caballeriza_id":"abb49048-3465-4722-8cbb-62a614b140a2"},"i3":{"propietario_id":"0d76ba65-0e18-43f1-a67e-4ad420a30a64","estado":"inscripto","numero_partidor":null,"caballeriza_id":"abb49048-3465-4722-8cbb-62a614b140a2"}}
+ ✅ A1) staff crea el provisorio: ok, creado=true; 1 vínculo rol propietario activo SIN DNI apuntando a un propietarios tipo persona, nombre = caballeriza, sin documento, notas "provisorio alta DD/MM/YYYY", activo; responsable legado seteado  → ok=true msg=null data={"ok":true,"marca":"provisorio alta 16/09/2026","creado":true,"propietario_id":"37a40038-1d89-4629-86e0-0b21c35161ec","responsable_id":"72d00bf7-4abf-4df5-a91b-6890d07c64d4","inscripciones_rederivadas":2} titular=[{"id":"72d00bf7-4abf-4df5-a91b-6890d07c64d4","propietario_id":"37a40038-1d89-4629-86e0-0b21c35161ec","documento_nro":null,"apellido":null,"nombre":"PROBE-CAB-A-fe5ml1","rol":"propietario","activo":true,"propietarios":{"tipo":"persona","notas":"provisorio alta 16/09/2026","activo":true,"nombre":"PROBE-CAB-A-fe5ml1","documento_nro":null}}] responsable=PROBE-CAB-A-fe5ml1 (propietario provisorio)
+ ✅ A3) re-deriva las 2 inscripciones sin propietario al provisorio (inscripciones_rederivadas=2); la que tenía propietario real queda intacta; estado/partidor intactos  → {"i1":{"propietario_id":"37a40038-1d89-4629-86e0-0b21c35161ec","estado":"inscripto","numero_partidor":null,"caballeriza_id":"abb49048-3465-4722-8cbb-62a614b140a2"},"i2":{"propietario_id":"37a40038-1d89-4629-86e0-0b21c35161ec","estado":"ratificado","numero_partidor":3,"caballeriza_id":"abb49048-3465-4722-8cbb-62a614b140a2"},"i3":{"propietario_id":"0d76ba65-0e18-43f1-a67e-4ad420a30a64","estado":"inscripto","numero_partidor":null,"caballeriza_id":"abb49048-3465-4722-8cbb-62a614b140a2"}}
+ ✅ A2) segunda llamada: creado=false, motivo "ya tiene titular"; sigue habiendo 1 vínculo y 1 propietario con ese nombre  → data={"ok":true,"creado":false,"motivo":"ya tiene titular","propietario_id":"37a40038-1d89-4629-86e0-0b21c35161ec","inscripciones_rederivadas":0} vinculos=1 props=1
+ ✅ A4) caballeriza homónima sin titular: reusa el mismo provisorio (creado=false, mismo propietario_id), vínculo nuevo; sigue habiendo 1 propietario con ese nombre  → data={"ok":true,"marca":"provisorio alta 16/09/2026","creado":false,"propietario_id":"37a40038-1d89-4629-86e0-0b21c35161ec","responsable_id":"15635344-42ff-4015-a1a4-bd5f7ca3ef85","inscripciones_rederivadas":0} props=1
+ ✅ A5) existe un propietario REAL con el nombre de la caballeriza → error "Ya existe un propietario"; sin vínculo, sin provisorio nuevo  → msg=Ya existe un propietario "PROBE-CAB-REAL-fe5ml1" en este hipódromo. Cargalo como titular (apellido, nombre y DNI) en vez de crear un provisorio. vinculos=0 props=1
+ ✅ A6) sesión de PORTAL → "No autorizado"; sin vínculo  → msg=No autorizado: esta operación es de la secretaría.
+ ✅ A7) staff de OTRO club → "otro hipódromo"; sin vínculo  → msg=Esa caballeriza es de otro hipódromo.
+ ✅ A8) caballeriza inexistente → "no existe"  → msg=La caballeriza no existe.
+ ✅ A9) después del RPC, una inscripción nueva en esa caballeriza nace con propietario_id = provisorio (trg_insc_set_propietario)  → {"propietario_id":"37a40038-1d89-4629-86e0-0b21c35161ec","estado":"inscripto","numero_partidor":null,"caballeriza_id":"abb49048-3465-4722-8cbb-62a614b140a2"}
+ ✅ A0) caballeriza (nombre/club/activo) y el propietario REAL de probe no cambiaron  → {"cabA2":{"nombre":"PROBE-CAB-A-fe5ml1","club_id":"0649e9c5-9e87-4aad-842f-101458e6b33c","activo":true},"pReal":{"nombre":"PROBE-CAB-REAL-fe5ml1","documento_nro":"77511111","notas":null}}
+ ✅ R1) restore: cero filas del run en caballerizas/propietarios/responsables/spcs/usuarios/profesionales/reuniones 9985; spcs antes = después  → {"caballerizas":0,"propietarios":0,"responsables":0,"spcs":0,"usuarios":0,"profesionales":0,"reuniones":0} spcs 210→210
+ ✅ R2) count(*) FROM spcs = 210 (baseline CLAUDE.md)  → spcs=210
+
+22/22 OK
+```
+
+`html=https://sigh.com.ar/caballerizas.html`: los U corrieron sobre lo que sirve GitHub Pages; los A contra el RPC real.
+Restore limpio, `spcs` 210.
+
+## 14. Estado final
+
+| | |
+|---|---|
+| `main` | **`a25978372d1fec384a3d1a9b9a96ecb7681065e4`** (merge `--no-ff` de `bb27e8b` + `e5c7094`), en `sigh.com.ar` |
+| RPC | `rpc_caballeriza_provisorio` aplicada (`20260916192822`), sin gemelas |
+| Probe | 22/22 local · 22/22 contra sigh.com.ar · mutantes 15/15 |
+| Para Yesi (hoy) | `caballerizas.html`: **+ Nueva** sin titular → nace con provisorio. Las 8 nuevas de la planilla R9. **PARAJE LA TABLADA** → botón `◐ Crear provisorio`. Las 13 ratificadas sin caballeriza → asignarles el stud en `inscripciones.html`. Control: `select count(*) … estado='ratificado' and propietario_id is null` sobre R9 → 0. |
+| Pendiente | ISSUE-080 (completar un provisorio desde la ficha). Las 4 dudosas del cruce (HS EL ORIGEN / DON JORGE / SAUCE CORRIENTE / DON VENICIO): confirmar con Yesi antes de crear. |
+
+## 15. Verificación ls-remote (Parte 2)
+
+(se completa en el commit siguiente)
