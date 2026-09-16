@@ -1,5 +1,34 @@
 # Changelog
 
+## [2026-09-16, 2] — Caballerizas: titular opcional + propietario provisorio automático (criterio Fede 15/08)
+
+> Yesi no podía crear una caballeriza sin titular: `caballerizas.html` exigía apellido+nombre+DNI del propietario desde
+> `d5b441a` (11/05), y la misma validación bloqueaba la **edición** de 95/295 (43 sin titular + 52 con titular provisorio
+> sin DNI). Contradecía el criterio de Fede del 15/08, que se había ejecutado sólo por SQL (`DO` de provisorios).
+> Diagnóstico y plan en `reports`: `2026-09-16_alta-caballeriza-exige-titular.md`,
+> `2026-09-16_plan-caballeriza-titular-opcional-provisorio.md`. Rama `feat/caballeriza-titular-opcional-provisorio`,
+> dos commits: **B** (`bb27e8b`, form solo — mergeable por sí mismo si aprieta el domingo) y **A** (este).
+
+- **`migrations/rpc_caballeriza_provisorio.sql`** (nueva, aplicada `20260916192822`): `rpc_caballeriza_provisorio(caballeriza_id)`
+  `SECURITY DEFINER`, staff-only (`fn_is_staff`) y por club. Es el bloque del `DO` de `propietarios_provisorios_r9.sql`
+  para **una** caballeriza: crea el `propietarios` provisorio (`tipo persona`, `nombre` = caballeriza, sin documento,
+  `notas 'provisorio alta DD/MM/YYYY'`), el vínculo `rol propietario` **sin DNI** (el trigger respeta el `propietario_id`
+  — GOTCHA #97), re-deriva las inscripciones sin propietario de esa caballeriza (todas las reuniones, decisión Leo 11/09)
+  y setea el `responsable` legado. Idempotente (ya hay titular → no-op), reusa provisorio homónimo, **falla ante un
+  propietario real homónimo**. `FOR UPDATE`.
+- **`caballerizas.html`**: (B) `validateResponsables` — propietario **opcional, todo-o-nada**; `openModal` guarda un
+  snapshot del bloque (`responsablesAlCargar`) y avisa si el titular es provisorio (`esProvisorio()`); `saveRecord` en
+  edición **no toca `caballeriza_responsables` si el bloque no cambió** (antes: `delete` + `insert` siempre → ISSUE-080).
+  (A) Alta o edición con el titular **vacío** → `rpc_caballeriza_provisorio` + toast "creada con propietario provisorio
+  «X»"; si el RPC falla, el toast dice que quedó SIN propietario (la caballeriza ya está guardada). Cards: badge
+  `⚠ sin titular` / `◐ provisorio` (`cargarTitulares()`, una query por carga) y botón **`◐ Crear provisorio`** en las
+  que no tienen titular (las 43 de hoy, PARAJE LA TABLADA incluida). Nada cambia para las que tienen titular real.
+- Probe `tests/probe_caballeriza_provisorio.mjs` (22 asserts: UI 9 con stubs de DOM/sb, RPC 10 con sesiones reales
+  de staff/portal/otro club, restore 2; se adapta al commit B o A; `CABALLERIZAS_HTML` acepta URL). Mutantes: 6 de
+  HTML automáticos + 9 de SQL por gemela (`execute_sql`) → **15/15 muertos**. M10 (`FOR UPDATE`) no cubierto.
+- ISSUE-083 (nuevo, cerrado por esta rama): el form exigía DNI y bloqueaba alta y edición. ISSUE-080 sigue abierto
+  (completar un provisorio desde la ficha todavía crea otro propietario; el aviso del modal lo dice).
+
 ## [2026-09-16] — "Modificar" en Mis inscripciones del portal (caballeriza / entrenador / jockey / suplente)
 
 > Pedido de Yesi (14/09). Plan en `reports`: `2026-09-14_plan-modificar-inscripcion-portal.md`; ejecución:

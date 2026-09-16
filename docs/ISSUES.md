@@ -2222,3 +2222,19 @@ portal de otro sin que ese otro lo pida. **B** (vigente) — no se transfiere; e
 
 **Próximo paso**: preguntarle a Yesi con el caso concreto. Si elige A, es media hora sobre la rama y no toca
 nada más. Módulo: portal / RPCs de inscripción. Prioridad: Media (no bloquea R9: las ventanas cerraron el 14/09).
+
+### ISSUE-083: `caballerizas.html` exigía apellido+nombre+DNI del propietario y bloqueaba el alta sin titular y la edición de 95/295 caballerizas
+
+**Estado**: 🟢 **CERRADO en rama** `feat/caballeriza-titular-opcional-provisorio` (16/09/2026, pendiente de merge).
+
+**El hecho**: `validateResponsables` (desde `d5b441a`, 11/05) cortaba `saveRecord` — alta y edición — si el propietario no
+tenía apellido, nombre y DNI. La base nunca lo exigió (`caballerizas` sólo `nombre`/`club_id` NOT NULL, `caballeriza_responsables`
+todo nullable). Yesi no podía crear una caballeriza sin titular (16/09, R9: 8 caballerizas nuevas en la planilla), y tampoco
+editar las 43 sin titular ni las 52 con titular provisorio sin DNI. Contradecía el criterio de Fede del 15/08 (provisorio con
+el nombre de la caballeriza), que sólo existía por SQL. Diagnóstico: `2026-09-16_alta-caballeriza-exige-titular.md` (reports).
+
+**Fix**: titular opcional todo-o-nada; edición sin tocar el bloque no reescribe responsables; alta/edición con titular vacío →
+`rpc_caballeriza_provisorio` (provisorio automático); badge + botón "Crear provisorio" para las existentes. Probe
+`tests/probe_caballeriza_provisorio.mjs`, 22 asserts + 15/15 mutantes. Relacionado: ISSUE-080 (completar un provisorio desde la
+ficha sigue creando otro propietario — el modal ahora lo avisa), GOTCHA #97.
+

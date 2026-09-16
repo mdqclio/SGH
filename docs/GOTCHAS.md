@@ -1650,3 +1650,20 @@ y se reemplaza **sólo el bloque «FUENTE — INICIO / FIN»** cuando cambie la 
 `{ ok, term, exactos, parciales, fuente }` y nada más. Duplicados: `rpc_spcs_duplicados` antes del
 INSERT, siempre (también si se cargó a mano sin buscar); `studbook_id` y `fecha_padre_madre` bloquean,
 `nombre` solo permite "Guardar igual".
+
+## GOTCHA #97 — `trg_cab_resp_set_propietario` sólo actúa con DNI: un vínculo SIN `documento_nro` respeta el `propietario_id` que se le da (así viven los provisorios)
+
+`fn_caballeriza_resp_set_propietario` (BEFORE INSERT OR UPDATE OF rol, documento_tipo, documento_nro, caballeriza_id) hace
+algo **únicamente** si `NEW.rol='propietario' AND NEW.documento_nro IS NOT NULL`: busca `propietarios` por (club, tipo doc,
+nro) y si no existe lo **crea**. Con `documento_nro NULL` no toca `NEW.propietario_id`. Consecuencias:
+
+- Los 47 provisorios de R8/R9 y los de `rpc_caballeriza_provisorio` se insertan con `propietario_id` puesto y sin DNI —
+  el trigger los deja pasar tal cual. Es lo que hace posible el criterio de Fede del 15/08.
+- Al revés: **tipear un DNI real sobre un vínculo provisorio** (UPDATE OF documento_nro) dispara la búsqueda por DNI y, si no
+  hay propietario con ese DNI, **crea otro** `propietarios` — el provisorio queda huérfano con sus liquidaciones. Es ISSUE-080
+  (LOS URONES). `caballerizas.html` desde el 16/09 no reescribe el vínculo si el bloque no se tocó, y avisa en el modal;
+  completar un provisorio desde la ficha sigue pendiente (hay que `UPDATE propietarios` con el DNI **antes** de tocar el
+  vínculo, para que la búsqueda del trigger lo encuentre).
+- `caballerizas` **no tiene trigger de auditoría**: las 43 sin titular no tienen rastro de INSERT. Se reconstruyó por `notas`
+  (34 de la carga masiva de R6, 12/06). Ver `2026-09-16_alta-caballeriza-exige-titular.md` §4 (reports).
+

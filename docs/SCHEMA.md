@@ -101,6 +101,9 @@ CRÍTICO: estado es ENUM rígido (estado_inscripcion). Para agregar valores usar
 - Tenencia para el portal en las tres: `canal='portal' AND inscripto_por = usuarios.id del que llama`. `entrenador_id` es declaración de quién presenta, no clave de tenencia.
 - Cadena del propietario: `trg_insc_set_propietario` (`BEFORE INSERT OR UPDATE OF caballeriza_id`) re-deriva `propietario_id` desde `caballeriza_responsables` (rol propietario, activo) y deja NULL en silencio si no hay titular (GOTCHA #47).
 
+### RPC `rpc_caballeriza_provisorio(p_caballeriza_id) → jsonb` (16/09/2026, SECURITY DEFINER, staff-only por club)
+El `DO` de `propietarios_provisorios_r9.sql` para una caballeriza: si no tiene titular activo → `propietarios` provisorio (`tipo persona`, `nombre` = caballeriza, sin documento, `notas 'provisorio alta DD/MM/YYYY'`; reusa uno homónimo con `notas ILIKE 'provisorio%'`) + `caballeriza_responsables` `rol propietario` activo **sin DNI** (así `trg_cab_resp_set_propietario` no lo pisa) + `UPDATE inscripciones SET propietario_id` donde era NULL para esa caballeriza + `caballerizas.responsable`. Falla si hay un `propietarios` real homónimo. Devuelve `{ok, creado, propietario_id, responsable_id, marca, inscripciones_rederivadas}` o `{ok, creado:false, motivo:'ya tiene titular'}`. `migrations/rpc_caballeriza_provisorio.sql`.
+
 ### resultados
 id UUID PK, carrera_id FK UNIQUE, estado ENUM(provisional/oficial/en_protesta), tiempo_ganador, estado_pista VARCHAR(20) CHECK (IN 'seca','buena','algo_pesada','pesada','muy_pesada'), dividendos JSONB, incidentes, observaciones, oficializado_por FK, oficializado_at, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 
