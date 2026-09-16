@@ -299,4 +299,12 @@ mismo `DELETE` acotado del `.sql` de R9.
 
 ## 9. Verificación de publicación
 
-(se completa en el commit siguiente)
+```
+$ git push origin reports
+$ git rev-parse HEAD
+9fd14987477b06e8b46a9d27733f323725d5e7df
+$ git ls-remote origin reports
+9fd14987477b06e8b46a9d27733f323725d5e7df	refs/heads/reports
+```
+
+Coinciden. Esta sección va en un segundo commit sobre el mismo archivo.
