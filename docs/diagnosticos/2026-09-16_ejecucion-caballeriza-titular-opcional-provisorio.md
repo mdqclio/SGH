@@ -942,4 +942,12 @@ Restore limpio, `spcs` 210.
 
 ## 15. Verificación ls-remote (Parte 2)
 
-(se completa en el commit siguiente)
+```
+$ git push origin reports
+$ git rev-parse HEAD
+3e994edafa84c86e40afce71408c05ede5bcc3f1
+$ git ls-remote origin reports
+3e994edafa84c86e40afce71408c05ede5bcc3f1	refs/heads/reports
+```
+
+Coinciden. Esta sección va en un commit más sobre el mismo archivo.
