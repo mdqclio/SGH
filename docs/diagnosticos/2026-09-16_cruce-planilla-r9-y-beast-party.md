@@ -208,4 +208,12 @@ Búsqueda amplia sobre los 12 sin exacta:
 
 ## 4. Verificación de publicación
 
-(se completa en el commit siguiente)
+```
+$ git push origin reports
+$ git rev-parse HEAD
+38f7ee12c91798ba784863e44bd3662b829a3bf0
+$ git ls-remote origin reports
+38f7ee12c91798ba784863e44bd3662b829a3bf0	refs/heads/reports
+```
+
+Coinciden. Esta sección va en un segundo commit sobre el mismo archivo.
