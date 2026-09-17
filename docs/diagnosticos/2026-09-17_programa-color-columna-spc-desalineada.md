@@ -1712,3 +1712,12 @@ fix(programa-color): columnas fijas — S.P.C. alineado entre carreras; pedigrí
 ## Publicación del §6.9
 
 (se completa abajo con `git push` + `git ls-remote`)
+
+```
+$ git push origin reports
+$ git ls-remote origin reports
+ffb5b180df0eac746fcb375a7462616961dc9f59	refs/heads/reports
+$ git rev-parse HEAD
+ffb5b180df0eac746fcb375a7462616961dc9f59
+```
+(SHA del commit del §6.9. El commit siguiente sólo agrega este bloque.)
