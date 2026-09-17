@@ -630,4 +630,15 @@ $ git show main:ratificacion.html | sed -n 361p; sed -n 383,386p
 
 ## B. Verificación de publicación
 
-(se completa abajo, después del push)
+Commit del informe + imágenes: `78fc798`.
+
+```
+$ git push -u origin reports
+(ok)
+$ git ls-remote origin reports
+78fc798e9b29482fc69f03550752344bf0d2007f	refs/heads/reports
+$ git rev-parse HEAD
+78fc798e9b29482fc69f03550752344bf0d2007f
+```
+
+El commit de esta verificación (§B) es el siguiente sobre `reports`; se verifica igual abajo.
