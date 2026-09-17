@@ -69,7 +69,7 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 │   ├── ISSUES.md                Bugs conocidos y deudas técnicas
 │   ├── SNIPPETS.md              SQL y JS reutilizables
 │   ├── SCHEMA.md                Schema extendido (copia con más detalle)
-│   ├── SERVER.md                Specs del VPS Hetzner + límites de plataforma (sin chromium)
+│   ├── SERVER.md                Specs del VPS Hetzner + límites de plataforma (Chromium headless SÍ, sin sudo: 8 libs por dpkg -x; sin poppler)
 │   └── LIQUIDACIONES_GAP_ANALYSIS.md  Modelo cerrado vs implementación (fuente del gap vivo)
 ├── tests/                       Probes contra prod (sin browser — harness de código real; ver tests/README.md)
 │   ├── README.md                Instrucciones + patrón harness (AsyncFunction + Supabase real)
@@ -363,6 +363,7 @@ node tests/probe_orden_inscriptos.mjs             # inscripciones.html — panta
 node tests/probe_aviso_jockey_repetido.mjs         # jockey repetido en el turno — aviso en 4 pantallas, sólo activos; R9 4 turnos avisan, R8 T5 backfill no bloqueado; solo lectura
 node tests/probe_caballeriza_provisorio.mjs        # caballerizas.html titular opcional + rpc_caballeriza_provisorio (UI con stubs + RPC con sesiones reales); ESCRIBE fixture (reunión 9985), teardown verificado, count 210; CABALLERIZAS_HTML acepta URL
 node tests/probe_modificar_inscripcion_portal.mjs   # Modificar desde el portal — rpc_modificar_inscripcion (guards = baja, cadena del propietario, GATE-1=B) + UI; ESCRIBE fixture 9987/9986, teardown verificado, count 210; PORTAL_HTML=https://sigh.com.ar/portal.html corre contra el HTML servido
+node tests/render_programa_pdf.mjs <reunion_id> color <out_dir> [https://sigh.com.ar]   # programa oficial a PDF + PNG con Chromium headless (LD_LIBRARY_PATH, ver docs/SERVER.md); reporta grilla y celdas que envuelven; ESCRIBE 1 usuario, teardown verificado. Es la verificación VISUAL — mirar las imágenes
 ```
 
 **El patrón es código real sin browser.** Chromium no corre en este Ubuntu (`"Playwright does not support chromium on ubuntu26.04-x64"` — ver `docs/SERVER.md`), así que el probe **extrae del propio HTML** la función o el bloque a probar —por ancla, con balance de llaves—, lo corre con `new AsyncFunction(...)` inyectando dependencias reales (cliente Supabase con `SUPABASE_SECRET_KEY`, más stubs de DOM si hacen falta) y assertea contra la base. Nunca reimplementar la lógica dentro del test: si el archivo cambia, el probe corre el archivo cambiado. Para lo que escribe: **snapshot → run → assert → restore** en el `finally`.
