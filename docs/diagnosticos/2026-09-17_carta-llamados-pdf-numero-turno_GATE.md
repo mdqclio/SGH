@@ -186,4 +186,11 @@ $ git ls-remote origin fix/carta-llamados-pdf-numero-turno
 261b3c73ef97f69dfc1ac6ac5ec3118c975c01ca	refs/heads/fix/carta-llamados-pdf-numero-turno
 ```
 
-(la de `reports`, abajo, después del push)
+```
+$ git ls-remote origin reports
+e12a1654756d5a21a07110e1be06352c92bb4d85	refs/heads/reports
+$ git rev-parse HEAD
+e12a1654756d5a21a07110e1be06352c92bb4d85
+```
+
+(`reports` avanza un commit más con esta sección; se verifica igual abajo.)
