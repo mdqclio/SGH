@@ -63,4 +63,9 @@ exit=0
 
 ## 4. Verificación de publicación de este informe
 
-(abajo)
+```
+$ git ls-remote origin reports
+633bfc5015225b5df941d3cf80861fc78288e10f	refs/heads/reports
+$ git rev-parse HEAD
+633bfc5015225b5df941d3cf80861fc78288e10f
+```
