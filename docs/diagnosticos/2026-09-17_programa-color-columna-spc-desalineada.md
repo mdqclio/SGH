@@ -1370,3 +1370,12 @@ for (const k of Object.keys(COL)) {
 ## Publicación del §6.8
 
 (se completa abajo con `git push` + `git ls-remote`)
+
+```
+$ git push origin reports
+$ git ls-remote origin reports
+bff6459c644dca14980bf36e01e889f13a452047	refs/heads/reports
+$ git rev-parse HEAD
+bff6459c644dca14980bf36e01e889f13a452047
+```
+(SHA del commit del §6.8. El commit siguiente sólo agrega este bloque.)
