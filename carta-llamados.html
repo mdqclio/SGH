@@ -1048,14 +1048,10 @@ function renderPrint() {
     const bonoPosD   = dist.bono_posicion_desde || 6;
     const bonoPosMon = dist.bono_posicion_monto || 0;
 
-    // Encabezado: "TURNO N — CATEGORÍA (cód) — condición"
-    const catLabel  = cat ? cat.nombre.toUpperCase() + (cat.codigo ? ` (${cat.codigo})` : '') : '';
+    // Título de la caja: "TURNO N — condición | BONO…". Siempre numero_turno: la carta es
+    // pre-sorteo, y numero_carrera_programa queda cargado después de ratificar (R9: T3→7),
+    // así que ensuciaría una reimpresión. Categoría y distancia van en el caption y el chip.
     const condMain  = c.condicion_handicap || c.nombre || '';
-    const turnoLabel = c.numero_carrera_programa
-      ? `CARRERA ${c.numero_carrera_programa} (TURNO ${c.numero_turno})`
-      : `TURNO ${c.numero_turno}`;
-    const headParts = [turnoLabel, catLabel, condMain].filter(Boolean);
-    const headText  = headParts.join(' &mdash; ');
 
     // Condición adicional (línea pequeña bajo encabezado)
     const condAdicional = c.condicion_adicional || '';
@@ -1077,7 +1073,7 @@ function renderPrint() {
 
     const captionCat = cat ? `CARRERA ${cat.nombre.toUpperCase()}` : '';
     const bonoGanTag = bonoGan > 0 ? ` <span class="p-head-bono">| BONO de ${formatMonto(bonoGan)} al ganador</span>` : '';
-    const tituloHtml = `${condMain || c.nombre || ''}${bonoGanTag}`;
+    const tituloHtml = `TURNO ${c.numero_turno} &mdash; ${condMain || c.nombre || ''}${bonoGanTag}`;
     return `<div class="p-carrera-wrap" data-cat="${cat?.codigo||''}">
       ${captionCat ? `<div class="p-carrera-caption">${captionCat}</div>` : ''}
       <div class="p-carrera-box">
