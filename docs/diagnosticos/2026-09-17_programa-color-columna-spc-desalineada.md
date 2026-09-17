@@ -1270,3 +1270,12 @@ Salida cruda completa del escenario A (la propuesta descartada del §Veredicto),
 ## Publicación del §6
 
 (se completa abajo con `git push` + `git ls-remote`)
+
+```
+$ git push origin reports
+$ git ls-remote origin reports
+ca00f12e1cce9df7c695c50a91b63293d55681f6	refs/heads/reports
+$ git rev-parse HEAD
+ca00f12e1cce9df7c695c50a91b63293d55681f6
+```
+(SHA del commit del §6. El commit siguiente sólo agrega este bloque.)
