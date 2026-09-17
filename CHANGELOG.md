@@ -1,5 +1,31 @@
 # Changelog
 
+## [2026-09-17] — Carta de llamado: número de turno en el encabezado del PDF
+
+> Fede (17/09): la pantalla decía "TURNO 1 — Condición: …" y el PDF arrancaba directo con la
+> condición. El número **estuvo** un día en el PDF (`86ec3cd`, 19/05) y se perdió en el rediseño
+> del 20/05 (`5951c1a`): `turnoLabel`/`headText` quedaron calculados y sin usar. Diagnóstico y
+> medición de ancho en `reports`: `docs/diagnosticos/2026-09-17_carta-llamados-pdf-numero-turno.md`.
+
+- **`carta-llamados.html`** `renderPrint()`: el título de la caja pasa a `TURNO N — condición | BONO…`
+  con **`numero_turno` a secas** (la carta es pre-sorteo; `numero_carrera_programa` queda cargado
+  después de ratificar —R9: T3→7— y ensuciaría una reimpresión). Se borra el código muerto
+  (`catLabel`, `turnoLabel`, `headParts`, `headText`) y el comentario que describía el encabezado viejo.
+  Caption (`CARRERA <categoría>`) y chip de distancia no cambian.
+- **Ancho**: el título es `flex:1` y envuelve; nunca desborda ni empuja el chip. Con el número, en
+  R9 pasan a 2 líneas **4 de 11** (T5–T8: 49–57 chars + bono al ganador); hoy ninguna. El
+  diagnóstico decía 2 porque su mock escribía el bono como `$ 250.000`; `formatMonto` real da
+  `$250.000,00` (2 chars más) — corregido en el informe GATE.
+- **`tests/probe_carta_numero_turno.mjs`** (16 asserts, sólo lectura): texto + `renderPrint()` real
+  contra R9 (T3 con `numero_carrera_programa=7` tiene que decir TURNO 3) + geometría con Chromium
+  headless sobre el CSS de impresión real: nadie desborda, exactamente T5–T8 a 2 líneas, y el chip
+  de distancia conserva su ancho natural, en una línea, dentro de la caja, en las 11. Deja un PNG.
+  Mutantes: `main` sin el fix (8 rojos) y título con `numero_carrera_programa` (5 rojos).
+- **VPS**: las libs de Chromium ahora sí viven en `~/chromium-libs` (estaban en un scratchpad
+  borrable; `docs/SERVER.md` ya lo decía) y `fonts-liberation` en `~/.local/share/fonts`, así
+  `Arial` resuelve a Liberation Sans (métricas de Arial) y no a DejaVu (~10% más ancha): las
+  medidas del programa color del 17/09 se hicieron con DejaVu — son conservadoras.
+
 ## [2026-09-17] — Programa oficial color: columnas fijas (S.P.C. alineado entre carreras) + render a PDF
 
 > Yesi (17/09, R9 a imprenta el domingo): la columna S.P.C. no arrancaba en la misma vertical en

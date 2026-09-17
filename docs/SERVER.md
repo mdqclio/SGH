@@ -92,6 +92,23 @@ Lo que sigue sin haber: `pdftoppm`/poppler (no se puede paginar un PDF a imágen
 script saca tiras PNG del DOM en media print). El harness de código real sigue siendo el patrón
 para los probes con asserts; el browser es para lo visual.
 
+**Fuentes (17/09, tarde):** el VPS no tiene Arial ni Liberation; `fc-match Arial` daba DejaVu Sans,
+~10% más ancha, y eso infla lo que "envuelve". Sin sudo:
+
+```bash
+mkdir -p ~/.local/share/fonts && cd /tmp && apt-get download fonts-liberation
+dpkg -x fonts-liberation_*.deb /tmp/fl && cp /tmp/fl/usr/share/fonts/truetype/liberation/*.ttf ~/.local/share/fonts/
+fc-cache -f && fc-match Arial      # → LiberationSans-Regular.ttf (métricas idénticas a Arial)
+```
+
+Hecho el 17/09. `tests/probe_carta_numero_turno.mjs` tiene un canario (C1) que falla si vuelve DejaVu.
+Los renders del programa color de la mañana del 17/09 se hicieron con DejaVu: sus conteos de celdas
+que envuelven son conservadores (en Arial envuelven menos).
+
+**Ojo con `~/chromium-libs`:** el 17/09 a la mañana las libs quedaron extraídas en el scratchpad de la
+sesión (`/tmp/claude-1000/.../scratchpad/libs`), no en `~/chromium-libs` como dice arriba, y ese
+directorio se borra. A la tarde se copiaron a `~/chromium-libs/usr/...`; `ldd | grep "not found"` da vacío.
+
 ## Credenciales en el server
 
 - `.env` (gitignoreado) con `SUPABASE_SECRET_KEY` (`sb_secret_...`) para tests/harness server-side.
