@@ -1279,3 +1279,94 @@ $ git rev-parse HEAD
 ca00f12e1cce9df7c695c50a91b63293d55681f6
 ```
 (SHA del commit del §6. El commit siguiente sólo agrega este bloque.)
+
+---
+
+## 6.8 Cierre del §6 — las ocho columnas, una por una (F'+p3)
+
+Tabla al imprimir: **733.2px** (A4 194mm). Padding lateral 3px → texto = columna − 6px.
+Siete anchos fijos suman **587px**; PADRE — MADRE es la única `<col>` sin ancho y se queda con
+el resto: **146.2px**. 587 + 146.2 = **733.2px. Cierra exacto, sin sobrante ni scroll.**
+
+| # | Columna | `<col>` | Texto útil | Contenido más ancho de R9 (medido, Roboto) | ¿Entra? | ¿Se corta? | Encabezado (9px 700, ls 0.5) | ¿Entra el encabezado? |
+|---|---|---|---|---|---|---|---|---|
+| 1 | CABALLERIZA | 106px | 100px | MONTE DEL TORDILLO — 97.8px (T11#5) | **1 línea**, 0/74 envuelven | no: si mañana hay una más larga, envuelve (palabra suelta más ancha: 67px) | CABALLERIZA 63.9px | sí (36px de aire) |
+| 2 | 4 ÚLT. | 64px | 58px | `0L 3D 0L 7D 5D` — 65.1px (T7#2, 5 performances) | esa sola fila a **2 líneas**; las 73 de 4 performances (máx 52px) en 1 | no | 4 ÚLT. 29.4px | sí |
+| 3 | N° | 32px | 26px | chip 22px, ancho fijo con 1 ó 2 dígitos | 1 línea, siempre | no | N° 10.9px | sí |
+| 4 | S.P.C. | 114px | 108px | DOCTORA APASIONADA — 105.9px (T1#7, negrita) | **1 línea**, 0/74 envuelven | no | S.P.C. 28.1px | sí |
+| 5 | K E S P | 50px | 44px | `57 3 M A` — 37.6px (nowrap) | 1 línea; edad de 2 dígitos (≈43px) también | no: es el único `nowrap` y entra | K E S P 32.3px | sí |
+| 6 | JOCKEY | 109px | 103px | DELLI QUADRI IGNACIO — 100.1px (T1#2) | **1 línea**, 0/74 envuelven | no | JOCKEY 36.5px | sí |
+| 7 | PADRE — MADRE | resto = 146.2px | 140.2px | MASTERCRAFTSMAN (IRE) — ESPLENDIDA HALO — 188.4px (T9#5) | **2 líneas** ésa y otras 20 (21/74); 53 en 1 línea | no: envuelve por palabra (la más larga, MASTERCRAFTSMAN, 93px, entra sola) | PADRE — MADRE 77.0px | sí |
+| 8 | ENTRENADOR | 112px | 106px | MONGAY MAXIMILIANO — 103.5px (T11#12) | **1 línea**, 0/74 envuelven | no | ENTRENADOR 63.0px | sí |
+
+**Ninguna columna queda más angosta que su encabezado.** El más ajustado es CABALLERIZA
+(63.9px de título en 100px de texto) y sobra un tercio.
+
+**Nada se corta.** `table-layout:fixed` no trunca: el texto que no entra envuelve a la
+línea siguiente. Lo único que podría sobresalir de su celda es un `white-space:nowrap` más
+ancho que la columna, y el único `nowrap` de la tabla es K E S P, con 6px de aire sobre el
+peor caso real y ≈1px sobre una edad de 2 dígitos. Una palabra suelta más ancha que su columna
+también sobresaldría (no hay guion automático): la más ancha de R9 es MASTERCRAFTSMAN, 93px
+en 140px.
+
+**Las dos que más varían:**
+- **CABALLERIZA**: R9 va de C&C (3 letras) a MONTE DEL TORDILLO (18). Con 100px de texto
+  entran todas en una línea, la más larga con 2px de aire. Una futura más larga envuelve a 2
+  líneas, que caben en el alto del chip (§6.3): no rompe nada, sólo se ve partida.
+- **PADRE — MADRE**: va de 65px (LE KEN — WILKENIA) a 188px. Con 140px, 21 de 74 pasan a 2
+  líneas de 8.5px = 19.9px, por debajo de los 22px del chip → la fila no crece. Es la columna
+  que cede por diseño: la única sin ancho, la de cuerpo menor, la menos leída.
+
+Qué **no** entra en una línea, lista completa (las 22 filas), copiada del escenario `F'+p3`
+del §6.4: ECHO IN THE SKY 4 ÚLT. (T7#2) y estos 21 pedigríes — T1#4 DUBAI THUNDER (GB) — GRELA
+(USA) · T1#6 DOCTOR EMBRUJO — ETERNA DIABLITA · T1#8 MANIPULER — RECONDITA ARMONIA · T3#1 LEAD
+TO WIN — SWEET JOHAR (USA) · T3#4 DOCTOR EMBRUJO — MATRERA SKY · T3#6 DUBAI THUNDER (GB) — SUNNY
+MAD · T3#9 HIT IT A BOMB (USA) — SARAWAK TOP · T4#9 SOUTHERN CAT (CHI) — GALAXY GIRL · T4#11
+CURIOSO JOHAN — CONTEMPLADORA · T5#2 TODO UN AMIGUITO — READING MY MIND · T5#4 TODO UN AMIGUITO
+— STORMY ELLIPTIC · T5#7 MANIPULATOR (USA) — VOWED (USA) · T6#5 MAIPO TOP — HALLOWEENINSEATTLE ·
+T6#7 HOLY BOSS (USA) — FREE EXCHANGE · T7#3 CIMA DE TRIOMPHE (IRE) — SOLICITADA · T7#4 SECURITY
+RISK (USA) — SPANAKOPITAS · T7#8 DANIEL BOONE (BRZ) — ATOMIC STAR · T9#1 DANIEL BOONE (BRZ) — QUE
+FELICIDAD · T9#5 MASTERCRAFTSMAN (IRE) — ESPLENDIDA HALO · T11#2 GRAND REWARD (USA) — BEAUTY
+SHINER · T11#11 CURIOSO JOHAN — GRINGA AYELEN.
+
+Salida cruda del script del cierre (`cierre.mjs`, mismo harness del apéndice):
+
+```
+suma fijos 587px + PADRE—MADRE (resto) 146.2px = 733.2px de 733.2px
+CABALLERIZA: col 106 texto 100 | más ancho "MONTE DEL TORDILLO" 97.8px (T11#5) → ENTRA en 1 línea | filas que envuelven 0/74 | ¿se corta? no: envuelve, nunca corta | header "CABALLERIZA" 63.9px vs 100px → entra | palabra suelta más ancha 67.3px
+ULT4: col 64 texto 58 | más ancho "0L 3D 0L 7D 5D" 65.1px (T7#2) → 2 líneas | filas que envuelven 1/74 | ¿se corta? no: envuelve, nunca corta | header "4 ÚLT." 29.4px vs 58px → entra | palabra suelta más ancha 46.3px
+N: col 32 texto 26 | contenido: chip 22px fijo (1 ó 2 dígitos, mismo ancho) → entra | header "N°" 10.9px → entra
+SPC: col 114 texto 108 | más ancho "DOCTORA APASIONADA" 105.9px (T1#7) → ENTRA en 1 línea | filas que envuelven 0/74 | ¿se corta? no: envuelve, nunca corta | header "S.P.C." 28.1px vs 108px → entra | palabra suelta más ancha 64.2px
+KESP: col 50 texto 44 | más ancho "57 3 M A" 37.6px (T1#9) → ENTRA en 1 línea | filas que envuelven 0/74 | ¿se corta? no (nowrap, entra) | header "K E S P" 32.3px vs 44px → entra | palabra suelta más ancha 10.7px
+JOCKEY: col 109 texto 103 | más ancho "DELLI QUADRI IGNACIO" 100.1px (T1#2) → ENTRA en 1 línea | filas que envuelven 0/74 | ¿se corta? no: envuelve, nunca corta | header "JOCKEY" 36.5px vs 103px → entra | palabra suelta más ancha 54.1px
+PEDIGREE: col 146.2 texto 140.2 | más ancho "MASTERCRAFTSMAN (IRE) — ESPLENDIDA HALO" 188.4px (T9#5) → 2 líneas | filas que envuelven 21/74 | ¿se corta? no: envuelve, nunca corta | header "PADRE — MADRE" 77.0px vs 140.2px → entra | palabra suelta más ancha 93.2px
+ENTRENADOR: col 112 texto 106 | más ancho "MONGAY MAXIMILIANO" 103.5px (T11#12) → ENTRA en 1 línea | filas que envuelven 0/74 | ¿se corta? no: envuelve, nunca corta | header "ENTRENADOR" 63.0px vs 106px → entra | palabra suelta más ancha 61.1px
+```
+
+`cierre.mjs`:
+
+```javascript
+import { filas, w, FONT, COLS } from './medir_columnas.mjs';
+const COL = { CABALLERIZA: 106, ULT4: 64, N: 32, SPC: 114, KESP: 50, JOCKEY: 109, PEDIGREE: null, ENTRENADOR: 112 };
+const TABLA = 733.2, PAD = 6;
+const fijos = Object.values(COL).filter(Boolean).reduce((a, b) => a + b, 0);
+COL.PEDIGREE = +(TABLA - fijos).toFixed(1);
+console.log(`suma fijos ${fijos}px + PADRE—MADRE (resto) ${COL.PEDIGREE}px = ${(fijos + COL.PEDIGREE).toFixed(1)}px de ${TABLA}px`);
+const HEAD = { CABALLERIZA: 'CABALLERIZA', ULT4: '4 ÚLT.', N: 'N°', SPC: 'S.P.C.', KESP: 'K E S P', JOCKEY: 'JOCKEY', PEDIGREE: 'PADRE — MADRE', ENTRENADOR: 'ENTRENADOR' };
+const lineas = (txt, k, tw) => { if (!txt) return 1; let n = 1, cur = ''; for (const word of txt.split(' ')) { const c = cur ? cur + ' ' + word : word; if (w(c, ...FONT[k]) <= tw) cur = c; else { if (cur) n++; cur = word; } } return n; };
+for (const k of Object.keys(COL)) {
+  const tw = COL[k] - PAD;
+  const hpx = w(HEAD[k], 9, true, 0.5);
+  if (k === 'N') { console.log(`${k}: col ${COL[k]} texto ${tw} | contenido: chip 22px fijo (1 ó 2 dígitos, mismo ancho) → entra | header "N°" ${hpx.toFixed(1)}px → entra`); continue; }
+  const widest = filas.reduce((b, f) => { const px = w(f[k], ...FONT[k]); return px > b.px ? { txt: f[k], px, t: f.turno, m: f.mandil } : b; }, { px: 0 });
+  const n = lineas(widest.txt, k, tw);
+  const maxWord = Math.max(...filas.flatMap(f => f[k].split(' ').map(x => w(x, ...FONT[k]))));
+  const wraps = filas.filter(f => lineas(f[k], k, tw) > 1).length;
+  const corta = (k === 'KESP') ? (widest.px > tw ? 'DESBORDA (nowrap)' : 'no (nowrap, entra)') : (maxWord > tw ? 'palabra más ancha que la columna → sobresale' : 'no: envuelve, nunca corta');
+  console.log(`${k}: col ${COL[k]} texto ${tw} | más ancho "${widest.txt}" ${widest.px.toFixed(1)}px (T${widest.t}#${widest.m}) → ${n === 1 ? 'ENTRA en 1 línea' : n + ' líneas'} | filas que envuelven ${wraps}/74 | ¿se corta? ${corta} | header "${HEAD[k]}" ${hpx.toFixed(1)}px vs ${tw}px → ${hpx <= tw ? 'entra' : 'NO ENTRA'} | palabra suelta más ancha ${maxWord.toFixed(1)}px`);
+}
+```
+
+## Publicación del §6.8
+
+(se completa abajo con `git push` + `git ls-remote`)
