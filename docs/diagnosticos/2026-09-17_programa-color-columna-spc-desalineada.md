@@ -2109,3 +2109,12 @@ reunión del 20/09 que en toda la documentación es **R9** (`reuniones.numero`?)
 ## Publicación del §6.11
 
 (se completa abajo con `git push` + `git ls-remote`)
+
+```
+$ git push origin reports
+$ git ls-remote origin reports
+9e8be16de69cef947b1c606632fd56836d4945f5	refs/heads/reports
+$ git rev-parse HEAD
+9e8be16de69cef947b1c606632fd56836d4945f5
+```
+(SHA del commit del §6.11. El commit siguiente sólo agrega este bloque.)
