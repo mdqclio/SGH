@@ -385,3 +385,12 @@ select (select count(*) from spcs) as spcs_count,
 ## Publicación
 
 (se completa abajo con `git push` + `git ls-remote`)
+
+```
+$ git push -u origin reports
+$ git ls-remote origin reports
+a81a7bdb55e928128f5fd7907fe654040c93cd29	refs/heads/reports
+$ git rev-parse HEAD
+a81a7bdb55e928128f5fd7907fe654040c93cd29
+```
+(SHA del commit del informe. El commit siguiente sólo agrega este bloque.)
