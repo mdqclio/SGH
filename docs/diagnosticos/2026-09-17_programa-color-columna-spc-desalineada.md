@@ -1964,3 +1964,148 @@ $ git rev-parse HEAD
 40771520d693fded798db55c38e449c89ef0c1ee
 ```
 (SHA del commit del §6.10. El commit siguiente sólo agrega este bloque.)
+
+---
+
+## 6.11 Ejecución — merge a `main`, md5 contra `sigh.com.ar`, PDF de R9 servido desde prod
+
+### 6.11.1 K E S P de dos dígitos — resuelto (resumen del §6.10.3)
+
+Un caballo de 10 años en el padrón (SIGO VIAJE), ninguno en R9. `55 10 M Z` mide **45px** en
+Chrome con la Roboto cargada; la columna quedó en **52px = 48px de texto → 3px de aire**. Entra
+sin envolver (es `nowrap`) y sin pisar el padding de JOCKEY. Verificado también contra el archivo
+servido en prod (abajo, `__kesp_2_digitos`).
+
+### 6.11.2 Merge
+
+```
+$ git merge --no-ff fix/programa-color-columnas-fijas
+Merge made by the 'ort' strategy.
+ CHANGELOG.md                  |  29 ++++++++
+ docs/SERVER.md                |  23 ++++++
+ programa-oficial-color.html   |  37 ++++++++--
+ tests/README.md               |  21 ++++++
+ tests/render_programa_pdf.mjs | 166 ++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 271 insertions(+), 5 deletions(-)
+$ git push origin main && git rev-parse HEAD && git ls-remote origin main
+a5a1986cdcecbdc564fbccf982c5d4bc5134539c
+a5a1986cdcecbdc564fbccf982c5d4bc5134539c	refs/heads/main
+```
+
+Después, un commit más de docs en `main` (`030089a`: CLAUDE.md lista `render_programa_pdf.mjs` y
+corrige el "sin chromium" de SERVER.md).
+
+### 6.11.3 md5 contra prod (`curl -L`, cache-buster, cada 20 s)
+
+```
+$ git show a5a1986:programa-oficial-color.html > local.html
+$ for i in $(seq 1 20); do curl -sL "https://sigh.com.ar/programa-oficial-color.html?v=$RANDOM" -o prod.html; ...; done
+intento 1 11:09:41 local=b0831f23190b060d3afc56338caae482 prod=fe151efb2e17ac55c5caae901a08013e
+intento 2 11:10:01 local=b0831f23190b060d3afc56338caae482 prod=fe151efb2e17ac55c5caae901a08013e
+intento 3 11:10:21 local=b0831f23190b060d3afc56338caae482 prod=b0831f23190b060d3afc56338caae482
+```
+
+Prod sirve el archivo del merge desde las 11:10:21 UTC (~60 s después del push).
+
+### 6.11.4 PDF de R9 generado desde `https://sigh.com.ar` (no desde el repo)
+
+`node tests/render_programa_pdf.mjs cafa37d6-… color <out> https://sigh.com.ar`, Chromium 153 headless:
+
+```
+url=https://sigh.com.ar/programa-oficial-color.html?reunion_id=cafa37d6-89f4-45cb-a0d9-835bc27407e9
+margen_lateral_mm=6 viewport_px=748
+errores de consola: ["The Content Security Policy directive 'frame-ancestors' is ignored when delivered via a <meta> element."]
+fuentes_cargadas: ["Playfair Display 700", "Roboto 400", "Roboto 700", "Roboto 800", "Roboto 900", "Roboto Condensed 900"]
+   9 filas  th=[110, 64, 30, 118, 52, 114, 394, 118]  x=[0, 110, 174, 204, 322, 374, 488, 882]
+  11 filas  th=[110, 64, 30, 118, 52, 114, 394, 118]  x=[0, 110, 174, 204, 322, 374, 488, 882]
+   7 filas  th=[110, 64, 30, 118, 52, 114, 394, 118]  x=[0, 110, 174, 204, 322, 374, 488, 882]
+   7 filas  th=[110, 64, 30, 118, 52, 114, 394, 118]  x=[0, 110, 174, 204, 322, 374, 488, 882]
+   8 filas  th=[110, 64, 30, 118, 52, 114, 394, 118]  x=[0, 110, 174, 204, 322, 374, 488, 882]
+   6 filas  th=[110, 64, 30, 118, 52, 114, 394, 118]  x=[0, 110, 174, 204, 322, 374, 488, 882]
+  13 filas  th=[110, 64, 30, 118, 52, 114, 394, 118]  x=[0, 110, 174, 204, 322, 374, 488, 882]
+  13 filas  th=[110, 64, 30, 118, 52, 114, 394, 118]  x=[0, 110, 174, 204, 322, 374, 488, 882]
+maximos_por_columna_px:
+  CABALLERIZA: [{"txt": "MONTE DEL TORDILLO", "px": 103}, {"txt": "HS LA HORMIGONERA", "px": 101}, {"txt": "PARAJE LA TABLADA", "px": 98}, {"txt": "PARAJE LA TABLADA", "px": 98}]
+  4 ÚLT.: [{"txt": "0L 3D 0L 7D 5D", "px": 69}, {"txt": "NO CORRERÁ", "px": 61}, {"txt": "NO CORRERÁ", "px": 61}, {"txt": "6D 8D 7D 7D", "px": 58}]
+  S.P.C.: [{"txt": "DOCTORA APASIONADA", "px": 112}, {"txt": "CANDIDATA PIRANERA", "px": 107}, {"txt": "SEMBRADOR CHUCK", "px": 96}, {"txt": "MOSQUITA GARDEN", "px": 94}]
+  K E S P: [{"txt": "57 3 M A", "px": 40}, {"txt": "57 5 M A", "px": 40}, {"txt": "59 5 M A", "px": 40}, {"txt": "57 5 M A", "px": 40}]
+  JOCKEY: [{"txt": "DELLI QUADRI IGNACIO", "px": 107}, {"txt": "DELLI QUADRI IGNACIO", "px": 107}, {"txt": "DELLI QUADRI IGNACIO", "px": 107}, {"txt": "ARREGUY FRANCISCO", "px": 102}]
+  PADRE — MADRE: [{"txt": "MASTERCRAFTSMAN (IRE) — ESPLENDIDA HALO", "px": 197}, {"txt": "GRAND REWARD (USA) — BEAUTY SHINER", "px": 170}, {"txt": "TODO UN AMIGUITO — READING MY MIND", "px": 167}, {"txt": "TODO UN AMIGUITO — STORMY ELLIPTIC", "px": 164}]
+  ENTRENADOR: [{"txt": "MONGAY MAXIMILIANO", "px": 111}, {"txt": "ZUBIARRAIN SANTIAGO", "px": 109}, {"txt": "TAVAGNUTTI RICARDO", "px": 106}, {"txt": "TAVAGNUTTI RICARDO", "px": 106}]
+  __kesp_2_digitos: {"txt": "55 10 M Z", "px": 45, "texto_px_celda": 48}
+  __headers: {"CABALLERIZA": 64.5, "4 ÚLT.": 28, "N°": 11, "S.P.C.": 28, "K E S P": 32.5, "JOCKEY": 37, "PADRE — MADRE": 76.5, "ENTRENADOR": 63}
+celdas que envuelven (748px): {'PADRE — MADRE': 27, '4 ÚLT.': 3} total 30/74
+  PADRE — MADRE | EMMANUEL — MILONGA BURRERA | texto 142px en celda 138px | 2 líneas
+  PADRE — MADRE | DUBAI THUNDER (GB) — GRELA (USA) | texto 152px en celda 138px | 2 líneas
+  PADRE — MADRE | THE GARDEN — VENECIANA STORM | texto 144px en celda 138px | 2 líneas
+  PADRE — MADRE | DOCTOR EMBRUJO — ETERNA DIABLITA | texto 163px en celda 138px | 2 líneas
+  PADRE — MADRE | DOCTOR EMBRUJO — GIRL PASSION | texto 146px en celda 138px | 2 líneas
+  PADRE — MADRE | MANIPULER — RECONDITA ARMONIA | texto 151px en celda 138px | 2 líneas
+  PADRE — MADRE | SOUTHERN CAT (CHI) — GALAXY GIRL | texto 151px en celda 138px | 2 líneas
+  PADRE — MADRE | CURIOSO JOHAN — CONTEMPLADORA | texto 156px en celda 138px | 2 líneas
+  PADRE — MADRE | EQUAL EDITION — REINA GLORIOSA | texto 142px en celda 138px | 2 líneas
+  PADRE — MADRE | MAIPO TOP — HALLOWEENINSEATTLE | texto 153px en celda 138px | 2 líneas
+  PADRE — MADRE | HOLY BOSS (USA) — FREE EXCHANGE | texto 150px en celda 138px | 2 líneas
+  PADRE — MADRE | TODO UN AMIGUITO — READING MY MIND | texto 167px en celda 138px | 2 líneas
+  PADRE — MADRE | TODO UN AMIGUITO — STORMY ELLIPTIC | texto 164px en celda 138px | 2 líneas
+  PADRE — MADRE | MANIPULATOR (USA) — VOWED (USA) | texto 153px en celda 138px | 2 líneas
+  4 ÚLT. | 0L 3D 0L 7D 5D | texto 69px en celda 60px | 2 líneas
+  PADRE — MADRE | CIMA DE TRIOMPHE (IRE) — SOLICITADA | texto 162px en celda 138px | 2 líneas
+  PADRE — MADRE | SECURITY RISK (USA) — SPANAKOPITAS | texto 161px en celda 138px | 2 líneas
+  PADRE — MADRE | CHUCK BERRY — SPOKES WOMAN | texto 140px en celda 138px | 2 líneas
+  4 ÚLT. | NO CORRERÁ | texto 61px en celda 60px | 2 líneas
+  PADRE — MADRE | DANIEL BOONE (BRZ) — ATOMIC STAR | texto 153px en celda 138px | 2 líneas
+  PADRE — MADRE | DANIEL BOONE (BRZ) — QUE FELICIDAD | texto 159px en celda 138px | 2 líneas
+  PADRE — MADRE | MASTERCRAFTSMAN (IRE) — ESPLENDIDA HALO | texto 197px en celda 138px | 2 líneas
+  PADRE — MADRE | LEAD TO WIN — SWEET JOHAR (USA) | texto 148px en celda 138px | 2 líneas
+  PADRE — MADRE | DOCTOR EMBRUJO — MATRERA SKY | texto 149px en celda 138px | 2 líneas
+  4 ÚLT. | NO CORRERÁ | texto 61px en celda 60px | 2 líneas
+  PADRE — MADRE | DUBAI THUNDER (GB) — SUNNY MAD | texto 149px en celda 138px | 2 líneas
+  PADRE — MADRE | HIT IT A BOMB (USA) — SARAWAK TOP | texto 156px en celda 138px | 2 líneas
+  PADRE — MADRE | GRAND REWARD (USA) — BEAUTY SHINER | texto 170px en celda 138px | 2 líneas
+  PADRE — MADRE | PURE MIRON — BATACLANA MORA | texto 143px en celda 138px | 2 líneas
+  PADRE — MADRE | CURIOSO JOHAN — GRINGA AYELEN | texto 145px en celda 138px | 2 líneas
+  teardown: usuarios=0 auth=0 (ambos deben ser 0)
+```
+
+- **Sin errores JS**; el único mensaje de consola es el `frame-ancestors` por `<meta>`
+  (preexistente). El logo carga (same-origin en prod; en localhost lo bloqueaba el CSP).
+- **Una sola grilla** para las 8 tablas: `x = [0, 110, 174, 204, 322, 374, 488, 882]`.
+- Envuelven 30 celdas: 27 pedigríes (en el guion) y las 3 de 4 ÚLT. que son datos. **0** en
+  CABALLERIZA, S.P.C., JOCKEY, ENTRENADOR.
+- 6 páginas.
+
+Rasterizado del PDF servido (pdf.js, 300 dpi), franja de borde:
+
+```
+prod pag 1: izq 6 der 5.65 arriba 10 abajo 9.76 | banda 0-6mm 7070
+prod pag 2: izq 6 der 5.65 arriba 10 abajo 58.24 | banda 0-6mm 2275
+prod pag 3: izq 6 der 5.65 arriba 10 abajo 96.94 | banda 0-6mm 1860
+prod pag 4: izq 6 der 5.65 arriba 10 abajo 100.59 | banda 0-6mm 1985
+prod pag 5: izq 6 der 5.65 arriba 10 abajo 15.88 | banda 0-6mm 2696
+prod pag 6: izq 6 der 5.65 arriba 10 abajo 177.18 | banda 0-6mm 1050
+```
+
+Idéntico al render local de v3 (§6.10.2): tinta desde 6.00mm / 5.65mm, nada más cerca del borde.
+
+### 6.11.5 Mirado
+
+`docs/diagnosticos/img/2026-09-17_programa-color/prod_pdf_pag3.png` — página 3 del PDF de prod
+(carreras 03 y 04): S.P.C. en la misma vertical en las dos tablas; todos los nombres enteros;
+pedigrí a 2 líneas partido en el guion ("EQUAL EDITION —" / "REINA GLORIOSA"); K E S P en una
+línea; fila de alto constante. Página 1 (tapa) intacta con 6mm: header, foto, comisión y
+comisariato entran; logo cargado.
+
+Observación de datos vista en la tapa, no del fix: la bandera dice **"Reunión N°8"** para la
+reunión del 20/09 que en toda la documentación es **R9** (`reuniones.numero`?). Para Yesi.
+
+### 6.11.6 Pendiente
+
+- Yesi: vista previa de impresión en su impresora (si recorta a 6mm → `@page { margin: 10mm 8mm }`).
+- Datos: LOCA DUBAI / LE BATEAU ("NO CORRERÁ", ratificados), ECHO IN THE SKY (5 performances),
+  número de reunión en la tapa.
+- B&N (`programa-oficial.html`): mismo esquema, no aplicado.
+
+## Publicación del §6.11
+
+(se completa abajo con `git push` + `git ls-remote`)
