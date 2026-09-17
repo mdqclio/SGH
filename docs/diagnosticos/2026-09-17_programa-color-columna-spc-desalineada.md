@@ -1955,3 +1955,12 @@ c5dc9e38dc9e17d29f8cac1347697f02dfcdab1e	refs/heads/fix/programa-color-columnas-
 ## Publicación del §6.10
 
 (se completa abajo con `git push` + `git ls-remote`)
+
+```
+$ git push origin reports
+$ git ls-remote origin reports
+40771520d693fded798db55c38e449c89ef0c1ee	refs/heads/reports
+$ git rev-parse HEAD
+40771520d693fded798db55c38e449c89ef0c1ee
+```
+(SHA del commit del §6.10. El commit siguiente sólo agrega este bloque.)
