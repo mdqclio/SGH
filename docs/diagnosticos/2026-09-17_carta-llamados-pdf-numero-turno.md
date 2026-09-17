@@ -641,4 +641,11 @@ $ git rev-parse HEAD
 78fc798e9b29482fc69f03550752344bf0d2007f
 ```
 
-El commit de esta verificación (§B) es el siguiente sobre `reports`; se verifica igual abajo.
+Segundo commit (con esta sección): `6eecdeb`.
+
+```
+$ git ls-remote origin reports
+6eecdebf0bf2dee09fd8f7447021e61bdf66f153	refs/heads/reports
+$ git rev-parse HEAD
+6eecdebf0bf2dee09fd8f7447021e61bdf66f153
+```
