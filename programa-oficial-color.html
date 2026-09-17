@@ -20,7 +20,11 @@
   }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: 'Roboto', Arial, sans-serif; color: var(--negro); background: #fff; font-size: 11px; }
-  @page { size: A4; margin: 10mm 8mm; }
+  /* Margen lateral 6mm (era 8mm; 17/09): +15px de ancho útil que se lleva la columna
+     PADRE — MADRE (57 → 24 filas a 2 líneas en R9, junto con el padding de celda a 2px).
+     Las impresoras de oficina imprimen desde 3-5mm del borde; la imprenta refila. El margen
+     vertical sigue en 10mm. Ver docs/diagnosticos/2026-09-17_programa-color-columna-spc-desalineada.md §6.9-§6.10. */
+  @page { size: A4; margin: 10mm 6mm; }
 
   /* ===== TAPA ===== */
   .tapa { min-height: 277mm; page-break-after: always; display: flex; flex-direction: column; }
@@ -173,11 +177,11 @@
   }
   table.inscriptos-color thead th {
     background: var(--verde-muy-oscuro); color: #fff;
-    padding: 5px 3px; font-weight: 700; text-transform: uppercase;
+    padding: 5px 2px; font-weight: 700; text-transform: uppercase;
     font-size: 9px; letter-spacing: 0.5px; text-align: left;
   }
   table.inscriptos-color tbody td {
-    padding: 3px 3px; border-bottom: 1px solid #E0E0E0; vertical-align: middle;
+    padding: 3px 2px; border-bottom: 1px solid #E0E0E0; vertical-align: middle;
   }
   table.inscriptos-color tbody tr:nth-child(even) td { background: var(--gris-suave); }
   table.inscriptos-color .col-num { text-align: center; }
@@ -731,14 +735,14 @@ function renderCarreraColor(c, ins, maps, idx, fechaReunion) {
     </div>
     <table class="inscriptos-color">
       <colgroup>
-        <col style="width:112px"><!-- CABALLERIZA: MONTE DEL TORDILLO 103px + 3px/lado -->
-        <col style="width:66px"><!-- 4 ÚLT.: 4 performances (máx 58px); 5 envuelven -->
-        <col style="width:32px"><!-- N°: chip 22px -->
-        <col style="width:120px"><!-- S.P.C.: DOCTORA APASIONADA 112px en negrita -->
-        <col style="width:50px"><!-- K E S P: nowrap, "57 3 M A" 40px; edad de 2 dígitos ≈ 45px -->
-        <col style="width:116px"><!-- JOCKEY: DELLI QUADRI IGNACIO 107px -->
-        <col><!-- PADRE — MADRE: única sin ancho, absorbe el resto (≈117px en A4) y envuelve -->
-        <col style="width:120px"><!-- ENTRENADOR: MONGAY MAXIMILIANO 111px -->
+        <col style="width:110px"><!-- CABALLERIZA: MONTE DEL TORDILLO 103px + 2px/lado -->
+        <col style="width:64px"><!-- 4 ÚLT.: 4 performances (máx 58px); 5 envuelven -->
+        <col style="width:30px"><!-- N°: chip 22px -->
+        <col style="width:118px"><!-- S.P.C.: DOCTORA APASIONADA 112px en negrita -->
+        <col style="width:52px"><!-- K E S P: nowrap; "57 3 M A" 40px, edad de 2 dígitos "55 10 M Z" ≈ 46px -->
+        <col style="width:114px"><!-- JOCKEY: DELLI QUADRI IGNACIO 107px -->
+        <col><!-- PADRE — MADRE: única sin ancho, absorbe el resto (≈140px en A4 con 6mm) y envuelve en el guion -->
+        <col style="width:118px"><!-- ENTRENADOR: MONGAY MAXIMILIANO 111px -->
       </colgroup>
       <thead><tr>
         <th>CABALLERIZA</th><th>4 ÚLT.</th><th>N°</th><th>S.P.C.</th><th>K E S P</th><th>JOCKEY</th><th class="col-pedigree">PADRE — MADRE</th><th>ENTRENADOR</th>

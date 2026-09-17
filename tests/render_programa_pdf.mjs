@@ -92,7 +92,14 @@ try {
     await page.emulateMedia({ media: 'print' });
     // Ancho útil de A4 con los márgenes del @page (194mm = 733px con 8mm). VIEWPORT_W lo
     // cambia para probar otros márgenes (6mm → 198mm = 748px).
-    const VW = +(process.env.VIEWPORT_W || 733);
+    // Sin VIEWPORT_W se deduce del @page del archivo: 210mm − 2 × margen lateral, a 96dpi.
+    const margenMm = await page.evaluate(() => {
+      for (const ss of document.styleSheets) { let rules; try { rules = [...ss.cssRules]; } catch { continue; }
+        const r = rules.find(x => x instanceof CSSPageRule); if (!r) continue;
+        const m = (r.style.marginLeft || r.style.margin || '').match(/([\d.]+)mm/); if (m) return +m[1]; }
+      return 8;
+    });
+    const VW = +(process.env.VIEWPORT_W || Math.round((210 - 2 * margenMm) / 25.4 * 96));
     await page.setViewportSize({ width: VW, height: 1100 });
     await page.waitForTimeout(300);
     // Celdas que envuelven (más de una caja de línea) al ancho útil de A4, con el ancho real
@@ -124,6 +131,9 @@ try {
         const px = +cv.measureText(txt).width.toFixed(1);
         const top = (out[col] ||= []); top.push({ txt, px }); top.sort((a, b) => b.px - a.px); if (top.length > 4) top.length = 4;
       });
+      // Caso hipotético: K E S P con edad de 2 dígitos (SIGO VIAJE tiene 10 en el padrón).
+      const kesp = document.querySelector('td.col-kesp');
+      if (kesp) { const cs = getComputedStyle(kesp); cv.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; out.__kesp_2_digitos = { txt: '55 10 M Z', px: +cv.measureText('55 10 M Z').width.toFixed(1), texto_px_celda: +(kesp.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)).toFixed(1) }; }
       document.querySelectorAll('table thead th').forEach(th => {
         const cs = getComputedStyle(th); cv.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
         const t = th.textContent.trim(); (out.__headers ||= {})[t] = +(cv.measureText(t).width + 0.5 * t.length).toFixed(1);
@@ -142,7 +152,7 @@ try {
       await page.screenshot({ path: f, clip: { x: 0, y, width: VW, height: Math.min(1100, alto - y) }, fullPage: true });
       pngs.push(f);
     }
-    console.log(JSON.stringify({ url, pdf: `${stem}.pdf`, pngs, alto_px: alto, errores, fuentes_cargadas: fuente, maximos_por_columna_px: maximos, tablas, celdas_envueltas_a4: envueltas }, null, 1));
+    console.log(JSON.stringify({ url, pdf: `${stem}.pdf`, margen_lateral_mm: margenMm, viewport_px: VW, pngs, alto_px: alto, errores, fuentes_cargadas: fuente, maximos_por_columna_px: maximos, tablas, celdas_envueltas_a4: envueltas }, null, 1));
   } finally { await browser.close(); }
 } finally {
   if (authId) {

@@ -9,16 +9,19 @@
 > en `reports`: `docs/diagnosticos/2026-09-17_programa-color-columna-spc-desalineada.md`.
 
 - **`programa-oficial-color.html`**: `table-layout: fixed` + `<colgroup>` con 7 anchos en px
-  calibrados con el browser contra los 74 ratificados de R9 (CABALLERIZA 112 · 4 ÚLT. 66 · N° 32 ·
-  S.P.C. 120 · K E S P 50 · JOCKEY 116 · ENTRENADOR 120); PADRE — MADRE es la única `<col>` sin
-  ancho y absorbe el resto (≈117px en A4). Padding lateral de celda 4px → 3px. Las 8 tablas
-  quedan con la misma grilla (`x` de cada `td` idéntico en las 8, medido). Nada se trunca:
-  caballeriza, S.P.C., jockey y entrenador enteros en las 74 filas; el pedigrí envuelve
-  (57/74 filas en R9) y **parte en el guion** —"PADRE —" / "MADRE"— porque cada nombre va en un
-  `<span class="ped-nombre">` inline-block. Dos líneas de 8.5px (19.9px) caben en el alto que
-  ya impone el chip (22px): la fila no crece, la paginación no cambia (6 páginas antes y después).
-- **Sin cambio**: `@page { margin: 10mm 8mm }`. Bajar a 6mm daría +15px al pedigrí (57 → 40
-  envolturas) pero es un cambio del área imprimible que decide la imprenta; queda como palanca.
+  calibrados con el browser contra los 74 ratificados de R9 (CABALLERIZA 110 · 4 ÚLT. 64 · N° 30 ·
+  S.P.C. 118 · K E S P 52 · JOCKEY 114 · ENTRENADOR 118); PADRE — MADRE es la única `<col>` sin
+  ancho y absorbe el resto (≈140px en A4). Padding lateral de celda 4px → 2px y **margen lateral
+  de página 8mm → 6mm** (`@page`; el vertical sigue en 10mm): los dos suman 31px que van al
+  pedigrí. Las 8 tablas quedan con la misma grilla (`x` de cada `td` idéntico en las 8, medido).
+  Nada se trunca: caballeriza, S.P.C., jockey y entrenador enteros en las 74 filas; el pedigrí
+  envuelve en 27/74 (era 57 con 8mm/3px) y **parte en el guion** —"PADRE —" / "MADRE"— porque cada
+  nombre va en un `<span class="ped-nombre">` inline-block. Dos líneas de 8.5px (19.9px) caben en
+  el alto que ya impone el chip (22px): la fila no crece, la paginación no cambia (6 páginas antes
+  y después, mismos cortes). K E S P dimensionado para edad de 2 dígitos (`55 10 M Z` 45px en 48;
+  SIGO VIAJE tiene 10 en el padrón). PDF rasterizado con pdf.js: la tinta arranca a 6.0mm del
+  borde izquierdo y 5.65mm del derecho, nada dentro de esa franja; una impresora de oficina
+  (zona no imprimible 3-5mm) lo imprime entero.
 - **`tests/render_programa_pdf.mjs`** (nuevo): imprime el programa a PDF + tiras PNG con Chromium
   headless y reporta geometría de tablas y celdas que envuelven. Chromium corre en este Ubuntu
   26.04 con 8 libs extraídas por `dpkg -x` sin sudo — `docs/SERVER.md` corregido (decía "sin browser").
