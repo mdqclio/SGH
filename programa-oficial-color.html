@@ -160,21 +160,30 @@
   .carrera-color-info .bolsa-linea { font-weight: 700; margin-top: 2px; }
 
   /* ===== TABLA INSCRIPTOS ===== */
+  /* Cada carrera es su propia <table>. Con layout auto el browser repartía las columnas según
+     el contenido de ESA carrera, y la columna S.P.C. arrancaba en una vertical distinta en
+     cada tabla de la misma hoja (Yesi, R9, 17/09). table-layout:fixed + el <colgroup> de
+     renderCarreraColor fijan la misma grilla para las 8 tablas: los anchos salen de las <col>,
+     no del contenido. Anchos calibrados con métricas Roboto contra los 74 ratificados de R9
+     (docs/diagnosticos/2026-09-17_programa-color-columna-spc-desalineada.md, §6.5/§6.8).
+     Nada se trunca: lo que no entra envuelve, y 2 líneas caben en el alto del chip (22px). */
   table.inscriptos-color {
     width: 100%; border-collapse: collapse; font-size: 9.5px; margin-top: 4px;
+    table-layout: fixed;
   }
   table.inscriptos-color thead th {
     background: var(--verde-muy-oscuro); color: #fff;
-    padding: 5px 4px; font-weight: 700; text-transform: uppercase;
+    padding: 5px 3px; font-weight: 700; text-transform: uppercase;
     font-size: 9px; letter-spacing: 0.5px; text-align: left;
   }
   table.inscriptos-color tbody td {
-    padding: 3px 4px; border-bottom: 1px solid #E0E0E0; vertical-align: middle;
+    padding: 3px 3px; border-bottom: 1px solid #E0E0E0; vertical-align: middle;
   }
   table.inscriptos-color tbody tr:nth-child(even) td { background: var(--gris-suave); }
-  table.inscriptos-color .col-num { text-align: center; width: 26px; }
+  table.inscriptos-color .col-num { text-align: center; }
   table.inscriptos-color .col-kesp { white-space: nowrap; }
   table.inscriptos-color .col-spc { font-weight: 700; }
+  table.inscriptos-color .ped-nombre { display: inline-block; }
 
   .partidor-chip {
     display: inline-block; width: 22px; height: 22px;
@@ -680,8 +689,12 @@ function renderCarreraColor(c, ins, maps, idx, fechaReunion) {
       const caballeriza = (cab?.nombre || prop?.nombre || '').toUpperCase();
       // PADRE — MADRE: si falta un lado el separador no queda colgado (antes, sin
       // padrillo pero con madre, salia " — MADRE"). Dato ausente = vacio, sin placeholder.
+      // Cada nombre va en un inline-block: si el pedigrí no entra en la columna (fija desde el
+      // 17/09), parte en el guion —"PADRE —" / "MADRE"— y no en cualquier espacio ("SEA DOG —
+      // PARADISE" / "NISTEL"). Un nombre más ancho que la columna sigue envolviendo adentro
+      // de su bloque: nunca se sale de la celda.
       const padreMadre  = [spc.padrillo_nombre, spc.madre_nombre]
-        .filter(Boolean).map(s => s.toUpperCase()).join(' — ');
+        .filter(Boolean).map(s => `<span class="ped-nombre">${s.toUpperCase()}</span>`).join(' — ');
       const jockeyStr   = jock ? nombreCorto(jock) : 'XX';
       const entrStr     = nombreCorto(entr);
       return `<tr>
@@ -717,6 +730,16 @@ function renderCarreraColor(c, ins, maps, idx, fechaReunion) {
       ${bolsa ? `<div class="bolsa-linea">BOLSA: ${formatMonto(bolsaNominal)}${desglose ? ` — ${desglose}` : ''}${bonoPosH && bonoPosMon ? ` — BONO ${bonoPosD}°-${bonoPosH}° ${formatMonto(bonoPosMon)}/puesto` : ''}</div>` : ''}
     </div>
     <table class="inscriptos-color">
+      <colgroup>
+        <col style="width:112px"><!-- CABALLERIZA: MONTE DEL TORDILLO 103px + 3px/lado -->
+        <col style="width:66px"><!-- 4 ÚLT.: 4 performances (máx 58px); 5 envuelven -->
+        <col style="width:32px"><!-- N°: chip 22px -->
+        <col style="width:120px"><!-- S.P.C.: DOCTORA APASIONADA 112px en negrita -->
+        <col style="width:50px"><!-- K E S P: nowrap, "57 3 M A" 40px; edad de 2 dígitos ≈ 45px -->
+        <col style="width:116px"><!-- JOCKEY: DELLI QUADRI IGNACIO 107px -->
+        <col><!-- PADRE — MADRE: única sin ancho, absorbe el resto (≈117px en A4) y envuelve -->
+        <col style="width:120px"><!-- ENTRENADOR: MONGAY MAXIMILIANO 111px -->
+      </colgroup>
       <thead><tr>
         <th>CABALLERIZA</th><th>4 ÚLT.</th><th>N°</th><th>S.P.C.</th><th>K E S P</th><th>JOCKEY</th><th class="col-pedigree">PADRE — MADRE</th><th>ENTRENADOR</th>
       </tr></thead>
