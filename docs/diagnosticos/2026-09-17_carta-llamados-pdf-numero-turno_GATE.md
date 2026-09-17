@@ -193,4 +193,11 @@ $ git rev-parse HEAD
 e12a1654756d5a21a07110e1be06352c92bb4d85
 ```
 
-(`reports` avanza un commit más con esta sección; se verifica igual abajo.)
+Con esta sección: `c084ba870173b8508b2405336eba552420219cb7`.
+
+```
+$ git ls-remote origin reports
+c084ba870173b8508b2405336eba552420219cb7	refs/heads/reports
+$ git rev-parse HEAD
+c084ba870173b8508b2405336eba552420219cb7
+```
