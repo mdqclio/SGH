@@ -1379,3 +1379,336 @@ $ git rev-parse HEAD
 bff6459c644dca14980bf36e01e889f13a452047
 ```
 (SHA del commit del §6.8. El commit siguiente sólo agrega este bloque.)
+
+---
+
+## 6.9 Palanca del margen a 6mm, ENTRENADOR a 2 líneas, y el fix aplicado + PDF mirado
+
+### 6.9.1 Primero, una corrección a los números del §6.4–§6.8
+
+Se consiguió hacer correr **Chromium headless en el server** (el `chrome-headless-shell` de
+`~/.cache/ms-playwright` más 8 libs del sistema extraídas con `dpkg -x`, sin sudo — `docs/SERVER.md`
+corregido en la rama del fix). Con el browser real se midió cada celda con `canvas.measureText`
+y la Roboto que carga Google Fonts. **Chrome dibuja ~6% más ancho que lo que daba `opentype.js`
+sobre el TTF** (DELLI QUADRI IGNACIO 107px vs 100.1; MONGAY MAXIMILIANO 111 vs 103.5;
+MASTERCRAFTSMAN (IRE) — ESPLENDIDA HALO 197 vs 188.4). Con los anchos del §6.5 tal cual, en el
+render real envolvían DELLI QUADRI IGNACIO (3 filas), MONGAY MAXIMILIANO, ZUBIARRAIN SANTIAGO,
+DOCTORA APASIONADA, MONTE DEL TORDILLO y HS LA HORMIGONERA. **Los anchos se recalibraron con las
+medidas del browser** (es lo que imprime): las columnas de nombres suben 4-8px cada una y el
+pedigrí, que absorbe el resto, baja de 146 a 117px. Los conteos de envolturas de acá en adelante
+son del browser, no del TTF.
+
+Anchos aplicados (`programa-oficial-color.html`, rama `fix/programa-color-columnas-fijas`, `d692365`):
+
+| Columna | `<col>` | Texto (padding 3px) | Más ancho de R9 (Chrome) | Aire |
+|---|---|---|---|---|
+| CABALLERIZA | 112px | 106px | MONTE DEL TORDILLO 103px | 3px |
+| 4 ÚLT. | 66px | 60px | 4 performances: 58px (`6D 8D 7D 7D`) | 2px |
+| N° | 32px | 26px | chip 22px | 4px |
+| S.P.C. | 120px | 114px | DOCTORA APASIONADA 112px (700) | 2px |
+| K E S P | 50px | 44px | `57 3 M A` 40px (nowrap) | 4px; edad de 2 dígitos ≈45px → 1px NEGATIVO, ver 6.9.5 |
+| JOCKEY | 116px | 110px | DELLI QUADRI IGNACIO 107px | 3px |
+| PADRE — MADRE | resto = 117.2px | 111px | 197px | envuelve |
+| ENTRENADOR | 120px | 114px | MONGAY MAXIMILIANO 111px | 3px |
+
+Suma: 112+66+32+120+50+116+120 = **616px** fijos + 117.2 = **733.2px**. Cierra.
+
+### 6.9.2 ENTRENADOR a 2 líneas: F' (8mm) contra 6mm
+
+**Cero en los dos.** ENTRENADOR tiene ancho fijo (120px) y el margen de página no lo toca: lo
+único que cambia con el margen es el ancho del pedigrí (la `<col>` sin ancho). Lo mismo para
+JOCKEY, CABALLERIZA y S.P.C.: 0 filas partidas con 8mm y 0 con 6mm. Las "40 apellidos partidos"
+eran del escenario A descartado (§6.2), no de F'.
+
+Lo que sí cambia con el margen es el pedigrí. Cuatro variantes renderizadas en Chrome
+(`EXTRA_CSS` + `VIEWPORT_W` del script), 74 filas:
+
+```
+v1_8mm       (@page 8mm, padding 3px — LO APLICADO): pedigrí texto 111px | envueltas={'PADRE — MADRE': 57, '4 ÚLT.': 3} | total=60/74
+v2_6mm       (@page 6mm, padding 3px):               pedigrí texto 126px | envueltas={'PADRE — MADRE': 40, '4 ÚLT.': 3} | total=43/74
+v4_8mm_pad2  (@page 8mm, padding 2px):               pedigrí texto 127px | envueltas={'PADRE — MADRE': 40, '4 ÚLT.': 3} | total=43/74
+v3_6mm_pad2  (@page 6mm, padding 2px):               pedigrí texto 142px | envueltas={'PADRE — MADRE': 24, '4 ÚLT.': 3} | total=27/74
+(en las cuatro: CABALLERIZA 0, S.P.C. 0, JOCKEY 0, ENTRENADOR 0; las 3 de 4 ÚLT. son
+ "0L 3D 0L 7D 5D" (5 performances) y los dos "NO CORRERÁ")
+```
+
+El margen a 6mm ahorra **17 envolturas de pedigrí** (57 → 40). Padding 2px ahorra lo mismo.
+Las dos juntas, 33 (57 → 24).
+
+### 6.9.3 Riesgo de impresión del margen a 6mm
+
+- **Impresora de oficina**: casi todas las láser/inkjet tienen zona no imprimible de 4-5mm;
+  6mm entra, pero con 1-2mm de tolerancia. Con 8mm sobra.
+- **Imprenta**: imprime en pliego y refila; el problema no es lo imprimible sino la **sangría
+  y el corte**: con 6mm el texto queda a 6mm del borde del refilado, y una guillotina corre
+  ±1-2mm. Legible igual, pero más cerca del filo que lo que se suele pedir (5mm mínimo de
+  margen de seguridad). No sé qué pide la imprenta de Dolores.
+- **Afecta a todas las páginas**, no sólo a las tablas: tapa (`.tapa` es full-width, la foto y
+  el header se ensanchan 4mm), flyer del pie, página final. Ninguna rompe (todo es fluido), pero
+  cambia el aspecto de lo que Yesi ya validó.
+- Es un cambio de una línea (`@page { margin: 10mm 6mm }`), reversible, y **no lo decide el
+  código**: lo decide la imprenta. **No se aplicó.** Queda con 8mm.
+
+### 6.9.4 Qué se aplicó (rama `fix/programa-color-columnas-fijas`, `d692365`, pusheada; NO mergeada)
+
+1. `table-layout: fixed` + `<colgroup>` con los anchos de 6.9.1; padding lateral 4 → 3px;
+   `.col-num` sin `width` (lo fija la `<col>`).
+2. **El pedigrí parte en el guion.** Con 57 filas a 2 líneas, cortar en cualquier espacio daba
+   "SEA DOG — PARADISE" / "NISTEL". Cada nombre va ahora en un `<span class="ped-nombre">` con
+   `display:inline-block`: si no entra, baja el nombre entero → "SEA DOG —" / "PARADISE NISTEL".
+   Un nombre más ancho que la columna sigue envolviendo dentro de su bloque (nunca se sale de la
+   celda). Con esto las 57 filas a 2 líneas se leen como "padrillo / madre", un formato, no un
+   accidente.
+3. `tests/render_programa_pdf.mjs` (nuevo) + `docs/SERVER.md` + `tests/README.md` + `CHANGELOG.md`.
+
+### 6.9.5 El PDF de R9, mirado
+
+Render antes (main `a25978`) y después (`d692365`), mismo script, mismo Chrome 153, viewport de
+733px = ancho útil de A4. Imágenes en `docs/diagnosticos/img/2026-09-17_programa-color/`
+(tiras del DOM en media print; no muestran los cortes de página del PDF):
+
+- `antes_tira2.png` — carreras 01-03 tal como salen hoy: **la columna S.P.C. arranca en x≈198
+  en la carrera 01 y en x≈210 en la 02 y 03**; en la 01 el layout auto además parte PARAJE LA
+  TABLADA, `3D 4D 5D 9L`, DOCTORA APASIONADA, DELLI QUADRI IGNACIO y GALLETINI EZEQUIEL en dos líneas.
+- `despues_tira2.png` — mismas carreras: S.P.C. en la misma vertical en las tres; todos los
+  nombres enteros; el pedigrí a dos líneas partido en el guion.
+- `despues_tira3.png` — carreras 04-06: ídem; se ve `NO CORRERÁ` partido en "NO / CORRERÁ" en
+  LE BATEAU (dato) y `0L 3D 0L 7D / 5D` en ECHO IN THE SKY (5 performances, dato).
+
+Lo que mira el ojo y confirma el JSON del script:
+- **Grilla idéntica en las 8 tablas**: `x` de cada `td` = `[0, 112, 178, 210, 330, 380, 496, 880]`
+  en las 8 (viewport 1000). Antes: 8 grillas distintas (ver salida cruda abajo).
+- **Antes**, al ancho de A4, envolvían 38 celdas repartidas en TODAS las columnas: JOCKEY 5,
+  ENTRENADOR 5, CABALLERIZA 6, S.P.C. 5, 4 ÚLT. 10, PADRE — MADRE 7. **Después**: 60, pero
+  todas en PADRE — MADRE (57) y 4 ÚLT. (3, los datos de arriba). Cero nombres de personas,
+  caballerizas o caballos partidos.
+- **PDF**: 6 páginas antes, 6 después (mismo alto de fila — el chip manda). Sin errores JS. Los
+  únicos mensajes de consola son el CSP de `frame-ancestors` por `<meta>` (preexistente) y el
+  logo `https://sigh.com.ar/logo-dolores-verde.png` bloqueado por CSP **porque se sirvió desde
+  localhost** (en prod es same-origin).
+- **Fuentes**: Roboto 400/700/800/900, Roboto Condensed 900 y Playfair Display 700 cargadas
+  (`document.fonts`). El render es con la webfont, no con Arial.
+- Pendiente que **no** se puede mirar acá: los cortes de página del PDF, porque no hay poppler para
+  paginarlo a imágenes. Con el mismo alto de fila que antes, la paginación es la de siempre
+  (6 páginas). Yesi lo ve en la vista previa de impresión.
+- **K E S P con edad de 2 dígitos** (caballo de 10+ años): ≈45px contra 44px de texto y
+  `nowrap` → sobresaldría 1px sobre el padding de JOCKEY, invisible. R9 no tiene ninguno (el más
+  viejo, QUINIELA TREND, tiene 8). Si aparece, subir la `<col>` a 52px.
+
+### 6.9.6 Decisión pendiente (la de Fede/Yesi, no técnica)
+
+- **Merge a `main`**: el fix está en `fix/programa-color-columnas-fijas` (`d692365`). No se mergea sin OK.
+- **Margen 6mm**: no aplicado; consultar con la imprenta. Si sí, una línea.
+- **B&N**: mismo defecto atenuado, no tocado.
+- **Datos**: LOCA DUBAI y LE BATEAU ("NO CORRERÁ", ratificados); ECHO IN THE SKY (5 performances).
+
+### Salida cruda — render antes/después (`tests/render_programa_pdf.mjs`)
+
+```
+=== ANTES (main a25978, servido desde worktree en :8766) ===
+geometría de la 1ª fila de cada tabla, viewport 1000px (th = ancho de cada columna, x = borde izquierdo de cada td):
+   9 filas  th=[137.3, 82.9, 30, 155.4, 62.2, 148.9, 248.6, 134.7]  x=[0, 137.3, 220.1, 250.1, 405.5, 467.7, 616.6, 865.3]
+  11 filas  th=[128.9, 89.5, 30, 124.8, 65.1, 156, 251, 154.7]  x=[0, 128.9, 218.4, 248.4, 373.2, 438.3, 594.3, 845.3]
+   7 filas  th=[150.8, 89.6, 30, 110.9, 68.3, 139.4, 260.3, 150.8]  x=[0, 150.8, 240.3, 270.3, 381.3, 449.5, 588.9, 849.2]
+   7 filas  th=[134.8, 84.6, 30, 126.9, 63.4, 145.4, 264.3, 150.7]  x=[0, 134.8, 219.3, 249.3, 376.2, 439.6, 585, 849.3]
+   8 filas  th=[134, 99.2, 30, 134, 60.5, 141.7, 249.9, 150.8]  x=[0, 134, 233.2, 263.2, 397.1, 457.7, 599.3, 849.3]
+   6 filas  th=[105.5, 83.9, 30, 146.2, 59.8, 146.2, 294.9, 133.5]  x=[0, 105.5, 189.4, 219.4, 365.6, 425.3, 571.5, 866.5]
+  13 filas  th=[138.8, 93.9, 30, 136, 65.3, 133.3, 247.6, 155.1]  x=[0, 138.8, 232.6, 262.6, 398.7, 464, 597.3, 844.9]
+  13 filas  th=[143.9, 85.6, 30, 129.7, 60.9, 138.8, 256.8, 154.4]  x=[0, 143.9, 229.5, 259.5, 389.2, 450.1, 588.9, 845.6]
+celdas que envuelven al ancho A4 (733px): {'JOCKEY': 5, 'CABALLERIZA': 6, 'ENTRENADOR': 5, 'PADRE — MADRE': 7, '4 ÚLT.': 10, 'S.P.C.': 5}  total 38/74
+  JOCKEY | DELLI QUADRI IGNACIO | texto 107px en celda 102px | 2 líneas
+  CABALLERIZA | PARAJE LA TABLADA | texto 98px en celda 95px | 2 líneas
+  ENTRENADOR | GALLETINI EZEQUIEL | texto 96px en celda 93px | 2 líneas
+  PADRE — MADRE | DOCTOR EMBRUJO — ETERNA DIABLITA | texto 163px en celda 154px | 2 líneas
+  4 ÚLT. | 3D 4D 5D 9L | texto 56px en celda 55px | 2 líneas
+  S.P.C. | DOCTORA APASIONADA | texto 112px en celda 108px | 2 líneas
+  4 ÚLT. | 3D 1D 7L 6D | texto 56px en celda 55px | 2 líneas
+  PADRE — MADRE | TODO UN AMIGUITO — READING MY MIND | texto 167px en celda 165px | 2 líneas
+  S.P.C. | CHE CARABANERA | texto 88px en celda 88px | 2 líneas
+  JOCKEY | ARREGUY FRANCISCO | texto 102px en celda 101px | 2 líneas
+  CABALLERIZA | FEDERICO Y MIGUEL | texto 94px en celda 93px | 2 líneas
+  ENTRENADOR | TAVAGNUTTI RICARDO | texto 106px en celda 105px | 2 líneas
+  ENTRENADOR | ZUBIARRAIN SANTIAGO | texto 109px en celda 105px | 2 líneas
+  CABALLERIZA | EL HORNERITO CAFE | texto 96px en celda 93px | 2 líneas
+  4 ÚLT. | 0L 3D 0L 7D 5D | texto 69px en celda 67px | 2 líneas
+  PADRE — MADRE | CIMA DE TRIOMPHE (IRE) — SOLICITADA | texto 162px en celda 153px | 2 líneas
+  PADRE — MADRE | SECURITY RISK (USA) — SPANAKOPITAS | texto 161px en celda 153px | 2 líneas
+  S.P.C. | SEMBRADOR CHUCK | texto 96px en celda 93px | 2 líneas
+  JOCKEY | ARREGUY FRANCISCO | texto 102px en celda 98px | 2 líneas
+  PADRE — MADRE | DANIEL BOONE (BRZ) — ATOMIC STAR | texto 153px en celda 153px | 2 líneas
+  4 ÚLT. | 2P 8P 6S 1P | texto 54px en celda 54px | 2 líneas
+  4 ÚLT. | 1D 1P 2D 5P | texto 56px en celda 54px | 2 líneas
+  JOCKEY | DELLI QUADRI IGNACIO | texto 107px en celda 101px | 2 líneas
+  ENTRENADOR | SAN MARTIN SERGIO | texto 97px en celda 93px | 2 líneas
+  S.P.C. | CANDIDATA PIRANERA | texto 107px en celda 102px | 2 líneas
+  CABALLERIZA | MI MARTINCITO | texto 75px en celda 74px | 2 líneas
+  4 ÚLT. | 2D 1D 2D 3D | texto 58px en celda 54px | 2 líneas
+  PADRE — MADRE | MASTERCRAFTSMAN (IRE) — ESPLENDIDA HALO | texto 197px en celda 184px | 2 líneas
+  4 ÚLT. | 3D 7S 7S 0S | texto 55px en celda 55px | 2 líneas
+  JOCKEY | GONZALEZ EDUARDO | texto 99px en celda 95px | 2 líneas
+  PADRE — MADRE | GRAND REWARD (USA) — BEAUTY SHINER | texto 170px en celda 161px | 2 líneas
+  CABALLERIZA | MONTE DEL TORDILLO | texto 103px en celda 101px | 2 líneas
+  4 ÚLT. | 3D 5D 4D 4D | texto 58px en celda 55px | 2 líneas
+  4 ÚLT. | 0L 4D 3D 2D | texto 56px en celda 55px | 2 líneas
+  S.P.C. | DESTINADO JOHAN | texto 92px en celda 89px | 2 líneas
+  CABALLERIZA | HS LA HORMIGONERA | texto 101px en celda 101px | 2 líneas
+  ENTRENADOR | MONGAY MAXIMILIANO | texto 111px en celda 107px | 2 líneas
+  4 ÚLT. | 3P 5P 3S 4D | texto 55px en celda 55px | 2 líneas
+  teardown: usuarios=0 auth=0 (ambos deben ser 0)
+
+=== DESPUÉS (fix/programa-color-columnas-fijas d692365, servido desde :8765) ===
+   9 filas  th=[112, 66, 32, 120, 50, 116, 384, 120]  x=[0, 112, 178, 210, 330, 380, 496, 880]
+  11 filas  th=[112, 66, 32, 120, 50, 116, 384, 120]  x=[0, 112, 178, 210, 330, 380, 496, 880]
+   7 filas  th=[112, 66, 32, 120, 50, 116, 384, 120]  x=[0, 112, 178, 210, 330, 380, 496, 880]
+   7 filas  th=[112, 66, 32, 120, 50, 116, 384, 120]  x=[0, 112, 178, 210, 330, 380, 496, 880]
+   8 filas  th=[112, 66, 32, 120, 50, 116, 384, 120]  x=[0, 112, 178, 210, 330, 380, 496, 880]
+   6 filas  th=[112, 66, 32, 120, 50, 116, 384, 120]  x=[0, 112, 178, 210, 330, 380, 496, 880]
+  13 filas  th=[112, 66, 32, 120, 50, 116, 384, 120]  x=[0, 112, 178, 210, 330, 380, 496, 880]
+  13 filas  th=[112, 66, 32, 120, 50, 116, 384, 120]  x=[0, 112, 178, 210, 330, 380, 496, 880]
+
+maximos_por_columna_px (canvas.measureText con la fuente que cargó Chrome; top 4 por columna):
+  CABALLERIZA: [{"txt": "MONTE DEL TORDILLO", "px": 103}, {"txt": "HS LA HORMIGONERA", "px": 101}, {"txt": "PARAJE LA TABLADA", "px": 98}, {"txt": "PARAJE LA TABLADA", "px": 98}]
+  4 ÚLT.: [{"txt": "0L 3D 0L 7D 5D", "px": 69}, {"txt": "NO CORRERÁ", "px": 61}, {"txt": "NO CORRERÁ", "px": 61}, {"txt": "6D 8D 7D 7D", "px": 58}]
+  S.P.C.: [{"txt": "DOCTORA APASIONADA", "px": 112}, {"txt": "CANDIDATA PIRANERA", "px": 107}, {"txt": "SEMBRADOR CHUCK", "px": 96}, {"txt": "MOSQUITA GARDEN", "px": 94}]
+  K E S P: [{"txt": "57 3 M A", "px": 40}, {"txt": "57 5 M A", "px": 40}, {"txt": "59 5 M A", "px": 40}, {"txt": "57 5 M A", "px": 40}]
+  JOCKEY: [{"txt": "DELLI QUADRI IGNACIO", "px": 107}, {"txt": "DELLI QUADRI IGNACIO", "px": 107}, {"txt": "DELLI QUADRI IGNACIO", "px": 107}, {"txt": "ARREGUY FRANCISCO", "px": 102}]
+  PADRE — MADRE: [{"txt": "MASTERCRAFTSMAN (IRE) — ESPLENDIDA HALO", "px": 197}, {"txt": "GRAND REWARD (USA) — BEAUTY SHINER", "px": 170}, {"txt": "TODO UN AMIGUITO — READING MY MIND", "px": 167}, {"txt": "TODO UN AMIGUITO — STORMY ELLIPTIC", "px": 164}]
+  ENTRENADOR: [{"txt": "MONGAY MAXIMILIANO", "px": 111}, {"txt": "ZUBIARRAIN SANTIAGO", "px": 109}, {"txt": "TAVAGNUTTI RICARDO", "px": 106}, {"txt": "TAVAGNUTTI RICARDO", "px": 106}]
+  __headers: {"CABALLERIZA": 64.5, "4 ÚLT.": 28, "N°": 11, "S.P.C.": 28, "K E S P": 32.5, "JOCKEY": 37, "PADRE — MADRE": 76.5, "ENTRENADOR": 63}
+
+fuentes_cargadas: ["Playfair Display 700", "Roboto 400", "Roboto 700", "Roboto 800", "Roboto 900", "Roboto Condensed 900"]
+errores de consola: ["The Content Security Policy directive 'frame-ancestors' is ignored when delivered via a <meta> element.", "Loading the image 'https://sigh.com.ar/logo-dolores-verde.png' violates the following Content Security Policy directive: \"img-src 'self' data: blob: https://*.supabase.co https://raw.githubusercontent.com\". The action has been blocked.", "Loading the image 'https://sigh.com.ar/logo-dolores-verde.png' violates the following Content Security Policy directive: \"img-src 'self' data: blob: https://*.supabase.co https://raw.githubusercontent.com\". The action has been blocked."]
+
+celdas que envuelven al ancho A4 (733px): {'PADRE — MADRE': 57, '4 ÚLT.': 3}  total 60/74
+  PADRE — MADRE | SEA DOG — PARADISE NISTEL | texto 118px en celda 111px | 2 líneas
+  PADRE — MADRE | EMMANUEL — MILONGA BURRERA | texto 142px en celda 111px | 2 líneas
+  PADRE — MADRE | PETEN ITZA — LA CALCOMANIA | texto 128px en celda 111px | 2 líneas
+  PADRE — MADRE | DUBAI THUNDER (GB) — GRELA (USA) | texto 152px en celda 111px | 2 líneas
+  PADRE — MADRE | THE GARDEN — VENECIANA STORM | texto 144px en celda 111px | 2 líneas
+  PADRE — MADRE | DOCTOR EMBRUJO — ETERNA DIABLITA | texto 163px en celda 111px | 2 líneas
+  PADRE — MADRE | DOCTOR EMBRUJO — GIRL PASSION | texto 146px en celda 111px | 2 líneas
+  PADRE — MADRE | MANIPULER — RECONDITA ARMONIA | texto 151px en celda 111px | 2 líneas
+  PADRE — MADRE | FLOWING RYE — GREAT GRILL | texto 120px en celda 111px | 2 líneas
+  PADRE — MADRE | LEAD TO WIN — BARBIE NISTEL | texto 125px en celda 111px | 2 líneas
+  PADRE — MADRE | SEAHENGE (USA) — NIÑA DIVINA | texto 130px en celda 111px | 2 líneas
+  PADRE — MADRE | LE BLUES — EFFERVESENCE | texto 114px en celda 111px | 2 líneas
+  PADRE — MADRE | WINNING PRIZE — BIOSFERA | texto 114px en celda 111px | 2 líneas
+  PADRE — MADRE | SOUTHERN CAT (CHI) — GALAXY GIRL | texto 151px en celda 111px | 2 líneas
+  PADRE — MADRE | CURIOSO JOHAN — CONTEMPLADORA | texto 156px en celda 111px | 2 líneas
+  PADRE — MADRE | ENGELHARD — ITZEL CHICA | texto 112px en celda 111px | 2 líneas
+  PADRE — MADRE | IL CAMPIONE (CHI) — INDIGIRKA | texto 129px en celda 111px | 2 líneas
+  PADRE — MADRE | EQUAL EDITION — REINA GLORIOSA | texto 142px en celda 111px | 2 líneas
+  PADRE — MADRE | MAIPO TOP — HALLOWEENINSEATTLE | texto 153px en celda 111px | 2 líneas
+  PADRE — MADRE | HOLY BOSS (USA) — FREE EXCHANGE | texto 150px en celda 111px | 2 líneas
+  PADRE — MADRE | VALID STRIPES — VUVUZELA | texto 117px en celda 111px | 2 líneas
+  PADRE — MADRE | TODO UN AMIGUITO — READING MY MIND | texto 167px en celda 111px | 2 líneas
+  PADRE — MADRE | TODO UN AMIGUITO — STORMY ELLIPTIC | texto 164px en celda 111px | 2 líneas
+  PADRE — MADRE | REMOTE (GB) — VEDETTE'S DAY | texto 129px en celda 111px | 2 líneas
+  PADRE — MADRE | LEONADO — RECIT INTELLECT | texto 121px en celda 111px | 2 líneas
+  PADRE — MADRE | MANIPULATOR (USA) — VOWED (USA) | texto 153px en celda 111px | 2 líneas
+  PADRE — MADRE | SEÑOR CANDY (USA) — EMCALU | texto 131px en celda 111px | 2 líneas
+  4 ÚLT. | 0L 3D 0L 7D 5D | texto 69px en celda 60px | 2 líneas
+  PADRE — MADRE | CIMA DE TRIOMPHE (IRE) — SOLICITADA | texto 162px en celda 111px | 2 líneas
+  PADRE — MADRE | SECURITY RISK (USA) — SPANAKOPITAS | texto 161px en celda 111px | 2 líneas
+  PADRE — MADRE | CHUCK BERRY — SPOKES WOMAN | texto 140px en celda 111px | 2 líneas
+  4 ÚLT. | NO CORRERÁ | texto 61px en celda 60px | 2 líneas
+  PADRE — MADRE | INTERACTION — LE YACA (CHI) | texto 123px en celda 111px | 2 líneas
+  PADRE — MADRE | DANIEL BOONE (BRZ) — ATOMIC STAR | texto 153px en celda 111px | 2 líneas
+  PADRE — MADRE | DANIEL BOONE (BRZ) — QUE FELICIDAD | texto 159px en celda 111px | 2 líneas
+  PADRE — MADRE | CHUCK BERRY — FIESTONGA | texto 117px en celda 111px | 2 líneas
+  PADRE — MADRE | MASTERCRAFTSMAN (IRE) — ESPLENDIDA HALO | texto 197px en celda 111px | 2 líneas
+  PADRE — MADRE | GOLDEN CIGARS — HOLA NENA | texto 126px en celda 111px | 2 líneas
+  PADRE — MADRE | LEAD TO WIN — SWEET JOHAR (USA) | texto 148px en celda 111px | 2 líneas
+  PADRE — MADRE | GOLDEN CIGARS — SIXTIES SPIRIT | texto 136px en celda 111px | 2 líneas
+  PADRE — MADRE | HELIOSTATIC (IRE) — HONRADEZA | texto 136px en celda 111px | 2 líneas
+  PADRE — MADRE | DOCTOR EMBRUJO — MATRERA SKY | texto 149px en celda 111px | 2 líneas
+  PADRE — MADRE | FISKARDO — EVER PROPULSORA | texto 135px en celda 111px | 2 líneas
+  4 ÚLT. | NO CORRERÁ | texto 61px en celda 60px | 2 líneas
+  PADRE — MADRE | DUBAI THUNDER (GB) — SUNNY MAD | texto 149px en celda 111px | 2 líneas
+  PADRE — MADRE | GOLDEN CIGARS — DRA SOFIA | texto 122px en celda 111px | 2 líneas
+  PADRE — MADRE | FOOTNOTES (USA) — ASTATA RIDE | texto 138px en celda 111px | 2 líneas
+  PADRE — MADRE | HIT IT A BOMB (USA) — SARAWAK TOP | texto 156px en celda 111px | 2 líneas
+  PADRE — MADRE | DANIEL BOONE — LA GUAGUA | texto 121px en celda 111px | 2 líneas
+  PADRE — MADRE | PUERTO ESCONDIDO — ALMEDHA | texto 137px en celda 111px | 2 líneas
+  PADRE — MADRE | VICTOR SECURITY — IBARAKI | texto 118px en celda 111px | 2 líneas
+  PADRE — MADRE | GRAND REWARD (USA) — BEAUTY SHINER | texto 170px en celda 111px | 2 líneas
+  PADRE — MADRE | UPWARD TREND (USA) — QUIRIBA | texto 138px en celda 111px | 2 líneas
+  PADRE — MADRE | PURE MIRON — ORI CHAMP | texto 112px en celda 111px | 2 líneas
+  PADRE — MADRE | PURE MIRON — BATACLANA MORA | texto 143px en celda 111px | 2 líneas
+  PADRE — MADRE | PURE MIRON — SHY SALEDIZA | texto 122px en celda 111px | 2 líneas
+  PADRE — MADRE | MANIPULER — ISLAY WHISKY | texto 118px en celda 111px | 2 líneas
+  PADRE — MADRE | CURIOSO JOHAN — GRINGA AYELEN | texto 145px en celda 111px | 2 líneas
+  PADRE — MADRE | STORM QUESTION — REDONDIYA | texto 132px en celda 111px | 2 líneas
+  PADRE — MADRE | CHARLES KING — BIEN TERRIBLE | texto 133px en celda 111px | 2 líneas
+  teardown: usuarios=0 auth=0 (ambos deben ser 0)```
+
+### Salida cruda — variantes de margen/padding (mismo script, `EXTRA_CSS` + `VIEWPORT_W`)
+
+```
+$ run "v1_8mm" 733 ""
+$ run "v2_6mm" 748 "@page { margin: 10mm 6mm; }"
+$ run "v4_8mm_pad2" 733 "$PAD2"
+$ run "v3_6mm_pad2" 748 "@page { margin: 10mm 6mm; } $PAD2"
+  # PAD2 = padding-left/right 2px en th/td + col widths 110/64/30/118/48/114/resto/118 (!important)
+v1_8mm: pedigrí texto 111px | envueltas={'PADRE — MADRE': 57, '4 ÚLT.': 3} | total=60/74 | teardown: usuarios=0 auth=0 (ambos deben ser 0)
+    4 ÚLT. 0L 3D 0L 7D 5D 69 en 60
+    4 ÚLT. NO CORRERÁ 61 en 60
+    4 ÚLT. NO CORRERÁ 61 en 60
+v2_6mm: pedigrí texto 126px | envueltas={'PADRE — MADRE': 40, '4 ÚLT.': 3} | total=43/74 | teardown: usuarios=0 auth=0 (ambos deben ser 0)
+    4 ÚLT. 0L 3D 0L 7D 5D 69 en 60
+    4 ÚLT. NO CORRERÁ 61 en 60
+    4 ÚLT. NO CORRERÁ 61 en 60
+v4_8mm_pad2: pedigrí texto 127px | envueltas={'PADRE — MADRE': 40, '4 ÚLT.': 3} | total=43/74 | teardown: usuarios=0 auth=0 (ambos deben ser 0)
+    4 ÚLT. 0L 3D 0L 7D 5D 69 en 60
+    4 ÚLT. NO CORRERÁ 61 en 60
+    4 ÚLT. NO CORRERÁ 61 en 60
+v3_6mm_pad2: pedigrí texto 142px | envueltas={'PADRE — MADRE': 24, '4 ÚLT.': 3} | total=27/74 | teardown: usuarios=0 auth=0 (ambos deben ser 0)
+    4 ÚLT. 0L 3D 0L 7D 5D 69 en 60
+    4 ÚLT. NO CORRERÁ 61 en 60
+    4 ÚLT. NO CORRERÁ 61 en 60
+```
+
+(Las variantes se corrieron con los anchos de 6.9.1 pero ANTES del inline-block del pedigrí;
+el inline-block no cambia cuántas filas envuelven, sólo dónde parten. La corrida final con el
+fix completo, 8mm: `{'PADRE — MADRE': 57, '4 ÚLT.': 3}`, arriba.)
+
+### Salida cruda — Chromium sin sudo
+
+```
+$ ldd ~/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell | grep "not found"
+	libnspr4.so => not found
+	libnss3.so => not found
+	libnssutil3.so => not found
+	libatk-1.0.so.0 => not found
+	libatk-bridge-2.0.so.0 => not found
+	libXdamage.so.1 => not found
+	libasound.so.2 => not found
+	libatspi.so.0 => not found
+$ sudo -n true
+sudo: interactive authentication is required
+$ apt-get download libnspr4 libnss3 libatk1.0-0t64 libatk-bridge2.0-0t64 libxdamage1 libasound2t64 libatspi2.0-0t64 libxres1
+$ for d in debs/*.deb; do dpkg -x "$d" libs; done
+$ LD_LIBRARY_PATH=libs/usr/lib/x86_64-linux-gnu ldd .../chrome-headless-shell | grep -c "not found"
+0
+$ node -e "chromium.launch({ executablePath: '.../chromium_headless_shell-1243/.../chrome-headless-shell' }) ..."
+OK launch 153.0.8010.12
+pdf ok
+```
+
+### Rama del fix
+
+```
+$ git ls-remote origin fix/programa-color-columnas-fijas
+d692365442bac966d9a99ddd6f38e8bdadf68481	refs/heads/fix/programa-color-columnas-fijas
+$ git show --stat d692365 --format=%s
+fix(programa-color): columnas fijas — S.P.C. alineado entre carreras; pedigrí parte en el guion; render a PDF con Chromium headless
+ CHANGELOG.md                  | +
+ docs/SERVER.md                | +
+ programa-oficial-color.html   | +
+ tests/README.md               | +
+ tests/render_programa_pdf.mjs | + (nuevo)
+```
+
+## Publicación del §6.9
+
+(se completa abajo con `git push` + `git ls-remote`)
