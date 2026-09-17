@@ -20,7 +20,11 @@
   }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: 'Roboto', Arial, sans-serif; color: var(--negro); background: #fff; font-size: 11px; }
-  @page { size: A4; margin: 10mm 8mm; }
+  /* Margen lateral 6mm (era 8mm; 17/09): +15px de ancho útil que se lleva la columna
+     PADRE — MADRE (57 → 24 filas a 2 líneas en R9, junto con el padding de celda a 2px).
+     Las impresoras de oficina imprimen desde 3-5mm del borde; la imprenta refila. El margen
+     vertical sigue en 10mm. Ver docs/diagnosticos/2026-09-17_programa-color-columna-spc-desalineada.md §6.9-§6.10. */
+  @page { size: A4; margin: 10mm 6mm; }
 
   /* ===== TAPA ===== */
   .tapa { min-height: 277mm; page-break-after: always; display: flex; flex-direction: column; }
@@ -160,21 +164,30 @@
   .carrera-color-info .bolsa-linea { font-weight: 700; margin-top: 2px; }
 
   /* ===== TABLA INSCRIPTOS ===== */
+  /* Cada carrera es su propia <table>. Con layout auto el browser repartía las columnas según
+     el contenido de ESA carrera, y la columna S.P.C. arrancaba en una vertical distinta en
+     cada tabla de la misma hoja (Yesi, R9, 17/09). table-layout:fixed + el <colgroup> de
+     renderCarreraColor fijan la misma grilla para las 8 tablas: los anchos salen de las <col>,
+     no del contenido. Anchos calibrados con métricas Roboto contra los 74 ratificados de R9
+     (docs/diagnosticos/2026-09-17_programa-color-columna-spc-desalineada.md, §6.5/§6.8).
+     Nada se trunca: lo que no entra envuelve, y 2 líneas caben en el alto del chip (22px). */
   table.inscriptos-color {
     width: 100%; border-collapse: collapse; font-size: 9.5px; margin-top: 4px;
+    table-layout: fixed;
   }
   table.inscriptos-color thead th {
     background: var(--verde-muy-oscuro); color: #fff;
-    padding: 5px 4px; font-weight: 700; text-transform: uppercase;
+    padding: 5px 2px; font-weight: 700; text-transform: uppercase;
     font-size: 9px; letter-spacing: 0.5px; text-align: left;
   }
   table.inscriptos-color tbody td {
-    padding: 3px 4px; border-bottom: 1px solid #E0E0E0; vertical-align: middle;
+    padding: 3px 2px; border-bottom: 1px solid #E0E0E0; vertical-align: middle;
   }
   table.inscriptos-color tbody tr:nth-child(even) td { background: var(--gris-suave); }
-  table.inscriptos-color .col-num { text-align: center; width: 26px; }
+  table.inscriptos-color .col-num { text-align: center; }
   table.inscriptos-color .col-kesp { white-space: nowrap; }
   table.inscriptos-color .col-spc { font-weight: 700; }
+  table.inscriptos-color .ped-nombre { display: inline-block; }
 
   .partidor-chip {
     display: inline-block; width: 22px; height: 22px;
@@ -680,8 +693,12 @@ function renderCarreraColor(c, ins, maps, idx, fechaReunion) {
       const caballeriza = (cab?.nombre || prop?.nombre || '').toUpperCase();
       // PADRE — MADRE: si falta un lado el separador no queda colgado (antes, sin
       // padrillo pero con madre, salia " — MADRE"). Dato ausente = vacio, sin placeholder.
+      // Cada nombre va en un inline-block: si el pedigrí no entra en la columna (fija desde el
+      // 17/09), parte en el guion —"PADRE —" / "MADRE"— y no en cualquier espacio ("SEA DOG —
+      // PARADISE" / "NISTEL"). Un nombre más ancho que la columna sigue envolviendo adentro
+      // de su bloque: nunca se sale de la celda.
       const padreMadre  = [spc.padrillo_nombre, spc.madre_nombre]
-        .filter(Boolean).map(s => s.toUpperCase()).join(' — ');
+        .filter(Boolean).map(s => `<span class="ped-nombre">${s.toUpperCase()}</span>`).join(' — ');
       const jockeyStr   = jock ? nombreCorto(jock) : 'XX';
       const entrStr     = nombreCorto(entr);
       return `<tr>
@@ -717,6 +734,16 @@ function renderCarreraColor(c, ins, maps, idx, fechaReunion) {
       ${bolsa ? `<div class="bolsa-linea">BOLSA: ${formatMonto(bolsaNominal)}${desglose ? ` — ${desglose}` : ''}${bonoPosH && bonoPosMon ? ` — BONO ${bonoPosD}°-${bonoPosH}° ${formatMonto(bonoPosMon)}/puesto` : ''}</div>` : ''}
     </div>
     <table class="inscriptos-color">
+      <colgroup>
+        <col style="width:110px"><!-- CABALLERIZA: MONTE DEL TORDILLO 103px + 2px/lado -->
+        <col style="width:64px"><!-- 4 ÚLT.: 4 performances (máx 58px); 5 envuelven -->
+        <col style="width:30px"><!-- N°: chip 22px -->
+        <col style="width:118px"><!-- S.P.C.: DOCTORA APASIONADA 112px en negrita -->
+        <col style="width:52px"><!-- K E S P: nowrap; "57 3 M A" 40px, edad de 2 dígitos "55 10 M Z" ≈ 46px -->
+        <col style="width:114px"><!-- JOCKEY: DELLI QUADRI IGNACIO 107px -->
+        <col><!-- PADRE — MADRE: única sin ancho, absorbe el resto (≈140px en A4 con 6mm) y envuelve en el guion -->
+        <col style="width:118px"><!-- ENTRENADOR: MONGAY MAXIMILIANO 111px -->
+      </colgroup>
       <thead><tr>
         <th>CABALLERIZA</th><th>4 ÚLT.</th><th>N°</th><th>S.P.C.</th><th>K E S P</th><th>JOCKEY</th><th class="col-pedigree">PADRE — MADRE</th><th>ENTRENADOR</th>
       </tr></thead>

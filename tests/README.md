@@ -355,3 +355,24 @@ porque la foto de recibos del probe hacía `.eq('club_id', CLUB_ID)` y el recibo
 `club_id` de Mi Club Hípico. Ver GOTCHA #76 / ISSUE-059.
 
 `monto_neto` y `total_neto` no van en el snapshot: son columnas GENERATED (GOTCHA #9).
+
+## Render visual del programa oficial (PDF + PNG) — `render_programa_pdf.mjs`
+
+Lo que ningún assert cubre: cómo queda el papel. Levanta el HTML del repo por HTTP local,
+entra con un usuario de prueba (magic link + `verifyOtp`, como `probe_studbook_buscar_e2e.mjs`),
+imprime a PDF A4 con Chromium headless y saca tiras PNG del DOM en media print al ancho útil de
+A4, más un JSON con la geometría de cada tabla (ancho de cada `th`, `x` de cada `td`) y las
+celdas que envuelven, medidas con `canvas.measureText` y la fuente que cargó el browser.
+
+```bash
+python3 -m http.server 8765 --bind 127.0.0.1 &        # en la raíz del repo
+set -a; . ./.env; set +a
+export LD_LIBRARY_PATH=$HOME/chromium-libs/usr/lib/x86_64-linux-gnu   # ver docs/SERVER.md
+node tests/render_programa_pdf.mjs <reunion_id> [color|bn] [out_dir] [base_url]
+# variantes sin tocar el archivo: EXTRA_CSS='@page{margin:10mm 6mm}' VIEWPORT_W=748 node tests/render_programa_pdf.mjs ...
+```
+
+ESCRIBE 1 usuario de prueba (auth + `usuarios`), teardown en el `finally` verificado por estado.
+Las medidas del browser son la referencia para calibrar anchos de columna: las métricas del TTF
+por `opentype.js` dieron ~6% menos que Chrome con la Roboto de Google Fonts (GOTCHA, 17/09).
+

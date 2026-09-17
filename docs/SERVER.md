@@ -69,6 +69,29 @@ Consecuencia: las verificaciones de flujos que dependerían del browser se hacen
 real + stubs de DOM; snapshot→run→assert→restore). Patrón documentado en `tests/README.md`;
 ejemplo de referencia: `tests/probe_fase_c.mjs`.
 
+### Chromium headless SÍ corre — para PDF/screenshots, sin sudo (2026-09-17)
+
+`npx playwright install` falla por la **lista de distros soportadas**, no por el binario: en
+`~/.cache/ms-playwright/chromium_headless_shell-1243/` ya hay un `chrome-headless-shell` (Chromium
+153) y lo único que le falta son 8 libs del sistema (`libnspr4`, `libnss3`, `libatk`,
+`libatk-bridge`, `libatspi`, `libXdamage`, `libasound2`, `libXRes`). Sin sudo, se bajan y se
+extraen en un directorio de usuario:
+
+```bash
+mkdir -p ~/chromium-libs/debs && cd ~/chromium-libs/debs
+apt-get download libnspr4 libnss3 libatk1.0-0t64 libatk-bridge2.0-0t64 libxdamage1 libasound2t64 libatspi2.0-0t64 libxres1
+for d in *.deb; do dpkg -x "$d" ..; done
+export LD_LIBRARY_PATH=$HOME/chromium-libs/usr/lib/x86_64-linux-gnu
+ldd ~/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell | grep "not found"   # tiene que dar vacío
+```
+
+Y en Playwright, `chromium.launch({ executablePath: <ese binario> })` (el `playwright` del repo,
+1.60, pide el build 1223 por defecto; con `executablePath` usa el 1243). Lo usa
+`tests/render_programa_pdf.mjs` para imprimir el programa oficial a PDF + PNG y **mirarlo**.
+Lo que sigue sin haber: `pdftoppm`/poppler (no se puede paginar un PDF a imágenes; por eso el
+script saca tiras PNG del DOM en media print). El harness de código real sigue siendo el patrón
+para los probes con asserts; el browser es para lo visual.
+
 ## Credenciales en el server
 
 - `.env` (gitignoreado) con `SUPABASE_SECRET_KEY` (`sb_secret_...`) para tests/harness server-side.
