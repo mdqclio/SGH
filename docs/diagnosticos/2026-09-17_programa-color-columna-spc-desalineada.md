@@ -1721,3 +1721,237 @@ $ git rev-parse HEAD
 ffb5b180df0eac746fcb375a7462616961dc9f59
 ```
 (SHA del commit del §6.9. El commit siguiente sólo agrega este bloque.)
+
+---
+
+## 6.10 v3 aplicada (6mm + padding 2px) — franja de 6mm verificada en el PDF, K E S P de 2 dígitos
+
+Rama `fix/programa-color-columnas-fijas`, commit **`c5dc9e3`** (pusheado, NO mergeado).
+
+### 6.10.1 Qué cambió sobre `d692365`
+
+| | `d692365` | `c5dc9e3` (v3) |
+|---|---|---|
+| `@page` | `10mm 8mm` | `10mm 6mm` (vertical igual) |
+| padding lateral td/th | 3px | 2px |
+| `<colgroup>` | 112/66/32/120/50/116/resto/120 | **110/64/30/118/52/114/resto/118** |
+| PADRE — MADRE (resto) | 117px (texto 111) | **142px (texto 138)** |
+| Pedigrí a 2 líneas | 57/74 | **27/74** |
+| CABALLERIZA / S.P.C. / JOCKEY / ENTRENADOR partidos | 0 | **0** |
+| 4 ÚLT. a 2 líneas | 3 (datos) | 3 (datos) |
+| Páginas del PDF | 6 | 6 |
+
+Son 27 y no los 24 de la estimación (§6.9.2) porque K E S P subió de 48 a 52px por el caso de
+2 dígitos (6.10.3): esos 4px salen del pedigrí y suman 3 filas.
+
+### 6.10.2 ¿Hay contenido dentro de los 6mm de borde? — NO
+
+Se rasterizó el PDF final con **pdf.js** en el mismo Chromium (300 dpi, escala 3) y se buscó,
+página por página, el primer y último píxel con tinta (cualquier canal < 245) en cada eje, más el
+conteo de píxeles con tinta en las franjas laterales 0-6mm y 6-8mm:
+
+```
+pág  ancho_mm  izq_mm  der_mm  arriba_mm  abajo_mm  tinta_en_0-6mm  tinta_en_6-8mm
+ 1   209.89    6.00    5.65    10.00        9.76       7070          80136
+ 2   209.89    6.00    5.65    10.00       58.24       2275          33805
+ 3   209.89    6.00    5.65    10.00       96.94       1860          26900
+ 4   209.89    6.00    5.65    10.00      100.59       1985          28931
+ 5   209.89    6.00    5.65    10.00       15.88       2696          40705
+ 6   209.89    6.00    5.65    10.00      177.18       1050          12332
+```
+
+- La tinta arranca **exactamente a 6.00mm** del borde izquierdo en las 6 páginas y termina a
+  **5.65mm** del derecho (la página del PDF mide 209.89mm, no 210: el área útil de 198mm queda
+  con 5.89mm a la derecha, y el antialias del refilado suma 0.24mm). **Nada más cerca del borde
+  que eso.** Los píxeles contados "en 0-6mm" son esa franja de 5.65-6.00mm del lado derecho
+  (fondos verdes de los encabezados, que van a sangre hasta el margen), no contenido que se
+  haya salido.
+- Arriba y abajo no cambió nada: 10mm (el `@page` vertical no se tocó).
+- Antes del fix (main), la tinta arrancaba a 7.88 / 7.76mm — la misma geometría corrida 2mm.
+
+**Impresora de oficina**: las láser (HP/Brother/Canon) tienen zona no imprimible de 4.2-5mm por
+lado; las inkjet (Epson/Canon/HP), 3-3.4mm a los lados. **6mm entra en todas ésas.** La única
+familia que lo recortaría es la de las inkjet viejas con 6.35mm (¼") lateral, y lo que se
+perdería es medio milímetro del fondo verde de los encabezados, no texto: el texto más cercano
+al borde es el "CARRERA" del trapecio y el margen de la tabla, ambos a 6mm + su padding
+(≥ 8mm). Si la impresora de Yesi es de ésas, la vuelta es una línea: `@page { margin: 10mm 8mm }`
+(y quedan 43 envolturas de pedigrí, §6.9.2 v4). No hace falta ningún otro cambio.
+
+**Imprenta**: refila; 6mm de margen de seguridad supera los 3-5mm que se piden habitualmente.
+
+### 6.10.3 K E S P con edad de 2 dígitos — qué pasaba y qué se hizo
+
+Hay **un** caballo de 10 años en el padrón: **SIGO VIAJE** (`spcs`, edad al 20/09/2026; ninguno
+en R9 — el más viejo, QUINIELA TREND, tiene 8). Query:
+
+```sql
+with e as (select s.nombre, (extract(year from date '2026-09-20') - extract(year from s.fecha_nacimiento))::int as edad_r9
+           from spcs s where s.fecha_nacimiento is not null)
+select count(*) filter (where edad_r9 >= 10) as spcs_10_o_mas, count(*) as con_fecha, (select count(*) from spcs) as total_spcs,
+       max(edad_r9) as edad_max, string_agg(nombre || ' (' || edad_r9 || ')', ', ') filter (where edad_r9 >= 10) as lista,
+       (select count(*) from inscripciones i join carreras c on c.id=i.carrera_id join spcs s2 on s2.id=i.spc_id
+          where c.reunion_id='cafa37d6-89f4-45cb-a0d9-835bc27407e9' and i.estado='ratificado'
+            and (extract(year from date '2026-09-20') - extract(year from s2.fecha_nacimiento)) >= 10) as ratificados_r9_10_o_mas
+from e;
+-- [{"spcs_10_o_mas":1,"con_fecha":210,"total_spcs":210,"edad_max":10,"lista":"SIGO VIAJE (10)","ratificados_r9_10_o_mas":0}]
+```
+
+(Aproximación por año calendario; con la regla del 1° de julio de `edad-spc.js` da lo mismo
+para septiembre.)
+
+**Qué pasa con `nowrap` y 1px negativo**: la celda no envuelve ni corta; el texto se dibuja
+completo y **sobresale** de su caja de contenido hacia la derecha, sobre el padding propio y el
+de JOCKEY. Con 2px de padding por lado hay 4px de canaleta entre el texto de K E S P y el de
+JOCKEY: un exceso de 1px queda dentro de la canaleta, invisible. Un exceso de 5px o más tocaría
+la primera letra del jockey. No se rompe la grilla (la columna es fija), sólo se pisa texto.
+
+**Qué se hizo**: K E S P pasó a **52px** (texto 48). Medido en Chrome con la fuente cargada:
+`57 3 M A` (el más ancho real de R9) 40px; `55 10 M Z` (2 dígitos) **45px → 3px de aire**.
+Verificado en el render final (`__kesp_2_digitos` del JSON: `{"txt":"55 10 M Z","px":45,"texto_px_celda":48}`).
+Un caballo de 10 años con pelaje de una letra y peso de 2 dígitos entra sin tocar nada. Queda
+fuera: edad de 3 dígitos (no existe) o pelaje sin código, que `pelajeCodigo` reduce siempre a
+1 letra.
+
+### 6.10.4 El PDF final, mirado (páginas reales, rasterizadas del PDF, no tiras del DOM)
+
+`docs/diagnosticos/img/2026-09-17_programa-color/v3_pdf_pag2.png` y `v3_pdf_pag3.png` (300 dpi,
+escala 3). Lo que se ve:
+
+- Carreras 01 y 02 en la página 2, 03 (13 caballos) empieza en la 3: mismos cortes de página que
+  antes (`page-break-inside: avoid` por carrera; bottoms a 58 / 97 / 101mm igual que en main —
+  eso es preexistente y no lo toca este fix).
+- S.P.C. en la misma vertical en todas las carreras; N° con chip a la izquierda del nombre.
+- Todos los nombres de caballeriza, caballo, jockey y entrenador en una línea.
+- Pedigrí: 27 filas a 2 líneas, partido siempre en el guion ("EMMANUEL —" / "MILONGA BURRERA").
+  La fila no crece.
+- `NO CORRERÁ` (LOCA DUBAI, LE BATEAU) y `0L 3D 0L 7D 5D` (ECHO IN THE SKY) a 2 líneas en
+  4 ÚLT.: datos, siguen pendientes de Yesi.
+
+### 6.10.5 Salida cruda del render final (`tests/render_programa_pdf.mjs`, `c5dc9e3`)
+
+```
+margen_lateral_mm=6 viewport_px=748 pdf=programa-oficial-color_cafa37d6.pdf
+   9 filas  th=[110, 64, 30, 118, 52, 114, 394, 118]  x=[0, 110, 174, 204, 322, 374, 488, 882]
+  11 filas  th=[110, 64, 30, 118, 52, 114, 394, 118]  x=[0, 110, 174, 204, 322, 374, 488, 882]
+   7 filas  th=[110, 64, 30, 118, 52, 114, 394, 118]  x=[0, 110, 174, 204, 322, 374, 488, 882]
+   7 filas  th=[110, 64, 30, 118, 52, 114, 394, 118]  x=[0, 110, 174, 204, 322, 374, 488, 882]
+   8 filas  th=[110, 64, 30, 118, 52, 114, 394, 118]  x=[0, 110, 174, 204, 322, 374, 488, 882]
+   6 filas  th=[110, 64, 30, 118, 52, 114, 394, 118]  x=[0, 110, 174, 204, 322, 374, 488, 882]
+  13 filas  th=[110, 64, 30, 118, 52, 114, 394, 118]  x=[0, 110, 174, 204, 322, 374, 488, 882]
+  13 filas  th=[110, 64, 30, 118, 52, 114, 394, 118]  x=[0, 110, 174, 204, 322, 374, 488, 882]
+maximos_por_columna_px:
+  CABALLERIZA: [{"txt": "MONTE DEL TORDILLO", "px": 103}, {"txt": "HS LA HORMIGONERA", "px": 101}, {"txt": "PARAJE LA TABLADA", "px": 98}, {"txt": "PARAJE LA TABLADA", "px": 98}]
+  4 ÚLT.: [{"txt": "0L 3D 0L 7D 5D", "px": 69}, {"txt": "NO CORRERÁ", "px": 61}, {"txt": "NO CORRERÁ", "px": 61}, {"txt": "6D 8D 7D 7D", "px": 58}]
+  S.P.C.: [{"txt": "DOCTORA APASIONADA", "px": 112}, {"txt": "CANDIDATA PIRANERA", "px": 107}, {"txt": "SEMBRADOR CHUCK", "px": 96}, {"txt": "MOSQUITA GARDEN", "px": 94}]
+  K E S P: [{"txt": "57 3 M A", "px": 40}, {"txt": "57 5 M A", "px": 40}, {"txt": "59 5 M A", "px": 40}, {"txt": "57 5 M A", "px": 40}]
+  JOCKEY: [{"txt": "DELLI QUADRI IGNACIO", "px": 107}, {"txt": "DELLI QUADRI IGNACIO", "px": 107}, {"txt": "DELLI QUADRI IGNACIO", "px": 107}, {"txt": "ARREGUY FRANCISCO", "px": 102}]
+  PADRE — MADRE: [{"txt": "MASTERCRAFTSMAN (IRE) — ESPLENDIDA HALO", "px": 197}, {"txt": "GRAND REWARD (USA) — BEAUTY SHINER", "px": 170}, {"txt": "TODO UN AMIGUITO — READING MY MIND", "px": 167}, {"txt": "TODO UN AMIGUITO — STORMY ELLIPTIC", "px": 164}]
+  ENTRENADOR: [{"txt": "MONGAY MAXIMILIANO", "px": 111}, {"txt": "ZUBIARRAIN SANTIAGO", "px": 109}, {"txt": "TAVAGNUTTI RICARDO", "px": 106}, {"txt": "TAVAGNUTTI RICARDO", "px": 106}]
+  __kesp_2_digitos: {"txt": "55 10 M Z", "px": 45, "texto_px_celda": 48}
+  __headers: {"CABALLERIZA": 64.5, "4 ÚLT.": 28, "N°": 11, "S.P.C.": 28, "K E S P": 32.5, "JOCKEY": 37, "PADRE — MADRE": 76.5, "ENTRENADOR": 63}
+celdas que envuelven (748px): {'PADRE — MADRE': 27, '4 ÚLT.': 3} total 30/74
+  PADRE — MADRE | EMMANUEL — MILONGA BURRERA | texto 142px en celda 138px | 2 líneas
+  PADRE — MADRE | DUBAI THUNDER (GB) — GRELA (USA) | texto 152px en celda 138px | 2 líneas
+  PADRE — MADRE | THE GARDEN — VENECIANA STORM | texto 144px en celda 138px | 2 líneas
+  PADRE — MADRE | DOCTOR EMBRUJO — ETERNA DIABLITA | texto 163px en celda 138px | 2 líneas
+  PADRE — MADRE | DOCTOR EMBRUJO — GIRL PASSION | texto 146px en celda 138px | 2 líneas
+  PADRE — MADRE | MANIPULER — RECONDITA ARMONIA | texto 151px en celda 138px | 2 líneas
+  PADRE — MADRE | SOUTHERN CAT (CHI) — GALAXY GIRL | texto 151px en celda 138px | 2 líneas
+  PADRE — MADRE | CURIOSO JOHAN — CONTEMPLADORA | texto 156px en celda 138px | 2 líneas
+  PADRE — MADRE | EQUAL EDITION — REINA GLORIOSA | texto 142px en celda 138px | 2 líneas
+  PADRE — MADRE | MAIPO TOP — HALLOWEENINSEATTLE | texto 153px en celda 138px | 2 líneas
+  PADRE — MADRE | HOLY BOSS (USA) — FREE EXCHANGE | texto 150px en celda 138px | 2 líneas
+  PADRE — MADRE | TODO UN AMIGUITO — READING MY MIND | texto 167px en celda 138px | 2 líneas
+  PADRE — MADRE | TODO UN AMIGUITO — STORMY ELLIPTIC | texto 164px en celda 138px | 2 líneas
+  PADRE — MADRE | MANIPULATOR (USA) — VOWED (USA) | texto 153px en celda 138px | 2 líneas
+  4 ÚLT. | 0L 3D 0L 7D 5D | texto 69px en celda 60px | 2 líneas
+  PADRE — MADRE | CIMA DE TRIOMPHE (IRE) — SOLICITADA | texto 162px en celda 138px | 2 líneas
+  PADRE — MADRE | SECURITY RISK (USA) — SPANAKOPITAS | texto 161px en celda 138px | 2 líneas
+  PADRE — MADRE | CHUCK BERRY — SPOKES WOMAN | texto 140px en celda 138px | 2 líneas
+  4 ÚLT. | NO CORRERÁ | texto 61px en celda 60px | 2 líneas
+  PADRE — MADRE | DANIEL BOONE (BRZ) — ATOMIC STAR | texto 153px en celda 138px | 2 líneas
+  PADRE — MADRE | DANIEL BOONE (BRZ) — QUE FELICIDAD | texto 159px en celda 138px | 2 líneas
+  PADRE — MADRE | MASTERCRAFTSMAN (IRE) — ESPLENDIDA HALO | texto 197px en celda 138px | 2 líneas
+  PADRE — MADRE | LEAD TO WIN — SWEET JOHAR (USA) | texto 148px en celda 138px | 2 líneas
+  PADRE — MADRE | DOCTOR EMBRUJO — MATRERA SKY | texto 149px en celda 138px | 2 líneas
+  4 ÚLT. | NO CORRERÁ | texto 61px en celda 60px | 2 líneas
+  PADRE — MADRE | DUBAI THUNDER (GB) — SUNNY MAD | texto 149px en celda 138px | 2 líneas
+  PADRE — MADRE | HIT IT A BOMB (USA) — SARAWAK TOP | texto 156px en celda 138px | 2 líneas
+  PADRE — MADRE | GRAND REWARD (USA) — BEAUTY SHINER | texto 170px en celda 138px | 2 líneas
+  PADRE — MADRE | PURE MIRON — BATACLANA MORA | texto 143px en celda 138px | 2 líneas
+  PADRE — MADRE | CURIOSO JOHAN — GRINGA AYELEN | texto 145px en celda 138px | 2 líneas
+  teardown: usuarios=0 auth=0 (ambos deben ser 0)
+```
+
+### 6.10.6 Salida cruda — rasterizado y franja de borde (pdf.js 3.11.174 en Chromium 153)
+
+`viewer.html` (scratchpad): `pdfjsLib.getDocument(url)` → cada página a canvas con `scale: 3` →
+`getImageData` → primer/último píxel con tinta por eje y conteo en franjas. Antes (main) y después (v3):
+
+```
+antes pag 1: izq 7.88 der 7.76 arriba 10 abajo 9.76 | banda 0-6mm 0
+antes pag 2: izq 7.88 der 7.76 arriba 10 abajo 54.59 | banda 0-6mm 0
+antes pag 3: izq 7.88 der 7.76 arriba 10 abajo 96.94 | banda 0-6mm 0
+antes pag 4: izq 7.88 der 7.76 arriba 10 abajo 100.59 | banda 0-6mm 0
+antes pag 5: izq 7.88 der 7.76 arriba 10 abajo 15.88 | banda 0-6mm 0
+antes pag 6: izq 7.88 der 7.76 arriba 10 abajo 177.65 | banda 0-6mm 0
+[
+ {"pagina":1,"ancho_mm":209.89,"alto_mm":297.07,"tinta_desde_izq_mm":6,"tinta_hasta_der_mm":5.65,"tinta_desde_arriba_mm":10,"tinta_hasta_abajo_mm":9.76,"px_con_tinta_en_banda_0_6mm":7070,"px_con_tinta_en_banda_6_8mm":80136},
+ {"pagina":2,"ancho_mm":209.89,"alto_mm":297.07,"tinta_desde_izq_mm":6,"tinta_hasta_der_mm":5.65,"tinta_desde_arriba_mm":10,"tinta_hasta_abajo_mm":58.24,"px_con_tinta_en_banda_0_6mm":2275,"px_con_tinta_en_banda_6_8mm":33805},
+ {"pagina":3,"ancho_mm":209.89,"alto_mm":297.07,"tinta_desde_izq_mm":6,"tinta_hasta_der_mm":5.65,"tinta_desde_arriba_mm":10,"tinta_hasta_abajo_mm":96.94,"px_con_tinta_en_banda_0_6mm":1860,"px_con_tinta_en_banda_6_8mm":26900},
+ {"pagina":4,"ancho_mm":209.89,"alto_mm":297.07,"tinta_desde_izq_mm":6,"tinta_hasta_der_mm":5.65,"tinta_desde_arriba_mm":10,"tinta_hasta_abajo_mm":100.59,"px_con_tinta_en_banda_0_6mm":1985,"px_con_tinta_en_banda_6_8mm":28931},
+ {"pagina":5,"ancho_mm":209.89,"alto_mm":297.07,"tinta_desde_izq_mm":6,"tinta_hasta_der_mm":5.65,"tinta_desde_arriba_mm":10,"tinta_hasta_abajo_mm":15.88,"px_con_tinta_en_banda_0_6mm":2696,"px_con_tinta_en_banda_6_8mm":40705},
+ {"pagina":6,"ancho_mm":209.89,"alto_mm":297.07,"tinta_desde_izq_mm":6,"tinta_hasta_der_mm":5.65,"tinta_desde_arriba_mm":10,"tinta_hasta_abajo_mm":177.18,"px_con_tinta_en_banda_0_6mm":1050,"px_con_tinta_en_banda_6_8mm":12332}
+]
+```
+
+`viewer.html`:
+
+```html
+<!doctype html><meta charset="utf-8"><title>pdfcheck</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<body style="margin:0;background:#888"><div id="out"></div>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+window.analizar = async function (url, scale) {
+  const pdf = await pdfjsLib.getDocument(url).promise;
+  const res = [];
+  for (let n = 1; n <= pdf.numPages; n++) {
+    const page = await pdf.getPage(n);
+    const vp = page.getViewport({ scale });
+    const cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height; cv.id = 'p' + n;
+    document.getElementById('out').appendChild(cv);
+    await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+    const ctx = cv.getContext('2d'); const img = ctx.getImageData(0, 0, cv.width, cv.height).data;
+    const W = cv.width, H = cv.height;
+    const pxPerMm = W / (vp.width / scale / 72 * 25.4); // ancho en puntos → mm
+    // primer/último x e y con tinta (cualquier canal < 245)
+    let minX = W, maxX = -1, minY = H, maxY = -1;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = (y * W + x) * 4; if (img[i] < 245 || img[i + 1] < 245 || img[i + 2] < 245) { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; } }
+    const band = (x0, x1) => { let c = 0; for (let y = 0; y < H; y++) for (let x = x0; x < x1; x++) { const i = (y * W + x) * 4; if (img[i] < 245 || img[i + 1] < 245 || img[i + 2] < 245) c++; } return c; };
+    const mm = px => +(px / pxPerMm).toFixed(2);
+    const b6 = Math.round(6 * pxPerMm), b8 = Math.round(8 * pxPerMm);
+    res.push({ pagina: n, ancho_mm: mm(W), alto_mm: mm(H), tinta_desde_izq_mm: mm(minX), tinta_hasta_der_mm: mm(W - 1 - maxX), tinta_desde_arriba_mm: mm(minY), tinta_hasta_abajo_mm: mm(H - 1 - maxY),
+      px_con_tinta_en_banda_0_6mm: band(0, b6) + band(W - b6, W), px_con_tinta_en_banda_6_8mm: band(b6, b8) + band(W - b8, W - b6) });
+  }
+  return res;
+};
+</script>
+```
+
+### 6.10.7 Estado
+
+- Fix completo en `fix/programa-color-columnas-fijas` = `c5dc9e3` (2 commits: `d692365` columnas
+  fijas + pedigrí en el guion + render; `c5dc9e3` 6mm + padding 2px + K E S P 52). **No se mergea
+  sin OK.** Al mergear: md5 contra `sigh.com.ar` y `node tests/render_programa_pdf.mjs <R9> color <out> https://sigh.com.ar`.
+- Si la impresora de Yesi recorta a 6mm: `@page { margin: 10mm 8mm }` y nada más.
+- B&N sin tocar. Datos de 4 ÚLT. (2 × "NO CORRERÁ", 1 × 5 performances) para Yesi.
+
+```
+$ git ls-remote origin fix/programa-color-columnas-fijas
+c5dc9e38dc9e17d29f8cac1347697f02dfcdab1e	refs/heads/fix/programa-color-columnas-fijas
+```
+
+## Publicación del §6.10
+
+(se completa abajo con `git push` + `git ls-remote`)
