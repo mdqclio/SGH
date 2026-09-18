@@ -305,4 +305,9 @@ $ node tests/render_programa_pdf.mjs cafa37d6-89f4-45cb-a0d9-835bc27407e9 color 
 
 ## 9. Verificación de publicación
 
-(abajo)
+```
+$ git ls-remote origin reports
+e42c76f0e8bb6b29fd566b48f3985031e1485126	refs/heads/reports
+$ git rev-parse HEAD
+e42c76f0e8bb6b29fd566b48f3985031e1485126
+```
