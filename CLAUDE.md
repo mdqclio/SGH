@@ -50,7 +50,7 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 ├── active-reunion.js            Helper window.ActiveReunion (resolve/set/clear)
 ├── club-switcher.js             Dropdown hipódromo para super_admin (16 páginas)
 ├── chapas.js                    Paleta SVG de chapas SBARG por mandil
-├── partidor-colors.js           Colores SBARG para chips de mandil
+├── partidor-colors.js           Colores de mandil 1..16 (nomenclador oficial de Fede 18/09; >16 gris)
 ├── renumerar-chapas.js          renumerarChapas(inscripciones) → {id → 1..N}
 ├── jockey-repetido.js           Aviso (no bloqueo) de jockey repetido en el turno: sólo inscripto+ratificado (4 pantallas)
 ├── premios-utils.js             Utilitarios de liquidación de premios
@@ -364,6 +364,7 @@ node tests/probe_aviso_jockey_repetido.mjs         # jockey repetido en el turno
 node tests/probe_caballeriza_provisorio.mjs        # caballerizas.html titular opcional + rpc_caballeriza_provisorio (UI con stubs + RPC con sesiones reales); ESCRIBE fixture (reunión 9985), teardown verificado, count 210; CABALLERIZAS_HTML acepta URL
 node tests/probe_modificar_inscripcion_portal.mjs   # Modificar desde el portal — rpc_modificar_inscripcion (guards = baja, cadena del propietario, GATE-1=B) + UI; ESCRIBE fixture 9987/9986, teardown verificado, count 210; PORTAL_HTML=https://sigh.com.ar/portal.html corre contra el HTML servido
 node tests/probe_carta_numero_turno.mjs [out_dir]   # carta-llamados PDF — `TURNO N — condición` con numero_turno (R9 T3=7 discrimina) + ancho con Chromium: nadie desborda, T5–T8 a 2 líneas, chip de distancia intacto; PNG; solo lectura; necesita ~/chromium-libs + fonts-liberation
+node tests/probe_mandil_colores.mjs                # partidor-colors.js vs nomenclador oficial de mandiles (Fede 18/09) — fondo por HSL, número exacto, fallback >16; sin Supabase; PARTIDOR_JS acepta URL
 node tests/render_programa_pdf.mjs <reunion_id> color <out_dir> [https://sigh.com.ar]   # programa oficial a PDF + PNG con Chromium headless (LD_LIBRARY_PATH, ver docs/SERVER.md); reporta grilla y celdas que envuelven; ESCRIBE 1 usuario, teardown verificado. Es la verificación VISUAL — mirar las imágenes
 ```
 

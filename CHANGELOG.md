@@ -1,5 +1,24 @@
 # Changelog
 
+## [2026-09-18] — Colores de mandil 1..16 según el nomenclador oficial (programa a color, R9 a imprenta)
+
+> Fede (18/09) mandó el nomenclador oficial (fondo / número) y avisó que algunos salían mal en
+> `programa-oficial-color.html`. Causa: el 26/05 (`234a833`, "convención SBARG") se reemplazó la
+> paleta del 22/05 (`5379f75`) —que ya seguía el nomenclador— por una con **6 fondos equivocados**
+> (11 gris medio, 12 marrón, 13 turquesa, 14 beige, 15 verde limón, 16 bordó), 2 de tono (5 verde,
+> 9 celeste) y **7 números** cambiados (6, 7, 11, 12, 13, 14, 16). Sólo valores; estructura intacta.
+
+- **`partidor-colors.js`**: vuelven los 16 hex del 22/05 con dos correcciones de número que ahí
+  también estaban mal: 7 naranja y 12 verde claro llevan el número en **negro** (estaban en blanco).
+  `partidorColor()` / `partidorChipHTML()` / fallback gris para >16 no cambian. Lo consumen
+  `programa-oficial-color.html` (chip del mandil) y `resultados.html` (marcador, M.(F), vistas de
+  dividendos, "no corrió"); el programa B/N no usa color.
+- **`tests/probe_mandil_colores.mjs`** (18 asserts, sin Supabase): carga el archivo real y compara
+  los 16 contra el nomenclador por **matiz/saturación/luminosidad** (un retoque de tono pasa; marrón
+  por verde no) y el número por clase exacta; estructura, fallback >16, consumidores; mutante
+  documentado = la paleta de `234a833` (10 rojos). `PARTIDOR_JS` acepta URL.
+- Sin gate: cambio de valores, pedido urgente de Fede (R9 el 20/09, programa a imprenta).
+
 ## [2026-09-17] — Carta de llamado: número de turno en el encabezado del PDF
 
 > Fede (17/09): la pantalla decía "TURNO 1 — Condición: …" y el PDF arrancaba directo con la
