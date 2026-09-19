@@ -365,6 +365,7 @@ node tests/probe_caballeriza_provisorio.mjs        # caballerizas.html titular o
 node tests/probe_modificar_inscripcion_portal.mjs   # Modificar desde el portal — rpc_modificar_inscripcion (guards = baja, cadena del propietario, GATE-1=B) + UI; ESCRIBE fixture 9987/9986, teardown verificado, count 210; PORTAL_HTML=https://sigh.com.ar/portal.html corre contra el HTML servido
 node tests/probe_carta_numero_turno.mjs [out_dir]   # carta-llamados PDF — `TURNO N — condición` con numero_turno (R9 T3=7 discrimina) + ancho con Chromium: nadie desborda, T5–T8 a 2 líneas, chip de distancia intacto; PNG; solo lectura; necesita ~/chromium-libs + fonts-liberation
 node tests/probe_mandil_colores.mjs                # partidor-colors.js vs nomenclador oficial de mandiles (Fede 18/09) — fondo por HSL, número exacto, fallback >16; sin Supabase; PARTIDOR_JS acepta URL
+node tests/probe_fmtinput_onblur.mjs               # liquidaciones.html — inputs de monto formatean por onblur, no por tecla (bug 19/09: tipear 60000 quedaba en $6,00 → base 6); saveReparto con sb stub; mutante = main pre-fix 7/20; sin Supabase; LIQUIDACIONES_HTML acepta URL
 node tests/render_programa_pdf.mjs <reunion_id> color <out_dir> [https://sigh.com.ar]   # programa oficial a PDF + PNG con Chromium headless (LD_LIBRARY_PATH, ver docs/SERVER.md); reporta grilla y celdas que envuelven; ESCRIBE 1 usuario, teardown verificado. Es la verificación VISUAL — mirar las imágenes
 ```
 
