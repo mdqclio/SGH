@@ -73,3 +73,10 @@ Archivos para leer: `https://raw.githubusercontent.com/mdqclio/SGH/feat/pozo-rat
 3. Pieza 2: RPCs `cobrar_pozo` / `devolver_pozo` / `anular_cobro_pozo` — plan por pieza, OK antes de aplicar.
 
 (se completa abajo con `git ls-remote` de `reports`)
+
+```
+$ git ls-remote origin reports
+5639b0c37453912427a6ea2a790dd491399cbb4b	refs/heads/reports
+$ git rev-parse HEAD
+5639b0c37453912427a6ea2a790dd491399cbb4b
+```
