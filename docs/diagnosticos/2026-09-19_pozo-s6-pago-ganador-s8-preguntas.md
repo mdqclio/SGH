@@ -76,3 +76,12 @@ Mi lectura, sin decidir: las reglas que dictó Fede ("plata que ENTRA y después
 ## Verificación de publicación
 
 (se completa abajo con `git ls-remote`)
+
+```
+$ git push origin reports
+$ git ls-remote origin reports
+e205ab03b8ec8968f83338b3adc82281efde83c1	refs/heads/reports
+$ git rev-parse HEAD
+e205ab03b8ec8968f83338b3adc82281efde83c1
+```
+(commit del extracto; este apéndice va en el commit siguiente)
