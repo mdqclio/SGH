@@ -91,7 +91,8 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 │   ├── spcs_conesera_sexo.sql   UPDATE sexo de Conesera macho→hembra (EJECUTADA 2026-09-11, confirmó Yesi)
 │   ├── rpc_spcs_duplicados.sql  RPC de los 3 chequeos de duplicado de SPC (APLICADA 2026-09-11; la usa spcs.html antes del INSERT)
 │   ├── rpc_modificar_inscripcion.sql  RPC Modificar desde el portal (caballeriza/entrenador/jockey/suplente; GATE-1=B; ver CHANGELOG 2026-09-16)
-│   └── rpc_caballeriza_provisorio.sql  RPC propietario provisorio para UNA caballeriza sin titular (= DO por fila; lo llama caballerizas.html; APLICADA 2026-09-16)
+│   ├── rpc_caballeriza_provisorio.sql  RPC propietario provisorio para UNA caballeriza sin titular (= DO por fila; lo llama caballerizas.html; APLICADA 2026-09-16)
+│   └── pozo_fase1_cobro.sql     Pozo de ratificación a premios, pieza 1: columnas carreras.pozo_monto_caballo / reuniones.pozo_retencion_pct, tabla pozo_cobros (RLS+REVOKE, auditoría), fn_siguiente_numero (fn_siguiente_recibo = wrapper), v_pozo_carrera. OK 19/09; SE APLICA EL LUNES 21/09, después de R9. Rollback al lado.
 ├── supabase/functions/          Edge Functions (deploy por MCP `deploy_edge_function`)
 │   ├── reunion-json/            JSON de reunión para el Stud Book (v22, verify_jwt:false, token propio)
 │   ├── invite-user/             Alta de usuario por invitación (v5, verify_jwt:true)
@@ -366,6 +367,7 @@ node tests/probe_modificar_inscripcion_portal.mjs   # Modificar desde el portal 
 node tests/probe_carta_numero_turno.mjs [out_dir]   # carta-llamados PDF — `TURNO N — condición` con numero_turno (R9 T3=7 discrimina) + ancho con Chromium: nadie desborda, T5–T8 a 2 líneas, chip de distancia intacto; PNG; solo lectura; necesita ~/chromium-libs + fonts-liberation
 node tests/probe_mandil_colores.mjs                # partidor-colors.js vs nomenclador oficial de mandiles (Fede 18/09) — fondo por HSL, número exacto, fallback >16; sin Supabase; PARTIDOR_JS acepta URL
 node tests/render_programa_pdf.mjs <reunion_id> color <out_dir> [https://sigh.com.ar]   # programa oficial a PDF + PNG con Chromium headless (LD_LIBRARY_PATH, ver docs/SERVER.md); reporta grilla y celdas que envuelven; ESCRIBE 1 usuario, teardown verificado. Es la verificación VISUAL — mirar las imágenes
+node tests/probe_pozo_schema.mjs                    # pozo de ratificación pieza 1 — columnas, v_pozo_carrera (R9: 11, sin pozo, pct NULL→NULL), staff INSERT/UPDATE/DELETE → 42501, portal 0 filas + vista responde (GOTCHA #98), series separadas en MCH, constraints + auditoría en 9999; ESCRIBE (2 usuarios, 1 secuencia MCH, 1 cobro 9999), teardown por estado, count 210. Corre DESPUÉS de aplicar migrations/pozo_fase1_cobro.sql
 ```
 
 **El patrón es código real sin browser.** Chromium no corre en este Ubuntu (`"Playwright does not support chromium on ubuntu26.04-x64"` — ver `docs/SERVER.md`), así que el probe **extrae del propio HTML** la función o el bloque a probar —por ancla, con balance de llaves—, lo corre con `new AsyncFunction(...)` inyectando dependencias reales (cliente Supabase con `SUPABASE_SECRET_KEY`, más stubs de DOM si hacen falta) y assertea contra la base. Nunca reimplementar la lógica dentro del test: si el archivo cambia, el probe corre el archivo cambiado. Para lo que escribe: **snapshot → run → assert → restore** en el `finally`.
@@ -491,7 +493,7 @@ salidas de queries, `git status`, `git log`, los diffs, y cualquier cosa pedida 
 17. **`signUp` no da error si el correo ya tiene cuenta confirmada** — GoTrue responde 200 con un
     user obfuscado y no manda mail (anti-enumeración). Mirar `identities.length === 0`, no `error`.
 
-Ver `docs/GOTCHAS.md` para la lista completa (97 entradas).
+Ver `docs/GOTCHAS.md` para la lista completa (98 entradas).
 
 ---
 

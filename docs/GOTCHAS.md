@@ -1667,3 +1667,27 @@ nro) y si no existe lo **crea**. Con `documento_nro NULL` no toca `NEW.propietar
 - `caballerizas` **no tiene trigger de auditoría**: las 43 sin titular no tienen rastro de INSERT. Se reconstruyó por `notas`
   (34 de la carga masiva de R6, 12/06). Ver `2026-09-16_alta-caballeriza-exige-titular.md` §4 (reports).
 
+
+## GOTCHA #98 — `v_pozo_carrera` NO es privada: con `security_invoker` un usuario del portal ve `esperado` y `n_ratificados`, nunca los cobros (2026-09-19)
+
+`v_pozo_carrera` (`migrations/pozo_fase1_cobro.sql`, pieza 1 del pozo de ratificación) está con `security_invoker = true`,
+como las otras 4 vistas desde `security_hardening_fase2` (advisor). Eso significa que **la RLS que aplica es la de cada
+tabla base, para el que consulta** — la vista no tiene policy propia. Y las tablas base tienen RLS distinta:
+
+| Tabla base | Un usuario del portal (rol `propietario`/`profesional`)… |
+|---|---|
+| `carreras`, `reuniones`, `inscripciones` | **las lee** (el portal las necesita para inscribir) |
+| `pozo_cobros` | **no lee nada**: `pozo_cobros_select` es sólo `fn_is_super_admin()` o `fn_is_staff()` del club |
+
+Resultado: un usuario del portal que haga `SELECT * FROM v_pozo_carrera` **recibe filas** — con `tiene_pozo`,
+`pozo_monto_caballo`, `pozo_retencion_pct`, `n_ratificados` y `esperado` reales — y con `n_cobrados = 0`,
+`cobrado_bruto = 0`, `retencion = 0` y `al_ganador = 0` **siempre**, porque la subquery sobre `pozo_cobros` le devuelve
+vacío. No es un error de la vista: es la RLS de `pozo_cobros` funcionando. Pero:
+
+- **Nadie asuma que `v_pozo_carrera` es privada.** Lo que se vea ahí desde el portal es lo que la RLS de `carreras` deje ver.
+  Si mañana el pozo por carrera es un dato reservado (el monto de la Especial antes de que se anuncie, p. ej.), hay que
+  agregar policy sobre `carreras` o sacar la columna de la vista — no alcanza con "el portal no tiene pantalla".
+- **Nadie use la vista desde el portal para mostrar el pozo cobrado**: va a mostrar 0 y parecer un bug. Si en Fase 2 el
+  propietario tiene que ver "cuánto hay en el pozo", se agrega una policy de SELECT sobre `pozo_cobros` con
+  `fn_mis_entidades()` (como `recibos_select`) o un RPC SECURITY DEFINER que devuelva sólo los agregados.
+- El probe `tests/probe_pozo_schema.mjs` (C2/C3) fija este comportamiento: portal → responde sin error, cobros en 0.
