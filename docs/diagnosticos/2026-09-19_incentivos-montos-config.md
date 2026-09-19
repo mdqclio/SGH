@@ -501,3 +501,12 @@ ef7847218bfb47f06f72d9df814d1aba02a1a14c
 ## 9. Verificación de publicación
 
 (se completa abajo con `git ls-remote`)
+
+```
+$ git push -u origin reports
+$ git ls-remote origin reports
+42ca44e46772d66d5378fe151160b0233d30d5a8	refs/heads/reports
+$ git rev-parse HEAD
+42ca44e46772d66d5378fe151160b0233d30d5a8
+```
+(commit del informe; este apéndice va en un commit siguiente, ver `git log`)
