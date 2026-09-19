@@ -468,3 +468,12 @@ Gate antes de merge: informe GATE en `reports` con los 5 probes + mutantes, md5 
 ## 9. Verificación de publicación
 
 (se completa abajo con `git ls-remote`)
+
+```
+$ git push -u origin reports
+$ git ls-remote origin reports
+0ec6fa161cf93299c352454794a03363befe8f8d	refs/heads/reports
+$ git rev-parse HEAD
+0ec6fa161cf93299c352454794a03363befe8f8d
+```
+(commit del informe; este apéndice va en el commit siguiente)
