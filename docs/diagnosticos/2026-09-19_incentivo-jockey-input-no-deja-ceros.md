@@ -353,3 +353,16 @@ abrir la solapa (`loadReparto`, línea 583) — con eso se chequea qué quedó.
    si Valeria necesita verlo ya; el fix igual porque los otros 3 inputs tienen el mismo problema.
 2. ¿El incentivo de **entrenador** (10.000) también cambia para R9? No lo dijo nadie; no se toca.
 3. ISSUE nuevo para unificar formateo de dinero (`bindARSInput` compartido) — deuda, no para esta semana.
+
+## 10. Verificación de push
+
+```bash
+git push -u origin reports
+git ls-remote origin reports
+git rev-parse HEAD
+```
+```
+b75db86cb03a2cc1ccf686f78b99f7a82712487b	refs/heads/reports
+b75db86cb03a2cc1ccf686f78b99f7a82712487b
+```
+(este commit de verificación se agrega encima; ver `git log -1 reports`.)
