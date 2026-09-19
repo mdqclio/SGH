@@ -1,5 +1,27 @@
 # Changelog
 
+## [2026-09-19] — Config. Comisiones: los inputs de monto formatean al salir del campo, no por tecla
+
+> Valeria (19/09, R9 mañana): "no me deja ingresar los ceros" al pasar el incentivo de jockey de
+> 50.000 a 60.000. Causa: `oninput="fmtInput(this)"` reformateaba en cada tecla a `$N,00`; al
+> reasignar `el.value` el caret salta al final, el siguiente `0` cae después de `,00` → `$6,000` →
+> `parseMonto` lo lee como 6 → `$6,00`. Cada cero se comía y, guardando así, a la base llegaba **6**.
+> Desde `302e684` (08/05). Diagnóstico: `docs/diagnosticos/2026-09-19_incentivo-jockey-input-no-deja-ceros.md` (reports).
+
+- **`liquidaciones.html`**: `oninput` → `onblur` en los 4 inputs de monto (`rp-inc-jockey`,
+  `rp-inc-entrenador`, `cf-monto`, `cf-monto-bono`). Sólo atributos; `fmtInput` / `parseMonto` /
+  `formatMonto` / `saveReparto` no cambian. El valor crudo (`60000`, `60.000`) ya lo parseaba bien
+  el guardado; ahora el usuario ve `$60.000,00` al salir del campo y eso es lo que se manda.
+- **`tests/probe_fmtinput_onblur.mjs`** (20 asserts, sin Supabase ni browser): atributos en el HTML,
+  carga del modal con `formatMonto`, tipeo dígito por dígito + blur (60000 / 60.000 / 60000,00 → 60000),
+  caso Valeria (`$50.000,00` → `$60.000,00`), y `saveReparto` con `sb` stub capturando el payload del
+  UPDATE (`incentivo_jockey_monto: 60000`). Mutante = `main` antes del fix: 7/20 fallan.
+  `LIQUIDACIONES_HTML` acepta URL.
+- Fuera de alcance: `carta-llamados.html` tiene su propio `fmtInput` **por tecla** pero correcto
+  (no agrega `,00` mientras se escribe; formatea completo en `fmtInputBlur`) — no tiene el bug.
+  Pendiente de deuda: unificar formateo de dinero (`bindARSInput` compartido, §Dinero de CLAUDE.md).
+- Sin gate: 4 atributos, pedido urgente (R9 el 20/09).
+
 ## [2026-09-18] — Colores de mandil 1..16 según el nomenclador oficial (programa a color, R9 a imprenta)
 
 > Fede (18/09) mandó el nomenclador oficial (fondo / número) y avisó que algunos salían mal en

@@ -352,8 +352,8 @@
         <div class="form-group"><label>Capataz (%)</label><input type="number" id="rp-capataz" min="0" max="100" step="0.001"></div>
         <div class="form-group"><label>Sereno (%)</label><input type="number" id="rp-sereno" min="0" max="100" step="0.001"></div>
         <div class="form-group"><label>Fondo solidario (%)</label><input type="number" id="rp-fondo" min="0" max="100" step="0.001"></div>
-        <div class="form-group"><label>Incentivo jockey ($)</label><input type="text" id="rp-inc-jockey" placeholder="0" oninput="fmtInput(this)"></div>
-        <div class="form-group"><label>Incentivo entrenador ($)</label><input type="text" id="rp-inc-entrenador" placeholder="0" oninput="fmtInput(this)"></div>
+        <div class="form-group"><label>Incentivo jockey ($)</label><input type="text" id="rp-inc-jockey" placeholder="0" onblur="fmtInput(this)"></div>
+        <div class="form-group"><label>Incentivo entrenador ($)</label><input type="text" id="rp-inc-entrenador" placeholder="0" onblur="fmtInput(this)"></div>
         <div class="form-group"><label>Días antidoping</label><input type="number" id="rp-antidoping" min="0" max="365"></div>
       </div>
     </div>
@@ -397,7 +397,7 @@
         </div>
         <div class="form-group">
           <label>Monto fijo ($)</label>
-          <input type="text" id="cf-monto" placeholder="0" oninput="fmtInput(this)">
+          <input type="text" id="cf-monto" placeholder="0" onblur="fmtInput(this)">
         </div>
         <div class="form-group">
           <label>Posición bono</label>
@@ -405,7 +405,7 @@
         </div>
         <div class="form-group">
           <label>Monto bono ($)</label>
-          <input type="text" id="cf-monto-bono" placeholder="0" oninput="fmtInput(this)">
+          <input type="text" id="cf-monto-bono" placeholder="0" onblur="fmtInput(this)">
         </div>
         <div class="form-group">
           <label>Desc. fondo solidario (%)</label>
