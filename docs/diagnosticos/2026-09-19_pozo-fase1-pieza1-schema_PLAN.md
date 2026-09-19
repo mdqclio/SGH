@@ -121,3 +121,8 @@ Si en el paso 4 `probe_recibos_emision` o `probe_cobros_v11` fallan, el sospecho
 $ git ls-remote origin feat/pozo-ratificacion-fase1-cobro
 91ac8051f5794dfe780e12c955c61722a52524de	refs/heads/feat/pozo-ratificacion-fase1-cobro
 ```
+
+```
+$ git ls-remote origin reports
+294f175f01f4fa7a99856c6ad0bb645ac2c1c9f5	refs/heads/reports
+```
