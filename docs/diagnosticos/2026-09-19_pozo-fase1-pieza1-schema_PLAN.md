@@ -80,3 +80,44 @@ $ git ls-remote origin reports
 $ git rev-parse HEAD
 5639b0c37453912427a6ea2a790dd491399cbb4b
 ```
+
+---
+
+## 7. OK recibido (19/09) — aplicación DIFERIDA al lunes 21/09, después de R9
+
+Leonardo: *"OK al schema. Pero aplicalo el LUNES 21, después de R9. No toques la base este fin de semana con el programa en imprenta."*
+
+**Estado al cierre del 19/09: la migración sigue SIN aplicar.** No hay forma segura de dejar programada una escritura
+a prod sin sesión (un cron/routine aplicando DDL solo, sin nadie mirando, es justo lo que no se quiere) — el lunes se
+abre sesión y se aplica a mano con este checklist. Todo lo que no toca la base quedó hecho hoy en la rama
+`feat/pozo-ratificacion-fase1-cobro` (commit **`91ac805`**, pusheada):
+
+| Hecho hoy (sin tocar DB) | Dónde |
+|---|---|
+| Probe de la pieza 1, listo para correr después del apply | `tests/probe_pozo_schema.mjs` (A: columnas + vista sobre R9 · B: staff SELECT ok / INSERT-UPDATE-DELETE 42501 / `fn_siguiente_numero` 42501 · C: portal 0 filas + vista responde con cobros en 0 · D: series separadas en MCH, `recibo` no se mueve · E: `23514` monto 0, `23514` devuelto sin sello, `23505` doble cobro vivo, auditoría con club · T: teardown por estado, count 210). `node --check` OK. |
+| GOTCHA #98 — `v_pozo_carrera` no es privada con `security_invoker` | `docs/GOTCHAS.md` (final) — el portal ve `esperado`/`n_ratificados`, nunca los cobros; qué hacer si en Fase 2 el propietario tiene que ver el pozo |
+| `CLAUDE.md` | migración en el árbol con la leyenda "SE APLICA EL LUNES 21/09", probe en la lista, "98 entradas" |
+
+### Checklist del lunes 21/09 (en este orden, nada antes de confirmar que R9 terminó)
+
+```
+0. Guards: pwd=/home/clio/dev/SGH · SELECT count(*) FROM spcs → 210 (o el nuevo baseline si Yesi dio de alta) · ref unlhcuanfrtpatoipwve
+   + R9: select count(*) from resultados x join carreras c on c.id=x.carrera_id where c.reunion_id='cafa37d6-…' and x.estado='oficial'  → 8 (las 8 corridas), o lo que Fede haya oficializado. Si están oficializando todavía, NO aplicar.
+1. git checkout feat/pozo-ratificacion-fase1-cobro && git pull
+2. MCP apply_migration name='pozo_fase1_cobro' con el contenido de migrations/pozo_fase1_cobro.sql
+3. Verificación de schema (§4-1) por MCP: columnas, constraints, índices, policy, grants de pozo_cobros (authenticated=SELECT; anon=nada), trigger, vista con security_invoker, fn_siguiente_numero sin grant a authenticated, fn_siguiente_recibo con los grants de antes
+4. set -a; . ./.env; set +a
+   node tests/probe_recibos_emision.mjs      # regresión del wrapper fn_siguiente_recibo — tiene que seguir 14/14
+   node tests/probe_cobros_v11.mjs           # ídem
+   node tests/probe_pozo_schema.mjs          # la pieza 1 — todo ✅
+5. MCP get_advisors (security): sin hallazgo nuevo sobre pozo_cobros / v_pozo_carrera
+6. Informe 2026-09-21_pozo-fase1-pieza1-schema_APLICADA.md en reports: salida cruda de 2-5, ls-remote
+7. Sólo después: plan de la pieza 2 (RPCs cobrar_pozo / devolver_pozo / anular_cobro_pozo), OK antes de aplicar
+```
+
+Si en el paso 4 `probe_recibos_emision` o `probe_cobros_v11` fallan, el sospechoso único es el wrapper: `migrations/rollback_pozo_fase1_cobro.sql` restaura el cuerpo original de `fn_siguiente_recibo` (y tira todo lo demás, que a esa altura está vacío).
+
+```
+$ git ls-remote origin feat/pozo-ratificacion-fase1-cobro
+91ac8051f5794dfe780e12c955c61722a52524de	refs/heads/feat/pozo-ratificacion-fase1-cobro
+```
