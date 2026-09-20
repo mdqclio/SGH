@@ -1,5 +1,42 @@
 # Changelog
 
+## [2026-09-21] — Pagos: vista por carrera — caballo → propietario / entrenador / jockey (Parte C; rama `feat/pagos-vista-carrera`, sin mergear)
+
+> Valeria (27/08 y 20/09): "la persona llega y dice *corrí en la dos y en la cinco*"; necesita ir a
+> esa carrera y ver todo lo que se paga ahí. Plan (gate) en `reports`:
+> `2026-09-21_plan-pagos-vista-por-carrera.md`; las 5 decisiones abiertas se resolvieron por la
+> recomendación del plan.
+
+- **Con carrera elegida** en el tab Pagos, `cobrosBuscar` deja las tarjetas por persona y rinde
+  **bloques por caballo** (posición ASC; NL y sin resultado al final por gatera), encabezado
+  `N° · CABALLO`; dentro los roles en orden fijo **Propietario → Entrenador → Jockey** (`Otros`
+  visible si algo no cae en ninguno), cada rol con su beneficiario, sus líneas (premio → bono →
+  incentivo → actuación) y el **mismo botón Pagar** (`cobrosDetalle`, recibo por persona — la vista
+  es una forma de llegar a la persona, no otro circuito). Una persona en dos roles = dos sub-bloques,
+  dos botones (BRIGANTI en LATIN PRESUMIDA). Caballos sin deuda pagable se muestran apagados
+  ("sin deuda pagable") con el contador de retenidas (🔒 N — habilitar desde Pagar). `q` filtra
+  bloques por caballo o por beneficiario (nombre/DNI/caballeriza, con `cobMatch`).
+- **Incentivos de jockey** (por reunión, sin `inscripcion_id` ni `carrera_id`): se ubican con la
+  misma regla que los genera el motor (`liquidaciones-engine.js:229-237`) — `J` = jockeys titulares
+  de las inscripciones ratificadas que **largaron** (`no_largo=false`); la línea entra si es de la
+  reunión y su beneficiario está en `J`, bajo el caballo que montó acá, rotulada
+  `Incentivo jockey · por reunión — se paga una vez` (si corrió en dos carreras aparece en las dos
+  vistas y desaparece de las dos al pagarse). Se fue el `inscFiltro.has(inscripcion_id)` de
+  `cobrosBuscar` que los descartaba con `Set.has(null)`.
+- Nuevas: `rolVista`, `cobInscripcionesCarrera` (cache 60 s por carrera, se vacía al cambiar de
+  reunión), `cobLineasDeCarrera` (tres puertas: inscripción / `carrera_id` sin inscripción /
+  incentivo por `J`), `cobArmarVistaCarrera` (devuelve datos, no HTML), `cobBloqueMatch`,
+  `cobRenderVistaCarrera` (escapa con `escapeHtml`, ISSUE-018). `cobrosBuscar` pide también
+  `id` y `concepto`. Sin cambios en `cobrosDetalle`, `emitir_recibo`, engine ni schema.
+- **`tests/probe_pagos_vista_carrera.mjs`** (24 asserts, solo lectura, contra R9 real — Carrera 5,
+  Carrera 4 y Carrera 7 sin resultado): orden de bloques y roles, beneficiario correcto por
+  inscripción, incentivos de DIESTRA/IBARRA bajo ATOMIZADOR/YOOKY y bajo nadie más, el de AGUIRRE
+  **no** bajo NOCHE EN VELA (NL), dos Pagar para BRIGANTI, `q`, C7 con 13 bloques vacíos, modo
+  tarjetas intacto sin carrera, completitud (18 líneas = 16 + 2, $588.700). `--mutantes`: 7/7
+  muertos. `LIQUIDACIONES_HTML` acepta URL.
+- Regresión: `probe_pagos_carrera_busqueda` 44/44, `probe_cobros_caballeriza` 14/14
+  (`probe_pagos_rol_carrera` sigue con sus baselines viejos, igual que en `main`).
+
 ## [2026-09-21] — Saldado de los 5 recibos manuales de R9 (0479/0480/0486/0487/0488) — EJECUTADO
 
 > R9 (20/09) se suspendió después de la 5ª carrera y Valeria pagó 5 recibos a mano. Criterio del

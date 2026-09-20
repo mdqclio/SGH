@@ -367,6 +367,7 @@ node tests/probe_carta_numero_turno.mjs [out_dir]   # carta-llamados PDF — `TU
 node tests/probe_mandil_colores.mjs                # partidor-colors.js vs nomenclador oficial de mandiles (Fede 18/09) — fondo por HSL, número exacto, fallback >16; sin Supabase; PARTIDOR_JS acepta URL
 node tests/probe_fmtinput_onblur.mjs               # liquidaciones.html — inputs de monto formatean por onblur, no por tecla (bug 19/09: tipear 60000 quedaba en $6,00 → base 6); saveReparto con sb stub; mutante = main pre-fix 7/20; sin Supabase; LIQUIDACIONES_HTML acepta URL
 node tests/probe_pagos_carrera_busqueda.mjs        # Pagos — select de carreras sin anuladas (NULL-safe) + orden por programa; cobNorm/cobMatch (Ñ/tildes, palabras sueltas, espacios) con cobrosBuscar real sobre R9; --mutantes 8/8; solo lectura; LIQUIDACIONES_HTML acepta URL
+node tests/probe_pagos_vista_carrera.mjs           # Pagos Parte C — vista por carrera (caballo → propietario/entrenador/jockey), incentivos de jockey por J (largaron), q por bloque, modo tarjetas intacto; cobrosBuscar real sobre R9 C5/C4/C7; --mutantes 7/7; solo lectura; LIQUIDACIONES_HTML acepta URL
 node tests/render_programa_pdf.mjs <reunion_id> color <out_dir> [https://sigh.com.ar]   # programa oficial a PDF + PNG con Chromium headless (LD_LIBRARY_PATH, ver docs/SERVER.md); reporta grilla y celdas que envuelven; ESCRIBE 1 usuario, teardown verificado. Es la verificación VISUAL — mirar las imágenes
 ```
 
