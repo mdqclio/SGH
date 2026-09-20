@@ -2238,3 +2238,54 @@ el nombre de la caballeriza), que sólo existía por SQL. Diagnóstico: `2026-09
 `tests/probe_caballeriza_provisorio.mjs`, 22 asserts + 15/15 mutantes. Relacionado: ISSUE-080 (completar un provisorio desde la
 ficha sigue creando otro propietario — el modal ahora lo avisa), GOTCHA #97.
 
+
+---
+### ISSUE-084: un cambio de monta después de oficializar deja plata cobrable a nombre de quien no corrió hasta el próximo recálculo — y si se cobra, el motor paid-safe no lo revierte
+
+**Estado**: 🟡 **ABIERTO** (2026-09-20, R9). Sin fix. Diagnóstico completo con las consultas y la salida cruda:
+`docs/diagnosticos/2026-09-20_montas-r9-jockeys-vs-resultado.md` (branch `reports`).
+
+**El caso**: FREE CRY, ganador de la Carrera 3 de R9 (turno 6, `inscripcion_id 80b40804-0abc-41c6-991c-7472c8f7f86d`).
+Corrió ARREGUY, FRANCISCO; en la ratificación había quedado GIL, SANTINO. Cronología (UTC; local = −3):
+
+| hora | qué pasó | fuente |
+|---|---|---|
+| 17:34:28 | Se carga el marcador de C3 con FREE CRY 1° y `jockey_titular_id = GIL SANTINO`. | `resultados.created_at` |
+| 17:36:20 | Se **oficializa** C3. El motor genera la liquidación: header de GIL por **$150.000** = $90.000 premio jockey 1° (`retenido`, doping) + **$60.000 incentivo jockey (`impago` → pagable)**. GIL aparece en el buscador de Pagos. | `resultados.updated_at`; `auditoria` liquidaciones INSERT |
+| 18:19:57 | Yesi corrige la monta desde **Montas** (`resultados.html`): GIL SANTINO → ARREGUY. **45 min después de oficializar.** `saveMontas()` sólo escribe `inscripciones.jockey_titular_id` — no recalcula ni avisa. Las líneas de GIL siguen vivas. | `auditoria` inscripciones UPDATE, usuario Yesica Elias |
+| 19:10:06 | Se oficializa C5. El recálculo de toda R9 borra las líneas de GIL (no pagadas, sin recibo) y su header vacío. ARREGUY recibe la línea de $90.000. | `resultados.updated_at` C5; `auditoria` liquidaciones DELETE 19:10:29 (`18afe747-dbc5-4925-81e3-045e723f36f1`, GIL SANTINO, `total_neto 150000.00`) |
+
+**Ventana de exposición: 17:36:20 → 19:10:29 = 1 h 34 min** con $60.000 cobrables a nombre de un jockey que no corrió.
+No se cobró: 0 recibos a GIL SANTINO hoy. Se cerró **por casualidad de secuencia** — se oficializó otra carrera después.
+En la última carrera de una reunión (o si la reunión se suspende, como pasó hoy tras C5) no hay recálculo posterior y la
+plata queda ahí hasta que alguien recalcule a mano.
+
+**Por qué**:
+1. El gate de oficializar (`resultados.html:1624-1642`, `montasFaltantes`) exige que **haya** jockey en cada uno que largó,
+   no que sea el correcto. Es lo único que puede exigir: la verdad la trae Yesi en papel.
+2. `saveMontas()` (`resultados.html:2090-2103`) hace el UPDATE y muestra "N monta(s) guardada(s)". No mira si la carrera ya
+   está oficial, no dispara el recálculo, no avisa que la liquidación quedó desactualizada.
+3. Si en la ventana alguien cobra la línea, `emitir_recibo` la marca `pagado` + `recibo_id`, y el recálculo siguiente la
+   **preserva** (`liquidaciones-engine.js:270-289`, `paidKeys`: `estado_linea==='pagado' || recibo_id != null`) — es el
+   diseño paid-safe. La línea del jockey equivocado queda pagada para siempre y el jockey correcto recibe **otra** línea:
+   doble pago sin que nada lo señale. Sólo se ve cruzando `resultado_posiciones` × `inscripciones.jockey_titular_id` ×
+   `liquidacion_detalle.beneficiario_id`, que es lo que hizo el diagnóstico.
+
+**Mismo vector, otras columnas**: `resultado_posiciones` no tiene trigger de auditoría; un cambio "corrió" ↔ "no corrió"
+post-oficialización tampoco recalcula ni deja rastro. Y `entrenador_id` se puede cambiar por el portal
+(`rpc_modificar_inscripcion`) — hoy sólo hasta el cierre de ratificación, pero la línea de incentivo/premio del entrenador
+sigue la misma lógica.
+
+**Opciones (no decididas)**:
+- (a) `saveMontas()` en carrera oficial → recalcular la liquidación de la reunión en el mismo acto (el recálculo ya es
+  paid-safe e idempotente; costo: los N viajes del engine).
+- (b) Mínimo: aviso bloqueante en Montas cuando la carrera está oficial — "la liquidación no se actualiza sola; recalculá
+  desde Liquidaciones antes de pagar" — y badge en el tab Pagos si hay `inscripciones.updated_at > liquidaciones.created_at`
+  para esa reunión.
+- (c) Guard en `emitir_recibo`: para líneas con `inscripcion_id`, rechazar si `beneficiario_id` ≠ el actor actual de la
+  inscripción para ese rol (jockey/entrenador/propietario). Cierra el doble pago aunque falle todo lo anterior; no cubre
+  el incentivo de jockey (sin `inscripcion_id`).
+- Probe: oficializar con jockey A, cambiar a B por Montas, assert que la línea de A no queda `impago` (o que el aviso
+  aparece / el recibo se rechaza).
+
+Relacionado: GOTCHA #74 (pagado sin recibo), ISSUE-054 (guard de desoficializar), `feat/montas-reales-y-gate` (origen del gate).
