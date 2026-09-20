@@ -66,6 +66,18 @@
     .btn-det { background: rgba(116,176,247,0.1); color: var(--info); border: 1px solid rgba(116,176,247,0.3); }
     .btn-aprobar { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
     .btn-pagar { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    /* Vista por carrera (Pagos, Parte C) */
+    .cob-caballo-vacio .liq-prof { color: var(--muted); }
+    .cob-caballo-vacio .liq-header { opacity: 0.7; }
+    .cob-rol { padding: 6px 18px 10px; border-top: 1px solid var(--border); }
+    .cob-rol-titulo { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 4px 0 6px; }
+    .cob-benef { padding: 6px 0 4px 10px; border-left: 2px solid var(--border); margin-bottom: 6px; }
+    .cob-benef-cab { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .cob-benef-nombre { font-weight: 600; flex: 1; min-width: 160px; }
+    .cob-benef-total { color: var(--success); font-variant-numeric: tabular-nums; }
+    .cob-lineas { list-style: none; margin: 4px 0 0; padding: 0; font-size: 12px; color: var(--muted); }
+    .cob-lineas li { display: flex; justify-content: space-between; gap: 12px; padding: 1px 0; }
+    .cob-por-reunion { color: var(--accent); font-size: 11px; }
     .btn-impr { background: rgba(180,180,180,0.1); color: var(--muted); border: 1px solid rgba(180,180,180,0.3); }
     .btn-delete { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
     /* DETALLE */
@@ -245,7 +257,7 @@
   </div>
   <div class="content">
     <p style="color:var(--muted);font-size:12px;margin-bottom:10px;">
-      Personas con deuda pagable (impago), cruzando reuniones. No incluye fondo solidario (club).
+      Personas con deuda pagable (impago), cruzando reuniones. Con una carrera elegida, la vista es por caballo: propietario → entrenador → jockey. No incluye fondo solidario (club).
       Peón/capataz/sereno se pagan dentro del recibo del entrenador. La retención por doping se
       habilita a mano antes de pagar.</p>
     <div id="cob-beneficiarios"><div class="empty-state"><div class="icon">🧾</div><h3>Buscá una persona para ver su deuda</h3></div></div>
@@ -1048,6 +1060,7 @@ function cobInit(){
 }
 async function cobLoadCarreras(){
   const rid = document.getElementById('cob-reunion').value;
+  cobVistaCache = {};   // otra reunión, otras carreras
   const sel = document.getElementById('cob-carrera');
   sel.innerHTML = '<option value="">— Toda carrera —</option>';
   if (rid){
@@ -1087,21 +1100,178 @@ function etiquetaCarreras(g){
   return g.sinCarrera ? 'incentivo por reunión' : '—';
 }
 
+// ═══ VISTA POR CARRERA — INICIO (el probe extrae este bloque por estas anclas) ═══
+// Pedido de Valeria (27/08 y 20/09): la persona llega y dice "corrí en la dos y en la cinco"; ella
+// necesita ir a esa carrera y ver TODO lo que se paga ahí. Con carrera elegida el listado deja de
+// ser "tarjetas por persona" y pasa a ser "bloques por caballo": dentro de cada caballo los roles
+// en el orden que ella definió — PROPIETARIO (premio + bono) → ENTRENADOR (premio + incentivo) →
+// JOCKEY (premio + incentivo) —, cada rol con su beneficiario, sus líneas y el mismo botón Pagar de
+// siempre (cobrosDetalle → recibo por persona; la vista es una forma de LLEGAR a la persona, no
+// otro circuito de emisión). El encabezado es el caballo y el puesto, que es lo que ella conoce:
+// el beneficiario puede ser un provisorio con nombre de caballeriza; el caballo nunca falta.
+// Plan: docs/diagnosticos/2026-09-21_plan-pagos-vista-por-carrera.md (reports).
+//
+// INCENTIVOS DE JOCKEY: la línea es por reunión (inscripcion_id y carrera_id NULL, por diseño —
+// liquidaciones-engine.js:246-251), así que ningún filtro por carrera la ve. Se la ubica con la
+// MISMA regla que la generó (engine :229-237): J = jockeys titulares de las inscripciones
+// ratificadas de la carrera que largaron (resultado con no_largo=false); la línea entra si es de
+// esta reunión y su beneficiario está en J, y se muestra bajo el caballo que ese jockey montó acá,
+// rotulada "por reunión — se paga una vez" (si corrió en la 2 y en la 5 aparece en las dos vistas
+// y desaparece de las dos al pagarse). Es el inverso exacto de la generación: no puede aparecer
+// bajo un jockey que no corrió acá, y en una carrera sin resultado J es vacío.
+const ORDEN_ROLES_VISTA = ['Propietario', 'Entrenador', 'Jockey', 'Otros'];
+const ORDEN_CONCEPTO_VISTA = { premio:0, bono:1, incentivo_entrenador:2, incentivo_jockey:2, actuacion:3 };
+let cobVistaCache = {};   // carrera_id → { ts, inscs } (60 s: una consulta por carrera, no por tecla)
+const COB_VISTA_TTL_MS = 60000;
+
+// Rol de la línea DENTRO del bloque del caballo. rolDeLinea resuelve bono/incentivos/premio por
+// el texto; lo que no resuelve (p.ej. 'actuacion' de peón/capataz/sereno) se cruza con la
+// inscripción: cobra el entrenador → va bajo Entrenador, que es donde se paga. Lo que no cae en
+// ninguno va a 'Otros' y SIGUE VISIBLE (plata que no se ve es plata que no se paga).
+function rolVista(l, insc){
+  const r = rolDeLinea(l);
+  if (r === 'Propietario' || r === 'Entrenador' || r === 'Jockey') return r;
+  if (insc && l.beneficiario_id === insc.entrenador_id) return 'Entrenador';
+  if (insc && l.beneficiario_id === insc.propietario_id) return 'Propietario';
+  if (insc && l.beneficiario_id === insc.jockey_titular_id) return 'Jockey';
+  return 'Otros';
+}
+
+// Inscripciones ratificadas de la carrera con resultado (embed 0..1 por inscripción) y caballo.
+async function cobInscripcionesCarrera(carreraId){
+  const c = cobVistaCache[carreraId];
+  if (c && Date.now() - c.ts < COB_VISTA_TTL_MS) return c.inscs;
+  const { data, error } = await sb.from('inscripciones')
+    .select('id,numero_partidor,propietario_id,entrenador_id,jockey_titular_id,spcs(nombre),resultado_posiciones(posicion,no_largo)')
+    .eq('carrera_id', carreraId).eq('estado', 'ratificado');
+  if (error) { console.error('[cobVistaCarrera/inscripciones]', error); throw error; }
+  const inscs = (data||[]).map(i => {
+    const rp = Array.isArray(i.resultado_posiciones) ? i.resultado_posiciones[0] : i.resultado_posiciones;
+    return { id:i.id, numero_partidor:i.numero_partidor, propietario_id:i.propietario_id,
+             entrenador_id:i.entrenador_id, jockey_titular_id:i.jockey_titular_id,
+             caballo: i.spcs?.nombre || '(sin caballo)',
+             posicion: rp?.posicion ?? null, no_largo: rp?.no_largo ?? null,
+             largo: !!rp && rp.no_largo === false };
+  });
+  cobVistaCache[carreraId] = { ts: Date.now(), inscs };
+  return inscs;
+}
+
+// Selección de las líneas de la carrera. Las tres puertas, en este orden:
+//   1. inscripcion_id de la carrera            → premio, bono, incentivo_entrenador, actuacion
+//   2. sin inscripción pero con carrera_id     → las líneas históricas de premio/bono sin inscripción
+//   3. incentivo_jockey de esta reunión cuyo beneficiario está en J (los que largaron acá)
+// Sin Set.has(null) en ningún lado: la 1 es falsa para null y la 3 no lo usa.
+function cobLineasDeCarrera(lineas, carreraId, reunionId, inscs){
+  const inscIds = new Set(inscs.map(i => i.id));
+  const J = new Set(inscs.filter(i => i.largo && i.jockey_titular_id).map(i => i.jockey_titular_id));
+  return lineas.filter(l =>
+       inscIds.has(l.inscripcion_id)
+    || (!l.inscripcion_id && l.carrera_id === carreraId)
+    || (l.concepto_tipo === 'incentivo_jockey' && l.reunion_id === reunionId && J.has(l.beneficiario_id)));
+}
+
+// Armado: bloques por caballo (posición ASC, los sin posición al final por gatera), dentro de
+// cada uno los roles en ORDEN_ROLES_VISTA, dentro del rol un sub-bloque por beneficiario, dentro
+// del beneficiario las líneas por ORDEN_CONCEPTO_VISTA. Devuelve datos, no HTML (lo prueba el probe).
+function cobArmarVistaCarrera(lineasCarrera, inscs, carreraId){
+  const porInsc = {};
+  for (const i of inscs) porInsc[i.id] = { insc:i, roles:{}, total:0, n:0 };
+  const sueltas = { insc:null, roles:{}, total:0, n:0 };   // líneas sin inscripción (puerta 2)
+  const meter = (bloque, l, rol) => {
+    const r = (bloque.roles[rol] ||= {});
+    const k = `${l.beneficiario_tipo}|${l.beneficiario_id}`;
+    const b = (r[k] ||= { tipo:l.beneficiario_tipo, id:l.beneficiario_id, nombre:nombreBenef(l.beneficiario_tipo, l.beneficiario_id), lineas:[], total:0 });
+    b.lineas.push(l); b.total += parseFloat(l.monto_neto)||0;
+    bloque.total += parseFloat(l.monto_neto)||0; bloque.n++;
+  };
+  for (const l of lineasCarrera) {
+    if (l.concepto_tipo === 'incentivo_jockey') {
+      // bajo CADA caballo que ese jockey montó y largó en esta carrera
+      for (const i of inscs) if (i.largo && i.jockey_titular_id === l.beneficiario_id) meter(porInsc[i.id], l, 'Jockey');
+      continue;
+    }
+    const bloque = porInsc[l.inscripcion_id] || sueltas;
+    meter(bloque, l, rolVista(l, bloque.insc));
+  }
+  const ordenar = bloque => ORDEN_ROLES_VISTA.filter(r => bloque.roles[r]).map(r => ({
+    rol: r,
+    beneficiarios: Object.values(bloque.roles[r]).map(b => ({
+      ...b, lineas: [...b.lineas].sort((a, c) => (ORDEN_CONCEPTO_VISTA[a.concepto_tipo] ?? 9) - (ORDEN_CONCEPTO_VISTA[c.concepto_tipo] ?? 9)),
+    })),
+  }));
+  const bloques = Object.values(porInsc)
+    .sort((a, b) => (a.insc.posicion ?? 999) - (b.insc.posicion ?? 999) || (a.insc.numero_partidor ?? 999) - (b.insc.numero_partidor ?? 999))
+    .map(b => ({ insc:b.insc, total:b.total, n:b.n, roles: ordenar(b) }));
+  if (sueltas.n) bloques.push({ insc:null, total:sueltas.total, n:sueltas.n, roles: ordenar(sueltas) });
+  return bloques;
+}
+
+// q en la vista filtra BLOQUES: pasa el caballo si su nombre matchea o si algún beneficiario del
+// bloque matchea (nombre/DNI o caballeriza, igual que en tarjetas).
+function cobBloqueMatch(bloque, q, propIdsPorCaballeriza){
+  if (!q) return true;
+  if (bloque.insc && cobMatch(q, bloque.insc.caballo)) return true;
+  return bloque.roles.some(r => r.beneficiarios.some(b => cobMatch(q, benefSearch(b.tipo, b.id)) || propIdsPorCaballeriza.has(b.id)));
+}
+
+async function cobRenderVistaCarrera(lineas, carreraId, rid, q, propIdsPorCaballeriza){
+  const cont = document.getElementById('cob-beneficiarios');
+  let inscs;
+  try { inscs = await cobInscripcionesCarrera(carreraId); }
+  catch (e) { toast(e.message, 'error'); cont.innerHTML = ''; return; }
+  // reunión de la carrera: la del selector (el select de carreras sólo se llena con reunión elegida);
+  // de respaldo, la de las propias líneas.
+  const reunionId = rid || lineas.find(l => l.inscripcion_id && inscs.some(i => i.id === l.inscripcion_id))?.reunion_id || null;
+  const lineasCarrera = cobLineasDeCarrera(lineas, carreraId, reunionId, inscs);
+  // Retenidas (1° y 2°, doping) por caballo: sólo el contador — se habilitan desde Pagar, como hoy.
+  const retenidas = {};
+  if (inscs.length) {
+    const { data: ret, error: eRet } = await sb.from('liquidacion_detalle')
+      .select('inscripcion_id,liquidaciones(club_id)').eq('estado_linea','retenido').is('recibo_id', null)
+      .in('inscripcion_id', inscs.map(i => i.id));
+    if (eRet) console.error('[cobVistaCarrera/retenidas]', eRet);
+    for (const l of (ret||[])) if (cobDelClub(l)) retenidas[l.inscripcion_id] = (retenidas[l.inscripcion_id]||0) + 1;
+  }
+  const bloques = cobArmarVistaCarrera(lineasCarrera, inscs, carreraId).filter(b => cobBloqueMatch(b, q, propIdsPorCaballeriza));
+  if (!bloques.length) {
+    cont.innerHTML = `<div class="empty-state"><div class="icon">∅</div><h3>${inscs.length ? 'Ningún caballo de esta carrera para esa búsqueda' : 'Esta carrera no tiene inscripciones ratificadas'}</h3></div>`;
+    return;
+  }
+  const puesto = i => !i ? 'Sin inscripción' : i.posicion != null ? `${i.posicion}°` : (i.no_largo ? 'NL' : '—');
+  const rotuloLinea = l => l.concepto_tipo === 'incentivo_jockey'
+    ? `${escapeHtml(l.concepto || 'Incentivo jockey')} <span class="cob-por-reunion">· por reunión — se paga una vez</span>`
+    : escapeHtml(l.concepto || l.descripcion || l.concepto_tipo || '');
+  cont.innerHTML = `<div class="liq-grid cob-vista">${bloques.map(b => `<div class="liq-card cob-caballo${b.n ? '' : ' cob-caballo-vacio'}">
+    <div class="liq-header">
+      <div><div class="liq-prof">${escapeHtml(puesto(b.insc))} · ${escapeHtml(b.insc?.caballo || 'líneas sin inscripción')}</div>
+        <div class="liq-recibo">${b.n ? `${b.n} línea(s) pagable(s)` : 'sin deuda pagable'}${b.insc && retenidas[b.insc.id] ? ` · 🔒 ${retenidas[b.insc.id]} retenida(s) — habilitar desde Pagar` : ''}</div></div>
+      ${b.n ? `<div class="monto-item"><div class="monto-lbl">Pagable</div><div class="monto-val neto">${fmt(b.total)}</div></div>` : ''}
+    </div>
+    ${b.roles.map(r => `<div class="cob-rol"><div class="cob-rol-titulo">${escapeHtml(r.rol)}</div>
+      ${r.beneficiarios.map(be => `<div class="cob-benef">
+        <div class="cob-benef-cab"><span class="cob-benef-nombre">${escapeHtml(be.nombre)}</span>
+          <span class="cob-benef-total">${fmt(be.total)}</span>
+          <button class="btn-sm btn-pagar" onclick="cobrosDetalle('${be.tipo}','${be.id}')">🧾 Pagar</button></div>
+        <ul class="cob-lineas">${be.lineas.map(l => `<li><span>${rotuloLinea(l)}</span><span>${fmt(l.monto_neto)}</span></li>`).join('')}</ul>
+      </div>`).join('')}
+    </div>`).join('')}
+  </div>`).join('')}</div>`;
+}
+// ═══ VISTA POR CARRERA — FIN ═══
+
 async function cobrosBuscar(){
   const q = (document.getElementById('cob-q').value||'').trim().toLowerCase();
   const rid = document.getElementById('cob-reunion')?.value || '';
   const carreraId = document.getElementById('cob-carrera')?.value || '';
   document.getElementById('cob-detalle').innerHTML = '';
   document.getElementById('cob-beneficiarios').innerHTML = '<div class="loading-state"><div class="spinner"></div></div>';
-  // si hay carrera, acotar a las inscripciones de esa carrera
-  let inscFiltro = null;
-  if (carreraId){
-    const { data: ins } = await sb.from('inscripciones').select('id').eq('carrera_id', carreraId);
-    inscFiltro = new Set((ins||[]).map(i=>i.id));
-  }
+  // Con carrera elegida ya no se acota acá por inscripción (el viejo `inscFiltro.has(inscripcion_id)`,
+  // que además descartaba los incentivos de jockey por tener inscripcion_id NULL): la carrera
+  // cambia el MODO — vista por caballo, cobRenderVistaCarrera — y esa vista hace su propia selección.
   // líneas pagables (SOLO impago), persona (no club), sin recibo. Scope opcional por reunión.
   let qy = sb.from('liquidacion_detalle')
-    .select('beneficiario_tipo,beneficiario_id,monto_neto,reunion_id,inscripcion_id,carrera_id,descripcion,concepto_tipo,liquidaciones(club_id)')
+    .select('id,beneficiario_tipo,beneficiario_id,monto_neto,reunion_id,inscripcion_id,carrera_id,descripcion,concepto,concepto_tipo,liquidaciones(club_id)')
     .eq('estado_linea','impago').neq('beneficiario_tipo','club').is('recibo_id', null);
   if (rid) qy = qy.eq('reunion_id', rid);
   const { data, error } = await qy;
@@ -1124,9 +1294,10 @@ async function cobrosBuscar(){
   // ISSUE-060 — el club va PRIMERO: nada de otro hipódromo llega ni siquiera a agruparse.
   const ajenas = (data||[]).filter(l => !cobDelClub(l)).length;
   if (ajenas) console.warn(`[cobrosBuscar] ${ajenas} línea(s) de otro club descartadas (ISSUE-060)`);
-  const lineas = (data||[]).filter(l => cobDelClub(l)
-                                     && (!inscFiltro || inscFiltro.has(l.inscripcion_id))
-                                     && cobVisible(l, rid));
+  const lineas = (data||[]).filter(l => cobDelClub(l) && cobVisible(l, rid));
+  // Carrera elegida → vista por caballo (Parte C). Se va ANTES de los mapas de carrera: la vista
+  // trae las inscripciones de la carrera con su resultado y no necesita el cache.
+  if (carreraId) { await cobRenderVistaCarrera(lineas, carreraId, rid, q, propIdsPorCaballeriza); return; }
   // ═══ CACHE MAPAS CARRERA — INICIO (el probe extrae este bloque por estas anclas) ═══
   // Se pide sólo lo que falta: el universo de líneas puede crecer dentro de la misma reunión
   // cuando liberar_linea suelta una retenida. Tipeando en el buscador no falta nada → 0 consultas.
