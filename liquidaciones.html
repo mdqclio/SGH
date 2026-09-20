@@ -1007,7 +1007,31 @@ function docBenef(tipo, id){
   const p = (tipo==='propietario' ? propietariosMap[id] : profesionales[id]) || {};
   return p.documento_nro || '';
 }
-// string de búsqueda por beneficiario: nombre/apellido/DNI (+ nombre_stud en propietarios)
+// ═══ MATCHEO DEL BUSCADOR — ANCLAS DEL PROBE (tests/probe_pagos_carrera_busqueda.mjs) ═══
+// R9 (20/09): Valeria no encontró a "ACUÑA MATIAS" (la ficha es "MATIAS EZEQUIEL ACUÑA"), ni a
+// "CAROSUENO" (la caballeriza es CAROSUEÑO), ni "P y P" (es PyP). Los tres fallaban por lo mismo:
+// el matcheo era `string.includes(q)`, literal — orden de palabras, Ñ/tildes y espacios contaban.
+// Diagnósticos: 2026-09-20_pagos-acuna-matias-r9.md y …_pagos-busqueda-caballeriza-r9.md (reports).
+//
+// cobNorm: NFD sin diacríticos, minúsculas, todo lo que no es letra/dígito pasa a espacio y se
+// colapsa. Mismo criterio que el buscador del Stud Book (studbook-buscar/index.ts `norm`), que
+// además borra los espacios — acá se conservan porque se busca por palabras.
+function cobNorm(s){
+  return String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+// cobMatch(q, texto): true si CADA palabra tipeada aparece en el texto (sin importar el orden), o
+// si lo tipeado sin espacios aparece en el texto sin espacios ("p y p" → "pyp"). Un `q` vacío
+// matchea todo — cobrosBuscar igual no filtra cuando q es ''.
+function cobMatch(q, texto){
+  const nq = cobNorm(q), nt = cobNorm(texto);
+  if (!nq) return true;
+  if (nq.split(' ').every(w => nt.includes(w))) return true;
+  return nt.replace(/ /g, '').includes(nq.replace(/ /g, ''));
+}
+// ═══ MATCHEO DEL BUSCADOR — FIN ═══
+// string de búsqueda por beneficiario: nombre/apellido/DNI (+ nombre_stud en propietarios).
+// Sigue en minúsculas crudas (lo lee probe_cobros_caballeriza); la normalización la hace cobMatch.
 function benefSearch(tipo, id){
   if (tipo==='propietario'){ const p=propietariosMap[id]||{}; return [p.nombre,p.nombre_stud,p.documento_nro].filter(Boolean).join(' ').toLowerCase(); }
   const p=profesionales[id]||{}; return [p.nombre,p.apellido,p.documento_nro].filter(Boolean).join(' ').toLowerCase();
@@ -1027,9 +1051,22 @@ async function cobLoadCarreras(){
   const sel = document.getElementById('cob-carrera');
   sel.innerHTML = '<option value="">— Toda carrera —</option>';
   if (rid){
-    const { data } = await sb.from('carreras').select('id,numero_turno,numero_carrera_programa').eq('reunion_id',rid).order('numero_turno');
+    // ═══ SELECT CARRERAS — ANCLAS DEL PROBE (tests/probe_pagos_carrera_busqueda.mjs) ═══
+    // Sin anuladas: una anulada tiene numero_carrera_programa NULL, caía al numero_turno y
+    // chocaba con una carrera real (R9: dos "Carrera 2", dos "Carrera 8" y una "Carrera 10"
+    // fantasma; Valeria elegía la primera "Carrera 2", que era el turno 2 anulado, y veía 0).
+    // Ninguna anulada tiene líneas de liquidación (medido el 21/09 sobre las 10 de la base).
+    // NULL-safe a propósito (GOTCHA #5): `.neq('estado','anulada')` solo descarta estado NULL,
+    // y hay carreras con líneas y estado NULL (R6 T2, R9 T1).
+    // Orden por nº de programa, que es el que Valeria lee; las sin programa (pre-ratificación)
+    // van al final por turno.
+    const { data, error } = await sb.from('carreras').select('id,numero_turno,numero_carrera_programa,estado')
+      .eq('reunion_id',rid).or('estado.is.null,estado.neq.anulada')
+      .order('numero_carrera_programa', { nullsFirst:false }).order('numero_turno');
+    if (error) console.error('[cobLoadCarreras]', error);
     // GOTCHA: numero_carrera_programa puede ser null → fallback numero_turno
     sel.innerHTML += (data||[]).map(c=>`<option value="${c.id}">Carrera ${c.numero_carrera_programa ?? c.numero_turno}</option>`).join('');
+    // ═══ SELECT CARRERAS — FIN ═══
   }
   cobrosBuscar();
 }
@@ -1078,7 +1115,7 @@ async function cobrosBuscar(){
     if (eCab) console.error('[cobrosBuscar/caballerizas]', eCab);
     cobCaballerizas = (cab||[]).map(c=>({nombre:(c.caballerizas?.nombre||'').toLowerCase(), propietario_id:c.propietario_id}));
   }
-  const propIdsPorCaballeriza = q ? new Set(cobCaballerizas.filter(c=>c.nombre.includes(q)).map(c=>c.propietario_id)) : new Set();
+  const propIdsPorCaballeriza = q ? new Set(cobCaballerizas.filter(c=>cobMatch(q, c.nombre)).map(c=>c.propietario_id)) : new Set();
   // Nº de carrera de cada línea. Dos caminos, ninguno completo solo: `inscripcion_id` cubre los
   // incentivos de entrenador (que no traen carrera_id) y `carrera_id` cubre las 3 líneas de
   // premio/bono que quedaron sin inscripción. Se prueba inscripción primero y carrera_id de
@@ -1129,7 +1166,7 @@ async function cobrosBuscar(){
     if (nro != null) grupos[k].carreras.add(nro); else grupos[k].sinCarrera++;
   }
   let lista = Object.values(grupos).map(g=>({...g, nombre:nombreBenef(g.tipo,g.id)}));
-  if (q) lista = lista.filter(g => benefSearch(g.tipo,g.id).includes(q) || propIdsPorCaballeriza.has(g.id));
+  if (q) lista = lista.filter(g => cobMatch(q, benefSearch(g.tipo,g.id)) || propIdsPorCaballeriza.has(g.id));
   lista.sort((a,b)=>b.total-a.total);
   const cont = document.getElementById('cob-beneficiarios');
   if (!lista.length) { cont.innerHTML = '<div class="empty-state"><div class="icon">∅</div><h3>Sin deuda pagable para esa búsqueda</h3></div>'; return; }

@@ -32,6 +32,37 @@
   0 → 5 ($380.000); 0 recibos nuevos; secuencia 68 → 68.
 - Rollback exacto por la marca, en el `.sql` (esperado 2/2/3). No se corrió.
 
+## [2026-09-21] — Pagos: desplegable de carreras sin anuladas y búsqueda por palabras con Ñ/tildes (Partes A y B; mergeado el 21/09)
+
+> R9 (20/09): Valeria no le pudo pagar a una propietaria y terminó haciendo 5 recibos a mano. Tres
+> causas en el mismo caso, diagnosticadas en `reports`: `2026-09-20_pagos-filtro-carrera-r9.md`
+> (dos "Carrera 2" en el desplegable), `…_pagos-busqueda-caballeriza-r9.md` (`CAROSUENO` no
+> encuentra CAROSUEÑO, `P y P` no encuentra PyP) y `…_pagos-acuna-matias-r9.md` (`ACUÑA MATIAS` no
+> encuentra a "MATIAS EZEQUIEL ACUÑA"). La Parte C (vista por carrera) va con plan aparte.
+
+- **A — `cobLoadCarreras`**: excluye anuladas con el patrón NULL-safe del repo
+  (`.or('estado.is.null,estado.neq.anulada')`, GOTCHA #5) y ordena por `numero_carrera_programa`
+  (NULLs al final, luego `numero_turno`). Antes: todas las carreras por turno, rotuladas
+  `programa ?? turno` → una anulada (programa NULL) chocaba con una real. R9 pasaba de
+  `1,2,7,2,4,3,5,8,6,10,8` a `1..8`. Verificado antes: **ninguna de las 10 anuladas de la base tiene
+  líneas** (por `carrera_id` ni por inscripción); las de estado NULL con líneas (R6 T2, R9 T1)
+  siguen — por eso NULL-safe. Ahora loguea el error de la query (antes se tragaba).
+- **B — `cobNorm` + `cobMatch`** (nuevas, antes de `benefSearch`): NFD sin diacríticos, minúsculas,
+  puntuación → espacio (mismo criterio que `studbook-buscar` `norm`, conservando espacios). Matchea
+  si **cada palabra** tipeada está en el texto (sin orden) **o** si lo tipeado sin espacios está en el
+  texto sin espacios. `cobrosBuscar` la usa en los dos caminos (beneficiario y caballeriza).
+  `benefSearch` no cambia (sigue en crudo; lo lee `probe_cobros_caballeriza`).
+- **`tests/probe_pagos_carrera_busqueda.mjs`** (44 asserts, solo lectura, contra R9/R6 reales; los casos de búsqueda se arman del universo pagable actual): select
+  sin repetidos y `1..8`, "Carrera 2" = turno 4, turnos 2/8/10 fuera, T1 (estado NULL) adentro;
+  `cobrosBuscar` real con `CAROSUENO`, `ACUÑA MATIAS`, `MATIAS ACUÑA`, `P y P`, `studchico`, `galpón`,
+  apellido, DNI. `--mutantes`: 8 mutantes (3 de A, 5 de B), **8/8 muertos**. `LIQUIDACIONES_HTML`
+  acepta URL.
+- Regresión: `probe_cobros_caballeriza` 14/14; `probe_reunion_es_prueba` 16/17 (el A2 que falla ya
+  fallaba en `main` sin este cambio); `probe_pagos_rol_carrera` tiene baselines viejos (181/493) y
+  falla igual en `main`.
+- Fuera de alcance (anotado): el buscador del **historial de recibos** (`liquidaciones.html:~1750`)
+  sigue con `benefSearch(...).includes(ql)` literal — misma corrección pendiente.
+
 ## [2026-09-19] — Config. Comisiones: los inputs de monto formatean al salir del campo, no por tecla
 
 > Valeria (19/09, R9 mañana): "no me deja ingresar los ceros" al pasar el incentivo de jockey de
