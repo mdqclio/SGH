@@ -532,6 +532,9 @@ Ver `docs/GOTCHAS.md` para la lista completa (97 entradas).
   Yesi les asigna el stud. Sigue pendiente. **Desde el 16/09** (rama `feat/caballeriza-titular-opcional-provisorio`): el `DO` deja de ser
   necesario — el alta sin titular crea el provisorio sola (`rpc_caballeriza_provisorio`) y las existentes sin titular (PARAJE LA TABLADA)
   tienen el botón **Crear provisorio** en `caballerizas.html`.
+- **R9 se suspendió tras la 5ª carrera (20/09)**; 5 recibos manuales saldados el 21/09
+  (`migrations/saldado_recibos_manuales_r9.sql`, GOTCHA #74). Incentivo de jockey "haya corrido o no"
+  (criterio Fede): los que falten se crean a mano cuando vengan a cobrar — ISSUE-085.
 - **Modificar desde el portal** (`rpc_modificar_inscripcion`, 16/09): no aplica a R9 salvo que Yesi extienda
   `cierre_ratificacion` desde `carta-llamados.html` — las dos ventanas cerraron el 14/09.
 

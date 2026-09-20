@@ -2238,3 +2238,43 @@ el nombre de la caballeriza), que sólo existía por SQL. Diagnóstico: `2026-09
 `tests/probe_caballeriza_provisorio.mjs`, 22 asserts + 15/15 mutantes. Relacionado: ISSUE-080 (completar un provisorio desde la
 ficha sigue creando otro propietario — el modal ahora lo avisa), GOTCHA #97.
 
+---
+### ISSUE-085: R9 suspendida — incentivo de jockey "haya corrido o no": los que no cobraron no tienen línea y hay que crearla a mano cuando aparezcan
+
+**Estado**: 🟡 **ABIERTO** (2026-09-21). Es operativo, no un bug: registra un criterio de Fede y un pendiente de datos.
+
+**Criterio de Fede (21/09)**: por la suspensión de R9 después de la 5ª carrera, el incentivo de jockey
+($60.000, `liquidacion_config.incentivo_jockey_monto`) **corresponde a cada jockey ratificado haya
+corrido o no**, y se paga cuando viene a cobrar.
+
+**Por qué no hay línea**: el motor genera `incentivo_jockey` sólo para jockeys de inscripciones con
+`resultado_posiciones.no_largo=false` en carreras con resultado oficial (`liquidaciones-engine.js:229-251`).
+Las carreras 6, 7 y 8 de R9 no tienen resultado → sus jockeys no tienen línea, salvo que hayan corrido
+en 1–5 (esos ya la tienen, 18 en total).
+
+**Ya resuelto a mano (21/09)**: GONZALEZ, EDUARDO CECILIO (recibo manual 0486) y CONTRERAS, JUAN CRUZ
+(0487) — `migrations/saldado_recibos_manuales_r9.sql`, líneas creadas ya pagadas.
+
+**Pendientes (si aparecen a cobrar, crear header + línea igual que en la migración, pero `impago`, sin
+marca de recibo manual, y cobrarles por Pagos)** — medido el 21/09:
+- con jockey cargado: **GONZALEZ, LUCAS** (`af8435b7`, C7 TOUCH OF BLUE, sin DNI) y **HAHN, GONZALO**
+  (`a28c9049`, C7 ALHENA, sin DNI);
+- **7 montas sin jockey cargado** en las carreras no corridas (C6 ARTHURUS; C7 OLA DOCTOR, DEL CAMPEON,
+  BAHIA ROMANA, LOCA DUBAI; C8 QUINIELA TREND, KRISTALINA): no se sabe quién iba a montar; si alguno
+  reclama, Yesi carga el jockey en la inscripción primero.
+- Tope: 9 jockeys más (2 + 7), no 11 como decía el plan del 20/09 (contaba inscripciones).
+
+**No se generan ahora** (decisión del 21/09): plata que se muestra como pagable a quien tal vez no
+venga es un vector de doble pago; se crea cuando la persona está en la ventanilla.
+
+**Cómo detectar a un reclamante rápido**:
+```sql
+select p.apellido, p.nombre, string_agg(s.nombre, ', ')
+from inscripciones i join carreras ca on ca.id=i.carrera_id join profesionales p on p.id=i.jockey_titular_id
+left join spcs s on s.id=i.spc_id
+where ca.reunion_id='cafa37d6-89f4-45cb-a0d9-835bc27407e9' and i.estado='ratificado'
+  and not exists (select 1 from resultados r where r.carrera_id=ca.id)
+  and not exists (select 1 from liquidacion_detalle ld where ld.reunion_id=ca.reunion_id and ld.concepto_tipo='incentivo_jockey' and ld.beneficiario_id=p.id)
+group by p.id, p.apellido, p.nombre;
+```
+

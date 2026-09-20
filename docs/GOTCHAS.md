@@ -379,6 +379,13 @@ Tres consecuencias prácticas:
 - **Disparan el guard de `desoficializar_carrera`** (que chequea `recibo_id IS NOT NULL OR
   estado_linea='pagado'`) con un mensaje que habla de recibos inexistentes — ver ISSUE-054.
 
+**2026-09-21 — hay más**: los 5 recibos manuales de R9 (20/09, reunión suspendida tras la 5ª
+carrera) se saldaron con el mismo criterio, marca `[REGULARIZACION 2026-09-20: pagado con recibo
+manual N° …]` y `pagado_at = 2026-09-20 18:00:00-03:00`. Dos de las cinco son **líneas creadas a
+mano** (incentivo de jockey a quien no llegó a correr — criterio de Fede), marcadas
+`línea creada a mano … estado previo=(inexistente)`. Total medido ese día: **343** líneas
+`pagado` sin recibo ($22.303.740,85). `migrations/saldado_recibos_manuales_r9.sql`.
+
 Para distinguir los tres casos:
 
 ```sql
