@@ -1,5 +1,37 @@
 # Changelog
 
+## [2026-09-21] — Saldado de los 5 recibos manuales de R9 (0479/0480/0486/0487/0488) — EJECUTADO
+
+> R9 (20/09) se suspendió después de la 5ª carrera y Valeria pagó 5 recibos a mano. Criterio del
+> saldado administrativo de R6/R8 (GOTCHA #74): `estado_linea='pagado'`, **sin** `recibo_id` (no se
+> emite recibo del sistema ni se consume `club_secuencias`, que sigue en 68), `pagado_at` fijo
+> `2026-09-20 18:00:00-03:00` y marca `[REGULARIZACION 2026-09-20: pagado con recibo manual N° …]`
+> en `descripcion`. SQL: `migrations/saldado_recibos_manuales_r9.sql` (con rollback). Plan y
+> ejecución en `reports`: `2026-09-20_plan-saldado-recibos-manuales-r9.md`,
+> `2026-09-21_ejecucion-saldado-recibos-manuales-r9.md`.
+
+- **3 líneas existentes → pagadas**: 0479 bono 6° C1 SI TIN / SAICA $100.000 (Valeria confirmó
+  el 21/09 que el recibo es de la C1 y lo cobró FARIAS, el entrenador); 0480 bono 7° C2 NISTEL WIN /
+  SILQUITI $100.000; 0488 incentivo jockey ACUÑA, MATIAS EZEQUIEL $60.000.
+- **2 headers + 2 líneas creadas a mano**, ya pagadas: 0486 GONZALEZ, EDUARDO CECILIO y 0487
+  CONTRERAS, JUAN CRUZ, incentivo jockey $60.000 c/u. Sus montas (C7/C8) no se corrieron y el motor
+  no genera incentivo sin resultado oficial (`liquidaciones-engine.js:229-251`). Las líneas tienen
+  la forma exacta del motor (`concepto='Incentivo jockey'`, `inscripcion_id`/`posicion` NULL) para
+  que `lineKey()` las deduplique si algún día se cargan resultados de C7/C8.
+- **Criterio de Fede (21/09), queda escrito**: por la suspensión de R9 tras la 5ª carrera, el
+  incentivo de jockey **corresponde a cada jockey ratificado haya corrido o no**, y se paga cuando
+  viene a cobrar. Los que todavía no cobraron **no** tienen línea generada (a propósito): si
+  aparecen, se les crea igual que a estos dos. Medido el 21/09: **GONZALEZ, LUCAS** (C7 TOUCH OF
+  BLUE) y **HAHN, GONZALO** (C7 ALHENA) con jockey cargado, más **7 montas sin jockey cargado**
+  (C6 ARTHURUS; C7 OLA DOCTOR, DEL CAMPEON, BAHIA ROMANA, LOCA DUBAI; C8 QUINIELA TREND, KRISTALINA)
+  — hasta 9 jockeys más, no 11 como decía el plan (eso contaba inscripciones). Anotado en ISSUES.
+- **Verificado**: 3/2/2 filas; los 5 netos exactos; el md5 de las 145 líneas previas de R9
+  reconstruido desde el estado actual (revirtiendo virtualmente las 3) = el de antes
+  (`a6c829b2…`) → **ninguna otra línea tocada**; R9 145 → 147 líneas, $8.367.111,68 →
+  $8.487.111,68 (+2×60.000), 68 → 70 headers; impago 56 → 53 (−$260.000); `pagado` sin recibo
+  0 → 5 ($380.000); 0 recibos nuevos; secuencia 68 → 68.
+- Rollback exacto por la marca, en el `.sql` (esperado 2/2/3). No se corrió.
+
 ## [2026-09-19] — Config. Comisiones: los inputs de monto formatean al salir del campo, no por tecla
 
 > Valeria (19/09, R9 mañana): "no me deja ingresar los ceros" al pasar el incentivo de jockey de
