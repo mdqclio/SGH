@@ -20,7 +20,7 @@
   si **cada palabra** tipeada está en el texto (sin orden) **o** si lo tipeado sin espacios está en el
   texto sin espacios. `cobrosBuscar` la usa en los dos caminos (beneficiario y caballeriza).
   `benefSearch` no cambia (sigue en crudo; lo lee `probe_cobros_caballeriza`).
-- **`tests/probe_pagos_carrera_busqueda.mjs`** (39 asserts, solo lectura, contra R9/R6 reales): select
+- **`tests/probe_pagos_carrera_busqueda.mjs`** (44 asserts, solo lectura, contra R9/R6 reales; los casos de búsqueda se arman del universo pagable actual): select
   sin repetidos y `1..8`, "Carrera 2" = turno 4, turnos 2/8/10 fuera, T1 (estado NULL) adentro;
   `cobrosBuscar` real con `CAROSUENO`, `ACUÑA MATIAS`, `MATIAS ACUÑA`, `P y P`, `studchico`, `galpón`,
   apellido, DNI. `--mutantes`: 8 mutantes (3 de A, 5 de B), **8/8 muertos**. `LIQUIDACIONES_HTML`

@@ -25,7 +25,7 @@
  *
  * Uso:
  *   set -a; . ./.env; set +a
- *   node tests/probe_pagos_carrera_busqueda.mjs                 # 30+ asserts
+ *   node tests/probe_pagos_carrera_busqueda.mjs                 # ~40 asserts (los casos B11 se arman del universo pagable actual)
  *   node tests/probe_pagos_carrera_busqueda.mjs --mutantes      # 8 mutantes, todos tienen que morir
  *   LIQUIDACIONES_HTML=https://sigh.com.ar/liquidaciones.html node tests/…   # contra el HTML servido
  */
@@ -208,31 +208,68 @@ async function buscar(q, carreraId = '') {
   const html = document._n['cob-beneficiarios'].innerHTML;
   return [...html.matchAll(/class="liq-prof">([^<]*)</g)].map(m => m[1]);
 }
-const casos = [
-  ['CAROSUENO',        ['BRIGANTI, MARIA LAURA']],
-  ['CAROSUEÑO',        ['BRIGANTI, MARIA LAURA']],
-  ['ACUÑA MATIAS',     ['ACUÑA, MATIAS EZEQUIEL']],
-  ['MATIAS ACUÑA',     ['ACUÑA, MATIAS EZEQUIEL']],
-  ['acuna matias',     ['ACUÑA, MATIAS EZEQUIEL']],
-  ['P y P',            ['SILQUITI, PAOLA FERNANDA']],
-  ['PyP',              ['SILQUITI, PAOLA FERNANDA']],
-  ['SILQUITI',         ['SILQUITI, PAOLA FERNANDA']],
-  ['27776893',         ['SILQUITI, PAOLA FERNANDA']],
-  ['GALPON',           ['PALLET, GUIDO']],
-  ['galpón',           ['PALLET, GUIDO']],
-  ['STUD CHICO',       ['DI FRANCO, GUSTAVO FABIAN']],
-  ['studchico',        ['DI FRANCO, GUSTAVO FABIAN']],
-  ['DON JORGE',        ['EL DON JORGE (LP)']],
-];
-for (const [q, esperados] of casos) {
-  const got = await buscar(q);
-  ok(`B11) cobrosBuscar R9 q=${JSON.stringify(q)} → ${esperados.join(' + ')}`,
-     esperados.every(e => got.includes(e)), `→ ${got.join(' | ') || '∅'}`);
+// Los casos se ARMAN desde lo que hoy es pagable en R9: el universo cambia con cada cobro (el
+// 21/09 se saldaron ACUÑA y SILQUITI y los casos fijos con ellos dejaron de valer). Cada caso
+// toma un beneficiario real y le tipea lo que Valeria tipearía: apellido + primer nombre en los
+// dos órdenes, sin tildes/Ñ, el DNI, la caballeriza con y sin espacios/acentos.
+const sinDiacriticos = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+const universo = await buscar('');
+ok('B11a) hay universo pagable en R9 para armar los casos (≥ 10 tarjetas)', universo.length >= 10, `${universo.length}`);
+const cardName = (tipo, id) => tipo === 'propietario' ? propietariosMap[id]?.nombre : `${profesionales[id].apellido}, ${profesionales[id].nombre}`;
+// beneficiarios pagables reales (mismo criterio que cobrosBuscar) para elegir los casos
+const { data: pagR9 } = await sb.from('liquidacion_detalle').select('beneficiario_tipo,beneficiario_id')
+  .eq('reunion_id', R9).eq('estado_linea', 'impago').is('recibo_id', null).neq('beneficiario_tipo', 'club');
+const idsPag = new Set((pagR9 || []).map(l => `${l.beneficiario_tipo}|${l.beneficiario_id}`));
+const profPag = Object.values(profesionales).filter(p => idsPag.has(`profesional|${p.id}`));
+const propPag = Object.values(propietariosMap).filter(p => idsPag.has(`propietario|${p.id}`));
+const casos = [];
+// (1) profesional con nombre compuesto: "APELLIDO PRIMER_NOMBRE", al revés, y sin diacríticos
+const prof2 = profPag.find(p => (p.nombre || '').trim().includes(' ') && p.apellido) || profPag.find(p => p.apellido && p.nombre);
+if (prof2) {
+  const primer = prof2.nombre.trim().split(/\s+/)[0];
+  casos.push([`${prof2.apellido} ${primer}`, cardName('profesional', prof2.id), 'apellido + primer nombre (orden del programa)']);
+  casos.push([`${primer} ${prof2.apellido}`, cardName('profesional', prof2.id), 'primer nombre + apellido']);
+  casos.push([sinDiacriticos(`${prof2.apellido} ${primer}`).toLowerCase(), cardName('profesional', prof2.id), 'sin tildes/Ñ, minúsculas']);
+  if (prof2.documento_nro) casos.push([prof2.documento_nro, cardName('profesional', prof2.id), 'DNI']);
 }
-const gotAcuna = await buscar('ACUÑA');
-ok('B12) q="ACUÑA" trae a ACUÑA MATIAS y no a otro ACUÑA sin plata en R9', gotAcuna.length === 1 && gotAcuna[0] === 'ACUÑA, MATIAS EZEQUIEL', gotAcuna.join(' | '));
+// (2) profesional con Ñ o tilde en apellido/nombre, tipeado sin ella
+const profN = profPag.find(p => /[ÁÉÍÓÚÑáéíóúñ]/.test(`${p.apellido} ${p.nombre}`));
+if (profN) casos.push([sinDiacriticos(profN.apellido), cardName('profesional', profN.id), 'apellido con Ñ/tilde, tipeado sin']);
+// (3) propietarios con caballeriza vinculada: nombre exacto, sin acentos, sin espacios, un pedazo
+const { data: vinc } = await sb.from('caballeriza_responsables').select('propietario_id, caballerizas(nombre)')
+  .eq('rol', 'propietario').eq('activo', true).not('propietario_id', 'is', null);
+const cabDe = id => (vinc || []).filter(v => v.propietario_id === id).map(v => v.caballerizas?.nombre).filter(Boolean);
+let conCab = 0;
+for (const p of propPag) {
+  const cabs = cabDe(p.id).filter(n => n.toLowerCase() !== (p.nombre || '').toLowerCase());   // caballeriza ≠ nombre del provisorio
+  if (!cabs.length) continue;
+  const n = cabs[0];
+  casos.push([n, p.nombre, 'caballeriza exacta']);
+  if (/[ÁÉÍÓÚÑáéíóúñ]/.test(n)) casos.push([sinDiacriticos(n), p.nombre, 'caballeriza sin Ñ/tilde']);
+  if (/\s/.test(n)) casos.push([n.replace(/\s+/g, ''), p.nombre, 'caballeriza sin espacios']);
+  else if (n.length > 3) casos.push([n.split('').join(' '), p.nombre, 'caballeriza con espacios metidos ("P y P")']);
+  casos.push([n.split(/\s+/).pop(), p.nombre, 'un pedazo de la caballeriza']);
+  if (p.documento_nro) casos.push([p.documento_nro, p.nombre, 'DNI del propietario']);
+  if (++conCab >= 3) break;
+}
+// (4) provisorio con nombre de caballeriza: un pedazo del nombre
+const prov = propPag.find(p => !p.documento_nro && (p.nombre || '').split(/\s+/).some(w => w.length >= 4));
+if (prov) casos.push([prov.nombre.split(/\s+/).filter(w => w.length >= 4).sort((a, b) => b.length - a.length)[0], prov.nombre, 'provisorio, su palabra más larga']);
+ok('B11b) se armaron casos de los 4 tipos (compuesto, Ñ, caballeriza, provisorio)',
+   casos.length >= 8 && !!prof2 && conCab >= 1, `${casos.length} casos; compuesto=${!!prof2} Ñ=${!!profN} caballerizas=${conCab} provisorio=${!!prov}`);
+for (const [q, esperado, porque] of casos) {
+  const got = await buscar(q);
+  ok(`B11) q=${JSON.stringify(q)} → ${esperado}  [${porque}]`, got.includes(esperado), `→ ${got.join(' | ') || '∅'}`);
+}
+// B12) un apellido solo trae al que tiene plata y no a homónimos sin plata
+if (prof2) {
+  const got = await buscar(prof2.apellido);
+  const homonimos = Object.values(profesionales).filter(p => p.apellido === prof2.apellido && !idsPag.has(`profesional|${p.id}`));
+  ok(`B12) q=${JSON.stringify(prof2.apellido)} trae al pagable y no a los ${homonimos.length} homónimo(s) sin plata`,
+     got.includes(cardName('profesional', prof2.id)) && homonimos.every(h => !got.includes(cardName('profesional', h.id))), got.join(' | '));
+}
 const gotSinCarrera = await buscar('');
-ok('B13) sin q: el universo de R9 se lista entero (≥ 20 tarjetas)', gotSinCarrera.length >= 20, `${gotSinCarrera.length}`);
+ok('B13) sin q: el universo de R9 se lista entero (≥ 10 tarjetas)', gotSinCarrera.length >= 10, `${gotSinCarrera.length}`);
 ok('B14) el matcheo no rompe la búsqueda por caballeriza previa (probe_cobros_caballeriza: benefSearch sigue en crudo)',
    extractFn(SRC, 'function benefSearch(tipo, id)').includes(".join(' ').toLowerCase()"));
 
