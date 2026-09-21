@@ -1,5 +1,9 @@
 # Changelog
 
+## [2026-09-21] — Registro de aprendizajes: encabezado de GOTCHAS + #98, ISSUE-084/086/087/088, regla 18 en CLAUDE.md (sin merge)
+
+- `docs/GOTCHAS.md`: encabezado con el formato de cuatro partes (qué pasó / cómo se detectó / regla / cómo se verifica) y la regla de mantenimiento (dos veces → sube a reglas, queda puntero); **#98** (copia del doc de modelo fuera del repo + encabezado viejo dieron por pendiente el Resumen, vivo desde `80d9b7e` 10/06); punteros en #74 y #88; "⚠ superada" en #22 y #75. `CLAUDE.md` § Gotchas críticos **18**: plata comprometida = `recibo_id IS NOT NULL OR estado_linea='pagado'`. `docs/LIQUIDACIONES_MODELO.md:4-9` pasa a puntero (no lleva estado); `docs/LIQUIDACIONES_GAP_ANALYSIS.md` marcado "foto del 2026-06-08". `docs/ISSUES.md`: **ISSUE-084** (monta cambiada post-oficialización, FREE CRY, 94 min), **086** (Transferencia en un select que arranca en Efectivo — recomendada la fila de radios), **087** (no hay pago parcial: línea indivisible), **088** (programa oficial imprime `peso_declarado`, el resto `peso_final || peso_declarado`). Sólo documentación. Informe: `docs/diagnosticos/2026-09-21_registro-aprendizajes-fase1.md` (reports).
+
 ## [2026-09-21] — Recibo de Pagos: ORIGINAL y DUPLICADO en una sola hoja (mergeado el 21/09)
 
 > Valeria (21/09): "salen en dos páginas, el original y el duplicado, ¿no lo querés hacer en una

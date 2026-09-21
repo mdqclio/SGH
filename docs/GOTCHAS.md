@@ -1,5 +1,19 @@
 # SGH — Gotchas y Aprendizajes
 
+> **Qué es**: fallo → regla. Una entrada por lección, numerada, con fecha. Lo que **cambió** va a
+> `CHANGELOG.md`; el **estado** vigente a `CLAUDE.md`; las **decisiones** a `docs/DECISIONES.md`
+> (ADR) o a una marca `[FEDE dd/mm]` en el doc del tema. Acá sólo lo que mordió y cómo no repetirlo.
+>
+> **Formato de cada entrada nueva** (desde #98) — cuatro partes, con ese rótulo en negrita:
+> 1. **Qué pasó** — con evidencia: SHA, query con su salida, error textual, caso real.
+> 2. **Cómo se detectó** — quién o qué lo vio (reporte, probe en rojo, mutante, error de la base).
+> 3. **Regla que queda** — una oración normativa.
+> 4. **Cómo se verifica** — query, grep o test nombrado, tal como se corre.
+>
+> **Mantenimiento**: una lección que muerde **dos veces** sube a las reglas de dominio (`CLAUDE.md`
+> § Gotchas críticos o el doc de reglas del tema) y acá queda **un puntero** (número, título, "ver
+> CLAUDE.md § X"). Las entradas anteriores a #98 no se reescriben: son fotos de su fecha.
+
 ## 1. GitHub Pages es case-sensitive
 Profesionales.html ≠ profesionales.html. Siempre usar minúsculas.
 Cómo detectarlo: la consola muestra el nombre con mayúscula en la URL.
@@ -85,6 +99,8 @@ Las pantallas que usan CLUB_ID para filtrar (inscripciones, jockeys, caballeriza
 Crear el bucket desde la UI de Supabase no genera las RLS policies. Hay que ejecutar las 4 CREATE POLICY manualmente en el SQL Editor (ver SCHEMA.md → Storage Supabase).
 
 ## 22. Supabase MCP es read-only — INSERT/UPDATE/DELETE van al SQL Editor (may-2026)
+> ⚠ **superada**: el MCP tiene escritura desde el 2026-06-02 (`apply_migration` para DDL, `execute_sql` para DML). Ver `CLAUDE.md` § Supabase MCP.
+
 El MCP de Supabase en Claude Code ejecuta queries en modo read-only. Las herramientas `execute_sql` y `apply_migration` fallan con "cannot execute UPDATE in a read-only transaction" o "Cannot apply migration in read-only mode." cuando se intenta DML o DDL. Cualquier INSERT/UPDATE/DELETE hay que correrlo en el SQL Editor del dashboard de Supabase, no desde el agente.
 
 ## 23. CSS columns + break-inside: avoid no garantiza que una tabla grande quede entera (may-2026)
@@ -360,6 +376,8 @@ es una afirmación falsa sobre el peso del ejemplar. `NULL` dice "no tengo el da
 
 ## 74. `estado_linea='pagado'` con `recibo_id IS NULL` = saldado administrativo, NO un pago del sistema (2026-08-28)
 
+> ↑ **Subió a reglas el 2026-09-21** (confirmada dos veces: R6/R8 el 28/08 y R9 el 21/09): `CLAUDE.md` § Gotchas críticos **18** — plata comprometida = `recibo_id IS NOT NULL OR estado_linea='pagado'`. Esta entrada queda como historia y para las tres queries de abajo.
+
 `emitir_recibo` **siempre** asigna `recibo_id` al marcar una línea como pagada. Una línea
 `pagado` con `recibo_id` NULL no puede venir del circuito normal: es una **regularización
 administrativa**.
@@ -398,6 +416,8 @@ WHERE estado_linea IN ('impago','retenido')
 ```
 
 ## 75. El guard de `spcs` = 181 incluye caballos de prueba — no es el padrón real (2026-08-29)
+
+> ⚠ **superada** en el número, no en la lección: el guard vale **210** desde el 2026-09-14 (`CLAUDE.md` § Guard de sesión lleva el baseline vigente y su historial). Lo demás sigue igual: incluye caballos de prueba y no es el padrón de Dolores (ISSUE-061).
 
 `spcs` es **global, sin `club_id`** (GOTCHA #13). Los ejemplares de prueba que se cargaron para
 "Mi Club Hípico" —`Pampa Libre`, `Don Facundo`— viven en la misma tabla que los SPC reales de
@@ -976,6 +996,8 @@ Ver `migrations/fix_seeds_recibos_9001_9002.sql`.
 ---
 
 ## 88. "Plata comprometida" NO es `recibo_id IS NOT NULL` — el saldado administrativo queda afuera (2026-08-30)
+
+> ↑ **Subió a reglas el 2026-09-21**: `CLAUDE.md` § Gotchas críticos **18**. Acá queda el caso, la medición y el assert que lo cubre.
 
 **El mismo error, dos veces en dos días, en dos capas distintas.** Por eso está acá.
 
@@ -1674,3 +1696,12 @@ nro) y si no existe lo **crea**. Con `documento_nro NULL` no toca `NEW.propietar
 - `caballerizas` **no tiene trigger de auditoría**: las 43 sin titular no tienen rastro de INSERT. Se reconstruyó por `notas`
   (34 de la carga masiva de R6, 12/06). Ver `2026-09-16_alta-caballeriza-exige-titular.md` §4 (reports).
 
+## 98. Una copia del doc de modelo fuera del repo —y el encabezado viejo del que está adentro— dieron por pendiente una pantalla viva desde hacía 103 días (2026-09-21)
+
+**Qué pasó.** El 21/09 se instruyó como si la solapa **📊 Resumen** de `liquidaciones.html` no existiera. La causa directa fue una **copia de `LIQUIDACIONES_MODELO.md` que vive en el proyecto de Claude.ai** (13 secciones, del 12/09), cuyo §13 da el Resumen por pendiente; esa copia no está en el repo y divergió de él. Segunda fuente, ya adentro del repo: el encabezado de `docs/LIQUIDACIONES_MODELO.md:4-9` ("NO en prod salvo schema … ⏳ Fase 5 — resumen de reunión", texto del `dbe669e` 02/06 que nadie tocó cuando el §9 del mismo archivo pasó a "IMPLEMENTADO (2026-06-10)" en `62ae85e`) y `docs/LIQUIDACIONES_GAP_ANALYSIS.md:90,138,184` ("Fase 5 ⏳ falta / §9 ❌ FALTANTE", sin cambios desde `c04f875` 08/06). La solapa está en `main` desde el **2026-06-10**: `80d9b7e` 01:31 UTC → merge `4cc6c27`; ampliada `f084765` → `f5a56c4`; `CHANGELOG [2026-06-10]`. Muestra pagado, pendiente de cobrar, retenido, fondo, reconciliación y pendientes por beneficiario (`liquidaciones.html:231`, `loadResumen` en `:850`).
+
+**Cómo se detectó.** Claude, al verificar `liquidaciones.html` en `main` cuando Valeria no encontraba las pantallas que la instrucción describía. Segunda vez del mismo patrón en el mismo archivo: la nota de display de MODELO decía "nominal" contra GOTCHA #63 durante mes y medio (corregida el 08/09, `72f3b50`).
+
+**Regla que queda.** **La fuente de verdad es el repo.** Un doc fuera del repo (copia en un proyecto de Claude.ai, un PDF, un pegado en el chat) no se usa para instruir: se abre el archivo en `main`. Y adentro del repo, **los docs de modelo no llevan estado de implementación**: un "⏳ pendiente" ahí nunca es evidencia de que algo no existe. El estado vive en `CLAUDE.md` (§ Otros módulos) y `CHANGELOG.md`; antes de instruir, `grep` en `main` y `CHANGELOG`. Desde hoy el encabezado de MODELO es un puntero a esos dos y GAP_ANALYSIS está marcado como foto del 2026-06-08.
+
+**Cómo se verifica.** `grep -n 'class="tab' liquidaciones.html` → 5 solapas en `:228-232`, una es Resumen. `git log --format='%h %ad' --date=short -S'panel-resumen' -- liquidaciones.html` → `80d9b7e 2026-06-10`. `grep -n '⏳' docs/LIQUIDACIONES_MODELO.md` → 0. `head -3 docs/LIQUIDACIONES_GAP_ANALYSIS.md` tiene que decir "foto del 2026-06-08". Informe: `docs/diagnosticos/2026-09-21_registro-aprendizajes-fase1.md` (reports).

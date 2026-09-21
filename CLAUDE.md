@@ -495,8 +495,12 @@ salidas de queries, `git status`, `git log`, los diffs, y cualquier cosa pedida 
     del `signUp`, y el 2.106.1 devuelve `user: null` ahí. No unificarla a `@2` (GOTCHA #89).
 17. **`signUp` no da error si el correo ya tiene cuenta confirmada** — GoTrue responde 200 con un
     user obfuscado y no manda mail (anti-enumeración). Mirar `identities.length === 0`, no `error`.
+18. **Plata comprometida = `recibo_id IS NOT NULL OR estado_linea = 'pagado'`** — nunca sólo el recibo.
+    Una línea `pagado` con `recibo_id IS NULL` es un **saldado administrativo** (R6/R8 el 28/08, R9 el 21/09:
+    343 líneas, $22,3M) y es la mayoría de lo cobrado. Vale para queries, guards, asserts e informes.
+    PostgREST: `.or('recibo_id.not.is.null,estado_linea.eq.pagado')`. Mordió dos veces (GOTCHAS #74, #88).
 
-Ver `docs/GOTCHAS.md` para la lista completa (97 entradas).
+Ver `docs/GOTCHAS.md` para la lista completa (98 entradas).
 
 ---
 

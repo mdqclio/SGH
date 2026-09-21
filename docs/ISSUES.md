@@ -2239,6 +2239,50 @@ el nombre de la caballeriza), que sólo existía por SQL. Diagnóstico: `2026-09
 ficha sigue creando otro propietario — el modal ahora lo avisa), GOTCHA #97.
 
 ---
+### ISSUE-084: Cambiar la monta después de oficializar deja pagable la plata del jockey equivocado hasta el próximo recálculo — FREE CRY (R9 C3), 94 minutos con $60.000 de GIL SANTINO en el buscador de Pagos
+
+**Estado**: 🟡 **ABIERTO** (2026-09-20; escrito el 21/09 desde `docs/diagnosticos/2026-09-20_montas-r9-jockeys-vs-resultado.md`,
+rama `reports`, commit `70aadc6`). Hoy no quedó nada mal: 0 líneas y 0 recibos a nombre de un jockey que no corrió en R9.
+Es un vector, no un daño — pero se rozó.
+
+**Secuencia reconstruida** (UTC, 20/09; auditoría de `inscripciones` + `liquidaciones`):
+1. 17:34:28 se carga el marcador de C3 con FREE CRY 1° y `jockey_titular_id = GIL SANTINO` (así había quedado en la ratificación).
+2. 17:36:20 se oficializa C3 → el motor genera las líneas → header de GIL SANTINO por **$150.000** (90.000 jockey 1°, `retenido`
+   + 60.000 incentivo, **`impago` = pagable**). Aparece en el buscador de Pagos: "GIL, SANTINO · 1 línea pagable · $60.000".
+3. 18:19:57 Yesi corrige la monta en Montas: GIL → ARREGUY. El toast dice "guardado", pero `saveMontas` **sólo escribe
+   `inscripciones`** (`resultados.html:2090-2103`); la liquidación no se recalcula. Las líneas de GIL siguen ahí.
+4. 19:10:06 se oficializa C5 → el motor recalcula toda R9 (`liquidaciones-engine.js:270-289`): las líneas de GIL no están
+   pagadas ni tienen recibo → se borran; el header vacío se borra (DELETE auditado 19:10:29, `header_id 18afe747…`).
+   ARREGUY recibe la línea de $90.000.
+
+**Ventana de exposición: 17:36 → 19:10 (94 min).** Se salvó por dos casualidades: nadie cobró a GIL en ese lapso, y se
+oficializó otra carrera después (en la última carrera de una reunión no hay recálculo que limpie). Si se hubiera emitido
+el recibo, el recálculo **habría preservado** la línea pagada (`paidKeys`) y hoy habría un recibo a alguien que no corrió,
+sin que nada lo detecte.
+
+**Los otros 3 reemplazos del día** (SI TIN, LOGUACIOUS, ECHO IN THE SKY) fueron antes de cargar el resultado: el jockey
+viejo nunca tuvo líneas.
+
+**Qué se podría cambiar** (no hecho):
+1. `saveMontas()` sobre una carrera **ya oficial**: recalcular la liquidación de la reunión al guardar, o al menos avisar
+   "carrera oficializada; la liquidación no se actualiza hasta el próximo recálculo — recalculá desde Liquidaciones".
+2. Probe `tests/probe_montas_post_oficial.mjs`: oficializar con jockey A, cambiar a B por Montas, assert de que la línea de
+   A no queda `impago` sin recálculo explícito (o de que el aviso aparece).
+3. `resultado_posiciones` no tiene trigger de auditoría: un cambio "corrió ↔ no corrió" después de oficializar tampoco
+   deja rastro. Mismo vector, otra columna.
+
+**Cómo se verifica** (tiene que dar 0 filas): líneas `impago`/`retenido` de jockey cuya inscripción hoy tiene otro jockey.
+```sql
+select ld.id, ld.monto_neto, ld.estado_linea, p_lin.apellido as en_la_linea, p_ins.apellido as en_la_inscripcion
+from liquidacion_detalle ld
+join inscripciones i on i.id = ld.inscripcion_id
+join profesionales p_lin on p_lin.id = ld.beneficiario_id
+left join profesionales p_ins on p_ins.id = i.jockey_titular_id
+where ld.reunion_id = 'cafa37d6-89f4-45cb-a0d9-835bc27407e9' and ld.beneficiario_tipo = 'profesional'
+  and ld.descripcion ilike '%Jockey%' and ld.beneficiario_id is distinct from i.jockey_titular_id;
+```
+
+---
 ### ISSUE-085: R9 suspendida — incentivo de jockey "haya corrido o no": los que no cobraron no tienen línea y hay que crearla a mano cuando aparezcan
 
 **Estado**: 🟡 **ABIERTO** (2026-09-21). Es operativo, no un bug: registra un criterio de Fede y un pendiente de datos.
@@ -2276,5 +2320,90 @@ where ca.reunion_id='cafa37d6-89f4-45cb-a0d9-835bc27407e9' and i.estado='ratific
   and not exists (select 1 from resultados r where r.carrera_id=ca.id)
   and not exists (select 1 from liquidacion_detalle ld where ld.reunion_id=ca.reunion_id and ld.concepto_tipo='incentivo_jockey' and ld.beneficiario_id=p.id)
 group by p.id, p.apellido, p.nombre;
+```
+
+---
+### ISSUE-086: "Transferencia" está en un desplegable que arranca en Efectivo dentro del modal de Emitir recibo — Valeria no la encontró tres veces
+
+**Estado**: 🟡 **ABIERTO** (2026-09-21). Usabilidad, no bug: la función existe y anda.
+
+**Dónde está hoy**: `liquidaciones.html:492-496`, `<select id="cobr-forma">` con `Efectivo` / `Transferencia`, dentro de
+`#modal-cobrador` (🧾 Emitir recibo), segunda fila de la grilla, debajo de "¿Quién cobra?" / nombre / documento. Se
+resetea a `efectivo` en cada apertura (`:1641`). El campo "Comprobante" sólo aparece tras elegir Transferencia (`:1660`).
+La única pista sin desplegar es la nota gris de `:1663` ("Efectivo: el recibo imprime firma…"). En la base: **42/42 recibos
+`efectivo`** (21/09) — consistente con que nadie encontró la opción.
+
+**Por qué no se ve**: un select cerrado muestra un valor, no una elección; en un modal cuya pregunta central es "¿quién
+cobra?", la forma de pago pasa por un dato precargado. Reportado tres veces por Valeria (21/09).
+
+**Recomendación: opción (a)** — dos botones radio **Efectivo | Transferencia** en una fila propia, arriba de "¿Quién
+cobra?", con la nota de firma / comprobante al lado del elegido. No cambia el flujo, el RPC ni el impreso; el valor que
+viaja a `emitir_recibo` es el mismo. Alternativas descartadas por ahora: (b) recordar la última forma usada en la sesión
+(oculta el problema cuando cambia el modo de pago), (c) preguntar la forma antes de abrir el modal (un click más).
+
+**Cómo se verifica**: `grep -n 'cobr-forma' liquidaciones.html`; `select forma_pago, count(*) from recibos group by 1` —
+cuando aparezca el primer `transferencia` emitido por el sistema, la opción se encontró.
+
+---
+### ISSUE-087: No hay pago parcial — la línea es indivisible y el recibo la marca `pagado` entera; con la caja sin fondos hasta el subsidio, los pagos a cuenta no tienen dónde registrarse
+
+**Estado**: 🟡 **ABIERTO** (2026-09-21). Falta de modelo, no bug. Decisión de producto pendiente (Fede).
+
+**Hecho**: `emitir_recibo(p_club_id, p_beneficiario_tipo, p_beneficiario_id, p_linea_ids uuid[], p_forma_pago,
+p_cobrador_nombre, p_cobrador_documento, p_comprobante_url)` no recibe monto: marca cada línea de `p_linea_ids` como
+`pagado` completa (`migrations/emitir_recibo_v1_2_aislamiento_club.sql:119-124`) y el total del recibo es la suma de esas
+líneas. `estado_linea_liq` = `impago | pagado | retenido`; `liquidacion_detalle` no tiene `monto_pagado` ni `saldo`
+(verificado en la base el 21/09). ADR-042 habla de "pagar parcial" en el sentido de **elegir líneas**, no de fraccionar
+una.
+
+**Por qué importa ahora**: si la caja no tiene fondos hasta el subsidio, la secretaría va a pagar "a cuenta" (parte de un
+premio hoy, el resto después). Hoy eso sólo se puede hacer **fuera del sistema**: la línea queda `impago` (y el Resumen la
+muestra como deuda entera) o se marca `pagado` por saldado administrativo (GOTCHA #74) sin rastro del monto real
+entregado. Las dos mienten. En R9 al 21/09: 29 líneas impagas ($1.018.700) y 30 retenidas ($5.032.537,52) a personas.
+
+**Opciones** (ninguna se implementa sin OK):
+- (a) **partir la línea**: RPC `dividir_linea(linea_id, monto_a_cuenta)` que deja la original con `monto_bruto -
+  monto_a_cuenta` y crea una hija con el resto, misma `liquidacion_id` / beneficiario / concepto, descripción
+  `[A CUENTA de <id>]`; el recibo cobra la hija con el circuito de siempre. Conserva "línea = unidad de deuda" (ADR-042) y
+  no toca `emitir_recibo`, Pagos ni Resumen.
+- (b) tabla `pagos_a_cuenta` (línea, monto, recibo) y saldo calculado — más fiel; toca Pagos, Resumen, recibo y
+  `anular_recibo`.
+- (c) sólo operativo: recibo manual + saldado administrativo cuando se completa.
+La más conservadora es (c); la más barata con rastro es (a).
+
+**Cómo se verifica** (hoy tiene que dar esto; cuando se implemente, cambia):
+`select pg_get_function_identity_arguments(p.oid) from pg_proc p where proname='emitir_recibo'` (sin parámetro de monto);
+`select column_name from information_schema.columns where table_name='liquidacion_detalle' and column_name in
+('monto_pagado','saldo')` → 0 filas.
+
+---
+### ISSUE-088: `programa-oficial.html` y `programa-oficial-color.html` imprimen `peso_declarado`; `programa.html`, `resultados.html` y `ratificacion.html` muestran `peso_final || peso_declarado`
+
+**Estado**: 🟡 **ABIERTO** (2026-09-21). Latente: en R6/R8/R9 `peso_final = peso_declarado` en los 222 ratificados
+(query del 21/09), así que ningún programa impreso salió mal todavía.
+
+**Hecho**: `programa-oficial.html:469` y `programa-oficial-color.html:692` llaman `kespTexto(i.peso_declarado, …)`.
+`programa.html:383`, `resultados.html:1662` y `ratificacion.html:371,637-638` usan `peso_final || peso_declarado`.
+`SCHEMA.md:342-343`: declarado = "peso asignado pre-carrera (handicap)", final = "peso final post-ratificación". El
+programa oficial se imprime **después** de ratificar — justo donde `peso_final` manda.
+
+**Cómo diverge**: `ratificacion.html` fija `peso_final` al ratificar (`:911`) y congela declarado→final si final es NULL
+(`:537-540`), pero el input de peso (`:638`) escribe **`peso_declarado`** (`updatePeso`, `:505`). Una corrección de kilos
+después de ratificar deja `peso_declarado` nuevo y `peso_final` viejo: el programa oficial imprime el nuevo, las otras
+tres pantallas el viejo. Y un ratificado con `peso_declarado` NULL (los 17 de la reunión 9999) sale **sin kilos** en el
+K E S P (`kespTexto` filtra vacíos, `programa-oficial.html:195-198`).
+
+**Fix propuesto** (2 líneas): en los dos programas oficiales, `kespTexto(i.peso_final ?? i.peso_declarado, …)`. Aparte,
+decidir qué escribe el input de `ratificacion.html` una vez ratificado (hoy `peso_declarado`; probablemente `peso_final`,
+o los dos) — ésa es la parte de producto. Probe: render del programa con una inscripción de la 9999 donde
+`peso_final <> peso_declarado`, assert del número impreso (GOTCHA #60: extraer el `.select()` real).
+
+**Cómo se verifica**: `grep -n 'kespTexto(i\.' programa-oficial.html programa-oficial-color.html` → tiene que decir
+`peso_final`; y sobre la base:
+```sql
+select r.numero, count(*) filter (where i.estado='ratificado' and i.peso_final is not null and i.peso_declarado is not null
+  and i.peso_final <> i.peso_declarado) as distintos
+from inscripciones i join carreras ca on ca.id=i.carrera_id join reuniones r on r.id=ca.reunion_id
+where r.club_id='0649e9c5-9e87-4aad-842f-101458e6b33c' group by r.numero order by r.numero;   -- hoy: 0 en todas
 ```
 
