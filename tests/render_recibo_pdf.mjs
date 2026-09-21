@@ -12,8 +12,9 @@
  *
  * Mide (en mm, con el ancho útil de A4 = 210 − 2×margen): alto de cada .recibo-copia, de la tabla,
  * del pie, y el alto total de las 2 copias; genera el PDF (page.pdf, preferCSSPageSize) y cuenta
- * las páginas; saca un PNG del DOM en media print (tira completa) y uno por "página" (recortes de
- * 267mm — aproximación: NO es la paginación del PDF, que no se puede rasterizar sin poppler).
+ * las páginas; saca un PNG del DOM en media print (tira completa, sin paginar) y, si está el
+ * Chromium completo (visor PDFium), un PNG por PÁGINA REAL del PDF (`_pdf_pN.png`) — ésa es la
+ * verificación visual de la paginación.
  *
  *   --lineas=N   repite las filas de la tabla hasta N (caso sintético largo, p.ej. 20)
  *   --css="…"    CSS extra inyectado en media print para probar variantes sin tocar el archivo
@@ -45,6 +46,13 @@ function extractFn(src, firma) {
   const i = src.indexOf(firma); if (i < 0) throw new Error('no encontré: ' + firma);
   let d = 0; for (let k = src.indexOf('{', i); k < src.length; k++) { if (src[k] === '{') d++; else if (src[k] === '}') { d--; if (!d) return src.slice(i, k + 1); } }
   throw new Error('no pude cerrar: ' + firma);
+}
+function fullChromium() {
+  const cache = join(homedir(), '.cache', 'ms-playwright');
+  const dirs = existsSync(cache) ? readdirSync(cache).filter(d => /^chromium-\d+$/.test(d)).sort() : [];
+  if (!dirs.length) return null;
+  const bin = join(cache, dirs[dirs.length - 1], 'chrome-linux64', 'chrome');
+  return existsSync(bin) ? bin : null;
 }
 function headlessShell() {
   const cache = join(homedir(), '.cache', 'ms-playwright');
@@ -143,12 +151,24 @@ try {
   const pdf = await page.pdf({ path: `${stem}.pdf`, preferCSSPageSize: true, printBackground: false });
   const paginas = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
   await page.screenshot({ path: `${stem}_tira.png`, fullPage: true });
-  // recortes de 267mm (aprox. de página; el PDF real pagina por sus reglas)
   const utilHpx = Math.round(utilH / 25.4 * 96);
-  const altoDoc = Math.max(...med.copias.map(c => c.top_px + c.alto_px));
-  const nRec = Math.ceil(altoDoc / utilHpx);
-  for (let i = 0; i < nRec; i++) {
-    await page.screenshot({ path: `${stem}_p${i + 1}_aprox.png`, clip: { x: 0, y: i * utilHpx, width: VW, height: Math.max(1, Math.min(utilHpx, altoDoc - i * utilHpx)) } });
+  // Páginas REALES del PDF: el Chromium completo (chromium-1243, no el headless shell) trae el visor
+  // PDFium y en headless nuevo lo renderiza; se abre el PDF con #page=N y se saca screenshot.
+  // Necesita libcups2t64 + libavahi-client3/common3 además de las 8 libs del shell (docs/SERVER.md).
+  const paginasPng = [];
+  const full = fullChromium();
+  if (full) {
+    const b2 = await chromium.launch({ headless: true, executablePath: full, args: ['--no-sandbox'] });
+    try {
+      for (let n = 1; n <= paginas; n++) {
+        const pg = await b2.newPage({ viewport: { width: 900, height: 1300 } });
+        await pg.goto(`file://${stem}.pdf#page=${n}&zoom=100&toolbar=0`);
+        await pg.waitForTimeout(2500);
+        const out = `${stem}_pdf_p${n}.png`;
+        await pg.screenshot({ path: out });
+        paginasPng.push(out); await pg.close();
+      }
+    } finally { await b2.close(); }
   }
   const resumen = {
     recibo: recibo.numero_recibo, beneficiario: cobBenef.nombre, forma_pago: recibo.forma_pago, filas_reales: filasReales, filas_render: med.copias[0]?.filas,
@@ -158,8 +178,8 @@ try {
     total_documento_mm: mm(med.total_px),
     break_after: med.break_after, pie_break_inside: med.pie_break_inside, cortes: med.cortes.map(c => ({ top_mm: mm(c.top_px), alto_mm: mm(c.alto_px) })),
     // el body tiene min-height:100vh (CSS de pantalla) → scrollHeight no mide el recibo; se usa la suma de copias
-    entran_en_una_hoja: med.copias.reduce((s, c) => s + c.alto_px, 0) <= utilHpx,
-    paginas_pdf: paginas, pdf: `${stem}.pdf`, tira: `${stem}_tira.png`, recortes: nRec,
+    entran_en_una_hoja: Math.max(...med.copias.map(c => c.top_px + c.alto_px)) <= utilHpx,   // fin del duplicado (incluye el corte)
+    paginas_pdf: paginas, pdf: `${stem}.pdf`, paginas_png: paginasPng, tira: `${stem}_tira.png`,
     texto_benef: med.texto_benef, texto_retira: med.texto_retira,
   };
   writeFileSync(`${stem}_medidas.json`, JSON.stringify(resumen, null, 2));
