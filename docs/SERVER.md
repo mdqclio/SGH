@@ -105,6 +105,20 @@ Hecho el 17/09. `tests/probe_carta_numero_turno.mjs` tiene un canario (C1) que f
 Los renders del programa color de la mañana del 17/09 se hicieron con DejaVu: sus conteos de celdas
 que envuelven son conservadores (en Arial envuelven menos).
 
+**Chromium COMPLETO (para ver páginas de un PDF) — 21/09:** el headless shell no trae visor de
+PDF, pero `~/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome` sí (PDFium) y en headless
+lo renderiza: `page.goto('file://x.pdf#page=N')` + screenshot = la página REAL del PDF. Le faltan
+3 libs más que al shell, sin sudo igual:
+
+```bash
+cd ~/chromium-libs/debs && apt-get download libcups2t64 libavahi-client3 libavahi-common3
+for d in libcups*.deb libavahi*.deb; do dpkg -x "$d" ..; done
+ldd ~/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome | grep "not found"   # vacío
+```
+
+Lo usa `tests/render_recibo_pdf.mjs` (`_pdf_pN.png`). Así se verificó que con 10 líneas el
+duplicado del recibo se va entero a la hoja 2 — antes sólo se podía contar páginas.
+
 **Ojo con `~/chromium-libs`:** el 17/09 a la mañana las libs quedaron extraídas en el scratchpad de la
 sesión (`/tmp/claude-1000/.../scratchpad/libs`), no en `~/chromium-libs` como dice arriba, y ese
 directorio se borra. A la tarde se copiaron a `~/chromium-libs/usr/...`; `ldd | grep "not found"` da vacío.

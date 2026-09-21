@@ -160,9 +160,23 @@
          es un bloque atómico. `break-before/after: avoid` NO sirve acá — Chrome no lo implementa
          en impresión; el único control de corte que respeta es break-inside. Con 20 líneas la
          tabla parte por hoja (el thead se repite solo: display:table-header-group por defecto) y
-         el pie cae entero al final de las líneas. */
-      .recibo-copia { width: 100%; box-sizing: border-box; }
-      .recibo-copia:not(:last-child) { break-after: page; page-break-after: always; }
+         el pie cae entero al final de las líneas.
+         21/09 — ORIGINAL y DUPLICADO en UNA hoja (Valeria: "para no gastar tantas hojas al cohete,
+         yo lo corto por la mitad"). Se quita el `break-after: page` que separaba las copias y la
+         copia pasa a ser atómica (`break-inside: avoid`): si las dos entran en la hoja salen
+         seguidas con la línea de corte al medio; si no, Chrome manda el duplicado ENTERO a la hoja
+         siguiente (= lo de antes). Medido con Chromium (tests/render_recibo_pdf.mjs): 1 línea
+         85,7 mm por copia, 4 líneas 100,8 mm, +5,0 mm por línea; entran hasta 9 líneas (264 de
+         267 mm), con 10 ya son dos hojas. Una copia más alta que una hoja (~37 líneas) igual
+         parte —Chrome ignora avoid cuando no cabe— y el pie sigue atómico. Sin contar líneas en
+         JS: no hay umbral que mantener. Plan y medidas: 2026-09-21_plan-recibo-una-hoja.md (reports). */
+      .recibo-copia { width: 100%; box-sizing: border-box; break-inside: avoid; page-break-inside: avoid; }
+      /* Línea de corte entre copias: punteada, fina, con la tijera al margen — se corta con tijera,
+         no con guillotina; visible pero que no compita con el recibo. Es un div propio (no un
+         borde de la copia) para que se pueda medir y para que, si el duplicado se va a la hoja
+         siguiente, quede al pie del original sin arrastrar nada. */
+      .recibo-corte { border-top: 1px dashed #666; margin: 6mm 0; height: 0; position: relative; }
+      .recibo-corte::before { content: '\2702'; position: absolute; left: 0; top: -8px; font-size: 11px; line-height: 1; color: #666; background: #fff; padding-right: 4px; }
       .recibo-pie { break-inside: avoid; page-break-inside: avoid; margin-top: 10px; }
       .recibo-rotulo { text-align: right; font-size: 11px; font-weight: bold; letter-spacing: 1px; }
       .recibo-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 8px; }
@@ -2163,8 +2177,10 @@ async function imprimirReciboCobro(recibo, lineaIds, opts){
       + (recibo.comprobante_url ? `<p style="font-size:10px;">Comprobante: ${escapeHtml(recibo.comprobante_url)}</p>` : '')
     : '<div class="recibo-firma"><div style="width:200px;">Firma</div><div style="width:240px;">Aclaración</div><div style="width:140px;">DNI</div></div>';
   // Bloque reutilizable: UNA copia con alto natural. Se imprimen 2 copias rotuladas
-  // ORIGINAL / DUPLICADO (pedido Fede) — mismo contenido, distinto rótulo —, separadas por
-  // break-after:page (CSS .recibo-copia:not(:last-child)), con un solo window.print().
+  // ORIGINAL / DUPLICADO (pedido Fede) — mismo contenido, distinto rótulo —, en la MISMA hoja
+  // cuando entran (Valeria 21/09: corta por la línea punteada), con un solo window.print().
+  // Cada copia es atómica (CSS .recibo-copia break-inside:avoid): si no entran las dos, el
+  // duplicado se va entero a la hoja siguiente. Entre las dos va `.recibo-corte`.
   // El pie (total + retira + firma) va en `.recibo-pie` con break-inside:avoid para que NUNCA
   // se despegue de las líneas: sin eso, un recibo de 6 líneas mandaba el pie a la hoja 2 y las
   // 2 copias salían en 4 hojas.
@@ -2196,8 +2212,9 @@ async function imprimirReciboCobro(recibo, lineaIds, opts){
       ${esTransfer?'':firma}
     </div>
   </div>`;
-  // 2 copias rotuladas (mismo contenido). Original primero, duplicado en la 2ª hoja.
-  document.getElementById('recibo-print').innerHTML = copia('ORIGINAL') + copia('DUPLICADO');
+  // 2 copias rotuladas (mismo contenido), con la línea de corte entre medio. Original arriba,
+  // duplicado debajo en la misma hoja; en la 2ª hoja sólo si no entran (ver CSS .recibo-copia).
+  document.getElementById('recibo-print').innerHTML = copia('ORIGINAL') + '<div class="recibo-corte"></div>' + copia('DUPLICADO');
   await precargarLogo(cl?.logo_url);
   window.print();
 }

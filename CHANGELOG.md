@@ -1,5 +1,35 @@
 # Changelog
 
+## [2026-09-21] — Recibo de Pagos: ORIGINAL y DUPLICADO en una sola hoja (mergeado el 21/09)
+
+> Valeria (21/09): "salen en dos páginas, el original y el duplicado, ¿no lo querés hacer en una
+> sola hoja para no gastar tantas hojas al cohete? Yo lo corto por la mitad". Plan con mediciones:
+> `docs/diagnosticos/2026-09-21_plan-recibo-una-hoja.md` (reports).
+
+- **`liquidaciones.html`** (CSS de impresión + 1 línea de JS): se quita
+  `.recibo-copia:not(:last-child) { break-after: page }` — era lo único que separaba las copias —
+  y la copia pasa a ser atómica (`break-inside: avoid`). Entre las dos va un `<div class="recibo-corte">`
+  (1px punteado gris, tijera al margen, 6 mm arriba y abajo). Si las dos entran en la hoja salen
+  seguidas; si no, Chrome manda el duplicado **entero** a la hoja siguiente. **Nada del fix del 28/08
+  se toca**: copia con alto natural, `.recibo-pie` atómico, `body{margin:0}`, `@page 15mm`.
+- **Medido con Chromium** (`tests/render_recibo_pdf.mjs`, nuevo): 1 línea 85,7 mm por copia, 4 líneas
+  (N° 37, el más largo de R9) 100,8 mm, +5,0 mm por línea; con el corte entran **hasta 9 líneas**
+  (264 de 267 mm). PDFs reales mirados página por página (visor PDFium del Chromium completo):
+  1 y 4 líneas → **1 página**; 10 líneas → 2 páginas con el duplicado entero y su pie en la hoja 2;
+  40 líneas → 4 páginas (tabla parte, pie entero). No se cuentan líneas en JS.
+- **`tests/render_recibo_pdf.mjs`**: recibo real → HTML con la función real `imprimirReciboCobro`
+  (Supabase secret key, `document` stub) → chrome-headless-shell en media print, A4 → medidas en mm
+  por bloque, PDF, tira PNG y **PNG por página real del PDF** (`_pdf_pN.png`). `--lineas=N`,
+  `--css=…`, `--html=…`. Solo lectura, sin usuario. Necesita, además de las 8 libs del shell,
+  `libcups2t64` + `libavahi-client3` + `libavahi-common3` para el Chromium completo (docs/SERVER.md).
+- **`tests/probe_recibo_una_hoja.mjs`** (15 asserts): 7 de CSS (sin `break-after:page`, copia y pie
+  atómicos, sin `100vh`/`margin-top:auto`, `body margin:0`, `.recibo-corte`), 5 del HTML real de un
+  recibo (2 copias, 1 corte entre medio, total + Retira + firma dentro del pie en las dos), 3 con
+  Chromium (1 página / 2 páginas / ≥3 páginas; se saltean con aviso si no hay Chromium).
+  `--mutantes`: 5/5 muertos. `LIQUIDACIONES_HTML` acepta URL.
+- Lo que hay que mirar a ojo en la impresora física: que respete el `@page 15mm` (si fuerza 20 mm, el
+  útil son 257 mm y el límite baja a 8 líneas); y que la línea punteada se vea para cortar con tijera.
+
 ## [2026-09-21] — Pagos: vista por carrera — caballo → propietario / entrenador / jockey (Parte C; mergeado el 21/09)
 
 > Valeria (27/08 y 20/09): "la persona llega y dice *corrí en la dos y en la cinco*"; necesita ir a
