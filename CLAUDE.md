@@ -70,7 +70,7 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 │   ├── SNIPPETS.md              SQL y JS reutilizables
 │   ├── SCHEMA.md                Schema extendido (copia con más detalle)
 │   ├── SERVER.md                Specs del VPS Hetzner + límites de plataforma (Chromium headless SÍ, sin sudo: 8 libs por dpkg -x; sin poppler)
-│   └── LIQUIDACIONES_GAP_ANALYSIS.md  Modelo cerrado vs implementación (fuente del gap vivo)
+│   └── LIQUIDACIONES_GAP_ANALYSIS.md  Modelo cerrado vs implementación — FOTO del 2026-06-08, no se actualiza (GOTCHA #98); el estado vigente está en CLAUDE.md § Otros módulos y CHANGELOG.md
 ├── tests/                       Probes contra prod (sin browser — harness de código real; ver tests/README.md)
 │   ├── README.md                Instrucciones + patrón harness (AsyncFunction + Supabase real)
 │   ├── smoke_full.mjs           Suite completa T1–T17 (ciclo completo resultados.html)
@@ -495,8 +495,12 @@ salidas de queries, `git status`, `git log`, los diffs, y cualquier cosa pedida 
     del `signUp`, y el 2.106.1 devuelve `user: null` ahí. No unificarla a `@2` (GOTCHA #89).
 17. **`signUp` no da error si el correo ya tiene cuenta confirmada** — GoTrue responde 200 con un
     user obfuscado y no manda mail (anti-enumeración). Mirar `identities.length === 0`, no `error`.
+18. **Plata comprometida = `recibo_id IS NOT NULL OR estado_linea = 'pagado'`** — nunca sólo el recibo.
+    Una línea `pagado` con `recibo_id IS NULL` es un **saldado administrativo** (R6/R8 el 28/08, R9 el 21/09:
+    343 líneas, $22,3M) y es la mayoría de lo cobrado. Vale para queries, guards, asserts e informes.
+    PostgREST: `.or('recibo_id.not.is.null,estado_linea.eq.pagado')`. Mordió dos veces (GOTCHAS #74, #88).
 
-Ver `docs/GOTCHAS.md` para la lista completa (97 entradas).
+Ver `docs/GOTCHAS.md` para la lista completa (98 entradas).
 
 ---
 
@@ -513,7 +517,7 @@ Ver `docs/GOTCHAS.md` para la lista completa (97 entradas).
 - ✅ **Bug 3 (28/05/2026 — RESUELTO)**: `renderDivHTML` usaba `chapaAt(slot)` donde `slot` es el índice de fila de pago — GAN/SEG/TER mostraban todos el chip del 1°. Fix: `chapaAt(POS_SLOTS[tipo])`. Además: Fix A — `onMarcInput` marca con `.marc-invalid` mandiles que no corresponden a un ratificado (feedback visual, no bloquea). Fix B — `renderDivView` recibe `undefined` (no `[]`) cuando el override está vacío; `onMarcInput` aplica `tempPos.length ? tempPos : undefined`.
 
 ### Otros módulos
-- **liquidaciones.html**: estado real en `docs/ISSUES.md` (ISSUE-001) + gap vivo en `docs/LIQUIDACIONES_GAP_ANALYSIS.md`. Resumen: **Fase 0-2 + Fase C VIVAS** (merge `ccef143`, Fase C `7e638c7`); **incentivos montas** (jockey 50k/reunión, entrenador 10k/caballo — `47362ef`); **Fase 4 Pagos/recibos VIVO** — v1 buscador + RPC `emitir_recibo` (`1a50359`), v1.1 liberación **manual** del doping (RPC `liberar_linea`, pagable solo impago) + filtro carrera + búsqueda nombre/apellido/DNI (`4851129`); recibo con logo + firma (`154c83e`). **Fase 5 Resumen VIVO** (`4cc6c27`): buckets por estado + reconciliación + pendientes por beneficiario; **ampliada** (`f5a56c4`) con desglose por `concepto_tipo` + montas perdidas (informativo). **ISSUE-028 Apoderados CERRADO v1+v1.1** (tabla `apoderados` + UI en propietarios/profesionales + display read-only en Pagos). **des-oficializar carrera vía RPC** `desoficializar_carrera` (`61bd81d`). Bloqueante de datos: `inscripciones.propietario_id` 10/95 (GOTCHA #47); `spc_propietarios` 0. Pendientes: backfill propietarios, Fase 6 (validar A+B vs R5), **turno→carrera app-wide** (ISSUE-029; recibo ya hecho), confirmación de Fede sobre desglose/montas. **Reunión de prueba 9999 (PRUEBA RESUMEN) VIVA en Dolores — NO se borra** (decisión revertida el 2026-08-29): es el sandbox de los probes, marcada con `reuniones.es_prueba` y filtrada del buscador de Pagos. `teardown_prueba_resumen_9999.sql` queda sin usar.
+- **liquidaciones.html**: estado real en `docs/ISSUES.md` (ISSUE-001) y en esta línea + `CHANGELOG.md` (`docs/LIQUIDACIONES_GAP_ANALYSIS.md` es una **foto del 2026-06-08**, no se actualiza — GOTCHA #98). Resumen: **Fase 0-2 + Fase C VIVAS** (merge `ccef143`, Fase C `7e638c7`); **incentivos montas** (jockey 50k/reunión, entrenador 10k/caballo — `47362ef`); **Fase 4 Pagos/recibos VIVO** — v1 buscador + RPC `emitir_recibo` (`1a50359`), v1.1 liberación **manual** del doping (RPC `liberar_linea`, pagable solo impago) + filtro carrera + búsqueda nombre/apellido/DNI (`4851129`); recibo con logo + firma (`154c83e`). **Fase 5 Resumen VIVO** (`4cc6c27`): buckets por estado + reconciliación + pendientes por beneficiario; **ampliada** (`f5a56c4`) con desglose por `concepto_tipo` + montas perdidas (informativo). **ISSUE-028 Apoderados CERRADO v1+v1.1** (tabla `apoderados` + UI en propietarios/profesionales + display read-only en Pagos). **des-oficializar carrera vía RPC** `desoficializar_carrera` (`61bd81d`). Bloqueante de datos: `inscripciones.propietario_id` 10/95 (GOTCHA #47); `spc_propietarios` 0. Pendientes: backfill propietarios, Fase 6 (validar A+B vs R5), **turno→carrera app-wide** (ISSUE-029; recibo ya hecho), confirmación de Fede sobre desglose/montas. **Reunión de prueba 9999 (PRUEBA RESUMEN) VIVA en Dolores — NO se borra** (decisión revertida el 2026-08-29): es el sandbox de los probes, marcada con `reuniones.es_prueba` y filtrada del buscador de Pagos. `teardown_prueba_resumen_9999.sql` queda sin usar.
 - **portal.html / registro-profesional.html**: no construidos.
 - **ISSUE-018**: XSS — `innerHTML` con datos de DB sin escapar en varios módulos.
 - **ISSUE-007**: Calendario puede mostrar N-1 reuniones (bug de timezone).

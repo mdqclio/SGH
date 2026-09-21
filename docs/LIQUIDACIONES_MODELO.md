@@ -2,11 +2,8 @@
 
 > Estado del modelo: **cerrado** — definiciones de negocio confirmadas con Leonardo.
 >
-> **Estado de implementación (branch `feat/liquidaciones-cd`, NO en prod salvo schema):**
-> - ✅ Fase 0 — schema C+D (VIGENTE en DB de prod). Ver `SCHEMA.md` / `migrations/liquidaciones_cd_fase0.sql`.
-> - ✅ Fase 1 — % de reparto e incentivos por club desde `liquidacion_config` (branch).
-> - ✅ Fase 2 — fondo solidario 2% al club + bono 6-8 (100% propietario) + incentivos Bloque C (branch).
-> - ⏳ Fase 2bis — botón "Oficializar reunión". ⏳ Fase 3 — estados de línea + retención anti-doping. ⏳ Fase 4 — recibos por persona on-demand. ⏳ Fase 5 — resumen de reunión. ⏳ Fase 6 — validar A+B con datos reales de R5.
+> **Estado de implementación: este doc no lo lleva** (GOTCHA #98). Lo que está vivo y desde cuándo
+> se lee en `CLAUDE.md` § Bugs conocidos → *Otros módulos* → `liquidaciones.html`, y en `CHANGELOG.md`.
 > Detalle de fases y decisiones: `docs/ISSUES.md` (ISSUE-001). ADRs: ADR-042..047.
 
 > **Nota display vs liquidación (2026-07-21, CORREGIDA el 2026-09-08):** este modelo (piso `ganancia_minima` + bonos) rige la **liquidación / pago**. En el **display** (carta de llamado, programa, portal) la BOLSA impresa es la **EFECTIVA**: el piso `ganancia_minima` **SÍ** entra —un puesto por debajo del piso se muestra elevado al piso, y la bolsa es la suma de los puestos efectivos (`repartoDisplay`)—; los **bonos** siguen **aparte**, como líneas informativas, y **no** se suman a la BOLSA. `carreras.bolsa_total` en DB es siempre el nominal y no se muestra al usuario.

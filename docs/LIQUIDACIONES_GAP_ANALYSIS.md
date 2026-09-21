@@ -1,4 +1,4 @@
-# Liquidaciones — Gap Analysis (implementación actual vs modelo cerrado)
+# Liquidaciones — Gap Analysis (implementación actual vs modelo cerrado) — **foto del 2026-06-08**, no se actualiza (GOTCHA #98)
 
 > Fecha: 2026-06-08 · Rama: `docs/liquidaciones-gap-analysis` (creada desde `main`)
 > Tipo: **análisis / planificación, solo lectura.** No se tocó código, DB ni migraciones.
