@@ -80,7 +80,8 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 │   ├── probe_estado_pista.mjs   Estado de pista
 │   ├── probe_incentivos_montas.mjs  Incentivos Bloque C (jockey 50k/reunión, entrenador 10k/caballo)
 │   ├── probe_recibos_emision.mjs    Fase 4 v1 — RPC emitir_recibo + buscador pagable
-│   └── probe_cobros_v11.mjs     Fase 4 v1.1 — liberar_linea + búsqueda + filtro carrera
+│   ├── probe_cobros_v11.mjs     Fase 4 v1.1 — liberar_linea + búsqueda + filtro carrera
+│   └── local/                   Sandbox Docker (Postgres 16 + PostgREST + proxy /rest/v1) con una copia de la 9999 para probar DDL antes de que vaya a prod; clonar_9999.mjs sólo lee prod; out/ gitignored (PII)
 ├── migrations/                  SQL versionado (fuente de verdad de DDL; aplicar por MCP)
 │   ├── emitir_recibo_fase4.sql  RPC emitir_recibo v1 (cobro atómico)
 │   ├── emitir_recibo_v1_1.sql   RPC emitir_recibo v1.1 (pagable = solo impago)
@@ -92,7 +93,8 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 │   ├── rpc_spcs_duplicados.sql  RPC de los 3 chequeos de duplicado de SPC (APLICADA 2026-09-11; la usa spcs.html antes del INSERT)
 │   ├── rpc_modificar_inscripcion.sql  RPC Modificar desde el portal (caballeriza/entrenador/jockey/suplente; GATE-1=B; ver CHANGELOG 2026-09-16)
 │   ├── rpc_caballeriza_provisorio.sql  RPC propietario provisorio para UNA caballeriza sin titular (= DO por fila; lo llama caballerizas.html; APLICADA 2026-09-16)
-│   └── revoke_anon_anular_recibo.sql  SEGURIDAD — anular_recibo era ejecutable por anon (única RPC sin REVOKE); REVOKE de PUBLIC y anon (APLICADA 2026-09-22); rollback escrito; el patrón club-NULL de las 3 RPC de plata sigue abierto = ISSUE-090
+│   ├── revoke_anon_anular_recibo.sql  SEGURIDAD — anular_recibo era ejecutable por anon (única RPC sin REVOKE); REVOKE de PUBLIC y anon (APLICADA 2026-09-22); rollback escrito; el patrón club-NULL de las 3 RPC de plata sigue abierto = ISSUE-090
+│   └── rpc_cambiar_monta.sql       ISSUE-084 — RPC rpc_cambiar_monta + trigger trg_insc_monta_oficial (monta en carrera oficial: guard de plata comprometida + borra lo pagable del saliente + recalcular); rollback_rpc_cambiar_monta.sql; APLICADA 2026-09-22 (probe 23/23 contra prod)
 ├── supabase/functions/          Edge Functions (deploy por MCP `deploy_edge_function`)
 │   ├── reunion-json/            JSON de reunión para el Stud Book (v22, verify_jwt:false, token propio)
 │   ├── invite-user/             Alta de usuario por invitación (v5, verify_jwt:true)
@@ -369,6 +371,7 @@ node tests/probe_mandil_colores.mjs                # partidor-colors.js vs nomen
 node tests/probe_fmtinput_onblur.mjs               # liquidaciones.html — inputs de monto formatean por onblur, no por tecla (bug 19/09: tipear 60000 quedaba en $6,00 → base 6); saveReparto con sb stub; mutante = main pre-fix 7/20; sin Supabase; LIQUIDACIONES_HTML acepta URL
 node tests/probe_pagos_carrera_busqueda.mjs        # Pagos — select de carreras sin anuladas (NULL-safe) + orden por programa; cobNorm/cobMatch (Ñ/tildes, palabras sueltas, espacios) con cobrosBuscar real sobre R9; --mutantes 8/8; solo lectura; LIQUIDACIONES_HTML acepta URL
 node tests/probe_pagos_vista_carrera.mjs           # Pagos Parte C — vista por carrera (caballo → propietario/entrenador/jockey), incentivos de jockey por J (largaron), q por bloque, modo tarjetas intacto; cobrosBuscar real sobre R9 C5/C4/C7; --mutantes 7/7; solo lectura; LIQUIDACIONES_HTML acepta URL
+node tests/probe_montas_post_oficial.mjs            # ISSUE-084 — rpc_cambiar_monta + trigger + saveMontas real: A1–A12 (impago/retenido/pagado con y sin recibo/incentivo con y sin otra monta/provisional/recálculo fallido/update directo/payload entero/set_config) + P1–P3 (anon sin EXECUTE, club ajeno 42501, sesión sin fila en usuarios 42501), 9/9 mutantes (--mutantes; los de SQL con PSQL_CMD en el sandbox tests/local/); ESCRIBE en la 9999 y la restaura entera (ids incluidos); necesita la migración aplicada (corta antes de tocar nada si no está)
 node tests/probe_recibo_una_hoja.mjs [nro]          # recibo ORIGINAL+DUPLICADO en una hoja — CSS (sin break-after:page, copia y pie atómicos, sin 100vh), HTML real (2 copias + corte, firma dentro del pie), Chromium opcional (1/2/≥3 páginas); --mutantes 5/5; solo lectura; LIQUIDACIONES_HTML acepta URL
 node tests/render_recibo_pdf.mjs <nro|id> <out_dir> [--lineas=N] [--css=…] [--html=…]   # recibo real a PDF con Chromium headless: medidas en mm por copia, páginas del PDF, PNG por página real (visor PDFium del Chromium completo; libs en docs/SERVER.md). Es la verificación VISUAL del recibo — mirar _pdf_pN.png; solo lectura, sin usuario
 node tests/render_programa_pdf.mjs <reunion_id> color <out_dir> [https://sigh.com.ar]   # programa oficial a PDF + PNG con Chromium headless (LD_LIBRARY_PATH, ver docs/SERVER.md); reporta grilla y celdas que envuelven; ESCRIBE 1 usuario, teardown verificado. Es la verificación VISUAL — mirar las imágenes

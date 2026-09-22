@@ -2087,6 +2087,14 @@ async function altaJockeyRapida() {
   toast(`Jockey creado: ${apellido}, ${nombre} — ficha incompleta, completala en Jockeys`, 'success');
 }
 
+// ═══ SAVE MONTAS — INICIO (el probe extrae este bloque por estas anclas) ═══
+// ISSUE-084: la monta va por rpc_cambiar_monta, no por UPDATE directo. En carrera
+// oficial la RPC borra lo pagable del jockey saliente en su misma transacción y pide
+// recalcular; si el saliente ya cobró (recibo o saldado administrativo) rechaza con el
+// N° de recibo. El trigger trg_insc_monta_oficial bloquea cualquier otra vía (un cliente
+// desactualizado, ratificacion.html, inscripciones.html). El 20/09 FREE CRY se cambió
+// 43 min después de oficial desde un navegador que aún mostraba el formulario, y el
+// header del jockey anterior ($150.000) quedó pagable 94 minutos.
 async function saveMontas() {
   const insc = moInscripciones(currentCarreraId);
   const updates = [];
@@ -2098,18 +2106,34 @@ async function saveMontas() {
   }
   if (!updates.length) { document.getElementById('modal-montas').classList.remove('open'); return; }
   const errors = [];
+  let recalcular = false;
   for (const u of updates) {
-    const { error } = await sb.from('inscripciones')
-      .update({ jockey_titular_id: u.jockey_titular_id }).eq('id', u.id);
-    if (error) { console.error('[saveMontas]', error); errors.push(error); }
-    else {
+    const { data, error } = await sb.rpc('rpc_cambiar_monta', { p_inscripcion_id: u.id, p_jockey_id: u.jockey_titular_id });
+    if (error) {
+      console.error('[saveMontas]', error);
+      errors.push(error);
+      toast(error.message, 'error');   // nombra el caballo, la carrera y el recibo a anular
+      const el = document.getElementById(`mo-${u.id}`);
+      if (el) el.value = moOriginal[u.id] || '';   // la fila vuelve a lo que hay en la base
+    } else {
       const local = inscripciones.find(i => i.id === u.id);
       if (local) local.jockey_titular_id = u.jockey_titular_id;
       moOriginal[u.id] = u.jockey_titular_id;
+      if (data?.recalcular) recalcular = true;
     }
   }
-  if (errors.length) { toast(`Error al guardar ${errors.length} monta(s)`, 'error'); return; }
-  toast(`${updates.length} monta(s) guardada(s)`, 'success');
+  const guardadas = updates.length - errors.length;
+  if (guardadas) toast(`${guardadas} monta(s) guardada(s)`, 'success');
+  // Carrera oficial: el saliente ya no tiene nada pagable (lo borró la RPC); el motor
+  // genera ahora las líneas del entrante. Si esto falla, la ventana igual es cero.
+  if (recalcular) {
+    const carrera = carreras.find(c => c.id === currentCarreraId);
+    const rid = carrera?.reunion_id || document.getElementById('sel-reunion').value;
+    const r = await generarLiquidacionesReunion({ sb, clubId: CLUB_ID, reunionId: rid });
+    if (r.error) toast(`Monta guardada, pero la liquidación no se recalculó (${r.error}). Usá "Recalcular reunión" en Liquidaciones.`, 'error');
+    else toast('Liquidación de la reunión recalculada con la monta nueva', 'success');
+  }
+  if (errors.length) return;   // el modal queda abierto con las filas rechazadas en su valor real
   // Aviso, no bloqueo: se guardó igual. Si un jockey quedó en 2+ caballos que
   // largaron, la liquidación va a generar dos líneas de monta para él.
   const { conteo } = moJockeysRepetidos();
@@ -2120,6 +2144,7 @@ async function saveMontas() {
   }
   document.getElementById('modal-montas').classList.remove('open');
 }
+// ═══ SAVE MONTAS — FIN ═══
 
 // Ratificados que LARGARON y no tienen jockey — lo que mira el gate de oficializar().
 // Los "no corrió" se excluyen con la misma fuente que usa el marcador (noLargoMandiles +

@@ -325,6 +325,34 @@ node tests/smoke_full.mjs
 
 No ejecutar en CI sin una base de datos de staging separada.
 
+## Sandbox local para probes que necesitan DDL todavía no aplicado — `tests/local/`
+
+Cuando un probe necesita una RPC o un trigger que **no puede ir a prod sin OK** (pasó con
+ISSUE-084: la migración `rpc_cambiar_monta.sql` tenía que probarse con mutantes antes de
+aplicarse), se corre contra una copia local de la 9999: Postgres 16 + PostgREST en Docker y un
+proxy que sirve `/rest/v1` como Supabase, así el probe es **el mismo archivo** con dos env
+distintas. Producción sólo se lee para clonar.
+
+```bash
+set -a; . ./.env; set +a
+node tests/local/clonar_9999.mjs          # SOLO LEE prod → tests/local/out/{schema,datos}.sql (gitignored: trae DNI)
+tests/local/up.sh                         # levanta postgres + postgrest + proxy y carga los .sql
+tests/local/up.sh sql < migrations/rpc_cambiar_monta.sql     # aplicar lo que se quiere probar
+echo "NOTIFY pgrst, 'reload schema';" | tests/local/up.sh sql
+
+SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SECRET_KEY=$(cat tests/local/out/jwt) \
+  node tests/probe_montas_post_oficial.mjs
+SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SECRET_KEY=$(cat tests/local/out/jwt) PSQL_CMD="tests/local/up.sh sql" \
+  node tests/probe_montas_post_oficial.mjs --mutantes   # con PSQL_CMD los mutantes de SQL (gemela) y del trigger se aplican solos
+tests/local/up.sh down
+```
+
+Lo que el sandbox **no** tiene: GoTrue (`auth.uid()` devuelve NULL, como bajo service_role), RLS,
+los triggers de auditoría, `emitir_recibo`/`anular_recibo` y el resto de las RPC (sólo lo que carga
+`clonar_9999.mjs`: tablas de liquidación, inscripciones, resultados, profesionales, spcs, config). Un
+probe que dependa de eso se corre contra prod. El DDL de las tablas es una foto de
+`information_schema` del 2026-09-22 dentro de `clonar_9999.mjs`: si el schema cambia, actualizarlo ahí.
+
 ## Restore: verificar por ESTADO, no contando filas
 
 `tests/lib/estado_lineas.mjs` es el helper compartido para esto. Existe porque el 2026-08-28 un

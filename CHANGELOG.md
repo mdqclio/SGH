@@ -18,6 +18,41 @@
 - **Lo que NO arregla**: el patrón `club NULL ⇒ service_role` de `anular_recibo`, `emitir_recibo` y `liberar_linea` — una sesión
   `authenticated` sin fila en `usuarios` sigue salteando los guards. Es ISSUE-090; va aparte, con su propio probe.
 
+## [2026-09-22] — ISSUE-084: cambio de monta después de oficializar — RPC `rpc_cambiar_monta` + trigger; saveMontas recalcula (APLICADA en prod y mergeada; probe 23/23 contra prod)
+
+> R9 20/09: FREE CRY (C3) cambió de jockey 43 min después de oficial desde un cliente desactualizado; el header del
+> jockey anterior ($150.000, $60.000 pagables) quedó en el buscador de Pagos 94 minutos. Diagnóstico:
+> `docs/diagnosticos/2026-09-21_issue-084-montas-post-oficial-fase1.md` (reports). Opción B con OK de Leo (22/09).
+
+- **`migrations/rpc_cambiar_monta.sql`** (+ `rollback_rpc_cambiar_monta.sql`, probado): trigger `trg_insc_monta_oficial`
+  (BEFORE UPDATE OF `jockey_titular_id`, sólo si `NEW IS DISTINCT FROM OLD`) que rechaza cambiar la monta de una carrera
+  oficial por fuera de la RPC; RPC `rpc_cambiar_monta(p_inscripcion_id, p_jockey_id)` que en carrera oficial bloquea si el
+  saliente tiene plata comprometida (premio de la inscripción + incentivo si no monta otro largador; recibo N° en el mensaje,
+  o "saldado administrativo" — ISSUE-054) y si no, en la misma transacción borra lo pagable del saliente, recomputa su header,
+  cambia la monta, actualiza `performances.jockey_id` y pide recalcular. `set_config('sgh.cambiar_monta','1', true)` es la única
+  llave del trigger, local a la transacción.
+- **`resultados.html`** `saveMontas` (anclas `SAVE MONTAS — INICIO/FIN`): `rpc('rpc_cambiar_monta')` por fila + recálculo de la
+  reunión con el motor cuando alguna devuelve `recalcular`; el error de la RPC va al toast y la fila vuelve al valor real.
+- **Permisos**: las dos funciones se `REVOKE` de `PUBLIC` y de `anon`; `EXECUTE` sólo para `authenticated` (+ `service_role`
+  explícito, que en prod da el default privilege de Supabase). Guard 1 reconoce `service_role` por **`auth.role()`**, no por
+  "club NULL": una sesión `authenticated` sin fila en `usuarios` es **42501**, no un pase libre (el patrón de `emitir_recibo`
+  v1.2 infiere service_role de un club NULL y por eso no se copió).
+- **Incentivo**: `v_otras_montas` cuenta también las montas del saliente en carreras **no anuladas, ratificadas y todavía sin
+  resultado oficial** — si no, cambiar la monta de la primera carrera le borraría el incentivo a un jockey que corre más tarde.
+- **Concurrencia**: `SELECT … FOR UPDATE` sobre las líneas del saliente antes de contarlas, para que un `emitir_recibo`
+  simultáneo no se cuele entre el conteo y el DELETE.
+- **`tests/probe_montas_post_oficial.mjs`**: 23/23 (S0, P0, A1–A12, P1–P3, R1/R2) y **9/9 mutantes** (M1, M3–M10) sobre el
+  sandbox local; restaura la 9999 entera (headers + líneas con sus ids, jockeys por la RPC, resultados, performances, recibo
+  de prueba) y borra los usuarios de prueba. P1–P3 firman JWT en el sandbox (`LOCAL_JWT_SECRET`) o crean sesiones reales por
+  magiclink contra prod.
+- **`tests/local/`** (nuevo): `clonar_9999.mjs` (sólo lee prod → SQL, `out/` gitignored por PII), `up.sh` (Postgres 16 +
+  PostgREST + proxy `/rest/v1` en Docker), `proxy.mjs`. Para probar DDL que todavía no puede ir a prod. Sección en `tests/README.md`.
+- `docs/ISSUES.md`: ISSUE-084 con el fix; **ISSUE-089** nuevo (F10 en la vista oficial degrada la carrera sin lock ni rastro; el
+  próximo recálculo borra sus líneas impago/retenido — no se arregla acá).
+- **Desplegado el 2026-09-22 en ese orden**: `apply_migration` (`rpc_cambiar_monta_issue_084`) → probe contra prod **23/23**
+  (la 9999 restaurada: 640 líneas totales, 76 en la 9999, 42 recibos, 0 residuo) → merge del PR #7 → deploy del front.
+  Informe: `docs/diagnosticos/2026-09-22_paso2-despliegue-issue-084.md` (reports).
+
 ## [2026-09-21] — Registro de aprendizajes: encabezado de GOTCHAS + #98, ISSUE-084/086/087/088, regla 18 en CLAUDE.md (sin merge)
 
 - `docs/GOTCHAS.md`: encabezado con el formato de cuatro partes (qué pasó / cómo se detectó / regla / cómo se verifica) y la regla de mantenimiento (dos veces → sube a reglas, queda puntero); **#98** (copia del doc de modelo fuera del repo + encabezado viejo dieron por pendiente el Resumen, vivo desde `80d9b7e` 10/06); punteros en #74 y #88; "⚠ superada" en #22 y #75. `CLAUDE.md` § Gotchas críticos **18**: plata comprometida = `recibo_id IS NOT NULL OR estado_linea='pagado'`. `docs/LIQUIDACIONES_MODELO.md:4-9` pasa a puntero (no lleva estado); `docs/LIQUIDACIONES_GAP_ANALYSIS.md` marcado "foto del 2026-06-08". `docs/ISSUES.md`: **ISSUE-084** (monta cambiada post-oficialización, FREE CRY, 94 min), **086** (Transferencia en un select que arranca en Efectivo — recomendada la fila de radios), **087** (no hay pago parcial: línea indivisible), **088** (programa oficial imprime `peso_declarado`, el resto `peso_final || peso_declarado`). Sólo documentación. Informe: `docs/diagnosticos/2026-09-21_registro-aprendizajes-fase1.md` (reports).
