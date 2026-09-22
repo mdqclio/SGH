@@ -1,0 +1,47 @@
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- SEGURIDAD — `anular_recibo` es ejecutable por `anon`: REVOKE de PUBLIC y de anon
+--
+-- Hallazgo (auditoría del 2026-09-22, `docs/diagnosticos/2026-09-22_issue-084-permisos-
+-- incentivo-concurrencia.md` §2, rama reports): `anular_recibo(uuid, text)` es la única
+-- RPC del proyecto que nunca recibió el REVOKE. Su ACL era:
+--
+--     =X/postgres  postgres=X/postgres  anon=X/postgres  authenticated=X/postgres  service_role=X/postgres
+--      ↑ EXECUTE para PUBLIC             ↑ y explícito para anon
+--
+-- Medido contra producción con la publishable key (pública por diseño: está en el HTML de
+-- todas las páginas), SIN iniciar sesión y con un UUID inexistente — la función corta en
+-- 'el recibo no existe' antes de escribir, así que la prueba no toca datos:
+--
+--     POST /rest/v1/rpc/anular_recibo  {"p_recibo_id":"…00ff","p_motivo":"…"}
+--     → {"code":"P0001","message":"anular_recibo: el recibo no existe"}   HTTP 400
+--       (entra al cuerpo de la función; si el ACL bloqueara sería 42501, HTTP 401,
+--        como responden emitir_recibo y liberar_linea)
+--
+-- Por qué importa: para `anon`, `auth.uid()` es NULL → `fn_get_user_club_id()` es NULL →
+-- se saltean LOS DOS guards de la función, que están escritos con el patrón
+-- `fn_get_user_club_id() IS NOT NULL AND …`:
+--   · el de club     (línea 26 del pg_get_functiondef) → serviría para recibos de CUALQUIER club;
+--   · el de 5 días   (línea 32)                        → y de CUALQUIER antigüedad.
+-- Y anular no es inocuo: `anular_recibo` v2 pone el recibo en `anulado` y devuelve sus
+-- líneas a `impago`/`retenido` (migrations/anular_recibo_v2_snapshot.sql:146-152), o sea
+-- que plata ya cobrada vuelve a figurar como pagable.
+-- Atenuante (no arreglo): hacen falta los UUID de los recibos, que no son adivinables y
+-- que `anon` no puede listar (la tabla `recibos` tiene RLS). El ACL era la barrera que faltaba.
+--
+-- Esta migración hace SÓLO eso: sacar el EXECUTE de PUBLIC y de anon. No toca el cuerpo de
+-- la función, ni sus guards, ni ningún dato. `authenticated` y `service_role` mantienen su
+-- EXECUTE explícito (el REVOKE de PUBLIC no se los quita: los tienen por su propio GRANT).
+--
+-- NO arregla el patrón `club NULL ⇒ service_role` — una sesión `authenticated` sin fila en
+-- `usuarios` sigue salteando los dos guards. Eso es un cambio de lógica en tres RPC con
+-- plata (anular_recibo, emitir_recibo, liberar_linea), va aparte y con su propio probe
+-- (P1–P3 de tests/probe_montas_post_oficial.mjs son el molde).
+--
+-- Guards de esta migración (2026-09-22): pwd=/home/clio/dev/SGH · spcs=210 ·
+-- ref=unlhcuanfrtpatoipwve · recibos=42, anulados=0.
+--
+-- Rollback: migrations/rollback_revoke_anon_anular_recibo.sql (vuelve a la ACL de hoy).
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+REVOKE ALL ON FUNCTION public.anular_recibo(uuid, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.anular_recibo(uuid, text) FROM anon;

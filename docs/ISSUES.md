@@ -2407,3 +2407,49 @@ from inscripciones i join carreras ca on ca.id=i.carrera_id join reuniones r on 
 where r.club_id='0649e9c5-9e87-4aad-842f-101458e6b33c' group by r.numero order by r.numero;   -- hoy: 0 en todas
 ```
 
+---
+### ISSUE-090: el patrón `fn_get_user_club_id() IS NOT NULL` infiere `service_role` de un club NULL — una sesión `authenticated` sin fila en `usuarios` saltea los guards de `emitir_recibo`, `anular_recibo` y `liberar_linea`
+
+**Estado**: 🟠 **ABIERTO** (2026-09-22). Parte del hallazgo se **cerró** el mismo día: `anular_recibo` ya no es ejecutable por
+`anon` (`migrations/revoke_anon_anular_recibo.sql`, aplicada). Queda el patrón de fondo, que no depende del ACL.
+
+**El patrón**, idéntico en las tres (líneas del `pg_get_functiondef` del 22/09):
+```
+anular_recibo  26:  IF fn_get_user_club_id() IS NOT NULL AND NOT fn_is_super_admin()
+anular_recibo  32:  IF NOT fn_is_super_admin() AND fn_get_user_club_id() IS NOT NULL      ← ventana de 5 días
+emitir_recibo  24:  -- service_role (auth.uid() NULL → fn_get_user_club_id() NULL) y super_admin pasan.
+emitir_recibo  25:  IF fn_get_user_club_id() IS NOT NULL AND NOT fn_is_super_admin()
+liberar_linea  17:  IF fn_get_user_club_id() IS NOT NULL AND NOT fn_is_super_admin()
+```
+El comentario de `emitir_recibo:24` lo dice: **se infiere `service_role` de un `auth.uid()` NULL**. Pero
+`fn_get_user_club_id()` también da NULL para cualquier sesión `authenticated` **sin fila en `usuarios`** (o con `activo=false`).
+En ese caso el guard no corre: ni el de club ni, en `anular_recibo`, el de los 5 días.
+
+**Cómo debería ser** (ya aplicado en `rpc_cambiar_monta`, `migrations/rpc_cambiar_monta.sql`): reconocer `service_role` por
+`auth.role()` y exigir club explícito al resto.
+```sql
+IF NOT (coalesce(auth.role(), '') = 'service_role' OR fn_is_super_admin()) THEN
+  v_user_club := fn_get_user_club_id();
+  IF v_user_club IS NULL THEN RAISE EXCEPTION '…: la sesión no tiene hipódromo asignado' USING ERRCODE = '42501'; END IF;
+  IF <club del objeto> IS DISTINCT FROM v_user_club THEN RAISE EXCEPTION '…: es de otro hipódromo' USING ERRCODE = '42501'; END IF;
+END IF;
+```
+
+**Por qué no se arregló junto con el REVOKE**: es un cambio de lógica en tres RPC con plata; pide su propia migración con
+rollback y un probe con los asserts P1–P3 de `tests/probe_montas_post_oficial.mjs` (anon, club ajeno, sesión sin fila en
+`usuarios`) más un mutante que devuelva el patrón viejo. El REVOKE, en cambio, es una línea y cierra el vector anónimo.
+
+**Relacionado**: `aplicar_resultado` y `desoficializar_carrera` **no tienen guard de club en absoluto** (no mencionan club):
+cualquier `authenticated` de cualquier hipódromo puede oficializar/des-oficializar una carrera ajena si conoce su UUID. Medido
+el 22/09; ver el informe del paso 3.
+
+**Cómo se verifica**:
+```sql
+select p.proname,
+  (pg_get_functiondef(p.oid) ilike '%fn_get_user_club_id() IS NOT NULL%') as patron_viejo,
+  (pg_get_functiondef(p.oid) ilike '%auth.role()%') as usa_auth_role
+from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+where n.nspname='public' and p.proname in ('emitir_recibo','anular_recibo','liberar_linea');
+-- hoy: patron_viejo=true, usa_auth_role=false en las tres
+```
+
