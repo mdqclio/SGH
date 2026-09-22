@@ -8,7 +8,10 @@
 -- de este archivo: la anterior traía el mismo código con 9 comentarios recortados y el md5
 -- no coincidía). `md5(pg_get_functiondef)` en prod = **d49299c2a1b409e598db9353f90a5095**
 -- (9487 bytes, 201 líneas) = el que produce este archivo. Probe: 24/24 contra prod.
---
+-- Paso obligatorio inmediatamente después del apply_migration (GOTCHA #99):
+--   select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+--    where n.nspname='public' and p.proname='rpc_cambiar_monta';   -- tiene que dar d49299c2…
+-- Y el del trigger: fn_insc_monta_oficial_guard → 935d8dfad71878efef3b7b75efad2b75 (979 bytes, 29 líneas).
 --
 -- Origen: R9 20/09/2026, FREE CRY (C3). Martín oficializó C3 a las 17:36 UTC; Yesi,
 -- desde un navegador que todavía mostraba el formulario provisional, cambió la monta

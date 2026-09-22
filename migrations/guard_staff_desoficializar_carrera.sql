@@ -3,6 +3,13 @@
 --
 -- ESTADO EN PRODUCCIÓN: **APLICADA en prod el 2026-09-22** — migración `20260922170817 guard_staff_desoficializar_carrera`; md5 en prod: c3247d72
 --
+-- MD5 ESPERADO de `pg_get_functiondef` DESPUÉS de aplicar (es el ÚNICO md5 que prueba algo
+-- sobre prod; el md5 de este archivo no — GOTCHA #99):
+--   desoficializar_carrera: c3247d72656833cd534e4c601900f25a  (1807 bytes, 52 líneas)
+-- Paso obligatorio inmediatamente después del apply_migration:
+--   select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+--    where n.nspname='public' and p.proname='desoficializar_carrera';
+-- Si no coincide, REAPLICAR con el texto exacto de este archivo antes de dar nada por hecho.
 --
 -- Vector del portal (2026-09-22, `…_paso3-vector-portal.md` §4): la función NO tenía
 -- guard de ningún tipo — ni de rol ni de club — y el portal lee las 60 carreras del club

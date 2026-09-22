@@ -244,6 +244,8 @@ Función atómica que guarda posiciones + apuestas en una transacción, con opti
 ```
 
 ### Supabase MCP
+**`apply_migration` aplica el TEXTO que se le pasa, no el archivo** — si se transcribe a mano puede perder líneas (pasó el 2026-09-22: se comieron 9 comentarios y el probe siguió en verde). El md5 del `.sql` **no** es comparable con prod: el único que vale es el de `pg_get_functiondef`, y el esperado se mide aplicando el mismo archivo en el sandbox (`tests/local/`). Cada migración de función lleva ese md5 en el encabezado, y el paso siguiente al `apply_migration` es compararlo. GOTCHA #99.
+
 El MCP de Supabase en esta sesión tiene **escritura** (DDL/DML): `apply_migration` (DDL), `execute_sql` (DML/consultas). NO es read-only. Verificado el 02/06/2026 (se aplicaron `ENABLE RLS` + la migración `liquidaciones_cd_propietario_derivacion.sql` directo por MCP). Aun así: usar `apply_migration` para DDL (queda como migración trackeada), preferir el archivo `.sql` versionado en `migrations/` como fuente de verdad, y documentar el SQL ejecutado en el doc/CHANGELOG correspondiente. El `get_advisors` puede pedir surfacear hallazgos de seguridad (p.ej. RLS) — hacerlo siempre.
 
 ### Dinero
@@ -506,7 +508,7 @@ salidas de queries, `git status`, `git log`, los diffs, y cualquier cosa pedida 
     343 líneas, $22,3M) y es la mayoría de lo cobrado. Vale para queries, guards, asserts e informes.
     PostgREST: `.or('recibo_id.not.is.null,estado_linea.eq.pagado')`. Mordió dos veces (GOTCHAS #74, #88).
 
-Ver `docs/GOTCHAS.md` para la lista completa (98 entradas).
+Ver `docs/GOTCHAS.md` para la lista completa (99 entradas).
 
 ---
 

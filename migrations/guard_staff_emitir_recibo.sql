@@ -3,6 +3,14 @@
 --
 -- ESTADO EN PRODUCCIÓN: **NO APLICADA — espera OK** — camino de pago: se aplica con Valeria fuera de Pagos. Va última.
 --
+-- MD5 ESPERADO de `pg_get_functiondef` después de aplicar — medido aplicando ESTE archivo en
+-- el sandbox (tests/local/) el 2026-09-22. Es el ÚNICO md5 que prueba algo sobre prod: el del
+-- archivo .sql no, porque Postgres normaliza el texto al guardarlo (GOTCHA #99).
+--   emitir_recibo: 14951f502c0816de2d52923b45435c12  (4063 bytes, 103 líneas)
+-- Paso obligatorio inmediatamente después del apply_migration:
+--   select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+--    where n.nspname='public' and p.proname='emitir_recibo';
+-- Si no coincide, REAPLICAR con el texto exacto de este archivo antes de dar nada por hecho.
 --
 -- Sobre v1.2 (`emitir_recibo_v1_2_aislamiento_club.sql`, ISSUE-059/057). Lo que v1.2 dejó
 -- abierto y cierra esta migración es el guard 1: está escrito como

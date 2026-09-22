@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-09-22] — Verificación de md5 contra prod: las 5 funciones aplicadas coinciden con el repo; GOTCHA #99
+
+- **Control de las cinco ya aplicadas** (`aplicar_resultado`, `desoficializar_carrera`, `liberar_linea`,
+  `rpc_cambiar_monta`, `fn_insc_monta_oficial_guard`): se comparó `md5(pg_get_functiondef)` de prod contra el que produce
+  **el mismo archivo aplicado en el sandbox**. **Las cinco coinciden** — no hubo nada que reaplicar y ninguna diferencia
+  de código ejecutable.
+- **GOTCHA #99**: `apply_migration` aplica el texto que se le pasa, no el archivo; el md5 del `.sql` no prueba nada sobre
+  prod (no son comparables: Postgres normaliza el texto). Evidencia del día: `bac0bac4` (prod, transcripto a mano) vs
+  `d49299c2` (el archivo) en `rpc_cambiar_monta` — 9 comentarios perdidos, con el probe en 24/24.
+- **Procedimiento nuevo, ya escrito en los encabezados**: cada migración de función lleva el **MD5 ESPERADO** de
+  `pg_get_functiondef`, medido en el sandbox antes de tocar prod, y el paso siguiente al `apply_migration` es compararlo.
+  Si no coincide se reaplica con el texto exacto; si la diferencia toca código ejecutable, se para y se avisa. Las tres
+  pendientes del camino de pago ya tienen su md5 esperado anotado: `fn_siguiente_recibo` `95d2bdc2`, `anular_recibo`
+  `844e9e1f`, `emitir_recibo` `14951f50`.
+
 ## [2026-09-22] — Guard de staff en las RPC sensibles: 3 de 6 aplicadas (el camino de pago espera OK)
 
 > Cierra el vector medido el 22/09 (`docs/diagnosticos/2026-09-22_paso3-vector-portal.md`, reports): un usuario del PORTAL

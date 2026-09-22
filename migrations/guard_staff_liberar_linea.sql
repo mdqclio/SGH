@@ -3,6 +3,13 @@
 --
 -- ESTADO EN PRODUCCIÓN: **APLICADA en prod el 2026-09-22** — migración `20260922170638 guard_staff_liberar_linea`; md5 de la función en prod: 127d7199
 --
+-- MD5 ESPERADO de `pg_get_functiondef` DESPUÉS de aplicar (es el ÚNICO md5 que prueba algo
+-- sobre prod; el md5 de este archivo no — GOTCHA #99):
+--   liberar_linea: 127d7199a4c22aaf20b6dd057758fc32  (1606 bytes, 46 líneas)
+-- Paso obligatorio inmediatamente después del apply_migration:
+--   select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+--    where n.nspname='public' and p.proname='liberar_linea';
+-- Si no coincide, REAPLICAR con el texto exacto de este archivo antes de dar nada por hecho.
 --
 -- Vector del portal (2026-09-22, `…_paso3-vector-portal.md` §4): un usuario del portal
 -- ENTRABA al cuerpo, y su `fn_get_user_club_id()` es el de Dolores, así que el guard de

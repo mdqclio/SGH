@@ -3,6 +3,14 @@
 --
 -- ESTADO EN PRODUCCIÓN: **NO APLICADA — espera OK** — camino de pago: `emitir_recibo` la llama por dentro. Va junto con las otras dos.
 --
+-- MD5 ESPERADO de `pg_get_functiondef` después de aplicar — medido aplicando ESTE archivo en
+-- el sandbox (tests/local/) el 2026-09-22. Es el ÚNICO md5 que prueba algo sobre prod: el del
+-- archivo .sql no, porque Postgres normaliza el texto al guardarlo (GOTCHA #99).
+--   fn_siguiente_recibo: 95d2bdc2fef65622e3997fbff45285f4  (1288 bytes, 35 líneas)
+-- Paso obligatorio inmediatamente después del apply_migration:
+--   select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+--    where n.nspname='public' and p.proname='fn_siguiente_recibo';
+-- Si no coincide, REAPLICAR con el texto exacto de este archivo antes de dar nada por hecho.
 --
 -- Parte de la tanda que cierra el vector del portal medido el 2026-09-22:
 -- `docs/diagnosticos/2026-09-22_paso3-vector-portal.md` (reports). Un usuario del portal

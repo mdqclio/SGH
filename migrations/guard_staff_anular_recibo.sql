@@ -3,6 +3,14 @@
 --
 -- ESTADO EN PRODUCCIÓN: **NO APLICADA — espera OK** — camino de pago: se aplica con Valeria fuera de Pagos.
 --
+-- MD5 ESPERADO de `pg_get_functiondef` después de aplicar — medido aplicando ESTE archivo en
+-- el sandbox (tests/local/) el 2026-09-22. Es el ÚNICO md5 que prueba algo sobre prod: el del
+-- archivo .sql no, porque Postgres normaliza el texto al guardarlo (GOTCHA #99).
+--   anular_recibo: 844e9e1ff62f4dbba30df71b8a88e309  (3850 bytes, 106 líneas)
+-- Paso obligatorio inmediatamente después del apply_migration:
+--   select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+--    where n.nspname='public' and p.proname='anular_recibo';
+-- Si no coincide, REAPLICAR con el texto exacto de este archivo antes de dar nada por hecho.
 --
 -- Tercera capa sobre la misma función. Las dos anteriores, del 2026-09-22:
 --   · `migrations/revoke_anon_anular_recibo.sql` — sacó el EXECUTE de PUBLIC y de anon
