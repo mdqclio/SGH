@@ -91,7 +91,8 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 │   ├── spcs_conesera_sexo.sql   UPDATE sexo de Conesera macho→hembra (EJECUTADA 2026-09-11, confirmó Yesi)
 │   ├── rpc_spcs_duplicados.sql  RPC de los 3 chequeos de duplicado de SPC (APLICADA 2026-09-11; la usa spcs.html antes del INSERT)
 │   ├── rpc_modificar_inscripcion.sql  RPC Modificar desde el portal (caballeriza/entrenador/jockey/suplente; GATE-1=B; ver CHANGELOG 2026-09-16)
-│   └── rpc_caballeriza_provisorio.sql  RPC propietario provisorio para UNA caballeriza sin titular (= DO por fila; lo llama caballerizas.html; APLICADA 2026-09-16)
+│   ├── rpc_caballeriza_provisorio.sql  RPC propietario provisorio para UNA caballeriza sin titular (= DO por fila; lo llama caballerizas.html; APLICADA 2026-09-16)
+│   └── revoke_anon_anular_recibo.sql  SEGURIDAD — anular_recibo era ejecutable por anon (única RPC sin REVOKE); REVOKE de PUBLIC y anon (APLICADA 2026-09-22); rollback escrito; el patrón club-NULL de las 3 RPC de plata sigue abierto = ISSUE-090
 ├── supabase/functions/          Edge Functions (deploy por MCP `deploy_edge_function`)
 │   ├── reunion-json/            JSON de reunión para el Stud Book (v22, verify_jwt:false, token propio)
 │   ├── invite-user/             Alta de usuario por invitación (v5, verify_jwt:true)
