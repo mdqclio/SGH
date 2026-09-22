@@ -23,8 +23,14 @@
 --
 --   2. RPC rpc_cambiar_monta(p_inscripcion_id, p_jockey_id) — SECURITY DEFINER, con
 --      los guards adentro (GOTCHA #80):
---      · guard 1 (permiso): usuario de club sólo sobre inscripciones de su club;
---        portal no. service_role y super_admin pasan (mismo patrón que emitir_recibo).
+--      · guard 1 (permiso): pasa `service_role` (auth.role(), NO "club NULL") y el
+--        super_admin; cualquier otro necesita `fn_get_user_club_id()` NO NULL y que
+--        coincida con el club de la carrera. Un club NULL sin service_role — sesión sin
+--        fila en `usuarios`, o un JWT `authenticated` cualquiera — es 42501, no un pase
+--        libre. El patrón de emitir_recibo v1.2 (`fn_get_user_club_id() IS NOT NULL AND
+--        NOT fn_is_super_admin()`) INFIERE service_role de un club NULL y por eso deja
+--        pasar a cualquier `authenticated` sin fila en `usuarios`: acá no se copia.
+--      · el portal (`fn_is_portal_user()`) queda afuera antes que nada.
 --      · jockey válido: profesional tipo jockey|ambos, o NULL ("Sin asignar").
 --      · carrera NO oficial → UPDATE y listo (lo que hacía saveMontas).
 --      · carrera oficial → cuenta las líneas COMPROMETIDAS del jockey saliente
@@ -42,6 +48,15 @@
 --        {recalcular:true}. El cliente recalcula la reunión enseguida con el motor
 --        (liquidaciones-engine.js) para generar las líneas del entrante. Si ese
 --        recálculo falla, el saliente YA no tiene nada pagable: la ventana es cero.
+--
+--      · concurrencia: las líneas del saliente que el guard va a contar se toman con
+--        `SELECT … FOR UPDATE` ANTES de contarlas, así un `emitir_recibo` simultáneo
+--        sobre esas mismas líneas espera el commit de esta transacción (y ve la monta
+--        ya cambiada) en vez de colarse entre el conteo y el DELETE.
+--
+--   3. Permisos: las dos funciones se REVOCAN de PUBLIC y de anon; sólo `authenticated`
+--      tiene EXECUTE sobre la RPC (mismo patrón que rpc_modificar_inscripcion.sql).
+--      La función del trigger no necesita EXECUTE de nadie: la invoca el trigger.
 --
 -- No cambia ninguna regla de plata: el motor sigue generando las líneas del entrante
 -- exactamente como antes. Sólo se cierra la ventana entre el cambio y el recálculo.
@@ -83,6 +98,9 @@ BEGIN
   RETURN NEW;
 END $function$;
 
+REVOKE ALL ON FUNCTION public.fn_insc_monta_oficial_guard() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.fn_insc_monta_oficial_guard() FROM anon;
+
 DROP TRIGGER IF EXISTS trg_insc_monta_oficial ON public.inscripciones;
 CREATE TRIGGER trg_insc_monta_oficial
   BEFORE UPDATE OF jockey_titular_id ON public.inscripciones
@@ -102,6 +120,7 @@ DECLARE
   v_insc          inscripciones%ROWTYPE;
   v_car           carreras%ROWTYPE;
   v_club          uuid;
+  v_user_club     uuid;
   v_viejo         uuid;
   v_oficial       boolean := false;
   v_caballo       text;
@@ -126,13 +145,20 @@ BEGIN
   SELECT * INTO v_car FROM carreras WHERE id = v_insc.carrera_id;
   v_club := fn_club_de_carrera(v_insc.carrera_id);
 
-  -- ── guard 1 · PERMISO (depende de la sesión; service_role y super_admin pasan) ──
+  -- ── guard 1 · PERMISO ─────────────────────────────────────────────────────────
+  -- service_role se reconoce por auth.role(), NO por "club NULL": un club NULL es un
+  -- usuario sin fila en `usuarios`, que NO tiene que poder tocar nada.
   IF fn_is_portal_user() THEN
     RAISE EXCEPTION 'rpc_cambiar_monta: el portal no cambia montas' USING ERRCODE = '42501';
   END IF;
-  IF fn_get_user_club_id() IS NOT NULL AND NOT fn_is_super_admin()
-     AND v_club IS DISTINCT FROM fn_get_user_club_id() THEN
-    RAISE EXCEPTION 'rpc_cambiar_monta: la inscripción es de otro hipódromo' USING ERRCODE = '42501';
+  IF NOT (coalesce(auth.role(), '') = 'service_role' OR fn_is_super_admin()) THEN
+    v_user_club := fn_get_user_club_id();
+    IF v_user_club IS NULL THEN
+      RAISE EXCEPTION 'rpc_cambiar_monta: la sesión no tiene hipódromo asignado' USING ERRCODE = '42501';
+    END IF;
+    IF v_club IS DISTINCT FROM v_user_club THEN
+      RAISE EXCEPTION 'rpc_cambiar_monta: la inscripción es de otro hipódromo' USING ERRCODE = '42501';
+    END IF;
   END IF;
 
   -- ── jockey válido (NULL = "Sin asignar") ──
@@ -155,18 +181,39 @@ BEGIN
   v_oficial := EXISTS (SELECT 1 FROM resultados r WHERE r.carrera_id = v_insc.carrera_id AND r.estado = 'oficial');
 
   IF v_oficial AND v_viejo IS NOT NULL THEN
-    -- ¿El saliente monta OTRO largador de la reunión? Si sí, su incentivo sigue siendo suyo.
+    -- ¿El saliente tiene OTRA monta en la reunión que le dé derecho al incentivo? Si sí,
+    -- el incentivo sigue siendo suyo y no se toca. Cuentan las dos formas:
+    --   (a) ya largó en una carrera oficial (no_largo=false) — lo que mira el motor hoy;
+    --   (b) está ratificado en una carrera NO anulada que todavía NO tiene resultado
+    --       oficial: esa carrera puede oficializarse después y generarle el incentivo.
+    -- Con sólo (a), cambiar la monta de la primera carrera de la reunión le borraría el
+    -- incentivo pagado a un jockey que igual va a correr más tarde.
     SELECT count(*) INTO v_otras_montas
       FROM inscripciones i
-      JOIN carreras c  ON c.id = i.carrera_id
-      JOIN resultados r ON r.carrera_id = c.id AND r.estado = 'oficial'
-      JOIN resultado_posiciones rp ON rp.resultado_id = r.id AND rp.inscripcion_id = i.id AND rp.no_largo = false
+      JOIN carreras c ON c.id = i.carrera_id
      WHERE c.reunion_id = v_car.reunion_id
        AND i.id <> v_insc.id
        AND i.estado = 'ratificado'
-       AND i.jockey_titular_id = v_viejo;
+       AND i.jockey_titular_id = v_viejo
+       AND ( EXISTS (SELECT 1 FROM resultados r
+                       JOIN resultado_posiciones rp ON rp.resultado_id = r.id
+                      WHERE r.carrera_id = c.id AND r.estado = 'oficial'
+                        AND rp.inscripcion_id = i.id AND rp.no_largo = false)
+          OR ( (c.estado IS NULL OR c.estado <> 'anulada')
+               AND NOT EXISTS (SELECT 1 FROM resultados r
+                                WHERE r.carrera_id = c.id AND r.estado = 'oficial') ) );
 
     -- ── guard 2 · INVARIANTE DEL DATO (no depende de la sesión) ──
+    -- Concurrencia: se BLOQUEAN primero las líneas del saliente que el guard va a mirar
+    -- (premio de esta inscripción + su incentivo de la reunión). Sin esto, un
+    -- `emitir_recibo` simultáneo podría marcarlas `pagado` entre el conteo y el DELETE.
+    -- Con el lock, ese emitir_recibo espera el commit y ve la monta ya cambiada.
+    PERFORM 1 FROM liquidacion_detalle d
+      WHERE d.beneficiario_tipo = 'profesional' AND d.beneficiario_id = v_viejo
+        AND ( (d.inscripcion_id = v_insc.id AND d.concepto_tipo = 'premio')
+           OR (d.reunion_id = v_car.reunion_id AND d.concepto_tipo = 'incentivo_jockey') )
+      FOR UPDATE;
+
     -- Plata comprometida del saliente: premio de ESTA inscripción…
     SELECT count(*), max(r.numero_recibo) INTO v_comp_premio, v_recibo_nro
       FROM liquidacion_detalle d
@@ -254,4 +301,13 @@ BEGIN
   );
 END $function$;
 
-GRANT EXECUTE ON FUNCTION public.rpc_cambiar_monta(uuid, uuid) TO authenticated;
+COMMENT ON FUNCTION public.rpc_cambiar_monta(uuid, uuid) IS
+  'ISSUE-084: cambiar la monta de una inscripción. En carrera oficial bloquea si el jockey saliente tiene plata comprometida (recibo o saldado administrativo) y, si no, borra sus líneas pagables, recomputa su header, actualiza performances y pide recalcular la reunión. Única vía autorizada por el trigger trg_insc_monta_oficial.';
+
+REVOKE ALL     ON FUNCTION public.rpc_cambiar_monta(uuid, uuid) FROM PUBLIC;
+REVOKE ALL     ON FUNCTION public.rpc_cambiar_monta(uuid, uuid) FROM anon;
+GRANT  EXECUTE ON FUNCTION public.rpc_cambiar_monta(uuid, uuid) TO authenticated;
+-- service_role explícito: en prod lo da el ALTER DEFAULT PRIVILEGES de Supabase (todas las RPC
+-- del proyecto tienen `service_role=X`), pero el REVOKE FROM PUBLIC se lo lleva puesto en
+-- cualquier base que no lo tenga configurado — y los probes corren como service_role.
+GRANT  EXECUTE ON FUNCTION public.rpc_cambiar_monta(uuid, uuid) TO service_role;

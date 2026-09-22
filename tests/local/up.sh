@@ -52,7 +52,9 @@ const c=require("crypto");const b=s=>Buffer.from(JSON.stringify(s)).toString("ba
 const h=b({alg:"HS256",typ:"JWT"}),p=b({role:"service_role",iss:"sgh-local",exp:Math.floor(Date.now()/1000)+86400*365});
 const sig=c.createHmac("sha256",process.argv[1]).update(h+"."+p).digest("base64url");process.stdout.write(h+"."+p+"."+sig)' "$JWT_SECRET" > "$HERE/out/jwt"
 
+printf %s "$JWT_SECRET" > "$HERE/out/jwt_secret"   # el probe lo usa para firmar JWT de anon/authenticated (P1–P3)
 nohup node "$HERE/proxy.mjs" "$PROXYPORT" "http://127.0.0.1:$PGRSTPORT" > "$HERE/out/proxy.log" 2>&1 &
 for i in $(seq 1 30); do curl -sf "http://127.0.0.1:$PROXYPORT/rest/v1/" -H "apikey: $(cat "$HERE/out/jwt")" -H "Authorization: Bearer $(cat "$HERE/out/jwt")" >/dev/null 2>&1 && break; sleep 1; done
 echo "postgrest+proxy: http://127.0.0.1:$PROXYPORT/rest/v1  (jwt en tests/local/out/jwt)"
 echo "psql:            tests/local/up.sh psql"
+echo "probe:           SUPABASE_URL=http://127.0.0.1:$PROXYPORT SUPABASE_SECRET_KEY=\$(cat tests/local/out/jwt) LOCAL_JWT_SECRET=\$(cat tests/local/out/jwt_secret) node tests/probe_montas_post_oficial.mjs"

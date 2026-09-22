@@ -2258,8 +2258,13 @@ Hoy no quedó nada mal: 0 líneas y 0 recibos a nombre de un jockey que no corri
   devuelve `recalcular`, corre `generarLiquidacionesReunion` enseguida; el error de la RPC va al toast tal cual (nombra el
   caballo, la carrera y el recibo) y la fila vuelve al valor de la base. Si el recálculo falla, el saliente ya no tiene nada
   pagable: ventana cero.
-- `tests/probe_montas_post_oficial.mjs`: 19 asserts (A1–A11 + R1/R2), 7 mutantes muertos (M1 saldado, M3 incentivo, M4
-  guard de más, M5 no borra, M6 trigger abierto, M7 update directo, M8 sin recálculo). Corrido contra el sandbox local
+- Permisos: `REVOKE ALL … FROM PUBLIC, anon` en las dos funciones; `EXECUTE` a `authenticated` (+ `service_role` explícito).
+  Guard 1 reconoce `service_role` por `auth.role()`, **no** por "club NULL" — una sesión sin fila en `usuarios` es 42501.
+  `v_otras_montas` también cuenta montas del saliente en carreras no anuladas sin resultado oficial. `SELECT … FOR UPDATE`
+  sobre las líneas del saliente antes de contarlas (concurrencia con `emitir_recibo`).
+- `tests/probe_montas_post_oficial.mjs`: 23 asserts (A1–A12, P1–P3 + R1/R2), 9 mutantes muertos (M1 saldado, M3 incentivo, M4
+  guard de más, M5 no borra, M6 trigger abierto, M7 update directo, M8 sin recálculo, M9 guard 1 viejo, M10 incentivo
+  sólo-oficial). Corrido contra el sandbox local
   `tests/local/` (la migración no está en prod). Orden de despliegue: migración primero, front después — con el trigger
   puesto y el front viejo, un cambio en carrera oficial falla, que es el comportamiento seguro.
 - Lo que el fix NO cubre: corrió↔no corrió después de oficializar (ISSUE-089); el caso d) saldado administrativo queda

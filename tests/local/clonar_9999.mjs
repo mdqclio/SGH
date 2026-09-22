@@ -75,7 +75,13 @@ const ARRAY_COLS = { carreras: ['apuestas'] };
 // no hay GoTrue, y NULL es exactamente lo que ve service_role.
 const HELPERS = `
 CREATE SCHEMA IF NOT EXISTS auth;
-CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT NULL::uuid $$;
+-- auth.uid() / auth.role() leen los claims del JWT igual que en Supabase: PostgREST deja el
+-- payload en el GUC request.jwt.claims. Sin JWT (psql directo) los dos dan NULL/current_user,
+-- que es lo que ve service_role.
+CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
+  SELECT nullif(nullif(current_setting('request.jwt.claims', true), '')::json ->> 'sub', '')::uuid $$;
+CREATE OR REPLACE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$
+  SELECT coalesce(nullif(nullif(current_setting('request.jwt.claims', true), '')::json ->> 'role', ''), current_user::text) $$;
 CREATE OR REPLACE FUNCTION public.fn_club_de_carrera(p_carrera_id uuid) RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
   SELECT r.club_id FROM reuniones r JOIN carreras c ON c.reunion_id = r.id WHERE c.id = p_carrera_id LIMIT 1; $$;
 CREATE OR REPLACE FUNCTION public.fn_get_user_club_id() RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
@@ -133,7 +139,7 @@ const profOtros = profIdsRef.filter(id => !profClub.some(p => p.id === id));
 const profesionales = profClub.concat(profOtros.length ? await all('profesionales', b => b.in('id', profOtros)) : []);
 const liquidacion_config = await all('liquidacion_config', b => b.eq('club_id', CLUB));
 const comision_config    = await all('comision_config',    b => b.eq('club_id', CLUB));
-const clubs = await all('clubs', b => b.eq('id', CLUB));
+const clubs = await all('clubs', b => b);   // los 3: P2 del probe necesita un club ajeno real (FK usuarios.club_id → clubs)
 
 // ── serialización ────────────────────────────────────────────────────────────
 const lit = (v, isArray) => {

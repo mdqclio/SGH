@@ -37,7 +37,15 @@
  *   A9  propietario pagado + jockey impago → pasa (el guard mira sólo al jockey saliente)
  *   A10 UPDATE con payload entero y el mismo jockey en carrera oficial → pasa (NEW IS NOT DISTINCT FROM OLD)
  *   A11 después de la RPC, un UPDATE directo sigue rechazado (set_config local a la transacción)
+ *   A12 incentivo del saliente pagado PERO con otra monta en una carrera provisional → pasa y no lo toca
+ *   P1  anon → rechazado (sin privilegio de EXECUTE)
+ *   P2  authenticated con club de otro hipódromo → 42501
+ *   P3  authenticated SIN fila en `usuarios` (club NULL) → 42501, no "pasa por service_role"
  *   R1  restore por estado limpio · R2 nada fuera de la 9999 cambió (líneas totales, recibos)
+ *
+ * P1–P3 necesitan sesiones con rol: en el sandbox se firman JWT con LOCAL_JWT_SECRET
+ * (tests/local/out/jwt_secret); contra prod se crean usuarios y sesiones reales por magiclink
+ * (mismo patrón que probe_rpc_spcs_duplicados) y se borran en el finally.
  */
 process.env.TZ = 'America/Argentina/Buenos_Aires';
 
@@ -47,6 +55,7 @@ import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { execFileSync, execSync } from 'node:child_process';
+import { createHmac, randomUUID } from 'node:crypto';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SELF = fileURLToPath(import.meta.url);
@@ -58,7 +67,11 @@ const HTML_PATH   = process.env.RESULTADOS_HTML || join(HERE, '..', 'resultados.
 const ENGINE_PATH = process.env.ENGINE_JS || join(HERE, '..', 'liquidaciones-engine.js');
 const SQL_PATH    = join(HERE, '..', 'migrations', 'rpc_cambiar_monta.sql');
 const CLUB = '0649e9c5-9e87-4aad-842f-101458e6b33c';
+const CLUB_AJENO = 'a6da7e40-1515-45dc-8933-4eef33ce937a';   // Mi Club Hípico
 const RID  = 'a0000000-0000-0000-0000-000000009999';
+const PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK';
+const JWT_SECRET = process.env.LOCAL_JWT_SECRET || null;     // sandbox: firma JWT; prod: null → sesiones reales
+const RUN = Date.now().toString(36);
 const TAG  = 'PROBE-084';
 const RECIBO_NRO = 99084;
 
@@ -120,6 +133,52 @@ async function correrSaveMontas({ carreraId, inscs, cambios, engine }) {
   const fn = new (Object.getPrototypeOf(async function () {}).constructor)(...Object.keys(ctx), src);
   await fn(...Object.values(ctx));
   return { toasts, modalAbierto, selects };
+}
+
+// ── clientes por ROL (P1–P3) ─────────────────────────────────────────────────
+// Sandbox: JWT firmado con el secreto local (auth.uid()/auth.role() leen request.jwt.claims,
+// igual que Supabase). Prod: usuario + sesión real por magiclink. El `anon` de prod es la
+// publishable key, que es exactamente lo que sirve el sitio público.
+const creadosAuth = [];
+function firmarJWT(claims) {
+  const b = o => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const h = b({ alg: 'HS256', typ: 'JWT' });
+  const pl = b({ iss: 'sgh-local', exp: Math.floor(Date.now() / 1000) + 3600, ...claims });
+  return `${h}.${pl}.${createHmac('sha256', JWT_SECRET).update(`${h}.${pl}`).digest('base64url')}`;
+}
+async function clienteAnon() {
+  if (JWT_SECRET) return createClient(SUPABASE_URL, firmarJWT({ role: 'anon' }), { auth: { persistSession: false } });
+  return createClient(SUPABASE_URL, PUBLISHABLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
+}
+/** authenticated con (o sin) fila en `usuarios`. `club`=null + conFila=false → club NULL. */
+async function clienteAuth({ club, conFila = true, etiqueta }) {
+  const email = `probe.084.${etiqueta}.${RUN}@sgh.test`;
+  let authId;
+  if (JWT_SECRET) {
+    authId = randomUUID();
+  } else {
+    const { data: au, error } = await sb.auth.admin.createUser({ email, password: `Px-${RUN}-${Math.random().toString(36).slice(2)}`, email_confirm: true });
+    if (error) throw new Error('createUser: ' + error.message);
+    authId = au.user.id;
+  }
+  creadosAuth.push({ email, authId });
+  if (conFila) {
+    const { error } = await sb.from('usuarios').insert({ email, nombre_completo: `Probe 084 ${etiqueta}`, club_id: club, rol: 'operador', activo: true, estado: 'activo', password_hash: '', auth_user_id: authId });
+    if (error) throw new Error('insert usuarios: ' + error.message);
+  }
+  if (JWT_SECRET) return createClient(SUPABASE_URL, firmarJWT({ role: 'authenticated', sub: authId }), { auth: { persistSession: false } });
+  const { data: link, error: eLink } = await sb.auth.admin.generateLink({ type: 'magiclink', email });
+  if (eLink) throw new Error('generateLink: ' + eLink.message);
+  const cli = createClient(SUPABASE_URL, PUBLISHABLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
+  const { error: eOtp } = await cli.auth.verifyOtp({ token_hash: link.properties.hashed_token, type: 'magiclink' });
+  if (eOtp) throw new Error('verifyOtp: ' + eOtp.message);
+  return cli;
+}
+async function limpiarAuth() {
+  for (const u of creadosAuth) {
+    await sb.from('usuarios').delete().eq('email', u.email);
+    if (!JWT_SECRET) { try { await sb.auth.admin.deleteUser(u.authId); } catch {} }
+  }
 }
 
 // ── snapshot / restore de la reunión ENTERA (headers + líneas con sus ids) ────
@@ -192,6 +251,12 @@ const MUTANTES = [
   { id: 'M6', tipo: 'trigger', mata: ['A8', 'A11'], desc: 'el trigger deja pasar siempre (la excepción de la RPC queda abierta)',
     from: "IF current_setting('sgh.cambiar_monta', true) = '1' THEN",
     to:   "IF true THEN" },
+  { id: 'M9', tipo: 'sql', mata: ['P3'], desc: 'guard 1 vuelve al patrón viejo (infiere service_role de club NULL)',
+    from: "IF NOT (coalesce(auth.role(), '') = 'service_role' OR fn_is_super_admin()) THEN\n    v_user_club := fn_get_user_club_id();\n    IF v_user_club IS NULL THEN\n      RAISE EXCEPTION 'rpc_cambiar_monta: la sesión no tiene hipódromo asignado' USING ERRCODE = '42501';\n    END IF;\n    IF v_club IS DISTINCT FROM v_user_club THEN",
+    to:   "IF fn_get_user_club_id() IS NOT NULL AND NOT fn_is_super_admin() THEN\n    v_user_club := fn_get_user_club_id();\n    IF v_club IS DISTINCT FROM v_user_club THEN" },
+  { id: 'M10', tipo: 'sql', mata: ['A12'], desc: 'v_otras_montas vuelve a contar SÓLO carreras ya oficializadas',
+    from: "       AND ( EXISTS (SELECT 1 FROM resultados r\n                       JOIN resultado_posiciones rp ON rp.resultado_id = r.id\n                      WHERE r.carrera_id = c.id AND r.estado = 'oficial'\n                        AND rp.inscripcion_id = i.id AND rp.no_largo = false)\n          OR ( (c.estado IS NULL OR c.estado <> 'anulada')\n               AND NOT EXISTS (SELECT 1 FROM resultados r\n                                WHERE r.carrera_id = c.id AND r.estado = 'oficial') ) );",
+    to:   "       AND EXISTS (SELECT 1 FROM resultados r\n                     JOIN resultado_posiciones rp ON rp.resultado_id = r.id\n                    WHERE r.carrera_id = c.id AND r.estado = 'oficial'\n                      AND rp.inscripcion_id = i.id AND rp.no_largo = false);" },
   { id: 'M7', tipo: 'html', mata: ['A1'], desc: 'saveMontas vuelve al UPDATE directo (el trigger lo rechaza en oficial)',
     from: "sb.rpc('rpc_cambiar_monta', { p_inscripcion_id: u.id, p_jockey_id: u.jockey_titular_id })",
     to:   "sb.from('inscripciones').update({ jockey_titular_id: u.jockey_titular_id }).eq('id', u.id).select('id').single()" },
@@ -432,10 +497,55 @@ try {
     ok('A11) tras una RPC exitosa, un UPDATE directo sigue rechazado (set_config fue local a la transacción de la RPC)',
        !e1 && !!e2 && /oficializada/.test(msg(e2)) && (await jockeyDe(INSC_A)).jockey_titular_id === N, `rpc=${e1 ? msg(e1) : 'ok'} · update=${msg(e2) || 'PASÓ'}`);
   }
+  await reset();
+
+  // ── A12 · incentivo pagado del saliente, PERO tiene otra monta en una carrera
+  //          provisional (todavía sin resultado oficial) → la RPC pasa y no lo toca ──
+  {
+    const resC = base.ress.find(r => r.carrera_id === turno3.id);
+    await q(sb.from('resultados').update({ estado: 'provisional' }).eq('id', resC.id), 'A12 res provisional');
+    await alinear(INSC_C, G);          // G monta en el turno 3, que NO tiene resultado oficial
+    await alinear(INSC_A, G);          // y también en el turno 2, que SÍ es oficial
+    const { data, error } = await rpc(INSC_A, N);
+    const inc = await q(sb.from('liquidacion_detalle').select('estado_linea,recibo_id').eq('id', INC_PAG.id).single(), 'A12 inc');
+    ok('A12) incentivo pagado del saliente + otra monta en carrera PROVISIONAL → la RPC pasa y el incentivo no se toca',
+       !error && data?.cambio === true && inc.estado_linea === 'pagado' && inc.recibo_id === INC_PAG.recibo_id
+         && (await jockeyDe(INSC_A)).jockey_titular_id === N,
+       error ? msg(error) : `${JSON.stringify(data)} · incentivo ${inc.estado_linea}${inc.recibo_id ? '+recibo' : ''}`);
+  }
+  await reset();
+
+  // ── P1/P2/P3 · permisos ──
+  await alinear(INSC_A, V);
+  {
+    const anon = await clienteAnon();
+    const { data, error } = await anon.rpc(RPC, { p_inscripcion_id: INSC_A, p_jockey_id: N });
+    ok('P1) anon → rechazado antes de entrar a la función (no tiene EXECUTE)',
+       !!error && !data && (/permission denied/i.test(msg(error)) || error.code === '42501')
+         && (await jockeyDe(INSC_A)).jockey_titular_id === V,
+       `code=${error?.code} ${msg(error) || 'SIN ERROR — ENTRÓ'}`);
+  }
+  {
+    const cli = await clienteAuth({ club: CLUB_AJENO, conFila: true, etiqueta: 'otroclub' });
+    const { data, error } = await cli.rpc(RPC, { p_inscripcion_id: INSC_A, p_jockey_id: N });
+    ok('P2) authenticated con club de otro hipódromo → 42501, la monta no cambia',
+       !!error && !data && error.code === '42501' && /otro hipódromo/.test(msg(error))
+         && (await jockeyDe(INSC_A)).jockey_titular_id === V,
+       `code=${error?.code} ${msg(error) || 'SIN ERROR — PASÓ'}`);
+  }
+  {
+    const cli = await clienteAuth({ club: null, conFila: false, etiqueta: 'sinclub' });
+    const { data, error } = await cli.rpc(RPC, { p_inscripcion_id: INSC_A, p_jockey_id: N });
+    ok('P3) authenticated SIN fila en usuarios (club NULL) → 42501; NO se lo confunde con service_role',
+       !!error && !data && error.code === '42501' && /no tiene hipódromo asignado/.test(msg(error))
+         && (await jockeyDe(INSC_A)).jockey_titular_id === V,
+       `code=${error?.code} ${msg(error) || 'SIN ERROR — PASÓ COMO SERVICE_ROLE'}`);
+  }
 } catch (e) {
   console.log('💥 el probe no corrió entero:', e.message);
   failN++; fallas.push('excepción');
 } finally {
+  try { await limpiarAuth(); } catch (e) { console.log('⚠ limpieza de usuarios de prueba:', e.message); }
   if (base) {
     let difsAntes = [];
     try {

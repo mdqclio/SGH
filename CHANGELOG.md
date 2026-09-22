@@ -15,8 +15,18 @@
   llave del trigger, local a la transacción.
 - **`resultados.html`** `saveMontas` (anclas `SAVE MONTAS — INICIO/FIN`): `rpc('rpc_cambiar_monta')` por fila + recálculo de la
   reunión con el motor cuando alguna devuelve `recalcular`; el error de la RPC va al toast y la fila vuelve al valor real.
-- **`tests/probe_montas_post_oficial.mjs`**: 19/19 (S0, P0, A1–A11, R1/R2) y **7/7 mutantes** (M1, M3–M8) sobre el sandbox
-  local; restaura la 9999 entera (headers + líneas con sus ids, jockeys por la RPC, resultados, performances, recibo de prueba).
+- **Permisos**: las dos funciones se `REVOKE` de `PUBLIC` y de `anon`; `EXECUTE` sólo para `authenticated` (+ `service_role`
+  explícito, que en prod da el default privilege de Supabase). Guard 1 reconoce `service_role` por **`auth.role()`**, no por
+  "club NULL": una sesión `authenticated` sin fila en `usuarios` es **42501**, no un pase libre (el patrón de `emitir_recibo`
+  v1.2 infiere service_role de un club NULL y por eso no se copió).
+- **Incentivo**: `v_otras_montas` cuenta también las montas del saliente en carreras **no anuladas, ratificadas y todavía sin
+  resultado oficial** — si no, cambiar la monta de la primera carrera le borraría el incentivo a un jockey que corre más tarde.
+- **Concurrencia**: `SELECT … FOR UPDATE` sobre las líneas del saliente antes de contarlas, para que un `emitir_recibo`
+  simultáneo no se cuele entre el conteo y el DELETE.
+- **`tests/probe_montas_post_oficial.mjs`**: 23/23 (S0, P0, A1–A12, P1–P3, R1/R2) y **9/9 mutantes** (M1, M3–M10) sobre el
+  sandbox local; restaura la 9999 entera (headers + líneas con sus ids, jockeys por la RPC, resultados, performances, recibo
+  de prueba) y borra los usuarios de prueba. P1–P3 firman JWT en el sandbox (`LOCAL_JWT_SECRET`) o crean sesiones reales por
+  magiclink contra prod.
 - **`tests/local/`** (nuevo): `clonar_9999.mjs` (sólo lee prod → SQL, `out/` gitignored por PII), `up.sh` (Postgres 16 +
   PostgREST + proxy `/rest/v1` en Docker), `proxy.mjs`. Para probar DDL que todavía no puede ir a prod. Sección en `tests/README.md`.
 - `docs/ISSUES.md`: ISSUE-084 con el fix; **ISSUE-089** nuevo (F10 en la vista oficial degrada la carrera sin lock ni rastro; el
