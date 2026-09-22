@@ -62,11 +62,13 @@ const TABLES = {
   inscripciones: `id uuid primary key default gen_random_uuid(), carrera_id uuid not null, spc_id uuid not null, propietario_id uuid, entrenador_id uuid, jockey_titular_id uuid, jockey_suplente_id uuid, numero_partidor integer, peso_declarado numeric, peso_final numeric, estado estado_inscripcion not null default 'pre_inscripto', canal canal_inscripcion not null default 'manual', motivo_estado varchar, info_adicional text, inscripto_por uuid, ratificado_por uuid, created_at timestamptz not null default now(), updated_at timestamptz not null default now(), caballeriza_id uuid, peon varchar, capataz varchar, sereno varchar, certificado_correr boolean default false, peso_balanza numeric, performance text`,
   resultados: `id uuid primary key default gen_random_uuid(), carrera_id uuid not null, estado estado_resultado not null default 'provisional', tiempo_ganador varchar, dividendos jsonb, incidentes text, observaciones text, oficializado_por uuid, oficializado_at timestamptz, created_at timestamptz not null default now(), estado_pista varchar, favorito_mandil integer, redistribucion_legs jsonb default '{}'::jsonb, updated_at timestamptz default now()`,
   resultado_posiciones: `id uuid primary key default gen_random_uuid(), resultado_id uuid not null, inscripcion_id uuid not null, posicion integer, tiempo varchar, diferencia varchar, descalificado boolean not null default false, motivo_desc text, empate boolean default false, dividendo numeric, no_largo boolean not null default false`,
+  resultado_apuestas: `id uuid primary key default gen_random_uuid(), resultado_id uuid not null, tipo varchar not null, val_apu numeric, composicion text, pozo numeric, vales integer, div_orig numeric, div_inc numeric, vacante boolean default false, orden smallint default 0`,
   performances: `id uuid primary key default gen_random_uuid(), spc_id uuid not null, carrera_id uuid, fecha_carrera date not null, hipodromo_sigla varchar not null, hipodromo_nombre varchar, numero_carrera integer, categoria_codigo varchar, categoria_simbolo varchar, distancia_metros integer, tipo_pista varchar, posicion integer, tiempo_ganador varchar, diferencia varchar, peso_llevado numeric, jockey_id uuid, jockey_nombre varchar, observaciones text, descalificado boolean not null default false, fuente varchar not null default 'local', created_at timestamptz not null default now()`,
   liquidacion_config: `id uuid primary key default gen_random_uuid(), club_id uuid not null, pct_propietario numeric not null default 70, pct_entrenador numeric not null default 10, pct_jockey numeric not null default 10, pct_peon numeric not null default 4, pct_capataz numeric not null default 3, pct_sereno numeric not null default 1, pct_fondo_solidario numeric not null default 2, incentivo_jockey_monto numeric not null default 0, incentivo_entrenador_monto numeric not null default 0, dias_antidoping integer not null default 30, retencion_dgi_pct numeric, vigente_desde date not null default CURRENT_DATE, vigente_hasta date, activo boolean not null default true, created_at timestamptz not null default now()`,
   comision_config: `id uuid primary key default gen_random_uuid(), club_id uuid not null, hipodromo_id uuid, categoria_id uuid, tipo_profesional tipo_profesional, tipo_cobro tipo_cobro not null, porcentaje numeric, monto_fijo numeric, posicion_bono integer, monto_bono numeric, descuento_fondo_solidario_pct numeric default 0, descuento_incentivo_pct numeric default 0, otros_descuentos jsonb, vigente_desde date not null, vigente_hasta date, descripcion text, activo boolean not null default true`,
   recibos: `id uuid primary key default gen_random_uuid(), club_id uuid not null, numero_recibo integer not null, beneficiario_tipo beneficiario_tipo not null, profesional_id uuid, propietario_id uuid, forma_pago forma_pago_recibo not null, total_premios numeric not null default 0, total_descuentos numeric not null default 0, retencion_dgi numeric, neto_a_cobrar numeric GENERATED ALWAYS AS (((total_premios - total_descuentos) - COALESCE(retencion_dgi, 0::numeric))) STORED, cobrador_nombre text, cobrador_documento text, comprobante_url text, estado estado_recibo not null default 'emitido', emitido_por uuid, emitido_at timestamptz not null default now(), anulado_at timestamptz, notas text, created_at timestamptz not null default now(), anulado_por uuid, motivo_anulacion text, lineas_anuladas jsonb`,
   liquidaciones: `id uuid primary key default gen_random_uuid(), club_id uuid not null, reunion_id uuid not null, profesional_id uuid, propietario_id uuid, periodo_desde date, periodo_hasta date, total_bruto numeric not null default 0, total_descuentos numeric not null default 0, total_neto numeric GENERATED ALWAYS AS ((total_bruto - total_descuentos)) STORED, estado estado_liquidacion not null default 'borrador', numero_recibo varchar, recibo_pdf_url text, aprobado_por uuid, pagado_at timestamptz, notas text, created_at timestamptz not null default now()`,
+  club_secuencias: `club_id uuid not null, tipo text not null, ultimo_numero integer not null default 0, primary key (club_id, tipo)`,
   liquidacion_detalle: `id uuid primary key default gen_random_uuid(), liquidacion_id uuid not null references liquidaciones(id) on delete cascade, carrera_id uuid, concepto varchar not null, descripcion text, monto_bruto numeric not null, porcentaje_desc numeric default 0, monto_descuento numeric default 0, monto_neto numeric GENERATED ALWAYS AS ((monto_bruto - monto_descuento)) STORED, orden_display integer default 0, estado_linea estado_linea_liq not null default 'impago', concepto_tipo concepto_liq, posicion integer, inscripcion_id uuid, fecha_liberacion date, pagado_at timestamptz, recibo_id uuid references recibos(id), beneficiario_tipo beneficiario_tipo, beneficiario_id uuid, reunion_id uuid`,
 };
 const ARRAY_COLS = { carreras: ['apuestas'] };
@@ -90,6 +92,14 @@ CREATE OR REPLACE FUNCTION public.fn_is_portal_user() RETURNS boolean LANGUAGE s
   SELECT EXISTS (SELECT 1 FROM usuarios WHERE auth_user_id = auth.uid() AND activo AND rol IN ('propietario', 'profesional')); $$;
 CREATE OR REPLACE FUNCTION public.fn_is_super_admin() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
   SELECT EXISTS (SELECT 1 FROM usuarios WHERE auth_user_id = auth.uid() AND rol = 'super_admin'); $$;
+CREATE OR REPLACE FUNCTION public.fn_is_staff() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
+  SELECT EXISTS (SELECT 1 FROM usuarios WHERE auth_user_id = auth.uid() AND activo AND rol IN ('super_admin','secretario_carreras','operador')); $$;
+CREATE OR REPLACE FUNCTION public.fn_club_de_liquidacion(p_liquidacion_id uuid) RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
+  SELECT club_id FROM liquidaciones WHERE id = p_liquidacion_id LIMIT 1; $$;
+CREATE OR REPLACE FUNCTION public.fn_club_de_inscripcion(p_inscripcion_id uuid) RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
+  SELECT r.club_id FROM reuniones r JOIN carreras c ON c.reunion_id = r.id JOIN inscripciones i ON i.carrera_id = c.id WHERE i.id = p_inscripcion_id LIMIT 1; $$;
+CREATE OR REPLACE FUNCTION public.fn_club_de_reunion(p_reunion_id uuid) RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
+  SELECT club_id FROM reuniones WHERE id = p_reunion_id LIMIT 1; $$;
 CREATE OR REPLACE FUNCTION public.set_updated_at() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN NEW.updated_at = NOW(); RETURN NEW; END; $$;
 DROP TRIGGER IF EXISTS trg_inscripciones_updated_at ON inscripciones;
 CREATE TRIGGER trg_inscripciones_updated_at BEFORE UPDATE ON inscripciones FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -125,6 +135,7 @@ const inscripciones = await all('inscripciones', b => b.in('carrera_id', carIds)
 const resultados    = await all('resultados',    b => b.in('carrera_id', carIds));
 const resIds = resultados.map(r => r.id);
 const resultado_posiciones = resIds.length ? await all('resultado_posiciones', b => b.in('resultado_id', resIds)) : [];
+const resultado_apuestas = resIds.length ? await all('resultado_apuestas', b => b.in('resultado_id', resIds)) : [];
 const performances  = await all('performances', b => b.in('carrera_id', carIds));
 const liquidaciones = await all('liquidaciones', b => b.eq('reunion_id', RID));
 const liquidacion_detalle = await all('liquidacion_detalle', b => b.eq('reunion_id', RID));
@@ -139,6 +150,7 @@ const profOtros = profIdsRef.filter(id => !profClub.some(p => p.id === id));
 const profesionales = profClub.concat(profOtros.length ? await all('profesionales', b => b.in('id', profOtros)) : []);
 const liquidacion_config = await all('liquidacion_config', b => b.eq('club_id', CLUB));
 const comision_config    = await all('comision_config',    b => b.eq('club_id', CLUB));
+const club_secuencias = await all('club_secuencias', b => b.eq('club_id', CLUB));
 const clubs = await all('clubs', b => b);   // los 3: P2 del probe necesita un club ajeno real (FK usuarios.club_id → clubs)
 
 // ── serialización ────────────────────────────────────────────────────────────
@@ -169,13 +181,13 @@ writeFileSync(join(OUT, 'schema.sql'), schema);
 let datos = 'BEGIN;\n';
 datos += inserts('clubs', clubs) + inserts('reuniones', reuniones) + inserts('carreras', carreras)
   + inserts('spcs', spcs) + inserts('profesionales', profesionales) + inserts('inscripciones', inscripciones)
-  + inserts('resultados', resultados) + inserts('resultado_posiciones', resultado_posiciones)
+  + inserts('resultados', resultados) + inserts('resultado_posiciones', resultado_posiciones) + inserts('resultado_apuestas', resultado_apuestas)
   + inserts('performances', performances) + inserts('liquidacion_config', liquidacion_config)
-  + inserts('comision_config', comision_config) + inserts('recibos', recibos)
+  + inserts('comision_config', comision_config) + inserts('club_secuencias', club_secuencias) + inserts('recibos', recibos)
   + inserts('liquidaciones', liquidaciones) + inserts('liquidacion_detalle', liquidacion_detalle);
 datos += 'COMMIT;\n';
 writeFileSync(join(OUT, 'datos.sql'), datos);
 
 console.log('escrito tests/local/out/{schema,datos}.sql');
-for (const [k, v] of Object.entries({ reuniones, carreras, inscripciones, resultados, resultado_posiciones, performances, liquidaciones, liquidacion_detalle, recibos, spcs, profesionales, liquidacion_config, comision_config, clubs }))
+for (const [k, v] of Object.entries({ reuniones, carreras, inscripciones, resultados, resultado_posiciones, resultado_apuestas, performances, liquidaciones, liquidacion_detalle, recibos, spcs, profesionales, liquidacion_config, comision_config, club_secuencias, clubs }))
   console.log(`  ${k.padEnd(22)} ${v.length}`);

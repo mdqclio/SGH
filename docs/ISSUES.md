@@ -2475,8 +2475,11 @@ vuelta atrás.
 
 ### ISSUE-090: el patrón `fn_get_user_club_id() IS NOT NULL` infiere `service_role` de un club NULL — una sesión `authenticated` sin fila en `usuarios` saltea los guards de `emitir_recibo`, `anular_recibo` y `liberar_linea`
 
-**Estado**: 🟠 **ABIERTO** (2026-09-22). Parte del hallazgo se **cerró** el mismo día: `anular_recibo` ya no es ejecutable por
-`anon` (`migrations/revoke_anon_anular_recibo.sql`, aplicada). Queda el patrón de fondo, que no depende del ACL.
+**Estado**: 🟠 **ABIERTO — 3 de 6 cerradas** (2026-09-22). Cerrado antes: `anular_recibo` ya no es ejecutable por `anon`
+(`migrations/revoke_anon_anular_recibo.sql`, aplicada). Cerrado el patrón en **`liberar_linea`, `desoficializar_carrera` y
+`aplicar_resultado`** (migraciones `guard_staff_*`, aplicadas el 22/09: guard 0 + guard de club con `auth.role()`).
+**Sigue abierto en las tres del camino de pago** — `emitir_recibo`, `anular_recibo` y `fn_siguiente_recibo` —, cuyas
+migraciones están escritas y probadas pero **esperan OK** para aplicarse con Valeria fuera de Pagos.
 
 **El patrón**, idéntico en las tres (líneas del `pg_get_functiondef` del 22/09):
 ```

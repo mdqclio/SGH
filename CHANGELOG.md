@@ -1,5 +1,37 @@
 # Changelog
 
+## [2026-09-22] — Guard de staff en las RPC sensibles: 3 de 6 aplicadas (el camino de pago espera OK)
+
+> Cierra el vector medido el 22/09 (`docs/diagnosticos/2026-09-22_paso3-vector-portal.md`, reports): un usuario del PORTAL
+> —cuenta aprobada, `club_id` de Dolores— **entraba al cuerpo de las seis RPC**, y `aplicar_resultado`,
+> `desoficializar_carrera` y `fn_siguiente_recibo` **no tenían guard de ningún tipo**. El portal lee por RLS las 60 carreras,
+> 24 resultados y 207 posiciones del club **con sus id**, así que tenía todo lo necesario para des-oficializar o reescribir
+> el resultado de cualquier carrera.
+
+- **`guard 0`, igual en las seis** — antes de cualquier `SELECT`, para que el mensaje no delate si el objeto existe:
+  ```sql
+  IF NOT (coalesce(auth.role(), '') = 'service_role' OR fn_is_super_admin() OR fn_is_staff()) THEN
+    RAISE EXCEPTION '<función>: sin permiso' USING ERRCODE = '42501';
+  END IF;
+  ```
+  `fn_is_staff()` = `super_admin | secretario_carreras | operador`, **activo**. Los 6 usuarios staff reales pasan.
+- **Guard de club**: nuevo en `aplicar_resultado` y `desoficializar_carrera` (no tenían); en las de plata reemplaza el patrón
+  `fn_get_user_club_id() IS NOT NULL AND …`, que infiere `service_role` de un club NULL — **ISSUE-090**.
+- **APLICADAS en prod el 22/09** (probe `--fn` 12/12 después de cada una): `liberar_linea` (`20260922170638`),
+  `desoficializar_carrera` (`20260922170817`), `aplicar_resultado` (`20260922171044`).
+- **PENDIENTES, esperan OK** (camino de pago, se aplican con Valeria fuera de Pagos): `emitir_recibo`, `anular_recibo` y
+  **`fn_siguiente_recibo`** — ésta última no estaba en la lista de "las otras cuatro" original, pero `emitir_recibo` la
+  invoca por dentro, así que tocarla es tocar el circuito de cobro igual.
+- **`tests/probe_guard_staff_rpcs.mjs`** (nuevo): matriz 7 funciones × 8 perfiles con argumentos válidos de la 9999; **60/60**
+  en el sandbox con las seis aplicadas y **8/8 mutantes** (M7 declarado equivalente con su prueba). Aprendizajes que costaron
+  rojos: el 42501 tiene que venir del guard de **esa** función (sin eso, sacarle el guard 0 a `emitir_recibo` "no se nota"
+  porque lo ataja el de `fn_siguiente_recibo` — GOTCHA #86); y el teardown borra auditoría y recibos **antes** que los
+  usuarios (dos FK sin `ON DELETE` que lo hacían fallar en silencio y dejaban usuarios de prueba en prod).
+- **`migrations/rpc_cambiar_monta.sql`**: se le agregó el `guard 0` antes del lookup — **todavía sin aplicar**; en prod el
+  guard de rol sigue después del `SELECT` de la inscripción.
+- **`tests/local/clonar_9999.mjs`**: el sandbox ahora clona `club_secuencias` y `resultado_apuestas`, y define
+  `fn_is_staff`, `fn_club_de_liquidacion`, `fn_club_de_inscripcion`, `fn_club_de_reunion`. Faltaban y el probe no arrancaba.
+
 ## [2026-09-22] — SEGURIDAD: `anular_recibo` era ejecutable por `anon` — REVOKE de PUBLIC y de anon (APLICADA en prod)
 
 > Hallazgo de la auditoría de permisos del 22/09 (`docs/diagnosticos/2026-09-22_issue-084-permisos-incentivo-concurrencia.md` §2,
