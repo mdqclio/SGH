@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026-09-22] — SEGURIDAD: `anular_recibo` era ejecutable por `anon` — REVOKE de PUBLIC y de anon (APLICADA en prod)
+
+> Hallazgo de la auditoría de permisos del 22/09 (`docs/diagnosticos/2026-09-22_issue-084-permisos-incentivo-concurrencia.md` §2,
+> reports). `anular_recibo(uuid, text)` era la **única** RPC del proyecto sin el `REVOKE`: su ACL tenía `=X/postgres` (EXECUTE para
+> PUBLIC) **y** `anon=X`. Con la publishable key —pública, está en el HTML de todas las páginas— y sin iniciar sesión, la llamada
+> **entraba al cuerpo de la función**; y como `auth.uid()` es NULL para anon, se salteaban sus dos guards (`club` y la ventana de
+> 5 días), los dos escritos con el patrón `fn_get_user_club_id() IS NOT NULL AND …`. Anular no es inocuo: devuelve las líneas del
+> recibo a `impago`/`retenido`, o sea que plata ya cobrada vuelve a figurar como pagable. Atenuante: hacen falta los UUID de los
+> recibos, que no son adivinables y que `anon` no puede listar (RLS en `recibos`).
+
+- **`migrations/revoke_anon_anular_recibo.sql`** (+ rollback): `REVOKE ALL … FROM PUBLIC` y `FROM anon`. No toca el cuerpo de la
+  función, ni sus guards, ni datos. Medido antes y después con el mismo `curl`: **antes** `P0001 el recibo no existe` (HTTP 400),
+  **después** `42501 permission denied for function anular_recibo` (HTTP 401) — igual que `emitir_recibo` y `liberar_linea`.
+  `has_function_privilege`: anon **false**, authenticated **true**, service_role **true**. Camino legítimo verificado con una
+  sesión real de operador de Dolores: sigue entrando al cuerpo (`P0001`).
+- **Lo que NO arregla**: el patrón `club NULL ⇒ service_role` de `anular_recibo`, `emitir_recibo` y `liberar_linea` — una sesión
+  `authenticated` sin fila en `usuarios` sigue salteando los guards. Es ISSUE-090; va aparte, con su propio probe.
+
 ## [2026-09-21] — Registro de aprendizajes: encabezado de GOTCHAS + #98, ISSUE-084/086/087/088, regla 18 en CLAUDE.md (sin merge)
 
 - `docs/GOTCHAS.md`: encabezado con el formato de cuatro partes (qué pasó / cómo se detectó / regla / cómo se verifica) y la regla de mantenimiento (dos veces → sube a reglas, queda puntero); **#98** (copia del doc de modelo fuera del repo + encabezado viejo dieron por pendiente el Resumen, vivo desde `80d9b7e` 10/06); punteros en #74 y #88; "⚠ superada" en #22 y #75. `CLAUDE.md` § Gotchas críticos **18**: plata comprometida = `recibo_id IS NOT NULL OR estado_linea='pagado'`. `docs/LIQUIDACIONES_MODELO.md:4-9` pasa a puntero (no lleva estado); `docs/LIQUIDACIONES_GAP_ANALYSIS.md` marcado "foto del 2026-06-08". `docs/ISSUES.md`: **ISSUE-084** (monta cambiada post-oficialización, FREE CRY, 94 min), **086** (Transferencia en un select que arranca en Efectivo — recomendada la fila de radios), **087** (no hay pago parcial: línea indivisible), **088** (programa oficial imprime `peso_declarado`, el resto `peso_final || peso_declarado`). Sólo documentación. Informe: `docs/diagnosticos/2026-09-21_registro-aprendizajes-fase1.md` (reports).
