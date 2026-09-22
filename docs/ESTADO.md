@@ -1,5 +1,10 @@
 # SGH — Estado del Deploy
 
+> ⚠️ **FOTO, no estado vigente.** El snapshot más nuevo de este doc es del **2026-07-24** y la última
+> edición es del **2026-09-08** (`72f3b50`): todo lo posterior —R8, R9, Pagos/recibos, montas, guards—
+> no está acá. **El estado vigente está en `CLAUDE.md` (§ Otros módulos, § Guard de sesión) y en
+> `CHANGELOG.md`.** Este archivo se conserva como historial y no se reescribe (GOTCHA #98).
+
 > Doc único: estado vivo + log de snapshots. El snapshot más nuevo va arriba.
 
 ---

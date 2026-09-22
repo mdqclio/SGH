@@ -31,7 +31,12 @@ Cada módulo es un archivo HTML autocontenido con CSS y JS inline. No hay build 
 - SUPABASE_KEY: sb_publishable_...
 - CLUB_ID Dolores: 0649e9c5-9e87-4aad-842f-101458e6b33c
 - CLUB_ID prueba: a6da7e40-1515-45dc-8933-4eef33ce937a
-- CRÍTICO: Usar siempre la key eyJ... NO la sb_publishable_...
+- CRÍTICO (2026-06-07): usar **`sb_publishable_...`**. Las legacy `eyJ...` (anon y service_role) están
+  **DESACTIVADAS**: devuelven 401 `"Legacy API keys are disabled"`. Verificado en la API de Supabase
+  (`anon` → `"disabled": true`; `sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK` → `"disabled": false`)
+  y en el front: las 29 páginas HTML de `main` usan la publishable, ninguna usa `eyJ`.
+  La secret server-side es `sb_secret_...`, va por env `SUPABASE_SECRET_KEY` y NUNCA al repo.
+  Ver GOTCHA #2 y `CLAUDE.md` § Accesos.
 
 ## Usuarios de producción
 - Super admin: admin@sgh.com / rol: super_admin

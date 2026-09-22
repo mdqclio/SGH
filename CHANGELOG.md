@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-09-22] — DOCS: fase corta — los tres docs que hacían escribir código mal, más índice de `docs/`
+
+- `docs/ARQUITECTURA.md` mandaba usar la key legacy `eyJ…`, desactivada desde el 2026-06-07 → ahora manda la publishable
+  (`get_publishable_keys`: `anon` con `"disabled": true`; las 29 páginas HTML de `main` usan `sb_publishable_`).
+- `docs/CONTEXTO.md` decía commitear directo a `main` y aplicar schema por el SQL Editor → ahora rama + PR, `apply_migration` con
+  el md5 esperado en el encabezado (GOTCHA #99), guard de sesión antes de aplicar, y `sigh.com.ar` como URL de verificación.
+- `CLAUDE.md` § Otros módulos (la línea que el GOTCHA #98 declara fuente del estado vigente): incentivo de jockey **60.000** —no
+  50.000, subió el 19/09—, `inscripciones.propietario_id` **218/350** (ratificadas 167/239, medido el 22/09) —no 10/95—, y Fase 6
+  **sin objeto contra R5** (R5 tiene 0 carreras y 0 líneas; validar contra R6/R8/R9: 120/164/97 líneas).
+- `docs/ESTADO.md`: primera línea marcándolo como **foto** (snapshot más nuevo 2026-07-24, última edición `72f3b50` del 08/09);
+  no se reescribió. Arrastre del 50.000 limpiado también en `docs/ISSUES.md`, `docs/LIQUIDACIONES_MODELO.md` y `tests/README.md`.
+- **`docs/README.md` nuevo** (40 líneas): qué doc está vivo, cuáles son fotos, y orden de lectura para el que llega.
+- Cero cambios en base, front y `migrations/`. Queda abierto: `docs/DECISIONES.md` ADR-007 sigue diciendo "usar `eyJ`" — listado,
+  no tocado, a la espera de decisión.
+
 ## [2026-09-22] — SEGURIDAD: `anular_recibo` era ejecutable por `anon` — REVOKE de PUBLIC y de anon (APLICADA en prod)
 
 > Hallazgo de la auditoría de permisos del 22/09 (`docs/diagnosticos/2026-09-22_issue-084-permisos-incentivo-concurrencia.md` §2,
