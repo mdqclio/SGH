@@ -34,7 +34,9 @@ Cada módulo es un archivo HTML autocontenido con CSS y JS inline. No hay build 
 - CRÍTICO (2026-06-07): usar **`sb_publishable_...`**. Las legacy `eyJ...` (anon y service_role) están
   **DESACTIVADAS**: devuelven 401 `"Legacy API keys are disabled"`. Verificado en la API de Supabase
   (`anon` → `"disabled": true`; `sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK` → `"disabled": false`)
-  y en el front: las 29 páginas HTML de `main` usan la publishable, ninguna usa `eyJ`.
+  y en el front: las **29** páginas HTML de `main` que crean cliente Supabase usan la publishable
+  (las otras 6 son 4 mockups + `registro.html` y `registro-profesional.html`, que no crean cliente);
+  ninguna usa `eyJ`. `supabase.js:6` también.
   La secret server-side es `sb_secret_...`, va por env `SUPABASE_SECRET_KEY` y NUNCA al repo.
   Ver GOTCHA #2 y `CLAUDE.md` § Accesos.
 
