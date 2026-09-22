@@ -1,5 +1,29 @@
 # Changelog
 
+## [2026-09-22] — ISSUE-084: cambio de monta después de oficializar — RPC `rpc_cambiar_monta` + trigger; saveMontas recalcula (rama `fix/issue-084-montas-post-oficial`, SIN merge ni migración en prod)
+
+> R9 20/09: FREE CRY (C3) cambió de jockey 43 min después de oficial desde un cliente desactualizado; el header del
+> jockey anterior ($150.000, $60.000 pagables) quedó en el buscador de Pagos 94 minutos. Diagnóstico:
+> `docs/diagnosticos/2026-09-21_issue-084-montas-post-oficial-fase1.md` (reports). Opción B con OK de Leo (22/09).
+
+- **`migrations/rpc_cambiar_monta.sql`** (+ `rollback_rpc_cambiar_monta.sql`, probado): trigger `trg_insc_monta_oficial`
+  (BEFORE UPDATE OF `jockey_titular_id`, sólo si `NEW IS DISTINCT FROM OLD`) que rechaza cambiar la monta de una carrera
+  oficial por fuera de la RPC; RPC `rpc_cambiar_monta(p_inscripcion_id, p_jockey_id)` que en carrera oficial bloquea si el
+  saliente tiene plata comprometida (premio de la inscripción + incentivo si no monta otro largador; recibo N° en el mensaje,
+  o "saldado administrativo" — ISSUE-054) y si no, en la misma transacción borra lo pagable del saliente, recomputa su header,
+  cambia la monta, actualiza `performances.jockey_id` y pide recalcular. `set_config('sgh.cambiar_monta','1', true)` es la única
+  llave del trigger, local a la transacción.
+- **`resultados.html`** `saveMontas` (anclas `SAVE MONTAS — INICIO/FIN`): `rpc('rpc_cambiar_monta')` por fila + recálculo de la
+  reunión con el motor cuando alguna devuelve `recalcular`; el error de la RPC va al toast y la fila vuelve al valor real.
+- **`tests/probe_montas_post_oficial.mjs`**: 19/19 (S0, P0, A1–A11, R1/R2) y **7/7 mutantes** (M1, M3–M8) sobre el sandbox
+  local; restaura la 9999 entera (headers + líneas con sus ids, jockeys por la RPC, resultados, performances, recibo de prueba).
+- **`tests/local/`** (nuevo): `clonar_9999.mjs` (sólo lee prod → SQL, `out/` gitignored por PII), `up.sh` (Postgres 16 +
+  PostgREST + proxy `/rest/v1` en Docker), `proxy.mjs`. Para probar DDL que todavía no puede ir a prod. Sección en `tests/README.md`.
+- `docs/ISSUES.md`: ISSUE-084 con el fix; **ISSUE-089** nuevo (F10 en la vista oficial degrada la carrera sin lock ni rastro; el
+  próximo recálculo borra sus líneas impago/retenido — no se arregla acá).
+- **Orden de despliegue**: migración por MCP (`apply_migration`) primero, front después. Con el trigger y el front viejo, un
+  cambio en carrera oficial falla — comportamiento seguro.
+
 ## [2026-09-21] — Registro de aprendizajes: encabezado de GOTCHAS + #98, ISSUE-084/086/087/088, regla 18 en CLAUDE.md (sin merge)
 
 - `docs/GOTCHAS.md`: encabezado con el formato de cuatro partes (qué pasó / cómo se detectó / regla / cómo se verifica) y la regla de mantenimiento (dos veces → sube a reglas, queda puntero); **#98** (copia del doc de modelo fuera del repo + encabezado viejo dieron por pendiente el Resumen, vivo desde `80d9b7e` 10/06); punteros en #74 y #88; "⚠ superada" en #22 y #75. `CLAUDE.md` § Gotchas críticos **18**: plata comprometida = `recibo_id IS NOT NULL OR estado_linea='pagado'`. `docs/LIQUIDACIONES_MODELO.md:4-9` pasa a puntero (no lleva estado); `docs/LIQUIDACIONES_GAP_ANALYSIS.md` marcado "foto del 2026-06-08". `docs/ISSUES.md`: **ISSUE-084** (monta cambiada post-oficialización, FREE CRY, 94 min), **086** (Transferencia en un select que arranca en Efectivo — recomendada la fila de radios), **087** (no hay pago parcial: línea indivisible), **088** (programa oficial imprime `peso_declarado`, el resto `peso_final || peso_declarado`). Sólo documentación. Informe: `docs/diagnosticos/2026-09-21_registro-aprendizajes-fase1.md` (reports).

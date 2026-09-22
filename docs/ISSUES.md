@@ -2241,9 +2241,31 @@ ficha sigue creando otro propietario — el modal ahora lo avisa), GOTCHA #97.
 ---
 ### ISSUE-084: Cambiar la monta después de oficializar deja pagable la plata del jockey equivocado hasta el próximo recálculo — FREE CRY (R9 C3), 94 minutos con $60.000 de GIL SANTINO en el buscador de Pagos
 
-**Estado**: 🟡 **ABIERTO** (2026-09-20; escrito el 21/09 desde `docs/diagnosticos/2026-09-20_montas-r9-jockeys-vs-resultado.md`,
-rama `reports`, commit `70aadc6`). Hoy no quedó nada mal: 0 líneas y 0 recibos a nombre de un jockey que no corrió en R9.
-Es un vector, no un daño — pero se rozó.
+**Estado**: 🔵 **FIX EN RAMA `fix/issue-084-montas-post-oficial`, sin merge ni migración en prod** (2026-09-22). Abierto el
+2026-09-20; escrito el 21/09 desde `docs/diagnosticos/2026-09-20_montas-r9-jockeys-vs-resultado.md` (`reports`, `70aadc6`).
+Hoy no quedó nada mal: 0 líneas y 0 recibos a nombre de un jockey que no corrió en R9. Es un vector, no un daño — pero se rozó.
+
+**Fix (opción B del diagnóstico `2026-09-21_issue-084-montas-post-oficial-fase1.md`, OK de Leo 22/09)**:
+- `migrations/rpc_cambiar_monta.sql`: RPC `rpc_cambiar_monta(p_inscripcion_id, p_jockey_id)` + trigger
+  `trg_insc_monta_oficial` (BEFORE UPDATE OF `jockey_titular_id`, sólo si `NEW IS DISTINCT FROM OLD`). En carrera oficial la
+  RPC cuenta la plata comprometida del jockey saliente (premio de esa inscripción + incentivo si no monta otro largador;
+  regla 18 de CLAUDE.md) y si hay, RAISE con el N° de recibo (o "saldado administrativo" — ISSUE-054, sin salida); si no hay,
+  **en la misma transacción** borra lo pagable del saliente, recomputa/borra su header, cambia la monta, actualiza
+  `performances.jockey_id` y devuelve `recalcular:true`. El trigger rechaza cualquier otra vía (`ratificacion.html`,
+  `inscripciones.html`, un cliente desactualizado) salvo `set_config('sgh.cambiar_monta','1', true)` de la RPC, local a su
+  transacción. Rollback: `migrations/rollback_rpc_cambiar_monta.sql` (probado sobre la copia local de la 9999).
+- `resultados.html` `saveMontas` (anclas `SAVE MONTAS — INICIO/FIN`): `sb.rpc('rpc_cambiar_monta')` por fila; si alguna
+  devuelve `recalcular`, corre `generarLiquidacionesReunion` enseguida; el error de la RPC va al toast tal cual (nombra el
+  caballo, la carrera y el recibo) y la fila vuelve al valor de la base. Si el recálculo falla, el saliente ya no tiene nada
+  pagable: ventana cero.
+- `tests/probe_montas_post_oficial.mjs`: 19 asserts (A1–A11 + R1/R2), 7 mutantes muertos (M1 saldado, M3 incentivo, M4
+  guard de más, M5 no borra, M6 trigger abierto, M7 update directo, M8 sin recálculo). Corrido contra el sandbox local
+  `tests/local/` (la migración no está en prod). Orden de despliegue: migración primero, front después — con el trigger
+  puesto y el front viejo, un cambio en carrera oficial falla, que es el comportamiento seguro.
+- Lo que el fix NO cubre: corrió↔no corrió después de oficializar (ISSUE-089); el caso d) saldado administrativo queda
+  bloqueado sin RPC de reversa (ISSUE-054).
+
+Diagnóstico original (20–21/09):
 
 **Secuencia reconstruida** (UTC, 20/09; auditoría de `inscripciones` + `liquidaciones`):
 1. 17:34:28 se carga el marcador de C3 con FREE CRY 1° y `jockey_titular_id = GIL SANTINO` (así había quedado en la ratificación).
@@ -2406,4 +2428,43 @@ select r.numero, count(*) filter (where i.estado='ratificado' and i.peso_final i
 from inscripciones i join carreras ca on ca.id=i.carrera_id join reuniones r on r.id=ca.reunion_id
 where r.club_id='0649e9c5-9e87-4aad-842f-101458e6b33c' group by r.numero order by r.numero;   -- hoy: 0 en todas
 ```
+
+---
+### ISSUE-089: F10 en la vista OFICIAL de `resultados.html` degrada la carrera a provisional con todos "no corrió", sin lock y sin rastro por fila — y el próximo recálculo borra sus líneas impago/retenido
+
+**Estado**: 🟡 **ABIERTO** (2026-09-22). Vector de datos, no de plata directa. **No se arregla en el PR de ISSUE-084**;
+relevado en `docs/diagnosticos/2026-09-21_issue-084-montas-post-oficial-fase1.md` §4 (reports).
+
+**Cómo se llega**: la vista oficial (`renderOficial`, `resultados.html:1708-1810`) no tiene Aplicar ni marcador, pero el
+atajo **F10 sigue enganchado** (`:1815`: `aplicar(currentCarreraId,'provisional')`, sin mirar `resultados[...].estado`).
+En esa vista no hay inputs `marc-*` → `posData=[]` → todos los ratificados caen en `sinResolver` →
+`confirm("Hay N caballos sin resultado ni marca de no corrió. ¿Marcarlos como no corrió y guardar?")` (`:1542-1547`) → si
+el operador acepta, la RPC `aplicar_resultado` recibe `p_estado='provisional'` y `p_posiciones` con **todos `no_largo:true`**.
+
+**Por qué nada lo frena**:
+- `aplicar_resultado` no tiene guard de estado (no menciona `oficial`; `migrations/update_aplicar_resultado_no_largo.sql`):
+  acepta degradar un resultado oficial y **reemplaza en bloque** `resultado_posiciones` (`DELETE` + `INSERT`, `:67-72`).
+- El lock optimista no aplica: `loadedUpdatedAt` sólo se setea en `renderFormulario` (`:749`); si la carrera oficial se abrió
+  de entrada vale `null` y la RPC saltea el chequeo (`IF p_resultado_id IS NOT NULL AND p_expected_updated_at IS NOT NULL`).
+- `resultado_posiciones` **no tiene trigger de auditoría** (`pg_trigger` → ninguno; `resultados` sí): el corrió↔no corrió
+  no deja rastro por fila, sólo el `estado` oficial→provisional en el audit del header.
+
+**Consecuencia sobre la liquidación** (la parte que importa): `aplicar` no recalcula, así que las líneas de esa carrera
+quedan como estaban… hasta el **próximo recálculo** (oficializar otra carrera, "Recalcular reunión", o ahora también
+`rpc_cambiar_monta` en carrera oficial): el motor sólo genera para `resultados.estado='oficial'` (`liquidaciones-engine.js:93`)
+y en el paso 2 **borra todas las líneas `impago`/`retenido` de la reunión** (`:283-289`) — las de la carrera degradada no se
+regeneran. Las `pagado` se preservan. Es decir: una carrera degradada por accidente pierde en silencio sus líneas
+pendientes en el recálculo siguiente; se recuperan re-oficializando (hay que volver a cargar el marcador, porque las
+posiciones se pisaron con `no_largo`).
+
+**No pasó**: la auditoría de `resultados` del 20/09 tiene 10 filas (5 INSERT provisional + 5 UPDATE a oficial), ninguna
+vuelta atrás.
+
+**Fix sugerido** (aparte, con su probe): (1) en el handler de F10/F9 y en `aplicar()`, cortar si
+`resultados[carreraId]?.estado === 'oficial'` con toast "carrera oficial: des-oficializá primero"; (2) guard en
+`aplicar_resultado`: si el resultado está `oficial` y `p_estado <> 'oficial'`, RAISE (des-oficializar tiene su propia RPC);
+(3) trigger de auditoría sobre `resultado_posiciones` (mismo `fn_auditoria_log`).
+
+**Cómo se verifica**: `grep -n "e.key==='F10'" resultados.html` (hoy sin chequeo de estado);
+`select tgname from pg_trigger where tgrelid='resultado_posiciones'::regclass and not tgisinternal` → hoy 0 filas.
 
