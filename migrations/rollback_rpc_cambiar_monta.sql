@@ -1,5 +1,6 @@
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- ROLLBACK de migrations/rpc_cambiar_monta.sql (ISSUE-084)
+-- ESTADO EN PRODUCCIÓN (2026-09-22): rpc_cambiar_monta (con guard 0) y el trigger están APLICADOS en prod. Correr esto los DROPEA.
 --
 -- Deja la base exactamente como antes: sin trigger sobre inscripciones.jockey_titular_id
 -- y sin la RPC. No toca datos: la migración no escribe filas al aplicarse, y las que la

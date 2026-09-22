@@ -1,4 +1,5 @@
 -- ROLLBACK de migrations/guard_staff_fn_siguiente_recibo.sql
+-- ESTADO EN PRODUCCIÓN (2026-09-22): la migración que revierte NO está aplicada: hoy prod ya es esta versión. Correr esto no cambia nada.
 -- Restaura la versión viva en prod hasta el 2026-09-22.
 -- md5 de pg_get_functiondef de esa versión: 1b92fbbac309e175c1f0b145638a6399 (455 bytes)
 -- Con esto vuelve a NO tener guard: cualquier authenticated puede consumir la numeración

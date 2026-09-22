@@ -27,8 +27,13 @@
   rojos: el 42501 tiene que venir del guard de **esa** función (sin eso, sacarle el guard 0 a `emitir_recibo` "no se nota"
   porque lo ataja el de `fn_siguiente_recibo` — GOTCHA #86); y el teardown borra auditoría y recibos **antes** que los
   usuarios (dos FK sin `ON DELETE` que lo hacían fallar en silencio y dejaban usuarios de prueba en prod).
-- **`migrations/rpc_cambiar_monta.sql`**: se le agregó el `guard 0` antes del lookup — **todavía sin aplicar**; en prod el
-  guard de rol sigue después del `SELECT` de la inscripción.
+- **`migrations/rpc_cambiar_monta.sql`**: `guard 0` antes del lookup, **APLICADO el 22/09**. Antes, con un
+  `p_inscripcion_id` inexistente la función contestaba *"la inscripción no existe"* aun al portal — el mensaje delataba si
+  un id existe. Ahora el guard de rol corre primero y devuelve 42501 sin mirar la tabla. Lo cubre el assert **P4** del probe
+  de ISSUE-084 (rojo antes de aplicar, verde después): **24/24 contra prod**. `md5(pg_get_functiondef)` en prod
+  `d49299c2a1b409e598db9353f90a5095`, idéntico al que produce el archivo del repo — verificado aplicando el mismo archivo
+  en el sandbox. También se relajó **P3** con precisión: la sesión sin fila en `usuarios` ahora la ataja el guard de rol
+  (`sin permiso`) en vez del de club, así que el assert acepta **esos dos mensajes y ningún otro**.
 - **`tests/local/clonar_9999.mjs`**: el sandbox ahora clona `club_secuencias` y `resultado_apuestas`, y define
   `fn_is_staff`, `fn_club_de_liquidacion`, `fn_club_de_inscripcion`, `fn_club_de_reunion`. Faltaban y el probe no arrancaba.
 

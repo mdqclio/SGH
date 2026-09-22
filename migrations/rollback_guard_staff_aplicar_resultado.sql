@@ -1,4 +1,5 @@
 -- ROLLBACK de migrations/guard_staff_aplicar_resultado.sql
+-- ESTADO EN PRODUCCIÓN (2026-09-22): la migración que revierte está APLICADA en prod (20260922171044). Correr esto DESHACE el guard.
 -- Restaura la versión viva en prod hasta el 2026-09-22.
 -- md5 de pg_get_functiondef de esa versión: 2af0444ad430c634d3648bb6dd0c9daf (3463 bytes)
 -- Con esto la función vuelve a quedar SIN guard de rol ni de club.

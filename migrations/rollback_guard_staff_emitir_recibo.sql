@@ -1,4 +1,5 @@
 -- ROLLBACK de migrations/guard_staff_emitir_recibo.sql
+-- ESTADO EN PRODUCCIÓN (2026-09-22): la migración que revierte NO está aplicada: hoy prod ya es esta versión. Correr esto no cambia nada.
 -- Restaura emitir_recibo v1.2, la versión viva en prod hasta el 2026-09-22.
 -- md5 de pg_get_functiondef de esa versión: 6076089feb365e26b6f88d3cc6345b1d (3637 bytes)
 -- Con esto vuelve el patrón "club NULL pasa" del guard 1 (ISSUE-090) y desaparece el guard 0.

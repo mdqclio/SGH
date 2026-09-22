@@ -41,6 +41,8 @@
  *   P1  anon → rechazado (sin privilegio de EXECUTE)
  *   P2  authenticated con club de otro hipódromo → 42501
  *   P3  authenticated SIN fila en `usuarios` (club NULL) → 42501, no "pasa por service_role"
+ *   P4  portal + inscripción INEXISTENTE → 42501 del guard, no "la inscripción no existe"
+ *       (el guard 0 corre ANTES del lookup: el mensaje no delata si el id existe)
  *   R1  restore por estado limpio · R2 nada fuera de la 9999 cambió (líneas totales, recibos)
  *
  * P1–P3 necesitan sesiones con rol: en el sandbox se firman JWT con LOCAL_JWT_SECRET
@@ -151,7 +153,7 @@ async function clienteAnon() {
   return createClient(SUPABASE_URL, PUBLISHABLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 /** authenticated con (o sin) fila en `usuarios`. `club`=null + conFila=false → club NULL. */
-async function clienteAuth({ club, conFila = true, etiqueta }) {
+async function clienteAuth({ club, conFila = true, etiqueta, rol = 'operador' }) {
   const email = `probe.084.${etiqueta}.${RUN}@sgh.test`;
   let authId;
   if (JWT_SECRET) {
@@ -163,7 +165,7 @@ async function clienteAuth({ club, conFila = true, etiqueta }) {
   }
   creadosAuth.push({ email, authId });
   if (conFila) {
-    const { error } = await sb.from('usuarios').insert({ email, nombre_completo: `Probe 084 ${etiqueta}`, club_id: club, rol: 'operador', activo: true, estado: 'activo', password_hash: '', auth_user_id: authId });
+    const { error } = await sb.from('usuarios').insert({ email, nombre_completo: `Probe 084 ${etiqueta}`, club_id: club, rol, activo: true, estado: 'activo', password_hash: '', auth_user_id: authId });
     if (error) throw new Error('insert usuarios: ' + error.message);
   }
   if (JWT_SECRET) return createClient(SUPABASE_URL, firmarJWT({ role: 'authenticated', sub: authId }), { auth: { persistSession: false } });
@@ -536,10 +538,28 @@ try {
   {
     const cli = await clienteAuth({ club: null, conFila: false, etiqueta: 'sinclub' });
     const { data, error } = await cli.rpc(RPC, { p_inscripcion_id: INSC_A, p_jockey_id: N });
-    ok('P3) authenticated SIN fila en usuarios (club NULL) → 42501; NO se lo confunde con service_role',
-       !!error && !data && error.code === '42501' && /no tiene hipódromo asignado/.test(msg(error))
+    // Desde el guard 0 lo ataja el guard de ROL (`sin permiso`) antes que el de club
+    // (`no tiene hipódromo asignado`): una sesión sin fila en `usuarios` tampoco es staff.
+    // Se aceptan los dos mensajes, pero SÓLO esos dos — tienen que venir de un guard de esta
+    // función, no de un error incidental que también dé 42501.
+    ok('P3) authenticated SIN fila en usuarios (club NULL) → 42501 de un guard propio; NO se lo confunde con service_role',
+       !!error && !data && error.code === '42501'
+         && /rpc_cambiar_monta: (sin permiso|la sesión no tiene hipódromo asignado)/.test(msg(error))
          && (await jockeyDe(INSC_A)).jockey_titular_id === V,
        `code=${error?.code} ${msg(error) || 'SIN ERROR — PASÓ COMO SERVICE_ROLE'}`);
+  }
+  // ── P4 · el guard va ANTES del lookup ──
+  // Con el guard después del SELECT, una inscripción inexistente contestaba
+  // "la inscripción no existe" incluso al portal: el mensaje delataba si el id existe o no.
+  // Con el guard 0 arriba, cualquiera que no sea staff/service_role/super_admin se lleva
+  // 42501 sin que la función mire siquiera la tabla.
+  {
+    const NOEXISTE = '00000000-0000-0000-0000-0000000000ff';
+    const cli = await clienteAuth({ rol: 'profesional', club: CLUB, conFila: true, etiqueta: 'portal4' });
+    const { data, error } = await cli.rpc(RPC, { p_inscripcion_id: NOEXISTE, p_jockey_id: null });
+    ok('P4) portal + inscripción INEXISTENTE → 42501 del guard (no "la inscripción no existe"): el guard corre antes del lookup',
+       !!error && !data && error.code === '42501' && !/no existe/i.test(msg(error)),
+       `code=${error?.code} ${msg(error) || 'SIN ERROR'}`);
   }
 } catch (e) {
   console.log('💥 el probe no corrió entero:', e.message);

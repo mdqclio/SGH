@@ -1,4 +1,5 @@
 -- ROLLBACK de migrations/guard_staff_anular_recibo.sql
+-- ESTADO EN PRODUCCIÓN (2026-09-22): la migración que revierte NO está aplicada: hoy prod ya es esta versión. Correr esto no cambia nada.
 -- Restaura la versión viva en prod hasta el 2026-09-22 (la del REVOKE, con los guards viejos).
 -- md5 de pg_get_functiondef de esa versión: ea0f2a30112afa5aa6576ff7dca727dc (3097 bytes)
 -- Con esto vuelven el patrón "club NULL pasa" en el guard de club Y en la ventana de 5 días.

@@ -1,4 +1,5 @@
 -- ROLLBACK de migrations/guard_staff_liberar_linea.sql
+-- ESTADO EN PRODUCCIÓN (2026-09-22): la migración que revierte está APLICADA en prod (20260922170638). Correr esto DESHACE el guard.
 -- Restaura la versión viva en prod hasta el 2026-09-22.
 -- md5 de pg_get_functiondef de esa versión: da404453eda5a68ed28f612b46c878e2 (989 bytes)
 -- Con esto vuelve el patrón "club NULL pasa" y el portal vuelve a poder liberar una línea

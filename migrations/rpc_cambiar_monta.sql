@@ -1,12 +1,13 @@
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- ISSUE-084 — cambio de monta después de oficializar: RPC rpc_cambiar_monta + trigger
 --
--- ESTADO EN PRODUCCIÓN: la RPC y el trigger están APLICADOS desde el 2026-09-22 (migración
--- `20260922161415 rpc_cambiar_monta_issue_084`), pero **el `guard 0` de este archivo NO**:
--- se agregó después, junto con la tanda del guard de staff, y todavía no se aplicó. La
--- versión viva en prod tiene md5 5b3dce84 y su guard de rol sigue DESPUÉS del lookup de la
--- inscripción (por eso, con un id inexistente, contesta "la inscripción no existe" en vez de
--- 42501). Al aplicar este archivo, esa diferencia se cierra.
+-- ESTADO EN PRODUCCIÓN: **APLICADA (archivo completo, guard 0 incluido) el 2026-09-22.**
+-- Migraciones: `20260922161415 rpc_cambiar_monta_issue_084` (RPC + trigger),
+-- `20260922204131 rpc_cambiar_monta_guard0` (guard 0 antes del lookup) y
+-- `20260922204…  rpc_cambiar_monta_guard0_texto_del_repo` (reaplicación con el texto EXACTO
+-- de este archivo: la anterior traía el mismo código con 9 comentarios recortados y el md5
+-- no coincidía). `md5(pg_get_functiondef)` en prod = **d49299c2a1b409e598db9353f90a5095**
+-- (9487 bytes, 201 líneas) = el que produce este archivo. Probe: 24/24 contra prod.
 --
 --
 -- Origen: R9 20/09/2026, FREE CRY (C3). Martín oficializó C3 a las 17:36 UTC; Yesi,
