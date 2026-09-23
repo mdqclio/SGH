@@ -1,5 +1,19 @@
 # Changelog
 
+## [2026-09-23] — Recibo de Pagos: la línea de corte cae a la mitad de la hoja
+
+> Valeria corta la hoja por la mitad y pedía el duplicado más abajo: el corte quedaba donde terminaba el original
+> (~92 mm con 1 línea). Sólo CSS de impresión (`liquidaciones.html`); el JS que arma las copias no se tocó.
+
+- `.recibo-copia:first-child { min-height: 127.5mm; }` = 133,5 (mitad de los 267 mm útiles) − 6 mm de margen del
+  `.recibo-corte`. El duplicado queda con alto natural; el pie sigue atómico; nada en `vh`.
+- Medido en el PDF (Chromium, línea de corte leída del content stream): 1, 4 y 9 líneas → corte a 133,6 mm, 1 hoja
+  (con 9, el duplicado termina a 265,7 de 267); 10 líneas → el original supera la mitad, crece, y el duplicado va
+  entero a la hoja 2, igual que antes.
+- `tests/probe_recibo_una_hoja.mjs`: 1h (regla en mm sólo en la 1ª copia), 3a' / 3d / 3e (corte a la mitad con el
+  recibo real y con 9 líneas, 10 líneas → 2 hojas); 19/19, **8/8 mutantes** (se suman `sin_mitad`, `mitad_en_ambas`,
+  `mitad_en_vh`).
+
 ## [2026-09-23] — Guard de staff: las tres del camino de pago aplicadas — **las seis completas**, ISSUE-090 cerrado
 
 > Cierra la tanda abierta el 22/09. Orden de aplicación: **`fn_siguiente_recibo` → `emitir_recibo` → `anular_recibo`**

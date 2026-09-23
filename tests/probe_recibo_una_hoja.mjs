@@ -11,7 +11,9 @@
  *   existe .recibo-corte. HTML real de imprimirReciboCobro (recibo real, Supabase con secret key):
  *   2 copias, 1 corte entre las dos, total + Retira + firma dentro del pie en las dos copias.
  * Parte 2 — CON Chromium (se saltea con aviso si no está ~/chromium-libs o el headless shell):
- *   tests/render_recibo_pdf.mjs sobre un recibo real: 4 líneas → 1 página; 12 líneas → 2 páginas;
+ *   23/09 — corte a la mitad (Valeria corta la hoja por la mitad): la 1ª copia lleva min-height en mm
+ *   para que .recibo-corte caiga a ~133,5 mm (mitad de 267): 1h y 3a'/3d/3e.
+ *   tests/render_recibo_pdf.mjs sobre un recibo real: 4 líneas → 1 página; 9 → 1; 10 y 12 → 2 páginas;
  *   40 líneas → ≥ 3 páginas. La verificación de que el duplicado sale ENTERO en la hoja 2 es
  *   visual: mirar <out>/recibo_<n>_x12_pdf_p2.png.
  *
@@ -21,6 +23,9 @@
  *   M3 sin_corte          se quita el div .recibo-corte del HTML          → 2b
  *   M4 firma_fuera_pie    la firma sale del .recibo-pie                    → 2c
  *   M5 vuelve_100vh       min-height:100vh en la copia (bug 28/08)         → 1d
+ *   M6 sin_mitad          se quita el min-height de la 1ª copia (23/09)    → 1h, 3a', 3d
+ *   M7 mitad_en_ambas     el min-height también en el duplicado            → 1h (y 3d: 9 líneas pasan a 2 hojas)
+ *   M8 mitad_en_vh        min-height:50vh en vez de mm                     → 1h
  *
  * Uso:
  *   set -a; . ./.env; set +a; export LD_LIBRARY_PATH=$HOME/chromium-libs/usr/lib/x86_64-linux-gnu
@@ -52,6 +57,9 @@ const MUTANTES = {
   firma_fuera_pie:  ["      ${esTransfer?'':firma}\n    </div>\n  </div>`;", "    </div>\n      ${esTransfer?'':firma}\n  </div>`;"],
   vuelve_100vh:     ["      .recibo-copia { width: 100%; box-sizing: border-box; break-inside: avoid; page-break-inside: avoid; }",
                      "      .recibo-copia { width: 100%; box-sizing: border-box; break-inside: avoid; page-break-inside: avoid; min-height: 100vh; display: flex; flex-direction: column; }"],
+  sin_mitad:        ["      .recibo-copia:first-child { min-height: 127.5mm; }\n", ""],
+  mitad_en_ambas:   ["      .recibo-copia:first-child { min-height: 127.5mm; }", "      .recibo-copia + .recibo-corte + .recibo-copia, .recibo-copia:first-child { min-height: 127.5mm; }"],
+  mitad_en_vh:      ["      .recibo-copia:first-child { min-height: 127.5mm; }", "      .recibo-copia:first-child { min-height: 50vh; }"],
 };
 const args = process.argv.slice(2);
 const mutArg = args.find(a => a.startsWith('--mutante='))?.split('=')[1];
@@ -104,6 +112,12 @@ ok('1e) body en print sigue con margin:0 (fix 28/08)', /body\s*\{[^}]*margin\s*:
 const corte = regla('.recibo-corte') || '';
 ok('1f) existe .recibo-corte: punteada, fina y discreta (1px dashed, gris), con margen vertical', /1px\s+dashed\s+#[0-9a-f]{3,6}/i.test(corte) && /margin\s*:\s*\d+mm/.test(corte));
 ok('1g) @page A4 con margen en mm', /@page\s*\{\s*size:\s*A4;\s*margin:\s*\d+mm/.test(SRC));
+// 23/09 — corte a la mitad: min-height en mm SÓLO en la primera copia (el duplicado, alto natural)
+const reglasCopia = [...printCss.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/\n\s*([^{}\n]*\.recibo-copia[^{}\n]*)\{([^}]*)\}/g)].map(m => ({ sel: m[1].trim(), body: m[2] }));
+const conMin = reglasCopia.filter(r => /min-height/.test(r.body));
+ok('1h) corte a la mitad: UNA regla con min-height, selector .recibo-copia:first-child solo, valor en mm (120–135); nada en vh ni en el duplicado',
+   conMin.length === 1 && conMin[0].sel === '.recibo-copia:first-child' && (() => { const v = conMin[0].body.match(/min-height\s*:\s*([\d.]+)mm/); return !!v && +v[1] >= 120 && +v[1] <= 135; })()
+   && !reglasCopia.some(r => /vh/.test(r.body)), conMin.map(r => `${r.sel} {${r.body.trim()}}`).join(' | ') || 'sin min-height');
 
 // ═══ Parte 2: el HTML real de imprimirReciboCobro sobre un recibo real ═══
 let reciboRow;
@@ -156,6 +170,15 @@ else {
   const real = render(0);
   ok(`3a) recibo real (${real?.filas_render} línea(s)) → PDF de 1 página; fin del duplicado ${real?.copias?.[1] ? (real.copias[1].top_mm + real.copias[1].alto_mm).toFixed(1) : '?'} mm ≤ ${real?.alto_util_mm} mm`,
      !!real && real.paginas_pdf === 1 && real.entran_en_una_hoja, real ? `pdf: ${real.pdf}` : '');
+  const cerca = (v, obj) => Math.abs(v - obj) <= 0.5;
+  const corteDe = r => r?.cortes?.[0]?.top_mm;
+  ok(`3a') recibo real: la línea de corte cae a la mitad del área útil (${corteDe(real)} mm ≈ ${real ? real.alto_util_mm / 2 : '?'} mm)`, !!real && cerca(corteDe(real), real.alto_util_mm / 2));
+  const x9 = render(9, ['--lineas=9']);
+  ok(`3d) 9 líneas → 1 página, corte a la mitad (${corteDe(x9)} mm), fin del duplicado ${x9?.copias?.[1] ? (x9.copias[1].top_mm + x9.copias[1].alto_mm).toFixed(1) : '?'} mm ≤ ${x9?.alto_util_mm}`,
+     !!x9 && x9.paginas_pdf === 1 && x9.entran_en_una_hoja && cerca(corteDe(x9), x9.alto_util_mm / 2));
+  const x10 = render(10, ['--lineas=10']);
+  ok(`3e) 10 líneas → 2 páginas; el original crece más allá de la mitad (corte ${corteDe(x10)} mm, alto natural) y el duplicado tiene alto natural`,
+     !!x10 && x10.paginas_pdf === 2 && corteDe(x10) > x10.alto_util_mm / 2 + 1 && x10.copias[1].alto_mm === x10.copias[0].alto_mm);
   const x12 = render(12, ['--lineas=12']);
   ok('3b) 12 líneas → PDF de 2 páginas (el duplicado se va entero a la hoja 2 — VER a ojo _x12_pdf_p2.png)', !!x12 && x12.paginas_pdf === 2, x12 ? `${(x12.paginas_png || []).join(', ') || x12.pdf}` : '');
   const x40 = render(40, ['--lineas=40']);
