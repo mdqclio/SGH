@@ -1,5 +1,83 @@
 # Changelog
 
+## [2026-09-23] — Guard de staff: las tres del camino de pago aplicadas — **las seis completas**, ISSUE-090 cerrado
+
+> Cierra la tanda abierta el 22/09. Orden de aplicación: **`fn_siguiente_recibo` → `emitir_recibo` → `anular_recibo`**
+> (la interna primero, para que `emitir_recibo` nunca corriera sobre una versión a medias).
+
+- **Las tres aplicadas y verificadas por md5** de `pg_get_functiondef`, que es el único que prueba algo sobre prod
+  (GOTCHA #99). Los tres coincidieron **a la primera** con el esperado que cada encabezado ya traía desde el 22/09:
+  | función | migración | md5 verificado | tamaño |
+  |---|---|---|---|
+  | `fn_siguiente_recibo` | `20260923012258` | `95d2bdc2fef65622e3997fbff45285f4` | 1288 B / 35 líneas |
+  | `emitir_recibo` | `20260923012417` | `14951f502c0816de2d52923b45435c12` | 4063 B / 103 líneas |
+  | `anular_recibo` | `20260923012529` | `844e9e1ff62f4dbba30df71b8a88e309` | 3850 B / 106 líneas |
+- **ACL sin cambios** en las tres, antes y después: `postgres=X | authenticated=X | service_role=X`. El `REVOKE` de
+  PUBLIC/anon del 22/09 sobre `anular_recibo` sobrevivió al `CREATE OR REPLACE`.
+- **Probe `--fn` 12/12 por función** contra prod después de cada apply, y **60/60** la matriz completa (7 funciones × 8
+  perfiles + fixture + restore). **8/8 mutantes** en el sandbox, con M7 declarado equivalente y su prueba.
+- **El sandbox reprodujo los 7 md5 de prod exactamente** al aplicarle los mismos archivos — verificación cruzada de que
+  prod corre el texto del repo, no una transcripción.
+- **Smoke del camino de pago con SESIÓN STAFF REAL** (usuario `secretario_carreras` creado al vuelo, JWT por magiclink;
+  **no** service_role, que está exento de los guards de club y de la ventana de 5 días) sobre la 9999: se emitió el
+  recibo N° 70 con 4 líneas, se verificó `emitido_por` = el usuario (no NULL), se anuló con el mismo usuario y **las 4
+  líneas volvieron exactamente a su estado previo**. 14/14. La 9999 quedó como estaba, incluida `club_secuencias`
+  (el smoke consumió el número 70 y se devolvió a 69: el próximo recibo real sigue siendo el 70, sin salto).
+- **ISSUE-090 CERRADO**: el patrón `fn_get_user_club_id() IS NOT NULL AND …` —que infiere `service_role` de un club
+  NULL y por lo tanto no corre para una sesión `authenticated` sin fila en `usuarios`— ya no queda en ninguna de las
+  seis. El vector del portal medido el 22/09 está cerrado en las 7 RPC sensibles.
+
+## [2026-09-22] — Verificación de md5 contra prod: las 5 funciones aplicadas coinciden con el repo; GOTCHA #99
+
+- **Control de las cinco ya aplicadas** (`aplicar_resultado`, `desoficializar_carrera`, `liberar_linea`,
+  `rpc_cambiar_monta`, `fn_insc_monta_oficial_guard`): se comparó `md5(pg_get_functiondef)` de prod contra el que produce
+  **el mismo archivo aplicado en el sandbox**. **Las cinco coinciden** — no hubo nada que reaplicar y ninguna diferencia
+  de código ejecutable.
+- **GOTCHA #99**: `apply_migration` aplica el texto que se le pasa, no el archivo; el md5 del `.sql` no prueba nada sobre
+  prod (no son comparables: Postgres normaliza el texto). Evidencia del día: `bac0bac4` (prod, transcripto a mano) vs
+  `d49299c2` (el archivo) en `rpc_cambiar_monta` — 9 comentarios perdidos, con el probe en 24/24.
+- **Procedimiento nuevo, ya escrito en los encabezados**: cada migración de función lleva el **MD5 ESPERADO** de
+  `pg_get_functiondef`, medido en el sandbox antes de tocar prod, y el paso siguiente al `apply_migration` es compararlo.
+  Si no coincide se reaplica con el texto exacto; si la diferencia toca código ejecutable, se para y se avisa. Las tres
+  pendientes del camino de pago ya tienen su md5 esperado anotado: `fn_siguiente_recibo` `95d2bdc2`, `anular_recibo`
+  `844e9e1f`, `emitir_recibo` `14951f50`.
+
+## [2026-09-22] — Guard de staff en las RPC sensibles: 3 de 6 aplicadas (el camino de pago espera OK)
+
+> Cierra el vector medido el 22/09 (`docs/diagnosticos/2026-09-22_paso3-vector-portal.md`, reports): un usuario del PORTAL
+> —cuenta aprobada, `club_id` de Dolores— **entraba al cuerpo de las seis RPC**, y `aplicar_resultado`,
+> `desoficializar_carrera` y `fn_siguiente_recibo` **no tenían guard de ningún tipo**. El portal lee por RLS las 60 carreras,
+> 24 resultados y 207 posiciones del club **con sus id**, así que tenía todo lo necesario para des-oficializar o reescribir
+> el resultado de cualquier carrera.
+
+- **`guard 0`, igual en las seis** — antes de cualquier `SELECT`, para que el mensaje no delate si el objeto existe:
+  ```sql
+  IF NOT (coalesce(auth.role(), '') = 'service_role' OR fn_is_super_admin() OR fn_is_staff()) THEN
+    RAISE EXCEPTION '<función>: sin permiso' USING ERRCODE = '42501';
+  END IF;
+  ```
+  `fn_is_staff()` = `super_admin | secretario_carreras | operador`, **activo**. Los 6 usuarios staff reales pasan.
+- **Guard de club**: nuevo en `aplicar_resultado` y `desoficializar_carrera` (no tenían); en las de plata reemplaza el patrón
+  `fn_get_user_club_id() IS NOT NULL AND …`, que infiere `service_role` de un club NULL — **ISSUE-090**.
+- **APLICADAS en prod el 22/09** (probe `--fn` 12/12 después de cada una): `liberar_linea` (`20260922170638`),
+  `desoficializar_carrera` (`20260922170817`), `aplicar_resultado` (`20260922171044`).
+- **PENDIENTES, esperan OK** (camino de pago, se aplican con Valeria fuera de Pagos): `emitir_recibo`, `anular_recibo` y
+  **`fn_siguiente_recibo`** — ésta última no estaba en la lista de "las otras cuatro" original, pero `emitir_recibo` la
+  invoca por dentro, así que tocarla es tocar el circuito de cobro igual.
+- **`tests/probe_guard_staff_rpcs.mjs`** (nuevo): matriz 7 funciones × 8 perfiles con argumentos válidos de la 9999; **60/60**
+  en el sandbox con las seis aplicadas y **8/8 mutantes** (M7 declarado equivalente con su prueba). Aprendizajes que costaron
+  rojos: el 42501 tiene que venir del guard de **esa** función (sin eso, sacarle el guard 0 a `emitir_recibo` "no se nota"
+  porque lo ataja el de `fn_siguiente_recibo` — GOTCHA #86); y el teardown borra auditoría y recibos **antes** que los
+  usuarios (dos FK sin `ON DELETE` que lo hacían fallar en silencio y dejaban usuarios de prueba en prod).
+- **`migrations/rpc_cambiar_monta.sql`**: `guard 0` antes del lookup, **APLICADO el 22/09**. Antes, con un
+  `p_inscripcion_id` inexistente la función contestaba *"la inscripción no existe"* aun al portal — el mensaje delataba si
+  un id existe. Ahora el guard de rol corre primero y devuelve 42501 sin mirar la tabla. Lo cubre el assert **P4** del probe
+  de ISSUE-084 (rojo antes de aplicar, verde después): **24/24 contra prod**. `md5(pg_get_functiondef)` en prod
+  `d49299c2a1b409e598db9353f90a5095`, idéntico al que produce el archivo del repo — verificado aplicando el mismo archivo
+  en el sandbox. También se relajó **P3** con precisión: la sesión sin fila en `usuarios` ahora la ataja el guard de rol
+  (`sin permiso`) en vez del de club, así que el assert acepta **esos dos mensajes y ningún otro**.
+- **`tests/local/clonar_9999.mjs`**: el sandbox ahora clona `club_secuencias` y `resultado_apuestas`, y define
+  `fn_is_staff`, `fn_club_de_liquidacion`, `fn_club_de_inscripcion`, `fn_club_de_reunion`. Faltaban y el probe no arrancaba.
 ## [2026-09-22] — DOCS: fase corta — los tres docs que hacían escribir código mal, más índice de `docs/`
 
 - `docs/ARQUITECTURA.md` mandaba usar la key legacy `eyJ…`, desactivada desde el 2026-06-07 → ahora manda la publishable

@@ -1705,3 +1705,58 @@ nro) y si no existe lo **crea**. Con `documento_nro NULL` no toca `NEW.propietar
 **Regla que queda.** **La fuente de verdad es el repo.** Un doc fuera del repo (copia en un proyecto de Claude.ai, un PDF, un pegado en el chat) no se usa para instruir: se abre el archivo en `main`. Y adentro del repo, **los docs de modelo no llevan estado de implementación**: un "⏳ pendiente" ahí nunca es evidencia de que algo no existe. El estado vive en `CLAUDE.md` (§ Otros módulos) y `CHANGELOG.md`; antes de instruir, `grep` en `main` y `CHANGELOG`. Desde hoy el encabezado de MODELO es un puntero a esos dos y GAP_ANALYSIS está marcado como foto del 2026-06-08.
 
 **Cómo se verifica.** `grep -n 'class="tab' liquidaciones.html` → 5 solapas en `:228-232`, una es Resumen. `git log --format='%h %ad' --date=short -S'panel-resumen' -- liquidaciones.html` → `80d9b7e 2026-06-10`. `grep -n '⏳' docs/LIQUIDACIONES_MODELO.md` → 0. `head -3 docs/LIQUIDACIONES_GAP_ANALYSIS.md` tiene que decir "foto del 2026-06-08". Informe: `docs/diagnosticos/2026-09-21_registro-aprendizajes-fase1.md` (reports).
+
+## 99. `apply_migration` aplica lo que le pasás, no el archivo — y el md5 del `.sql` no prueba nada sobre prod (2026-09-22)
+
+**Qué pasó.** Se aplicó `migrations/rpc_cambiar_monta.sql` transcribiendo su contenido dentro de la llamada a `apply_migration` (migración `20260922204131 rpc_cambiar_monta_guard0`). El probe dio **24/24** contra prod, el guard nuevo funcionaba, todo parecía cerrado. Pero al comparar `md5(pg_get_functiondef)` de prod contra el del **mismo archivo aplicado en el sandbox** (`tests/local/`), no coincidían:
+
+```
+prod     bac0bac4d217c697f11db4495ee4dfb3   8732 bytes   192 líneas
+sandbox  d49299c2a1b409e598db9353f90a5095   9487 bytes   201 líneas
+```
+
+**9 líneas de comentario** se habían perdido al transcribir — entre ellas las que explican *por qué* `v_otras_montas` cuenta también las carreras sin resultado oficial, y las que explican el `FOR UPDATE` contra `emitir_recibo`. El código ejecutable era idéntico: mismos guards, mismas queries, mismos mensajes. Por eso el probe no notó nada, y por eso no alcanza con el probe.
+
+**Cómo se detectó.** Porque se pidió explícitamente comparar el md5 contra el archivo de la rama. Sin ese paso, prod y el repo quedaban con **dos versiones distintas del mismo archivo** y nadie se enteraba: el `.sql` del repo decía una cosa, la función viva decía otra, y el día que alguien reaplicara el archivo "sin cambios" habría aparecido un diff fantasma.
+
+**Regla que queda.**
+
+> **El md5 del archivo `.sql` no dice NADA sobre prod.** No son comparables: Postgres normaliza el texto al guardar la función (`pg_get_functiondef` reescribe la cabecera, el `search_path`, el dollar-quoting), y el archivo además trae triggers, `COMMENT`, `GRANT`/`REVOKE` que no están en la función. **El único md5 que vale es el de `pg_get_functiondef`**, y para saber cuál *tiene que dar* hay que aplicar **el mismo archivo** en el sandbox (`tests/local/`) y leerlo ahí.
+
+Por eso, desde hoy:
+
+1. Cada migración de función lleva en el encabezado el **MD5 ESPERADO de `pg_get_functiondef`**, medido en el sandbox **antes** de tocar prod.
+2. El paso **inmediatamente siguiente** al `apply_migration` es comparar ese md5 contra prod. Si no coincide, **se reaplica con el texto exacto del archivo antes de dar nada por hecho** — aunque el probe esté verde.
+3. Si la diferencia toca **código ejecutable** y no sólo comentarios: parar y avisar, no reaplicar a ciegas.
+
+**Cómo se verifica.**
+
+```sql
+-- prod
+select md5(pg_get_functiondef(p.oid)), length(pg_get_functiondef(p.oid)),
+       array_length(string_to_array(pg_get_functiondef(p.oid), E'\n'), 1)
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public' and p.proname = '<fn>';
+```
+
+```bash
+# esperado: el MISMO archivo aplicado en el sandbox
+node tests/local/clonar_9999.mjs && tests/local/up.sh
+tests/local/up.sh sql < migrations/<archivo>.sql
+docker exec -i sgh-local-pg psql -U postgres -d sgh -tAc \
+  "select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='public' and p.proname='<fn>';" < /dev/null
+```
+
+Control del 2026-09-22 sobre las cinco funciones ya aplicadas de esta tanda — las cinco coinciden:
+
+| función | prod | archivo |
+|---|---|---|
+| `aplicar_resultado` | `94d46dc0ed70e78329169bb3926f64c2` | igual |
+| `desoficializar_carrera` | `c3247d72656833cd534e4c601900f25a` | igual |
+| `liberar_linea` | `127d7199a4c22aaf20b6dd057758fc32` | igual |
+| `rpc_cambiar_monta` | `d49299c2a1b409e598db9353f90a5095` | igual |
+| `fn_insc_monta_oficial_guard` | `935d8dfad71878efef3b7b75efad2b75` | igual |
+
+Emparentado con GOTCHA #95 (`apply_migration` deja rastro en el historial de migraciones, así que el DDL efímero va por `execute_sql`): los dos salen de tratar a `apply_migration` como si fuera "correr el archivo", cuando en realidad es "correr el texto que le pasé".
+

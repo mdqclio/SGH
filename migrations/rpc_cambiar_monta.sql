@@ -1,6 +1,18 @@
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- ISSUE-084 — cambio de monta después de oficializar: RPC rpc_cambiar_monta + trigger
 --
+-- ESTADO EN PRODUCCIÓN: **APLICADA (archivo completo, guard 0 incluido) el 2026-09-22.**
+-- Migraciones: `20260922161415 rpc_cambiar_monta_issue_084` (RPC + trigger),
+-- `20260922204131 rpc_cambiar_monta_guard0` (guard 0 antes del lookup) y
+-- `20260922204…  rpc_cambiar_monta_guard0_texto_del_repo` (reaplicación con el texto EXACTO
+-- de este archivo: la anterior traía el mismo código con 9 comentarios recortados y el md5
+-- no coincidía). `md5(pg_get_functiondef)` en prod = **d49299c2a1b409e598db9353f90a5095**
+-- (9487 bytes, 201 líneas) = el que produce este archivo. Probe: 24/24 contra prod.
+-- Paso obligatorio inmediatamente después del apply_migration (GOTCHA #99):
+--   select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+--    where n.nspname='public' and p.proname='rpc_cambiar_monta';   -- tiene que dar d49299c2…
+-- Y el del trigger: fn_insc_monta_oficial_guard → 935d8dfad71878efef3b7b75efad2b75 (979 bytes, 29 líneas).
+--
 -- Origen: R9 20/09/2026, FREE CRY (C3). Martín oficializó C3 a las 17:36 UTC; Yesi,
 -- desde un navegador que todavía mostraba el formulario provisional, cambió la monta
 -- GIL SANTINO → ARREGUY a las 18:19 con `saveMontas`, que escribe sólo
@@ -23,7 +35,11 @@
 --
 --   2. RPC rpc_cambiar_monta(p_inscripcion_id, p_jockey_id) — SECURITY DEFINER, con
 --      los guards adentro (GOTCHA #80):
---      · guard 1 (permiso): pasa `service_role` (auth.role(), NO "club NULL") y el
+--      · guard 0 (rol): antes de cualquier SELECT. Pasa `service_role` (auth.role()),
+--        el super_admin y el staff (fn_is_staff = super_admin | secretario_carreras |
+--        operador, activo). Portal, sesión sin fila en `usuarios` y anon → 42501. Va
+--        primero para que el mensaje no delate si el id de la inscripción existe.
+--      · guard 1 (club): pasa `service_role` (auth.role(), NO "club NULL") y el
 --        super_admin; cualquier otro necesita `fn_get_user_club_id()` NO NULL y que
 --        coincida con el club de la carrera. Un club NULL sin service_role — sesión sin
 --        fila en `usuarios`, o un JWT `authenticated` cualquiera — es 42501, no un pase
@@ -138,6 +154,18 @@ BEGIN
     RAISE EXCEPTION 'rpc_cambiar_monta: falta la inscripción';
   END IF;
 
+  -- ── guard 0 · QUIÉN LLAMA ─────────────────────────────────────────────────
+  -- VA ANTES del lookup: si va después, el mensaje de error delata si el id existe.
+  -- service_role (auth.role()), super_admin o staff (fn_is_staff). El portal tiene su
+  -- propio mensaje porque es el caso que se quiere explicar en pantalla.
+  IF NOT (coalesce(auth.role(), '') = 'service_role'
+          OR fn_is_super_admin() OR fn_is_staff()) THEN
+    IF fn_is_portal_user() THEN
+      RAISE EXCEPTION 'rpc_cambiar_monta: el portal no cambia montas' USING ERRCODE = '42501';
+    END IF;
+    RAISE EXCEPTION 'rpc_cambiar_monta: sin permiso' USING ERRCODE = '42501';
+  END IF;
+
   SELECT * INTO v_insc FROM inscripciones WHERE id = p_inscripcion_id FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'rpc_cambiar_monta: la inscripción no existe';
@@ -145,12 +173,10 @@ BEGIN
   SELECT * INTO v_car FROM carreras WHERE id = v_insc.carrera_id;
   v_club := fn_club_de_carrera(v_insc.carrera_id);
 
-  -- ── guard 1 · PERMISO ─────────────────────────────────────────────────────────
+  -- ── guard 1 · CLUB ────────────────────────────────────────────────────────────
   -- service_role se reconoce por auth.role(), NO por "club NULL": un club NULL es un
-  -- usuario sin fila en `usuarios`, que NO tiene que poder tocar nada.
-  IF fn_is_portal_user() THEN
-    RAISE EXCEPTION 'rpc_cambiar_monta: el portal no cambia montas' USING ERRCODE = '42501';
-  END IF;
+  -- usuario sin fila en `usuarios`, que NO tiene que poder tocar nada. (El guard de rol
+  -- —portal incluido— ya corrió arriba, antes del lookup.)
   IF NOT (coalesce(auth.role(), '') = 'service_role' OR fn_is_super_admin()) THEN
     v_user_club := fn_get_user_club_id();
     IF v_user_club IS NULL THEN
