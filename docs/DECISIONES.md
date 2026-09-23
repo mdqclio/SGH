@@ -26,6 +26,10 @@ Decisión: Solo 3 estados: inscripto → ratificado → forfait
 Justificación: Refleja el flujo real del hipódromo (validado con Fede)
 
 ## ADR-007: Legacy Supabase anon key
+
+> ⚠ **SUPERADO (2026-06-07)**: las keys legacy `eyJ` están desactivadas; se usa `sb_publishable_`.
+> Ver GOTCHA #56 y `docs/ARQUITECTURA.md`.
+
 Decisión: Usar key eyJ... NO sb_publishable_...
 Justificación: La nueva key da error 400 en consultas REST. Verificado en producción.
 

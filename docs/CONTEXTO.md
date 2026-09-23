@@ -30,10 +30,24 @@ Desarrollado para Fede (amigo de Leonardo), quien lo venderá como producto a hi
 - **publico**: solo lectura, sin login
 
 ## Flujo de trabajo
-- No hay entorno local ni build: todo el proyecto es HTML estático servido por GitHub Pages desde la rama main.
-- Cada cambio se commitea y pushea directo a main; el deploy es automático y tarda 30-60 segundos.
-- La validación se hace siempre en producción: mdqclio.github.io/SGH/ con refresh.
-- Backend: Supabase (proyecto unlhcuanfrtpatoipwve). Cambios de schema/policies/funciones se aplican manualmente vía SQL Editor del panel de Supabase. Documentar el SQL ejecutado en la sesión correspondiente (docs/SESION_YYYY-MM-DD.md).
+- No hay entorno local ni build: todo el proyecto es HTML estático servido por GitHub Pages desde la rama `main`.
+- **El código va por rama y PR, no directo a `main`.** Prefijos `feat/`, `fix/`, `chore/`, `docs/`; el PR
+  **no se mergea sin OK explícito**. Única rama sin prefijo: `reports`, que es donde viven los informes y
+  nunca se mergea. Ver `CLAUDE.md` § Workflow de trabajo y § Protocolo de informes.
+- El deploy se dispara al mergear a `main`: build de ~15-60 s, pero el CDN puede tardar varios minutos más.
+  No alcanza con mirar la página: se verifica comparando el md5 contra el archivo del commit
+  (`curl -sL "https://sigh.com.ar/<archivo>.html?v=$RANDOM"` vs `git show <sha>:<archivo>.html`).
+- La URL de producción es **`https://sigh.com.ar/`** (dominio propio, el sitio vive en la raíz).
+  `mdqclio.github.io/SGH/` es el origen anterior y puede servir contenido viejo: no verificar ahí.
+- Backend: Supabase (proyecto `unlhcuanfrtpatoipwve`). **El DDL va por `apply_migration` del MCP**, con el
+  `.sql` versionado en `migrations/` como fuente de verdad y su rollback escrito. **Nunca por el SQL Editor
+  del panel**: no queda trackeado. Antes de aplicar: el **guard de sesión** de `CLAUDE.md` (pwd + `count(*)
+  FROM spcs` + ref del proyecto). Después de aplicar, y antes de dar nada por hecho: **comparar el
+  `md5(pg_get_functiondef)` contra el md5 esperado que la migración lleva en su encabezado** — el md5 del
+  `.sql` no prueba nada (GOTCHA #99). Para DDL efímero (mutantes, funciones gemelas de test) se usa
+  `execute_sql`, que no deja rastro en el historial de migraciones (GOTCHA #95).
+- Lo aplicado se documenta en `CHANGELOG.md` y en el informe correspondiente de `docs/diagnosticos/`
+  (rama `reports`), no en archivos `docs/SESION_*.md` — esa convención quedó sin uso.
 - Cliente piloto único hoy: Hipódromo de Dolores. Probar contra reuniones de Dolores.
 
 ## Reunión activa (actualizado 20/05/2026)

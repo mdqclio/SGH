@@ -32,7 +32,7 @@ PENDIENTE (orden del gap analysis, `docs/LIQUIDACIONES_GAP_ANALYSIS.md`):
 DECISIONES (Fede):
 - ✅ **Bono 6-8 + empate — CONFIRMADO (02/06/2026):** se paga, 100% propietario, neto; monto/rango configurables (`bono_posicion_monto`, `bono_posicion_desde/hasta`). Empate (principio Fede "50% c/u" + convención dead-heat "el grupo toma la posición del líder"): grupo comparte **un** bono dividido `monto/N` (2 → 50% c/u); empate de premio promediado `Σ/N`; cruce de borde (5°-6°) → grupo es "5°" → sin bono; bono al ganador en empate de 1° → repartido vía el promedio (mitad c/u). Probe C2/C3. **Sigue gateado por `propietario_id` NULL (GOTCHA #47): no paga nada hasta poblar el dueño.**
 - ⚠️ **Limitación técnica conocida (no es decisión de producto):** empates adyacentes sin caballo limpio en medio se fusionan en un grupo (modelo `empate=true` con un solo booleano; requeriría `grupo_empate_id`). Rarísimo. Ver GOTCHA #45.
-- ✅ **Incentivos Bloque C — montos CONFIRMADOS por Fede (2026-06-08):** jockey **50.000 fijo por reunión** (1 línea por jockey que corrió, aunque tenga N montas; `inscripcion_id=null`); entrenador **10.000 por caballo corrido** (1 línea por inscripción corrida, sin dedup; `inscripcion_id` seteado). Montos en `liquidacion_config` (DML aplicada: 50000/10000). Corrección de granularidad del entrenador (antes deduplicaba por reunión) en rama `feat/incentivos-montas`; probe `tests/probe_incentivos_montas.mjs` (11/11). Ver `docs/LIQUIDACIONES_MODELO.md` §4.
+- ✅ **Incentivos Bloque C — granularidad CONFIRMADA por Fede (2026-06-08):** jockey **fijo por reunión** (1 línea por jockey que corrió, aunque tenga N montas; `inscripcion_id=null`); entrenador **10.000 por caballo corrido** (1 línea por inscripción corrida, sin dedup; `inscripcion_id` seteado). **Los montos viven en `liquidacion_config`, no acá:** al 2026-06-08 eran 50.000/10.000 y **al 2026-09-22 son 60.000 (jockey) / 10.000 (entrenador)** — el de jockey subió el 19/09 (ver `CHANGELOG.md`). Verificar siempre con `select incentivo_jockey_monto, incentivo_entrenador_monto from liquidacion_config`. Corrección de granularidad del entrenador (antes deduplicaba por reunión) en rama `feat/incentivos-montas`; probe `tests/probe_incentivos_montas.mjs` (11/11). Ver `docs/LIQUIDACIONES_MODELO.md` §4.
 - Beneficiario de las sub-líneas peón/capataz/sereno (hoy = entrenador, ADR-025; confirmar en Fase 4).
 
 TÉCNICO PENDIENTE:
@@ -367,7 +367,13 @@ Descripción: detectado de paso al barrer todas las reuniones de Dolores con la 
 No se investigó si las carreras se borraron, si se migraron a otra reunión, o si el UUID de la R5 cambió y CLAUDE.md quedó apuntando a otro lado. Tampoco se tocó nada.
 
 Módulo: datos (`carreras`) + `CLAUDE.md` §"Reunión activa para testing".
-Estado: ⏳ Abierto — a revisar después del domingo 16/08. Prioridad: Baja (R1–R5 son reuniones viejas, ninguna se imprime esta semana; no afecta a R8).
+Estado: 🟡 **Mitad resuelto (2026-09-22)** — la parte de doc está cerrada: `CLAUDE.md` §"Reunión activa para
+testing" ya no propone la R5. Apunta a la **9999** (`a0000000-0000-0000-0000-000000009999`, `es_prueba = true`,
+3 carreras / 17 inscripciones / 3 resultados), que es la única reunión de prueba de la base, y a **R9**
+(`cafa37d6-89f4-45cb-a0d9-835bc27407e9`) para mirar datos reales. Medido el 22/09: la R5 de Dolores
+(`c90b6186-268d-4089-8cc6-71626b627cf8`) sigue con **0 carreras y 0 inscripciones**.
+**Sigue abierta la pregunta del dato**: por qué R1–R5 no tienen filas en `carreras` — si se borraron, se
+migraron o nunca se cargaron. Prioridad: Baja (ninguna de esas reuniones se imprime).
 
 ### ISSUE-052: R6 en estado `borrador` con fecha pasada y sus 8 carreras oficiales
 Descripción: la reunión 6 (`b02ca761-6f44-4720-86aa-a3c3099019ea`, 20/06/2026) sigue en `reuniones.estado = 'borrador'` aunque la fecha ya pasó y **las 8 carreras están oficiales**. Ya había aparecido durante el cotejo de R6 (`docs/COTEJO_R6.md:6`); volvió a surgir el 2026-08-23 al sanear `peso_balanza`, que fue el disparador de anotarlo como issue propio.

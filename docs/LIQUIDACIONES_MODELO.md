@@ -57,10 +57,11 @@ El **2% no se le paga a nadie**: va a un fondo solidario para accidentes / choqu
 
 Pagos independientes de ganar. Se liquidan y aparecen como líneas en el recibo de la persona.
 Los montos son **configurables** (`liquidacion_config.incentivo_jockey_monto` /
-`incentivo_entrenador_monto`). **Montos confirmados por Fede (2026-06-08): jockey 50.000,
-entrenador 10.000.** Granularidad distinta por rol:
+`incentivo_entrenador_monto`) y **este doc no los lleva**: al 2026-06-08 Fede confirmó 50.000 / 10.000
+y al 2026-09-22 rigen **60.000 (jockey, subió el 19/09) / 10.000 (entrenador)**. Leerlos de
+`liquidacion_config`, nunca de acá. Granularidad distinta por rol:
 
-- **Jockeys: 50.000 fijo POR REUNIÓN.** Una sola línea por jockey que **efectivamente corrió**
+- **Jockeys: monto fijo POR REUNIÓN.** Una sola línea por jockey que **efectivamente corrió**
   (largó al menos una, `no_largo=false`, ratificado), aunque corra varias carreras. Si no corre,
   no cobra. No es por monta ni por cantidad de carreras. **No hay pago de “monta perdida”
   aparte.** Línea: `concepto_tipo='incentivo_jockey'`, `inscripcion_id=null` (es de reunión).

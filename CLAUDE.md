@@ -78,7 +78,7 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 │   ├── probe_nav_dirty.mjs      Navegación con cambios sin guardar
 │   ├── probe_tiempo_ganador.mjs Carga de tiempo ganador
 │   ├── probe_estado_pista.mjs   Estado de pista
-│   ├── probe_incentivos_montas.mjs  Incentivos Bloque C (jockey 50k/reunión, entrenador 10k/caballo)
+│   ├── probe_incentivos_montas.mjs  Incentivos Bloque C (jockey por reunión, entrenador por caballo; montos de liquidacion_config)
 │   ├── probe_recibos_emision.mjs    Fase 4 v1 — RPC emitir_recibo + buscador pagable
 │   ├── probe_cobros_v11.mjs     Fase 4 v1.1 — liberar_linea + búsqueda + filtro carrera
 │   └── local/                   Sandbox Docker (Postgres 16 + PostgREST + proxy /rest/v1) con una copia de la 9999 para probar DDL antes de que vaya a prod; clonar_9999.mjs sólo lee prod; out/ gitignored (PII)
@@ -391,8 +391,27 @@ Para recibos, `recibosDesde()` **sin filtro de club** (GOTCHA #76).
 **Por qué así**: las variables internas de los módulos (`currentCarreraId`, `inscripciones`, `posicionesMap`, etc.) son `let` de módulo y no están expuestas en `window.*` — no hay estado interno que inspeccionar desde afuera. Los asserts van contra lo que el código **persiste en la DB** o contra el **texto del archivo**, no contra variables.
 
 ### Reunión activa para testing
-Reunión 5 — 17/05/2026 — Hipódromo de Dolores (11 turnos, ~81 inscripciones).
-Fijarla: `localStorage.setItem('sgh_active_reunion_id', 'UUID_REUNION_5')` o desde `reuniones.html` → botón 📍 Activar.
+**Reunión 9999 — `a0000000-0000-0000-0000-000000009999`** — 2099-01-01, `cancelada`, `es_prueba = true`,
+Hipódromo de Dolores: 3 carreras, 17 inscripciones, 3 resultados. Es **la única** reunión con
+`es_prueba = true` en toda la base y el sandbox de los probes (§ Otros módulos: no se borra).
+Los probes que necesitan una reunión propia se crean la suya (9985/9986/9987) y la borran en el `finally`.
+
+Fijarla: `localStorage.setItem('sgh_active_reunion_id', 'a0000000-0000-0000-0000-000000009999')`
+o desde `reuniones.html` → botón 📍 Activar.
+
+Para mirar una reunión **con datos reales** en la UI (programa, resultados, liquidaciones), usar
+**R9 — `cafa37d6-89f4-45cb-a0d9-835bc27407e9`** (2026-09-20, 11 carreras, 97 líneas de liquidación).
+
+> Antes decía "Reunión 5 — 17/05/2026 — 11 turnos, ~81 inscripciones". Medido el 2026-09-22, la R5 de
+> Dolores (`c90b6186-268d-4089-8cc6-71626b627cf8`) tiene **0 carreras y 0 inscripciones** — no sirve para
+> probar nada. Query de control:
+> ```sql
+> select r.id, r.numero, r.fecha, r.estado, r.es_prueba, c.nombre as club,
+>  (select count(*) from carreras ca where ca.reunion_id=r.id) as carreras,
+>  (select count(*) from inscripciones i join carreras ca on ca.id=i.carrera_id where ca.reunion_id=r.id) as inscripciones
+> from reuniones r join clubs c on c.id=r.club_id
+> where r.es_prueba is true or r.numero in (5,9999) order by r.numero;
+> ```
 
 ---
 
@@ -521,7 +540,7 @@ Ver `docs/GOTCHAS.md` para la lista completa (98 entradas).
 - ✅ **Bug 3 (28/05/2026 — RESUELTO)**: `renderDivHTML` usaba `chapaAt(slot)` donde `slot` es el índice de fila de pago — GAN/SEG/TER mostraban todos el chip del 1°. Fix: `chapaAt(POS_SLOTS[tipo])`. Además: Fix A — `onMarcInput` marca con `.marc-invalid` mandiles que no corresponden a un ratificado (feedback visual, no bloquea). Fix B — `renderDivView` recibe `undefined` (no `[]`) cuando el override está vacío; `onMarcInput` aplica `tempPos.length ? tempPos : undefined`.
 
 ### Otros módulos
-- **liquidaciones.html**: estado real en `docs/ISSUES.md` (ISSUE-001) y en esta línea + `CHANGELOG.md` (`docs/LIQUIDACIONES_GAP_ANALYSIS.md` es una **foto del 2026-06-08**, no se actualiza — GOTCHA #98). Resumen: **Fase 0-2 + Fase C VIVAS** (merge `ccef143`, Fase C `7e638c7`); **incentivos montas** (jockey 50k/reunión, entrenador 10k/caballo — `47362ef`); **Fase 4 Pagos/recibos VIVO** — v1 buscador + RPC `emitir_recibo` (`1a50359`), v1.1 liberación **manual** del doping (RPC `liberar_linea`, pagable solo impago) + filtro carrera + búsqueda nombre/apellido/DNI (`4851129`); recibo con logo + firma (`154c83e`). **Fase 5 Resumen VIVO** (`4cc6c27`): buckets por estado + reconciliación + pendientes por beneficiario; **ampliada** (`f5a56c4`) con desglose por `concepto_tipo` + montas perdidas (informativo). **ISSUE-028 Apoderados CERRADO v1+v1.1** (tabla `apoderados` + UI en propietarios/profesionales + display read-only en Pagos). **des-oficializar carrera vía RPC** `desoficializar_carrera` (`61bd81d`). Bloqueante de datos: `inscripciones.propietario_id` 10/95 (GOTCHA #47); `spc_propietarios` 0. Pendientes: backfill propietarios, Fase 6 (validar A+B vs R5), **turno→carrera app-wide** (ISSUE-029; recibo ya hecho), confirmación de Fede sobre desglose/montas. **Reunión de prueba 9999 (PRUEBA RESUMEN) VIVA en Dolores — NO se borra** (decisión revertida el 2026-08-29): es el sandbox de los probes, marcada con `reuniones.es_prueba` y filtrada del buscador de Pagos. `teardown_prueba_resumen_9999.sql` queda sin usar.
+- **liquidaciones.html**: estado real en `docs/ISSUES.md` (ISSUE-001) y en esta línea + `CHANGELOG.md` (`docs/LIQUIDACIONES_GAP_ANALYSIS.md` es una **foto del 2026-06-08**, no se actualiza — GOTCHA #98). Resumen: **Fase 0-2 + Fase C VIVAS** (merge `ccef143`, Fase C `7e638c7`); **incentivos montas** (jockey **60.000**/reunión desde el 19/09 —era 50.000—, entrenador 10.000/caballo; `47362ef`. Los montos viven en `liquidacion_config`, no en el código: verificar ahí, no acá); **Fase 4 Pagos/recibos VIVO** — v1 buscador + RPC `emitir_recibo` (`1a50359`), v1.1 liberación **manual** del doping (RPC `liberar_linea`, pagable solo impago) + filtro carrera + búsqueda nombre/apellido/DNI (`4851129`); recibo con logo + firma (`154c83e`). **Fase 5 Resumen VIVO** (`4cc6c27`): buckets por estado + reconciliación + pendientes por beneficiario; **ampliada** (`f5a56c4`) con desglose por `concepto_tipo` + montas perdidas (informativo). **ISSUE-028 Apoderados CERRADO v1+v1.1** (tabla `apoderados` + UI en propietarios/profesionales + display read-only en Pagos). **des-oficializar carrera vía RPC** `desoficializar_carrera` (`61bd81d`). Bloqueante de datos: `inscripciones.propietario_id` **218/350** (ratificadas: **167/239**; medido 2026-09-22) — GOTCHA #47; `spc_propietarios` **0** (tabla vacía). Pendientes: backfill propietarios (132 inscripciones sin `propietario_id`, 72 de ellas ratificadas), Fase 6 **sin objeto contra R5** (R5 tiene 0 carreras y 0 líneas de liquidación: la validación A+B hay que hacerla contra R6/R8/R9, que son las que tienen líneas — 120/164/97), **turno→carrera app-wide** (ISSUE-029; recibo ya hecho), confirmación de Fede sobre desglose/montas. **Reunión de prueba 9999 (PRUEBA RESUMEN) VIVA en Dolores — NO se borra** (decisión revertida el 2026-08-29): es el sandbox de los probes, marcada con `reuniones.es_prueba` y filtrada del buscador de Pagos. `teardown_prueba_resumen_9999.sql` queda sin usar.
 - **portal.html / registro-profesional.html**: no construidos.
 - **ISSUE-018**: XSS — `innerHTML` con datos de DB sin escapar en varios módulos.
 - **ISSUE-007**: Calendario puede mostrar N-1 reuniones (bug de timezone).

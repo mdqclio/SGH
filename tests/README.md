@@ -77,7 +77,7 @@ node tests/probe_no_largo.mjs            # Botón "no corrió" + deducción auto
 node tests/probe_vacante_vac.mjs         # Vacante escribiendo "VAC" en el input + F8 no pisa VAC (→ localhost)
 node tests/probe_fase2_liquidaciones.mjs # Liquidaciones C+D Fase 2: forma de líneas fondo/bono/incentivo (→ DB directa, sin browser)
 node tests/probe_fase_c.mjs              # Fase C: estado_linea + retención anti-doping (real-code, → DB directa)
-node tests/probe_incentivos_montas.mjs   # Incentivos Bloque C: jockey 50k/reunión dedup, entrenador 10k/caballo (real-code)
+node tests/probe_incentivos_montas.mjs   # Incentivos Bloque C: jockey por reunión dedup, entrenador por caballo (real-code; montos de liquidacion_config)
 node tests/probe_recibos_emision.mjs     # Fase 4 v1: RPC emitir_recibo + buscador pagable (real-code, fixtures propias)
 node tests/probe_cobros_v11.mjs          # Fase 4 v1.1: liberar_linea + búsqueda nombre/apellido/DNI + filtro carrera (real-code)
 node tests/probe_cobros_caballeriza.mjs  # Pagos: búsqueda por caballeriza → propietario titular (real-code, read-only)
