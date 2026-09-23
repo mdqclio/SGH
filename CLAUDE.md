@@ -391,8 +391,27 @@ Para recibos, `recibosDesde()` **sin filtro de club** (GOTCHA #76).
 **Por qué así**: las variables internas de los módulos (`currentCarreraId`, `inscripciones`, `posicionesMap`, etc.) son `let` de módulo y no están expuestas en `window.*` — no hay estado interno que inspeccionar desde afuera. Los asserts van contra lo que el código **persiste en la DB** o contra el **texto del archivo**, no contra variables.
 
 ### Reunión activa para testing
-Reunión 5 — 17/05/2026 — Hipódromo de Dolores (11 turnos, ~81 inscripciones).
-Fijarla: `localStorage.setItem('sgh_active_reunion_id', 'UUID_REUNION_5')` o desde `reuniones.html` → botón 📍 Activar.
+**Reunión 9999 — `a0000000-0000-0000-0000-000000009999`** — 2099-01-01, `cancelada`, `es_prueba = true`,
+Hipódromo de Dolores: 3 carreras, 17 inscripciones, 3 resultados. Es **la única** reunión con
+`es_prueba = true` en toda la base y el sandbox de los probes (§ Otros módulos: no se borra).
+Los probes que necesitan una reunión propia se crean la suya (9985/9986/9987) y la borran en el `finally`.
+
+Fijarla: `localStorage.setItem('sgh_active_reunion_id', 'a0000000-0000-0000-0000-000000009999')`
+o desde `reuniones.html` → botón 📍 Activar.
+
+Para mirar una reunión **con datos reales** en la UI (programa, resultados, liquidaciones), usar
+**R9 — `cafa37d6-89f4-45cb-a0d9-835bc27407e9`** (2026-09-20, 11 carreras, 97 líneas de liquidación).
+
+> Antes decía "Reunión 5 — 17/05/2026 — 11 turnos, ~81 inscripciones". Medido el 2026-09-22, la R5 de
+> Dolores (`c90b6186-268d-4089-8cc6-71626b627cf8`) tiene **0 carreras y 0 inscripciones** — no sirve para
+> probar nada. Query de control:
+> ```sql
+> select r.id, r.numero, r.fecha, r.estado, r.es_prueba, c.nombre as club,
+>  (select count(*) from carreras ca where ca.reunion_id=r.id) as carreras,
+>  (select count(*) from inscripciones i join carreras ca on ca.id=i.carrera_id where ca.reunion_id=r.id) as inscripciones
+> from reuniones r join clubs c on c.id=r.club_id
+> where r.es_prueba is true or r.numero in (5,9999) order by r.numero;
+> ```
 
 ---
 

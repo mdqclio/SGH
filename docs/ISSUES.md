@@ -367,7 +367,13 @@ Descripción: detectado de paso al barrer todas las reuniones de Dolores con la 
 No se investigó si las carreras se borraron, si se migraron a otra reunión, o si el UUID de la R5 cambió y CLAUDE.md quedó apuntando a otro lado. Tampoco se tocó nada.
 
 Módulo: datos (`carreras`) + `CLAUDE.md` §"Reunión activa para testing".
-Estado: ⏳ Abierto — a revisar después del domingo 16/08. Prioridad: Baja (R1–R5 son reuniones viejas, ninguna se imprime esta semana; no afecta a R8).
+Estado: 🟡 **Mitad resuelto (2026-09-22)** — la parte de doc está cerrada: `CLAUDE.md` §"Reunión activa para
+testing" ya no propone la R5. Apunta a la **9999** (`a0000000-0000-0000-0000-000000009999`, `es_prueba = true`,
+3 carreras / 17 inscripciones / 3 resultados), que es la única reunión de prueba de la base, y a **R9**
+(`cafa37d6-89f4-45cb-a0d9-835bc27407e9`) para mirar datos reales. Medido el 22/09: la R5 de Dolores
+(`c90b6186-268d-4089-8cc6-71626b627cf8`) sigue con **0 carreras y 0 inscripciones**.
+**Sigue abierta la pregunta del dato**: por qué R1–R5 no tienen filas en `carreras` — si se borraron, se
+migraron o nunca se cargaron. Prioridad: Baja (ninguna de esas reuniones se imprime).
 
 ### ISSUE-052: R6 en estado `borrador` con fecha pasada y sus 8 carreras oficiales
 Descripción: la reunión 6 (`b02ca761-6f44-4720-86aa-a3c3099019ea`, 20/06/2026) sigue en `reuniones.estado = 'borrador'` aunque la fecha ya pasó y **las 8 carreras están oficiales**. Ya había aparecido durante el cotejo de R6 (`docs/COTEJO_R6.md:6`); volvió a surgir el 2026-08-23 al sanear `peso_balanza`, que fue el disparador de anotarlo como issue propio.

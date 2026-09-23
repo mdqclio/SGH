@@ -12,8 +12,13 @@
 - `docs/ESTADO.md`: primera línea marcándolo como **foto** (snapshot más nuevo 2026-07-24, última edición `72f3b50` del 08/09);
   no se reescribió. Arrastre del 50.000 limpiado también en `docs/ISSUES.md`, `docs/LIQUIDACIONES_MODELO.md` y `tests/README.md`.
 - **`docs/README.md` nuevo** (40 líneas): qué doc está vivo, cuáles son fotos, y orden de lectura para el que llega.
-- Cero cambios en base, front y `migrations/`. Queda abierto: `docs/DECISIONES.md` ADR-007 sigue diciendo "usar `eyJ`" — listado,
-  no tocado, a la espera de decisión.
+- `docs/DECISIONES.md` ADR-007 ("usar key `eyJ`… NO `sb_publishable_`") lleva arriba `⚠ SUPERADO (2026-06-07)`, con el cuerpo
+  intacto, igual que GOTCHAS #22 y #75. Con eso **no queda en el repo ninguna mención viva que ordene usar la key muerta**.
+- `CLAUDE.md` §"Reunión activa para testing" decía "Reunión 5 — 17/05/2026 — 11 turnos, ~81 inscripciones" y esa reunión tiene
+  **0 carreras y 0 inscripciones**. Ahora apunta a la **9999** (`a0000000-…-000000009999`, la única con `es_prueba = true`:
+  3 carreras, 17 inscripciones, 3 resultados) y, para datos reales, a **R9** (`cafa37d6-…`). Cierra la mitad documental de
+  ISSUE-051; queda abierta la pregunta de por qué R1–R5 no tienen filas en `carreras`.
+- Cero cambios en base, front y `migrations/`.
 
 ## [2026-09-22] — SEGURIDAD: `anular_recibo` era ejecutable por `anon` — REVOKE de PUBLIC y de anon (APLICADA en prod)
 
