@@ -1,5 +1,32 @@
 # Changelog
 
+## [2026-09-23] — Guard de staff: las tres del camino de pago aplicadas — **las seis completas**, ISSUE-090 cerrado
+
+> Cierra la tanda abierta el 22/09. Orden de aplicación: **`fn_siguiente_recibo` → `emitir_recibo` → `anular_recibo`**
+> (la interna primero, para que `emitir_recibo` nunca corriera sobre una versión a medias).
+
+- **Las tres aplicadas y verificadas por md5** de `pg_get_functiondef`, que es el único que prueba algo sobre prod
+  (GOTCHA #99). Los tres coincidieron **a la primera** con el esperado que cada encabezado ya traía desde el 22/09:
+  | función | migración | md5 verificado | tamaño |
+  |---|---|---|---|
+  | `fn_siguiente_recibo` | `20260923012258` | `95d2bdc2fef65622e3997fbff45285f4` | 1288 B / 35 líneas |
+  | `emitir_recibo` | `20260923012417` | `14951f502c0816de2d52923b45435c12` | 4063 B / 103 líneas |
+  | `anular_recibo` | `20260923012529` | `844e9e1ff62f4dbba30df71b8a88e309` | 3850 B / 106 líneas |
+- **ACL sin cambios** en las tres, antes y después: `postgres=X | authenticated=X | service_role=X`. El `REVOKE` de
+  PUBLIC/anon del 22/09 sobre `anular_recibo` sobrevivió al `CREATE OR REPLACE`.
+- **Probe `--fn` 12/12 por función** contra prod después de cada apply, y **60/60** la matriz completa (7 funciones × 8
+  perfiles + fixture + restore). **8/8 mutantes** en el sandbox, con M7 declarado equivalente y su prueba.
+- **El sandbox reprodujo los 7 md5 de prod exactamente** al aplicarle los mismos archivos — verificación cruzada de que
+  prod corre el texto del repo, no una transcripción.
+- **Smoke del camino de pago con SESIÓN STAFF REAL** (usuario `secretario_carreras` creado al vuelo, JWT por magiclink;
+  **no** service_role, que está exento de los guards de club y de la ventana de 5 días) sobre la 9999: se emitió el
+  recibo N° 70 con 4 líneas, se verificó `emitido_por` = el usuario (no NULL), se anuló con el mismo usuario y **las 4
+  líneas volvieron exactamente a su estado previo**. 14/14. La 9999 quedó como estaba, incluida `club_secuencias`
+  (el smoke consumió el número 70 y se devolvió a 69: el próximo recibo real sigue siendo el 70, sin salto).
+- **ISSUE-090 CERRADO**: el patrón `fn_get_user_club_id() IS NOT NULL AND …` —que infiere `service_role` de un club
+  NULL y por lo tanto no corre para una sesión `authenticated` sin fila en `usuarios`— ya no queda en ninguna de las
+  seis. El vector del portal medido el 22/09 está cerrado en las 7 RPC sensibles.
+
 ## [2026-09-22] — Verificación de md5 contra prod: las 5 funciones aplicadas coinciden con el repo; GOTCHA #99
 
 - **Control de las cinco ya aplicadas** (`aplicar_resultado`, `desoficializar_carrera`, `liberar_linea`,
@@ -51,6 +78,25 @@
   (`sin permiso`) en vez del de club, así que el assert acepta **esos dos mensajes y ningún otro**.
 - **`tests/local/clonar_9999.mjs`**: el sandbox ahora clona `club_secuencias` y `resultado_apuestas`, y define
   `fn_is_staff`, `fn_club_de_liquidacion`, `fn_club_de_inscripcion`, `fn_club_de_reunion`. Faltaban y el probe no arrancaba.
+## [2026-09-22] — DOCS: fase corta — los tres docs que hacían escribir código mal, más índice de `docs/`
+
+- `docs/ARQUITECTURA.md` mandaba usar la key legacy `eyJ…`, desactivada desde el 2026-06-07 → ahora manda la publishable
+  (`get_publishable_keys`: `anon` con `"disabled": true`; las 29 páginas HTML de `main` usan `sb_publishable_`).
+- `docs/CONTEXTO.md` decía commitear directo a `main` y aplicar schema por el SQL Editor → ahora rama + PR, `apply_migration` con
+  el md5 esperado en el encabezado (GOTCHA #99), guard de sesión antes de aplicar, y `sigh.com.ar` como URL de verificación.
+- `CLAUDE.md` § Otros módulos (la línea que el GOTCHA #98 declara fuente del estado vigente): incentivo de jockey **60.000** —no
+  50.000, subió el 19/09—, `inscripciones.propietario_id` **218/350** (ratificadas 167/239, medido el 22/09) —no 10/95—, y Fase 6
+  **sin objeto contra R5** (R5 tiene 0 carreras y 0 líneas; validar contra R6/R8/R9: 120/164/97 líneas).
+- `docs/ESTADO.md`: primera línea marcándolo como **foto** (snapshot más nuevo 2026-07-24, última edición `72f3b50` del 08/09);
+  no se reescribió. Arrastre del 50.000 limpiado también en `docs/ISSUES.md`, `docs/LIQUIDACIONES_MODELO.md` y `tests/README.md`.
+- **`docs/README.md` nuevo** (40 líneas): qué doc está vivo, cuáles son fotos, y orden de lectura para el que llega.
+- `docs/DECISIONES.md` ADR-007 ("usar key `eyJ`… NO `sb_publishable_`") lleva arriba `⚠ SUPERADO (2026-06-07)`, con el cuerpo
+  intacto, igual que GOTCHAS #22 y #75. Con eso **no queda en el repo ninguna mención viva que ordene usar la key muerta**.
+- `CLAUDE.md` §"Reunión activa para testing" decía "Reunión 5 — 17/05/2026 — 11 turnos, ~81 inscripciones" y esa reunión tiene
+  **0 carreras y 0 inscripciones**. Ahora apunta a la **9999** (`a0000000-…-000000009999`, la única con `es_prueba = true`:
+  3 carreras, 17 inscripciones, 3 resultados) y, para datos reales, a **R9** (`cafa37d6-…`). Cierra la mitad documental de
+  ISSUE-051; queda abierta la pregunta de por qué R1–R5 no tienen filas en `carreras`.
+- Cero cambios en base, front y `migrations/`.
 
 ## [2026-09-22] — SEGURIDAD: `anular_recibo` era ejecutable por `anon` — REVOKE de PUBLIC y de anon (APLICADA en prod)
 

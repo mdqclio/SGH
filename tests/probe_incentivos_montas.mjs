@@ -6,7 +6,7 @@
  * ubuntu26.04). Patrón snapshot→mutate→run→assert→restore, igual que probe_fase2/probe_fase_c.
  *
  * Regla a verificar:
- *  - Jockey: 50.000 fijo POR REUNIÓN → UNA línea por jockey que corrió, aunque tenga N montas.
+ *  - Jockey: monto fijo POR REUNIÓN → UNA línea por jockey que corrió, aunque tenga N montas.
  *    incentivo_jockey, beneficiario=jockey, inscripcion_id=null.
  *  - Entrenador: 10.000 POR CABALLO corrido → UNA línea por inscripción corrida (sin dedup).
  *    incentivo_entrenador, beneficiario=entrenador, inscripcion_id=la inscripción.
@@ -16,7 +16,7 @@
  * 22 inscripciones ubicadas (no_largo=false, ratificado). Así el jockey tiene 22 montas (→1
  * línea) y el entrenador 22 caballos (→22 líneas). Snapshot+restore de los 2 campos.
  *
- * Montos: los lee de liquidacion_config (Tarea A ya seteó 50000/10000). El probe valida contra
+ * Montos: los lee de liquidacion_config (al 2026-09-22: 60000 jockey / 10000 entrenador). El probe valida contra
  * esos valores de config, no contra constantes hardcodeadas.
  */
 import { createClient } from '@supabase/supabase-js';
