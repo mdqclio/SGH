@@ -18,6 +18,9 @@
  *
  *   --lineas=N   repite las filas de la tabla hasta N (caso sintético largo, p.ej. 20)
  *   --css="…"    CSS extra inyectado en media print para probar variantes sin tocar el archivo
+ *   --anonimizar reemplaza beneficiario, quien retira, su documento y el comprobante por datos ficticios
+ *                ANTES de correr imprimirReciboCobro (mismo largo de texto aprox.: no cambia el layout), para
+ *                publicar PDF/PNG/salida en `reports` (repo público) sin datos personales
  *
  * SOLO LECTURA. No escribe en la base ni crea usuarios.
  */
@@ -36,6 +39,7 @@ const [ref, outDir, ...flags] = process.argv.slice(2);
 if (!ref || !outDir) { console.error('uso: render_recibo_pdf.mjs <numero_recibo|recibo_id> <out_dir> [--lineas=N] [--css=…] [--html=…]'); process.exit(2); }
 const flag = n => flags.find(f => f.startsWith(`--${n}=`))?.slice(n.length + 3);
 const LINEAS = +(flag('lineas') || 0), EXTRA_CSS = flag('css') || '', HTML_SRC = flag('html') || '';
+const ANON = flags.includes('--anonimizar');
 const HERE = dirname(fileURLToPath(import.meta.url));
 const sb = createClient(SUPABASE_URL, KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 
@@ -71,6 +75,13 @@ const { data: benef } = benefTipo === 'propietario'
   ? await sb.from('propietarios').select('nombre').eq('id', benefId).single()
   : await sb.from('profesionales').select('nombre,apellido').eq('id', benefId).single();
 const cobBenef = { tipo: benefTipo, id: benefId, nombre: benefTipo === 'propietario' ? benef.nombre : `${benef.apellido}, ${benef.nombre}` };
+if (ANON) {
+  const eraTitular = !!recibo.cobrador_nombre && recibo.cobrador_nombre.trim().toLowerCase() === cobBenef.nombre.trim().toLowerCase();
+  cobBenef.nombre = 'APELLIDO, NOMBRE';
+  if (recibo.cobrador_nombre) recibo.cobrador_nombre = eraTitular ? cobBenef.nombre : 'RETIRA, TERCERO';
+  if (recibo.cobrador_documento) recibo.cobrador_documento = '0'.repeat(String(recibo.cobrador_documento).length);
+  if (recibo.comprobante_url) recibo.comprobante_url = 'comprobante-anonimizado';
+}
 const { data: lineas } = await sb.from('liquidacion_detalle').select('id').eq('recibo_id', recibo.id);
 const lineaIds = (lineas || []).map(l => l.id);
 
