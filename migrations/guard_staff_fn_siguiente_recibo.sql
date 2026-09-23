@@ -1,7 +1,10 @@
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- GUARD DE STAFF (1/6) — fn_siguiente_recibo
 --
--- ESTADO EN PRODUCCIÓN: **NO APLICADA — espera OK** — camino de pago: `emitir_recibo` la llama por dentro. Va junto con las otras dos.
+-- ESTADO EN PRODUCCIÓN: **APLICADA en prod el 2026-09-23** — migración `20260923012258 guard_staff_fn_siguiente_recibo`;
+--   md5 de `pg_get_functiondef` VERIFICADO en prod: 95d2bdc2fef65622e3997fbff45285f4 (= el esperado, 1288 bytes / 35 líneas).
+--   Probe `--fn fn_siguiente_recibo` 12/12 contra prod. ACL sin cambios: postgres | authenticated | service_role.
+--   Fue la PRIMERA de las tres del camino de pago, para que `emitir_recibo` nunca corriera sobre una versión a medias.
 --
 -- MD5 ESPERADO de `pg_get_functiondef` después de aplicar — medido aplicando ESTE archivo en
 -- el sandbox (tests/local/) el 2026-09-22. Es el ÚNICO md5 que prueba algo sobre prod: el del

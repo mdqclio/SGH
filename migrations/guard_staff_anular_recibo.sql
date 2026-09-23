@@ -1,7 +1,10 @@
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- GUARD DE STAFF (5/6) — anular_recibo
 --
--- ESTADO EN PRODUCCIÓN: **NO APLICADA — espera OK** — camino de pago: se aplica con Valeria fuera de Pagos.
+-- ESTADO EN PRODUCCIÓN: **APLICADA en prod el 2026-09-23** — migración `20260923012529 guard_staff_anular_recibo`;
+--   md5 de `pg_get_functiondef` VERIFICADO en prod: 844e9e1ff62f4dbba30df71b8a88e309 (= el esperado, 3850 bytes / 106 líneas).
+--   Probe `--fn anular_recibo` 12/12 contra prod. ACL sin cambios: postgres | authenticated | service_role (el REVOKE del 22/09 sobrevivió).
+--   Además, smoke con SESIÓN STAFF REAL sobre la 9999: las líneas del recibo anulado volvieron exactamente a su estado previo.
 --
 -- MD5 ESPERADO de `pg_get_functiondef` después de aplicar — medido aplicando ESTE archivo en
 -- el sandbox (tests/local/) el 2026-09-22. Es el ÚNICO md5 que prueba algo sobre prod: el del

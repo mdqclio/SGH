@@ -1,7 +1,10 @@
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- GUARD DE STAFF (6/6) — emitir_recibo (v1.3)
 --
--- ESTADO EN PRODUCCIÓN: **NO APLICADA — espera OK** — camino de pago: se aplica con Valeria fuera de Pagos. Va última.
+-- ESTADO EN PRODUCCIÓN: **APLICADA en prod el 2026-09-23** — migración `20260923012417 guard_staff_emitir_recibo`;
+--   md5 de `pg_get_functiondef` VERIFICADO en prod: 14951f502c0816de2d52923b45435c12 (= el esperado, 4063 bytes / 103 líneas).
+--   Probe `--fn emitir_recibo` 12/12 contra prod. ACL sin cambios: postgres | authenticated | service_role.
+--   Además, smoke con SESIÓN STAFF REAL (magiclink, no service_role) sobre la 9999: recibo emitido, verificado y anulado.
 --
 -- MD5 ESPERADO de `pg_get_functiondef` después de aplicar — medido aplicando ESTE archivo en
 -- el sandbox (tests/local/) el 2026-09-22. Es el ÚNICO md5 que prueba algo sobre prod: el del

@@ -1,7 +1,9 @@
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- GUARD DE STAFF (2/6) — liberar_linea
 --
--- ESTADO EN PRODUCCIÓN: **APLICADA en prod el 2026-09-22** — migración `20260922170638 guard_staff_liberar_linea`; md5 de la función en prod: 127d7199
+-- ESTADO EN PRODUCCIÓN: **APLICADA en prod el 2026-09-22** — migración `20260922170638 guard_staff_liberar_linea`;
+--   md5 de `pg_get_functiondef` VERIFICADO en prod: 127d7199a4c22aaf20b6dd057758fc32. Re-verificado el 2026-09-23 con la tanda completa
+--   (probe 60/60 y 8/8 mutantes).
 --
 -- MD5 ESPERADO de `pg_get_functiondef` DESPUÉS de aplicar (es el ÚNICO md5 que prueba algo
 -- sobre prod; el md5 de este archivo no — GOTCHA #99):

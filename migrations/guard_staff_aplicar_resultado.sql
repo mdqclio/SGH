@@ -1,7 +1,9 @@
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- GUARD DE STAFF (4/6) — aplicar_resultado
 --
--- ESTADO EN PRODUCCIÓN: **APLICADA en prod el 2026-09-22** — migración `20260922171044 guard_staff_aplicar_resultado`; md5 en prod: 94d46dc0
+-- ESTADO EN PRODUCCIÓN: **APLICADA en prod el 2026-09-22** — migración `20260922171044 guard_staff_aplicar_resultado`;
+--   md5 de `pg_get_functiondef` VERIFICADO en prod: 94d46dc0ed70e78329169bb3926f64c2. Re-verificado el 2026-09-23 con la tanda completa
+--   (probe 60/60 y 8/8 mutantes).
 --
 -- MD5 ESPERADO de `pg_get_functiondef` DESPUÉS de aplicar (es el ÚNICO md5 que prueba algo
 -- sobre prod; el md5 de este archivo no — GOTCHA #99):

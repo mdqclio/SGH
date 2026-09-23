@@ -1,7 +1,9 @@
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- GUARD DE STAFF (3/6) — desoficializar_carrera
 --
--- ESTADO EN PRODUCCIÓN: **APLICADA en prod el 2026-09-22** — migración `20260922170817 guard_staff_desoficializar_carrera`; md5 en prod: c3247d72
+-- ESTADO EN PRODUCCIÓN: **APLICADA en prod el 2026-09-22** — migración `20260922170817 guard_staff_desoficializar_carrera`;
+--   md5 de `pg_get_functiondef` VERIFICADO en prod: c3247d72656833cd534e4c601900f25a. Re-verificado el 2026-09-23 con la tanda completa
+--   (probe 60/60 y 8/8 mutantes).
 --
 -- MD5 ESPERADO de `pg_get_functiondef` DESPUÉS de aplicar (es el ÚNICO md5 que prueba algo
 -- sobre prod; el md5 de este archivo no — GOTCHA #99):
