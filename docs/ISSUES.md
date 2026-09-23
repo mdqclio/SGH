@@ -2481,11 +2481,19 @@ vuelta atrás.
 
 ### ISSUE-090: el patrón `fn_get_user_club_id() IS NOT NULL` infiere `service_role` de un club NULL — una sesión `authenticated` sin fila en `usuarios` saltea los guards de `emitir_recibo`, `anular_recibo` y `liberar_linea`
 
-**Estado**: 🟠 **ABIERTO — 3 de 6 cerradas** (2026-09-22). Cerrado antes: `anular_recibo` ya no es ejecutable por `anon`
-(`migrations/revoke_anon_anular_recibo.sql`, aplicada). Cerrado el patrón en **`liberar_linea`, `desoficializar_carrera` y
-`aplicar_resultado`** (migraciones `guard_staff_*`, aplicadas el 22/09: guard 0 + guard de club con `auth.role()`).
-**Sigue abierto en las tres del camino de pago** — `emitir_recibo`, `anular_recibo` y `fn_siguiente_recibo` —, cuyas
-migraciones están escritas y probadas pero **esperan OK** para aplicarse con Valeria fuera de Pagos.
+**Estado**: ✅ **CERRADO — las 6 de 6 (2026-09-23)**. El patrón no queda en ninguna RPC sensible.
+- 2026-09-22: `anular_recibo` deja de ser ejecutable por `anon` (`migrations/revoke_anon_anular_recibo.sql`); y el patrón
+  se reemplaza por guard 0 + guard de club con `auth.role()` en **`liberar_linea`** (`20260922170638`),
+  **`desoficializar_carrera`** (`20260922170817`) y **`aplicar_resultado`** (`20260922171044`). También en
+  `rpc_cambiar_monta`.
+- 2026-09-23: las tres del camino de pago, en ese orden —la interna primero, para que `emitir_recibo` no corriera sobre
+  una versión a medias—: **`fn_siguiente_recibo`** (`20260923012258`, md5 `95d2bdc2fef65622e3997fbff45285f4`),
+  **`emitir_recibo`** (`20260923012417`, md5 `14951f502c0816de2d52923b45435c12`) y **`anular_recibo`**
+  (`20260923012529`, md5 `844e9e1ff62f4dbba30df71b8a88e309`). Los tres md5 de `pg_get_functiondef` coincidieron con el
+  esperado del encabezado a la primera; ACL sin cambios en las tres.
+- Verificación: probe `--fn` 12/12 por función, matriz completa **60/60**, **8/8 mutantes** (M7 equivalente declarado), y
+  un **smoke con sesión staff real** (magiclink, no service_role) que emitió y anuló un recibo en la 9999 y dejó las
+  líneas exactamente como estaban.
 
 **El patrón**, idéntico en las tres (líneas del `pg_get_functiondef` del 22/09):
 ```
