@@ -6,7 +6,9 @@
  * cada uno los roles PROPIETARIO → ENTRENADOR → JOCKEY, cada rol con su beneficiario, sus
  * líneas y el botón Pagar (cobrosDetalle, sin cambios). El incentivo de jockey (por reunión,
  * sin inscripcion_id ni carrera_id) aparece bajo el caballo que ese jockey montó y largó en la
- * carrera, rotulado "por reunión — se paga una vez".
+ * carrera: con importe y rotulado "Incentivo por reunión — se paga una sola vez" en la carrera
+ * DUEÑA (número más bajo donde largó), como nota sin importe en las otras (24/09 — ver
+ * probe_pagos_vista_incentivo_pagados.mjs, que prueba esa regla y los chips de pagado).
  * Plan: docs/diagnosticos/2026-09-21_plan-pagos-vista-por-carrera.md (reports).
  *
  * Código REAL extraído de liquidaciones.html por anclas + cobrosBuscar real contra R9 con la
@@ -18,7 +20,7 @@
  *   C2 solo_inscripcion selección sólo por inscripcion_id                    → los incentivos de jockey desaparecen
  *   C3 roles_alfabetico ORDEN_ROLES_VISTA alfabético                         → Entrenador antes que Propietario
  *   C4 orden_gatera     bloques por numero_partidor                          → el 1° deja de ir primero
- *   C5 sin_rotulo       sin "por reunión — se paga una vez"                  → el incentivo no se distingue
+ *   C5 sin_rotulo       sin "Incentivo por reunión — se paga una sola vez"   → el incentivo no se distingue
  *   C6 ocultar_vacios   se ocultan los caballos sin deuda                    → los NL desaparecen
  *   C7 q_ignorado       q no filtra bloques                                  → "yooky" trae todo
  *
@@ -50,7 +52,7 @@ const MUTANTES = {
   solo_inscripcion: ["|| (!l.inscripcion_id && l.carrera_id === carreraId)\n    || (l.concepto_tipo === 'incentivo_jockey' && l.reunion_id === reunionId && J.has(l.beneficiario_id))", ""],
   roles_alfabetico: ["const ORDEN_ROLES_VISTA = ['Propietario', 'Entrenador', 'Jockey', 'Otros'];", "const ORDEN_ROLES_VISTA = ['Entrenador', 'Jockey', 'Otros', 'Propietario'];"],
   orden_gatera:     ["(a.insc.posicion ?? 999) - (b.insc.posicion ?? 999) || (a.insc.numero_partidor ?? 999) - (b.insc.numero_partidor ?? 999)", "(a.insc.numero_partidor ?? 999) - (b.insc.numero_partidor ?? 999)"],
-  sin_rotulo:       ["<span class=\"cob-por-reunion\">· por reunión — se paga una vez</span>", ""],
+  sin_rotulo:       ["<span class=\"cob-por-reunion\">· Incentivo por reunión — se paga una sola vez</span>", ""],
   ocultar_vacios:   [".filter(b => cobBloqueMatch(b, q, propIdsPorCaballeriza));", ".filter(b => cobBloqueMatch(b, q, propIdsPorCaballeriza)).filter(b => b.n);"],
   q_ignorado:       ["function cobBloqueMatch(bloque, q, propIdsPorCaballeriza){\n  if (!q) return true;", "function cobBloqueMatch(bloque, q, propIdsPorCaballeriza){\n  if (!q || q) return true;"],
 };
@@ -150,6 +152,7 @@ function parsear(html) {
         nombre: unescape(/cob-benef-nombre">([^<]*)</.exec(b)?.[1] || ''),
         pagar: /cobrosDetalle\('([^']*)','([^']*)'\)/.exec(b)?.slice(1, 3) || null,
         lineas: [...b.matchAll(/<li><span>([\s\S]*?)<\/span><span>([^<]*)<\/span><\/li>/g)].map(m => ({ texto: unescape(m[1].replace(/<[^>]+>/g, '')), monto: m[2] })),
+        notas: [...b.matchAll(/<li class="cob-nota"><span>([^<]*)<\/span><\/li>/g)].map(m => unescape(m[1])),
       })),
     }));
     return { titulo, vacio, info, roles };
@@ -175,6 +178,16 @@ async function esperado(c) {
   const porInsc = mias.filter(l => ids.has(l.inscripcion_id) || (!l.inscripcion_id && l.carrera_id === c.id));
   const incJ = mias.filter(l => l.concepto_tipo === 'incentivo_jockey' && J.has(l.beneficiario_id));
   return { rows, porInsc, incJ, J };
+}
+// carrera dueña del incentivo de cada jockey (número más bajo donde largó), desde la base
+const { data: inscsR9 } = await sb.from('inscripciones').select('carrera_id,jockey_titular_id,resultado_posiciones(no_largo)')
+  .in('carrera_id', carrs.filter(c => c.estado == null || c.estado !== 'anulada').map(c => c.id)).eq('estado', 'ratificado');
+const duenoNro = {};
+for (const i of inscsR9) {
+  const rp = i.resultado_posiciones?.[0];
+  if (!rp || rp.no_largo !== false || !i.jockey_titular_id) continue;
+  const c = carrs.find(x => x.id === i.carrera_id), n = c.numero_carrera_programa ?? c.numero_turno;
+  duenoNro[i.jockey_titular_id] = Math.min(duenoNro[i.jockey_titular_id] ?? Infinity, n);
 }
 const nombreProf = id => profesionales[id] ? `${profesionales[id].apellido}, ${profesionales[id].nombre}` : id;
 
@@ -205,13 +218,25 @@ ok('2c) C5: cada rol de ese bloque lleva el beneficiario correcto según la insc
 })());
 
 // 3) incentivos de jockey bajo el caballo que montó y largó, y en ningún otro
-const incLineas = b5.flatMap(b => b.roles.flatMap(r => r.benefs.flatMap(be => be.lineas.filter(l => /incentivo jockey/i.test(l.texto)).map(l => ({ bloque: b.titulo.split(' · ')[1], rol: r.rol, benef: be.nombre, benefId: be.pagar?.[1], texto: l.texto })))));
-ok(`3) C5: los ${e5.incJ.length} incentivo(s) de jockey pagable(s) de quienes largaron acá aparecen (sin inscripcion_id ni carrera_id)`,
-   e5.incJ.length > 0 && e5.incJ.every(l => incLineas.some(x => x.benefId === l.beneficiario_id)),
+const incLineas = b5.flatMap(b => b.roles.flatMap(r => r.benefs.flatMap(be => [
+  ...be.lineas.filter(l => /incentivo jockey/i.test(l.texto)).map(l => ({ bloque: b.titulo.split(' · ')[1], rol: r.rol, benef: be.nombre, benefId: be.pagar?.[1] || Object.keys(profesionales).find(k => nombreProf(k) === be.nombre), texto: l.texto, nota: false })),
+  ...be.notas.map(n => ({ bloque: b.titulo.split(' · ')[1], rol: r.rol, benef: be.nombre, benefId: be.pagar?.[1] || Object.keys(profesionales).find(k => nombreProf(k) === be.nombre), texto: n, nota: true })),
+])));
+ok(`3) C5: los ${e5.incJ.length} incentivo(s) de jockey pagable(s) de quienes largaron acá aparecen (sin inscripcion_id ni carrera_id) — con importe si C5 es su carrera dueña, como nota si no`,
+   e5.incJ.length > 0 && e5.incJ.every(l => incLineas.some(x => x.benefId === l.beneficiario_id && x.nota === (duenoNro[l.beneficiario_id] !== 5))),
    e5.incJ.map(l => nombreProf(l.beneficiario_id)).join(', ') + ' → ' + incLineas.map(x => `${x.benef}@${x.bloque}`).join(', '));
 ok('3b) C5: cada incentivo está bajo el rol Jockey del caballo que ese jockey montó', incLineas.every(x => x.rol === 'Jockey' && e5.rows.some(r => r.caballo === x.bloque && r.jockey_titular_id === x.benefId && r.largo)));
 ok('3c) C5: ningún incentivo bajo un jockey que no largó acá', incLineas.every(x => e5.J.has(x.benefId)));
-ok('3d) C5: el incentivo lleva el rótulo "por reunión — se paga una vez"', incLineas.length > 0 && incLineas.every(x => /por reunión — se paga una vez/.test(x.texto)), incLineas[0]?.texto);
+ok('3d) C5: el incentivo con importe lleva "Incentivo por reunión — se paga una sola vez"; la nota, "figura en la carrera N" (N = dueña)', incLineas.length > 0 && incLineas.every(x => x.nota ? x.texto === `Incentivo por reunión: figura en la carrera ${duenoNro[x.benefId]}` : /Incentivo por reunión — se paga una sola vez/.test(x.texto)), incLineas.map(x => x.texto).join(' | '));
+
+// 3e) la nota de C5 apunta a una carrera donde el incentivo SÍ está, con importe y rótulo
+const conNota = incLineas.find(x => x.nota);
+if (conNota) {
+  const cd = carrera(duenoNro[conNota.benefId]);
+  const bd = parsear(await buscar('', cd.id));
+  const alla = bd.flatMap(b => b.roles.flatMap(r => r.benefs.filter(be => be.nombre === conNota.benef).flatMap(be => be.lineas.filter(l => /incentivo jockey/i.test(l.texto)))));
+  ok(`3e) ${conNota.benef}: en la carrera ${duenoNro[conNota.benefId]} (dueña) el incentivo está con importe y "se paga una sola vez"`, alla.length === 1 && /Incentivo por reunión — se paga una sola vez/.test(alla[0].texto), alla.map(l => l.texto + ' ' + l.monto).join(' | '));
+}
 
 // 4) misma persona en dos roles → dos sub-bloques, dos Pagar distintos (propietario / profesional)
 const dobles = b5.flatMap(b => { const ids = b.roles.flatMap(r => r.benefs.map(be => be.pagar)); const nombres = b.roles.flatMap(r => r.benefs.map(be => be.nombre)); const rep = nombres.filter((n, i) => nombres.indexOf(n) !== i); return rep.map(n => ({ bloque: b.titulo, nombre: n, tipos: ids.filter((p, i) => nombres[i] === n).map(p => p?.[0]) })); });
@@ -219,7 +244,7 @@ ok('4) C5: una misma persona en dos roles tiene dos botones Pagar (propietario y
 
 // 5) caballos sin deuda visibles, apagados
 const vacios = b5.filter(b => b.vacio);
-ok('5) C5: los caballos sin deuda pagable se muestran (apagados, "sin deuda pagable") en vez de desaparecer', b5.length === e5.rows.length && vacios.every(b => /sin deuda pagable/.test(b.info)), `${vacios.length} vacíos`);
+ok('5) C5: los caballos sin deuda pagable se muestran (apagados, "sin deuda pagable") en vez de desaparecer', b5.length === e5.rows.length && vacios.every(b => /sin deuda pagable/i.test(b.info)), `${vacios.length} vacíos`);
 
 // 6) q filtra bloques por caballo o por beneficiario
 const conLineas = b5.find(b => !b.vacio);
@@ -247,10 +272,11 @@ ok('8) sin carrera: modo tarjetas por persona intacto (≥ 10 tarjetas, sin cob-
 
 // 9) completitud: ninguna línea pagable de la carrera queda fuera
 const lineasVista5 = b5.reduce((s, b) => s + b.roles.reduce((t, r) => t + r.benefs.reduce((u, be) => u + be.lineas.length, 0), 0), 0);
-const dupIncent = e5.incJ.reduce((s, l) => s + e5.rows.filter(r => r.largo && r.jockey_titular_id === l.beneficiario_id).length, 0);
-ok(`9) C5: líneas en la vista = líneas por inscripción (${e5.porInsc.length}) + incentivos por monta largada (${dupIncent})`, lineasVista5 === e5.porInsc.length + dupIncent, `${lineasVista5}`);
+const incDuena5 = e5.incJ.filter(l => duenoNro[l.beneficiario_id] === 5);
+const dupIncent = incDuena5.length;
+ok(`9) C5: líneas en la vista = líneas por inscripción (${e5.porInsc.length}) + incentivos cuya carrera dueña es la 5 (${dupIncent})`, lineasVista5 === e5.porInsc.length + dupIncent, `${lineasVista5}`);
 const totalVista5 = b5.reduce((s, b) => s + b.roles.reduce((t, r) => t + r.benefs.reduce((u, be) => u + be.lineas.reduce((v, l) => v + parseFloat(l.monto.replace('$', '')), 0), 0), 0), 0);
-const totalEsp5 = e5.porInsc.reduce((s, l) => s + parseFloat(l.monto_neto), 0) + e5.incJ.reduce((s, l) => s + parseFloat(l.monto_neto) * e5.rows.filter(r => r.largo && r.jockey_titular_id === l.beneficiario_id).length, 0);
+const totalEsp5 = e5.porInsc.reduce((s, l) => s + parseFloat(l.monto_neto), 0) + incDuena5.reduce((s, l) => s + parseFloat(l.monto_neto), 0);
 ok('9b) C5: la suma de montos de la vista coincide', Math.abs(totalVista5 - totalEsp5) < 0.01, `${totalVista5.toFixed(2)} vs ${totalEsp5.toFixed(2)}`);
 
 // 10) Carrera 4: un jockey con incentivo pagable que acá NO largó (no_largo) no aparece bajo su caballo NL
