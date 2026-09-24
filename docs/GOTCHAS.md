@@ -1797,4 +1797,4 @@ node tests/probe_montas_reales.mjs                  # 34/34
 grep -nE "=== [0-9]{3,}\b|\(\s*[0-9]{3,}\s*\)'" tests/*.mjs
 ```
 
-Quedan en `probe_pagos_rol_carrera` asserts de la **misma clase** que no se tocaron en este arreglo (se pidieron sólo los 4 rojos): 2c "hay beneficiarios sólo con incentivo por reunión" y 2a "el fallback a `numero_turno` se ejerce" dependen de los datos de prod del día; 1b, 1c (tarjeta), 2e y C0 buscan texto de `liquidaciones.html`. Hoy están verdes; van a envejecer igual.
+Quedan en `probe_pagos_rol_carrera` **16 asserts** de la **misma clase** que no se tocaron en este arreglo (se pidieron sólo los 4 rojos; issue #15): **3 dependen de los datos de prod del día** — "hay líneas pagables para probar", 2c "hay beneficiarios sólo con incentivo por reunión" y 2a "el fallback a `numero_turno` se ejerce" —; **13 buscan texto de `liquidaciones.html`** — 1a de `cobrosBuscar`, 1b ×3, 1c (tarjeta), 2e ×2, 2a "sin offsets", 1d ×2 y C0 ×3. Hoy están verdes; van a envejecer igual.
