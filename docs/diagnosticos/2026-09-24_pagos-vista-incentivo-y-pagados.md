@@ -820,3 +820,17 @@ for (const f of process.argv.slice(3)) {
 }
 writeFileSync(OUT, JSON.stringify({ tokens: tok.size, palabras_de_nombres: palabras.size, residuales_en_stoplist: [...residuales].sort() }, null, 1));
 ```
+
+## Verificación de push
+
+```
+$ git push origin reports-publico:reports   # reports recreada sin historia (orphan): el remoto no existía
+$ git ls-remote origin reports
+345b722ad3521c606080ef52d9cc3a2486093702	refs/heads/reports
+$ git rev-parse HEAD
+345b722ad3521c606080ef52d9cc3a2486093702
+$ git ls-remote origin feat/pagos-vista-incentivo-y-pagados
+5de0edba307d2db597bf0100eba3dd2937d93111	refs/heads/feat/pagos-vista-incentivo-y-pagados
+```
+
+(El commit que agrega esta sección es el siguiente; su SHA se verifica igual con ls-remote.)
