@@ -18,13 +18,19 @@
     - **Guard**: `guardSandbox` exige id = 9999, `es_prueba`, club Dolores y `numero` 9999. Corre al arrancar y otra
       vez pegado a la primera escritura. Con `PROBE_REUNION=<otra>` sale con 2 sin escribir nada.
     - **Conteos** antes y después con assert propio: líneas y headers de la 9999, fichas del probe, auditoría y
-      recibos del fixture, y `club_secuencias` entera. Si alguna vez el caso emite recibos, se borran y la secuencia
-      vuelve si no hubo recibos ajenos en el medio.
+      recibos del fixture.
+    - **`club_secuencias`**: no se compara contra el valor inicial (un recibo real emitido en el medio lo mueve). El
+      assert es que **el probe no dejó consumidos sus propios números**. Si el caso emite recibos, se borran y la
+      secuencia se devuelve **sólo** si nadie emitió en el medio: no hay recibos ajenos con número > antes, y
+      compare-and-set `UPDATE … WHERE ultimo_numero = <lo que dejó el probe>`. Si no, no escribe nada y queda
+      **aviso** (no rojo): "alguien emitió durante la corrida, secuencia no restaurada". Restaurar a ciegas puede
+      repetir un número de recibo real. 4 escenarios con stub (S1–S4).
     - **Aborto**: `--abortar=<tras_ficha|tras_header|tras_lineas|en_pantalla>` y SIGINT/SIGTERM pasan por el mismo
       `finally`. `kill -9` no pasa por ningún `finally`: lo limpia un **barrido al arrancar** la corrida siguiente,
       antes de leer datos reales.
-  - **60/60, 7/7 mutantes** (`detalle_sin_rol`, `detalle_sin_carrera`, `roles_solo_primero`,
-    `teardown_sin_auditoria`, `teardown_sin_ficha`, `teardown_ensucia_9999`, `sin_guard`). No hay mutante "el
+  - **65/65, 11/11 mutantes** (`detalle_sin_rol`, `detalle_sin_carrera`, `roles_solo_primero`,
+    `teardown_sin_auditoria`, `teardown_sin_ficha`, `teardown_ensucia_9999`, `sin_guard`, `sin_cas`,
+    `sin_chequeo_ajenos`, `no_devuelve`, `ajena_como_rojo`). No hay mutante "el
     teardown se olvida una línea": `liquidacion_detalle.liquidacion_id` es `ON DELETE CASCADE` y sería equivalente.
 - GOTCHA #100: un assert con número fijo o atado a los datos de prod del día caduca solo. Evidencia: las 5 fallas del
   24/09, cero bugs.

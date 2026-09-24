@@ -44,6 +44,10 @@
  *   teardown_sin_ficha      el teardown no borra el profesional sintético   → restore: "no queda nada"
  *   teardown_ensucia_9999   el probe toca una línea AJENA de la 9999        → restore por estado (2 asserts)
  *   sin_guard               guardSandbox no chequea nada                    → "guard: se niega a escribir en …"
+ *   sin_cas                 secuencia restaurada sin compare-and-set        → S4
+ *   sin_chequeo_ajenos      no mira recibos ajenos con número > antes      → S3
+ *   no_devuelve             la secuencia no vuelve al valor de antes        → S1
+ *   ajena_como_rojo         la emisión ajena se marca como falla            → S2 (aviso, no rojo)
  *
  * GUARD: el fixture sólo se escribe en la reunión 9999 (id + es_prueba + club + numero). Con
  * PROBE_REUNION=<otra> el probe se niega y sale con 2 sin escribir nada. PROBE_REUNION sólo existe
@@ -88,6 +92,10 @@ const MUTANTES = {
   teardown_sin_ficha:     null,
   teardown_ensucia_9999:  null,
   sin_guard:              null,   // lado probe: guardSandbox no chequea nada
+  sin_cas:                null,   // lado probe: el UPDATE de la secuencia sin WHERE ultimo_numero = dejado
+  sin_chequeo_ajenos:     null,   // lado probe: no mira recibos ajenos con número > antes
+  no_devuelve:            null,   // lado probe: "devuelve" al valor que dejó el probe (no restaura)
+  ajena_como_rojo:        null,   // lado probe: la emisión ajena cuenta como falla
 };
 const args = process.argv.slice(2);
 const mutArg = args.find(a => a.startsWith('--mutante='))?.split('=')[1];
@@ -135,6 +143,9 @@ const barridos = await barrerRestos();
 
 const results = [];
 const ok = (t, c, n = '') => { results.push({ t, s: c ? '✅' : '❌', n }); return c; };
+// aviso: algo que hay que mirar pero que NO es culpa del probe (p.ej. alguien emitió un recibo real
+// durante la corrida). Se imprime con ⚠️ y no cuenta como falla.
+const aviso = (t, n = '') => { results.push({ t, s: '⚠️ ', n }); };
 
 // ── Extraer las funciones REALES por ancla ──────────────────────────────────
 function extraer(nombre) {
@@ -478,8 +489,9 @@ async function barrerRestos() {
 
 // ── Conteos de lo que el fixture toca + club_secuencias ─────────────────────────────────────────
 // Acotados a la 9999 y a las filas del probe: un conteo de la tabla entera se mueve con el uso
-// real de prod en el medio de la corrida (GOTCHA #77/#100). club_secuencias va ENTERA (todas las
-// filas de todos los clubes): el fixture no emite recibos, así que no tiene que moverse ninguna.
+// real de prod en el medio de la corrida (GOTCHA #77/#100). club_secuencias NO va en esta igualdad:
+// la mueve cualquier recibo real emitido en el medio. Su control es otro (ver SECUENCIA más abajo):
+// que el probe no deje consumidos SUS números.
 async function conteos() {
   const n = async (q, rotulo) => { const { count, error } = await q; if (error) throw new Error(`${rotulo}: ${error.message}`); return count; };
   const { data: sec, error: eS } = await sb.from('club_secuencias').select('club_id,tipo,ultimo_numero').order('club_id').order('tipo');
@@ -490,11 +502,44 @@ async function conteos() {
     fichas_probe: await n(sb.from('profesionales').select('id', { count: 'exact', head: true }).like('nombre', 'PROBE-ROL-%'), 'fichas_probe'),
     auditoria_fixture: fx.liq ? await n(sb.from('auditoria').select('id', { count: 'exact', head: true }).eq('registro_id', fx.liq.id), 'auditoria_fixture') : 0,
     recibos_fixture: fx.prof ? await n(sb.from('recibos').select('id', { count: 'exact', head: true }).eq('profesional_id', fx.prof.id), 'recibos_fixture') : 0,
-    club_secuencias: (sec || []).map(s => `${s.club_id.slice(0, 8)}/${s.tipo}=${s.ultimo_numero}`).join(' '),
   };
 }
+async function secuencias() {
+  const { data, error } = await sb.from('club_secuencias').select('club_id,tipo,ultimo_numero').eq('tipo', 'recibo');
+  if (error) throw error;
+  return Object.fromEntries((data || []).map(r => [r.club_id, r.ultimo_numero]));
+}
+const fmtSec = m => Object.entries(m).sort(([a], [b]) => a.localeCompare(b)).map(([c, v]) => `${c.slice(0, 8)}=${v}`).join(' ');
+
+// ── SECUENCIA: devolver los números que el probe consumió, sin pisar números reales ────────────
+// Restaurar "al valor de antes" a ciegas repite números de recibo reales si alguien emitió durante
+// la corrida. Se devuelve SÓLO si (a) no hay recibos ajenos con número > antes y (b) la secuencia
+// sigue EXACTAMENTE en el valor que dejó el probe — (b) es un compare-and-set en el mismo UPDATE
+// (WHERE ultimo_numero = dejado), así que no hay ventana entre leer y escribir.
+// Devuelve { estado: 'restaurada' | 'ajena', dejado, actual?, motivo? }. Recibe el cliente para
+// poder probarla con un stub (los recibos del fixture no existen hoy: el caso no emite).
+async function devolverSecuencia(sbX, clubId, antes, numerosProbe) {
+  const dejado = Math.max(...numerosProbe);
+  if (mutArg !== 'sin_chequeo_ajenos') {
+    const { data: post, error: eR } = await sbX.from('recibos').select('numero_recibo').eq('club_id', clubId).gt('numero_recibo', antes);
+    if (eR) throw new Error(`devolverSecuencia/recibos: ${eR.message}`);
+    const ajenos = (post || []).map(r => r.numero_recibo).filter(n => !numerosProbe.includes(n));
+    if (ajenos.length) return { estado: 'ajena', dejado, motivo: `recibos ajenos con número ${ajenos.join(', ')}` };
+  }
+  let q = sbX.from('club_secuencias').update({ ultimo_numero: mutArg === 'no_devuelve' ? dejado : antes }).eq('club_id', clubId).eq('tipo', 'recibo');
+  if (mutArg !== 'sin_cas') q = q.eq('ultimo_numero', dejado);
+  const { data, error } = await q.select('ultimo_numero');
+  if (error) throw new Error(`devolverSecuencia/update: ${error.message}`);
+  if ((data || []).length === 1) return { estado: 'restaurada', dejado };
+  const { data: act } = await sbX.from('club_secuencias').select('ultimo_numero').eq('club_id', clubId).eq('tipo', 'recibo').single();
+  return { estado: 'ajena', dejado, actual: act?.ultimo_numero, motivo: `la secuencia está en ${act?.ultimo_numero}; el probe la dejó en ${dejado}` };
+}
+// ajena → aviso, nunca rojo: los números del probe quedan como hueco, pero nadie pierde el suyo.
+const clasificarSecuencia = r => r.estado === 'restaurada' ? 'ok' : (mutArg === 'ajena_como_rojo' ? 'rojo' : 'aviso');
+const secResultados = [];   // lo que devolvió devolverSecuencia en el teardown real (hoy: nada, no emite)
 
 const antesConteos = await conteos();
+const antesSec = await secuencias();
 const antes9999 = await snapshotLineas(sb, R9999);
 const { data: car9999, error: eCar } = await sb.from('carreras').select('id,numero_turno,numero_carrera_programa').eq('reunion_id', R9999).order('numero_turno');
 if (eCar) throw eCar;
@@ -521,15 +566,10 @@ async function teardown() {
       await sb.from('liquidacion_detalle').update({ recibo_id: null, estado_linea: 'impago', pagado_at: null }).eq('recibo_id', r.id);
       await sb.from('recibos').delete().eq('id', r.id);
     }
-    if ((recs || []).length) {
-      const antesSec = Object.fromEntries(antesConteos.club_secuencias.split(' ').map(x => x.split('=')));
-      for (const r of recs) {
-        const k = `${r.club_id.slice(0, 8)}/recibo`;
-        const { data: ajenos } = await sb.from('recibos').select('id').eq('club_id', r.club_id).gte('created_at', T0);
-        if (!(ajenos || []).length && antesSec[k] != null)
-          await sb.from('club_secuencias').update({ ultimo_numero: Number(antesSec[k]) }).eq('club_id', r.club_id).eq('tipo', 'recibo');
-      }
-    }
+    const porClub = {};
+    for (const r of recs || []) (porClub[r.club_id] ||= []).push(r.numero_recibo);
+    for (const [club, nums] of Object.entries(porClub))
+      secResultados.push({ club, nums, ...(await devolverSecuencia(sb, club, antesSec[club], nums)) });
   }
   if (fx.liq) {
     await sb.from('liquidaciones').delete().eq('id', fx.liq.id);
@@ -542,6 +582,47 @@ async function teardown() {
     if (ajena) await sb.from('liquidacion_detalle').update({ pagado_at: new Date().toISOString() }).eq('id', ajena);
   }
 }
+// ── SECUENCIA con stub: los 4 escenarios, sin tocar la base ─────────────────────────────────────
+function stubSecuencias(valor, recibos) {
+  const tabla = { ultimo_numero: valor }, escrituras = [];
+  const q = (tablaNom) => {
+    const f = []; let upd = null; let single = false;
+    const api = {
+      select() { return api; }, update(v) { upd = v; return api; }, single() { single = true; return api; },
+      eq(c, v) { f.push(r => r[c] === v || c === 'club_id' || c === 'tipo'); return api; },
+      gt(c, v) { f.push(r => r[c] > v); return api; },
+      then(res) {
+        if (tablaNom === 'recibos') return res({ data: recibos.filter(r => f.every(fn => fn(r))), error: null });
+        if (upd) { const pasa = f.every(fn => fn(tabla)); if (pasa) { escrituras.push({ ...upd }); Object.assign(tabla, upd); } return res({ data: pasa ? [{ ...tabla }] : [], error: null }); }
+        return res({ data: single ? { ...tabla } : [{ ...tabla }], error: null });
+      },
+    };
+    return api;
+  };
+  return { from: q, tabla, escrituras };
+}
+{
+  const R = n => ({ numero_recibo: n });
+  // S1: nadie emitió. antes 71, el probe emitió 72 → vuelve a 71
+  const s1 = stubSecuencias(72, [R(72)]);
+  const r1 = await devolverSecuencia(s1, 'club', 71, [72]);
+  ok('secuencia S1: nadie emitió → se devuelve al valor de antes (71)', r1.estado === 'restaurada' && s1.tabla.ultimo_numero === 71 && clasificarSecuencia(r1) === 'ok', JSON.stringify({ r1, tabla: s1.tabla }));
+  // S2: alguien emitió DESPUÉS del probe (73). No se escribe nada; aviso
+  const s2 = stubSecuencias(73, [R(72), R(73)]);
+  const r2 = await devolverSecuencia(s2, 'club', 71, [72]);
+  ok('secuencia S2: emisión ajena después del probe → NO escribe, queda en 73', r2.estado === 'ajena' && s2.escrituras.length === 0 && s2.tabla.ultimo_numero === 73, JSON.stringify({ r2, tabla: s2.tabla, escrituras: s2.escrituras }));
+  ok('secuencia S2: ese caso es AVISO, no rojo', clasificarSecuencia(r2) === 'aviso');
+  // S3: alguien emitió ENTRE el antes y el probe (72 ajeno, 73 probe). La secuencia está en 73 = lo que
+  // dejó el probe, pero devolverla a 71 repetiría el 72 real
+  const s3 = stubSecuencias(73, [R(72), R(73)]);
+  const r3 = await devolverSecuencia(s3, 'club', 71, [73]);
+  ok('secuencia S3: emisión ajena ENTRE medio (72 real, 73 probe) → NO escribe (devolver a 71 repetiría el 72)', r3.estado === 'ajena' && s3.escrituras.length === 0 && s3.tabla.ultimo_numero === 73, JSON.stringify({ r3, escrituras: s3.escrituras }));
+  // S4: carrera — el recibo ajeno 73 todavía no se ve al consultar recibos, pero la secuencia ya se movió
+  const s4 = stubSecuencias(73, [R(72)]);
+  const r4 = await devolverSecuencia(s4, 'club', 71, [72]);
+  ok('secuencia S4: la secuencia ya no está en lo que dejó el probe (72) → el compare-and-set no escribe', r4.estado === 'ajena' && s4.escrituras.length === 0 && s4.tabla.ultimo_numero === 73, JSON.stringify({ r4, escrituras: s4.escrituras }));
+}
+
 async function quedoDelFixture() {
   const [l, h, a, p] = await Promise.all([
     fx.liq ? sb.from('liquidacion_detalle').select('id').eq('liquidacion_id', fx.liq.id) : { data: [] },
@@ -606,14 +687,26 @@ try {
   const despuesConteos = await conteos();
   for (const k of Object.keys(antesConteos))
     ok(`restore: conteo ${k} igual antes y después`, String(antesConteos[k]) === String(despuesConteos[k]), `antes ${antesConteos[k]} · después ${despuesConteos[k]}`);
+  // SECUENCIA — el probe no dejó consumidos sus propios números. Con emisión ajena en el medio:
+  // aviso ("secuencia no restaurada"), no rojo.
+  const despuesSec = await secuencias();
+  const recibosQuedaron = fx.prof ? (await sb.from('recibos').select('id', { count: 'exact', head: true }).eq('profesional_id', fx.prof.id)).count : 0;
+  const consumidos = secResultados.filter(r => clasificarSecuencia(r) !== 'ok');
+  ok('restore: el probe no dejó consumidos sus propios números de recibo',
+     recibosQuedaron === 0 && secResultados.every(r => clasificarSecuencia(r) !== 'rojo'),
+     secResultados.length ? secResultados.map(r => `${r.club.slice(0, 8)}: ${r.estado} (${r.nums.join(',')})`).join('; ') : 'el caso no emitió recibos');
+  for (const r of consumidos)
+    aviso(`secuencia: alguien emitió durante la corrida, secuencia no restaurada (club ${r.club.slice(0, 8)})`, `${r.motivo}; números del probe que quedan como hueco: ${r.nums.join(', ')}`);
+  if (!secResultados.length && fmtSec(antesSec) !== fmtSec(despuesSec))
+    aviso('secuencia: cambió durante la corrida sin que el probe emitiera (recibo real emitido en el medio)', `antes ${fmtSec(antesSec)} · después ${fmtSec(despuesSec)}`);
   // red de seguridad: pase lo que pase arriba (mutante incluido), no queda basura
   if (fx.liq) { await sb.from('liquidacion_detalle').delete().eq('liquidacion_id', fx.liq.id); await sb.from('liquidaciones').delete().eq('id', fx.liq.id); await sb.from('auditoria').delete().eq('registro_id', fx.liq.id); }
   if (fx.prof) await sb.from('profesionales').delete().eq('id', fx.prof.id);
   const final = await quedoDelFixture();
   const v = diffLineas(antes9999, await snapshotLineas(sb, R9999));
   console.log(`  [barrido al arrancar] ${barridos.length ? barridos.join('; ') : 'nada que barrer'}`);
-  console.log(`  [conteos] antes ${JSON.stringify(antesConteos)}`);
-  console.log(`  [conteos] después ${JSON.stringify(await conteos())}`);
+  console.log(`  [conteos] antes ${JSON.stringify(antesConteos)} · club_secuencias ${fmtSec(antesSec)}`);
+  console.log(`  [conteos] después ${JSON.stringify(await conteos())} · club_secuencias ${fmtSec(await secuencias())}`);
   console.log(`  [red de seguridad] fixture al final: ${JSON.stringify(final)} · 9999 ${v.limpio ? 'limpia' : describir(v)}${abortado ? ` · ABORTADO: ${abortado}` : ''}`);
   if (final.lineas || final.header || final.auditoria || final.ficha) { console.error('❌ QUEDÓ BASURA DEL FIXTURE EN PROD', JSON.stringify(final), JSON.stringify(fx)); process.exitCode = 3; }
   process.off('SIGINT', alInterrumpir); process.off('SIGTERM', alInterrumpir);
@@ -625,7 +718,9 @@ try {
 console.log('\n=== probe_pagos_rol_carrera — rol y nº de carrera en el tab Pagos ===\n');
 for (const r of results) console.log(`  ${r.s} ${r.t}${r.n ? `\n       ${r.n}` : ''}`);
 const fall = results.filter(r => r.s === '❌').length;
-console.log(`\n  ${results.length - fall}/${results.length} OK\n`);
+const nAvisos = results.filter(r => r.s.startsWith('⚠')).length;
+const nOk = results.length - fall - nAvisos;
+console.log(`\n  ${nOk}/${nOk + fall} OK${nAvisos ? ` · ${nAvisos} aviso(s) — no son falla, mirarlos` : ''}\n`);
 
 // muestra legible de tarjetas reales
 console.log('  Muestra de tarjetas (rol · líneas · carreras):');

@@ -1790,8 +1790,8 @@ Corolarios:
 
 ```bash
 set -a; . ./.env; set +a
-node tests/probe_pagos_rol_carrera.mjs              # 60/60; fixture multi-rol en la 9999 + restore por estado y conteos
-node tests/probe_pagos_rol_carrera.mjs --mutantes   # 7/7
+node tests/probe_pagos_rol_carrera.mjs              # 65/65; fixture multi-rol en la 9999 + restore por estado y conteos
+node tests/probe_pagos_rol_carrera.mjs --mutantes   # 11/11
 node tests/probe_montas_reales.mjs                  # 34/34
 # asserts con número fijo o literal de código que quedan (candidatos a esta regla):
 grep -nE "=== [0-9]{3,}\b|\(\s*[0-9]{3,}\s*\)'" tests/*.mjs
