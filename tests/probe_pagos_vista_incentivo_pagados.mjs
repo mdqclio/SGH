@@ -58,7 +58,9 @@ const MUTANTES = {
   pagado_suma_total:    ["if (l._pago) { b.pagos.push(l._pago); bloque.pagos.push({ ...l._pago, benef: k(l) }); return; }",
                          "if (l._pago) { b.pagos.push(l._pago); bloque.pagos.push({ ...l._pago, benef: k(l) }); }"],
   chip_por_linea:       ["if (vistos.has(p.recibo_id)) continue;", ""],
-  todo_pagado_con_retenidas: ["${retenidas ? 'pagado' : 'todo pagado'}", "todo pagado"],
+  todo_pagado_con_retenidas: ["if (retenidas) return 'Sin deuda pagable · Pagado · resta lo retenido por antidoping';", ""],
+  regularizados_con_ceros: ["const partes = conRecibo\n    ?", "const partes = true\n    ?"],
+  regularizado_singular: [", ${reg.size} regularizados` : ''}", ", ${reg.size} regularizado` : ''}"],
   pagadas_no_se_cargan: ["cobLineasDeCarrera([...lineas, ...pagadas],", "cobLineasDeCarrera([...lineas],"],
 };
 const args = process.argv.slice(2);
@@ -284,6 +286,7 @@ const inscsS = [
   insc('B', { posicion: 2, propietario_id: IDS.P2 }),
   insc('C', { posicion: 3, propietario_id: IDS.P3 }),
   insc('D', { posicion: 4 }),
+  insc('E', { posicion: 5, jockey_titular_id: IDS.J2 }),
 ];
 const L = (id, tipo, bid, ins, extra) => ({ id, beneficiario_tipo: tipo, beneficiario_id: bid, inscripcion_id: ins, carrera_id: 'CX', reunion_id: 'RX', concepto_tipo: 'premio', concepto: 'Carrera 1 — premio', monto_neto: '1000', liquidaciones: { club_id: CLUB_ID }, ...extra });
 const REC = (n, forma, estado = 'emitido') => ({ numero_recibo: n, forma_pago: forma, estado });
@@ -292,13 +295,14 @@ const crudasPagadas = [
   L('a1b', 'propietario', IDS.P1, 'A', { estado_linea: 'pagado', recibo_id: 'r901', recibos: REC(901, 'transferencia'), concepto_tipo: 'bono' }),
   L('a2', 'profesional', IDS.E1, 'A', { estado_linea: 'pagado', recibo_id: 'r902', recibos: REC(902, 'efectivo') }),
   L('a3', 'profesional', IDS.J1, 'A', { estado_linea: 'pagado', recibo_id: null, descripcion: 'Jockey' }),
+  L('e1', 'profesional', IDS.J2, 'E', { estado_linea: 'pagado', recibo_id: null, descripcion: 'Jockey' }),
   L('b1', 'propietario', IDS.P2, 'B', { estado_linea: 'pagado', recibo_id: 'r903', recibos: REC(903, 'efectivo') }),
   L('c1', 'propietario', IDS.P3, 'C', { estado_linea: 'pagado', recibo_id: 'r904', recibos: REC(904, 'transferencia', 'anulado') }),
   L('x1', 'propietario', IDS.P1, 'A', { estado_linea: 'pagado', recibo_id: 'r905', recibos: REC(905, 'efectivo'), liquidaciones: { club_id: 'otro-club' } }),
 ];
 const pendientesS = [L('b2', 'propietario', IDS.P2, 'B', { estado_linea: 'impago', recibo_id: null, monto_neto: '500' })];
 const marcadas = api.cobMarcarPagadas(crudasPagadas);
-ok('5) cobMarcarPagadas: recibo anulado y línea de otro club quedan afuera', !marcadas.some(l => l.id === 'c1' || l.id === 'x1') && marcadas.length === 5, marcadas.map(l => l.id).join(','));
+ok('5) cobMarcarPagadas: recibo anulado y línea de otro club quedan afuera', !marcadas.some(l => l.id === 'c1' || l.id === 'x1') && marcadas.length === 6, marcadas.map(l => l.id).join(','));
 const bS = api.cobArmarVistaCarrera([...pendientesS, ...marcadas], inscsS, 'CX', new Map());
 const hS = parsear(api.cobHtmlVistaCarrera(bS, {}));
 const blk = t => hS.find(b => b.titulo.endsWith(`CAB ${t}`));
@@ -306,14 +310,15 @@ const be = (t, k) => blk(t).benefs.find(x => x.nombre === NOM(k));
 ok('5b) transferencia: "✓ Transferido · Rec. #901", UN chip aunque el recibo tenga 2 líneas, sin botón', JSON.stringify(be('A', 'P1')?.chips) === '["✓ Transferido · Rec. #901"]' && !be('A', 'P1').pagar, JSON.stringify(be('A', 'P1')));
 ok('5c) efectivo: "✓ Efectivo · Rec. #902", sin botón', JSON.stringify(be('A', 'E1')?.chips) === '["✓ Efectivo · Rec. #902"]' && !be('A', 'E1').pagar);
 ok('5d) saldado sin recibo: "✓ Pagado (regularizado)", sin botón', JSON.stringify(be('A', 'J1')?.chips) === '["✓ Pagado (regularizado)"]' && !be('A', 'J1').pagar);
-ok('5e) caballo todo pagado: "Sin deuda pagable · todo pagado (1 transferencia, 1 efectivo, 1 regularizado)"', blk('A').info === 'Sin deuda pagable · todo pagado (1 transferencia, 1 efectivo, 1 regularizado)', blk('A').info);
+ok('5e) caballo todo pagado: "Sin deuda pagable · todo pagado (1 transferencia, 1 efectivo, 1 regularizados)"', blk('A').info === 'Sin deuda pagable · todo pagado (1 transferencia, 1 efectivo, 1 regularizados)', blk('A').info);
+ok('5e2) caballo pagado sólo por saldado sin recibo: "Sin deuda pagable · todo pagado (1 regularizados)"', blk('E').info === 'Sin deuda pagable · todo pagado (1 regularizados)', blk('E').info);
 ok('5f) parte pagada y parte pendiente: chip "✓ Efectivo · Rec. #903" JUNTO al botón Pagar, total sólo lo pendiente',
    JSON.stringify(be('B', 'P2')?.chips) === '["✓ Efectivo · Rec. #903"]' && be('B', 'P2').pagar?.[1] === IDS.P2 && blk('B').pagable === 500 && /^1 línea\(s\) pagable\(s\)/.test(blk('B').info), JSON.stringify(blk('B')));
 ok('5g) recibo anulado: no hay chip #904 ni beneficiario pagado; el caballo dice "Sin deuda pagable" a secas',
    !hS.some(b => b.benefs.some(x => x.chips.some(c => c.includes('#904')))) && blk('C').info === 'Sin deuda pagable' && blk('C').benefs.length === 0, JSON.stringify(blk('C')));
 ok('5h) caballo que nunca tuvo líneas: "Sin deuda pagable" a secas', blk('D').info === 'Sin deuda pagable');
 const hRet = parsear(api.cobHtmlVistaCarrera(bS, { A: 1 }));
-ok('5i) todo pagado pero con retenida: dice "pagado (…)", no "todo pagado"', hRet.find(b => b.titulo.endsWith('CAB A')).info.startsWith('Sin deuda pagable · pagado (1 transferencia, 1 efectivo, 1 regularizado) · 🔒 1 retenida'), hRet.find(b => b.titulo.endsWith('CAB A')).info);
+ok('5i) todo pagado pero con retenida: "Sin deuda pagable · Pagado · resta lo retenido por antidoping", no "todo pagado"', hRet.find(b => b.titulo.endsWith('CAB A')).info.startsWith('Sin deuda pagable · Pagado · resta lo retenido por antidoping · 🔒 1 retenida'), hRet.find(b => b.titulo.endsWith('CAB A')).info);
 ok('5j) lo pagado no entra en ningún total', bS.reduce((s, b) => s + b.total, 0) === 500);
 
 // 6) regla de la carrera dueña, sintética: número más bajo, empate por turno, NL no cuenta

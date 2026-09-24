@@ -1336,17 +1336,23 @@ function cobChipsPago(pagos){
 }
 
 // Rótulo del caballo sin nada pagable: "todo pagado (N transferencia, M efectivo)" si hubo pagos
-// (N y M cuentan RECIBOS; los saldados sin recibo se agregan como "K regularizado", K = personas),
-// "Sin deuda pagable" a secas si nunca hubo líneas. Con retenidas del caballo no es "todo": queda
-// plata por habilitar (doping), así que dice "pagado (…)".
+// (N y M cuentan RECIBOS; los saldados sin recibo se agregan como ", K regularizados", K = personas;
+// si no hubo recibos, "todo pagado (K regularizados)"), "Sin deuda pagable" a secas si nunca hubo
+// líneas. Con retenidas del caballo no es "todo": queda plata por habilitar (doping), así que dice
+// "Pagado · resta lo retenido por antidoping" (pedido del 24/09).
 function cobRotuloSinDeuda(bloque, retenidas){
   if (!bloque.pagos.length) return 'Sin deuda pagable';
   const rec = { transferencia: new Set(), efectivo: new Set() }, reg = new Set();
   for (const p of bloque.pagos) {
     if (p.tipo === 'regularizado') reg.add(p.benef); else rec[p.tipo].add(p.recibo_id);
   }
-  const partes = `${rec.transferencia.size} transferencia, ${rec.efectivo.size} efectivo${reg.size ? `, ${reg.size} regularizado` : ''}`;
-  return `Sin deuda pagable · ${retenidas ? 'pagado' : 'todo pagado'} (${partes})`;
+  // Con retenidas NO se dice "pagado" a secas: leído apurado, el caballo se anota como cerrado.
+  if (retenidas) return 'Sin deuda pagable · Pagado · resta lo retenido por antidoping';
+  const conRecibo = rec.transferencia.size + rec.efectivo.size;
+  const partes = conRecibo
+    ? `${rec.transferencia.size} transferencia, ${rec.efectivo.size} efectivo${reg.size ? `, ${reg.size} regularizados` : ''}`
+    : `${reg.size} regularizados`;
+  return `Sin deuda pagable · todo pagado (${partes})`;
 }
 
 // q en la vista filtra BLOQUES: pasa el caballo si su nombre matchea o si algún beneficiario del

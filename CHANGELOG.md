@@ -13,11 +13,12 @@
 - **B — lo pagado:** por beneficiario, chip "✓ Transferido · Rec. #N" / "✓ Efectivo · Rec. #N" (uno por recibo) o
   "✓ Pagado (regularizado)" si está saldado sin recibo, en lugar del botón o junto a él si queda algo pendiente.
   Recibo anulado no cuenta. Caballo sin nada pagable: "Sin deuda pagable · todo pagado (N transferencia, M efectivo)"
-  (N/M = recibos; se agrega ", K regularizado" si hay saldados sin recibo; con retenidas dice "pagado", no "todo
-  pagado"), o "Sin deuda pagable" a secas si nunca hubo líneas. Lo pagado no entra en ningún total.
+  (N/M = recibos; se agrega ", K regularizados" si hay saldados sin recibo, y si sólo hubo saldados dice "todo pagado
+  (K regularizados)"); con retenidas dice "Pagado · resta lo retenido por antidoping" — "pagado" a secas hacía anotar
+  el caballo como cerrado —, o "Sin deuda pagable" a secas si nunca hubo líneas. Lo pagado no entra en ningún total.
 - `tests/probe_pagos_vista_incentivo_pagados.mjs` (nuevo, solo lectura): suma de las carreras de R9 = pendiente de la
   base (908.700), DIESTRA/IBARRA una vez + nota, una sola monta sin nota, chips reales de R9 contra la base y casos
-  sintéticos (transferencia, efectivo, regularizado, anulado, parte pagada/parte pendiente); 26/26, **15/15 mutantes**.
+  sintéticos (transferencia, efectivo, regularizado, anulado, parte pagada/parte pendiente, sólo regularizados); 27/27, **17/17 mutantes**.
   `tests/probe_pagos_vista_carrera.mjs` ajustado a la regla nueva (3/3d/9/9b + 3e); 25/25, 7/7 mutantes.
 
 ## [2026-09-23] — Recibo de Pagos: la línea de corte cae a la mitad de la hoja
