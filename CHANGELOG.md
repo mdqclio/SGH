@@ -1,5 +1,26 @@
 # Changelog
 
+## [2026-09-24] — Pagos, vista por carrera: el incentivo de jockey una sola vez + lo pagado a la vista
+
+> Sólo presentación (`liquidaciones.html`, bloque VISTA POR CARRERA). No se tocó el motor, `emitir_recibo` ni
+> ninguna RPC; el código nuevo sólo hace SELECT. Desplegado el 24/09, después de que Valeria terminó de contar deuda (PR #12).
+
+- **A — incentivo de jockey:** es UNA línea por reunión (sin `inscripcion_id`) y la vista la mostraba, con importe,
+  bajo cada carrera donde el jockey corrió: en R9 sumar carreras daba $1.028.700 contra $908.700 reales (DIESTRA
+  BAUTISTA en C1+C5, IBARRA FERNANDO en C3+C5). Ahora el importe va sólo en la carrera **dueña** — la de número más
+  bajo en que largó (`cobDuenosIncentivo`) — rotulado "Incentivo por reunión — se paga una sola vez"; en las demás,
+  nota gris sin importe ni botón "Incentivo por reunión: figura en la carrera N".
+- **B — lo pagado:** por beneficiario, chip "✓ Transferido · Rec. #N" / "✓ Efectivo · Rec. #N" (uno por recibo) o
+  "✓ Pagado (regularizado)" si está saldado sin recibo, en lugar del botón o junto a él si queda algo pendiente.
+  Recibo anulado no cuenta. Caballo sin nada pagable: "Sin deuda pagable · todo pagado (N transferencia, M efectivo)"
+  (N/M = recibos; se agrega ", K regularizados" si hay saldados sin recibo, y si sólo hubo saldados dice "todo pagado
+  (K regularizados)"); con retenidas dice "Pagado · resta lo retenido por antidoping" — "pagado" a secas hacía anotar
+  el caballo como cerrado —, o "Sin deuda pagable" a secas si nunca hubo líneas. Lo pagado no entra en ningún total.
+- `tests/probe_pagos_vista_incentivo_pagados.mjs` (nuevo, solo lectura): suma de las carreras de R9 = pendiente de la
+  base (908.700), DIESTRA/IBARRA una vez + nota, una sola monta sin nota, chips reales de R9 contra la base y casos
+  sintéticos (transferencia, efectivo, regularizado, anulado, parte pagada/parte pendiente, sólo regularizados); 27/27, **17/17 mutantes**.
+  `tests/probe_pagos_vista_carrera.mjs` ajustado a la regla nueva (3/3d/9/9b + 3e); 25/25, 7/7 mutantes.
+
 ## [2026-09-24] — Probes rojos de `main`: `probe_montas_reales` y `probe_pagos_rol_carrera` (issue #13) + GOTCHA #100
 
 > Sólo tests y docs. No se tocó `liquidaciones.html` ni `resultados.html`. En la base, sólo el fixture del probe en la 9999, que se crea y se borra en cada corrida.

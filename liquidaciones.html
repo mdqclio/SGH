@@ -78,6 +78,8 @@
     .cob-lineas { list-style: none; margin: 4px 0 0; padding: 0; font-size: 12px; color: var(--muted); }
     .cob-lineas li { display: flex; justify-content: space-between; gap: 12px; padding: 1px 0; }
     .cob-por-reunion { color: var(--accent); font-size: 11px; }
+    .cob-lineas li.cob-nota { color: var(--muted); font-style: italic; opacity: 0.8; }
+    .cob-pagado { font-size: 11px; color: var(--success); border: 1px solid var(--success); border-radius: 10px; padding: 1px 8px; white-space: nowrap; }
     .btn-impr { background: rgba(180,180,180,0.1); color: var(--muted); border: 1px solid rgba(180,180,180,0.3); }
     .btn-delete { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
     /* DETALLE */
@@ -1140,15 +1142,23 @@ function etiquetaCarreras(g){
 // liquidaciones-engine.js:246-251), así que ningún filtro por carrera la ve. Se la ubica con la
 // MISMA regla que la generó (engine :229-237): J = jockeys titulares de las inscripciones
 // ratificadas de la carrera que largaron (resultado con no_largo=false); la línea entra si es de
-// esta reunión y su beneficiario está en J, y se muestra bajo el caballo que ese jockey montó acá,
-// rotulada "por reunión — se paga una vez" (si corrió en la 2 y en la 5 aparece en las dos vistas
-// y desaparece de las dos al pagarse). Es el inverso exacto de la generación: no puede aparecer
-// bajo un jockey que no corrió acá, y en una carrera sin resultado J es vacío.
+// esta reunión y su beneficiario está en J. Es el inverso exacto de la generación: no puede
+// aparecer bajo un jockey que no corrió acá, y en una carrera sin resultado J es vacío.
+// UNA SOLA CARRERA (24/09): hasta acá la línea se mostraba, con importe, en CADA carrera donde el
+// jockey corrió — la misma línea, sumada al "Pagable" de dos caballos (R9: $1.028.700 sumando
+// carreras contra $908.700 reales). Ahora el importe va sólo en la carrera DUEÑA — la de número
+// más bajo en que ese jockey largó (cobDuenosIncentivo) — y en las otras queda una nota gris sin
+// importe ni botón: "Incentivo por reunión: figura en la carrera N". Sumar las carreras da lo real.
+//
+// PAGADO (24/09): lo ya cobrado se muestra donde estaba el botón. Por beneficiario, un chip por
+// recibo ("✓ Transferido · Rec. #N" / "✓ Efectivo · Rec. #N") o "✓ Pagado (regularizado)" si está
+// saldado sin recibo (GOTCHA #74: plata comprometida = recibo_id OR 'pagado'). Recibo anulado no
+// cuenta. Lo pagado NO entra en ningún total: los totales siguen siendo sólo lo pagable.
 const ORDEN_ROLES_VISTA = ['Propietario', 'Entrenador', 'Jockey', 'Otros'];
 const ORDEN_CONCEPTO_VISTA = { premio:0, bono:1, incentivo_entrenador:2, incentivo_jockey:2, actuacion:3 };
 let cobVistaCache = {};   // carrera_id → { ts, inscs } (60 s: una consulta por carrera, no por tecla)
+let cobDuenoCache = {};   // reunion_id → { ts, duenos } (mismo TTL)
 const COB_VISTA_TTL_MS = 60000;
-
 // Rol de la línea DENTRO del bloque del caballo. rolDeLinea resuelve bono/incentivos/premio por
 // el texto; lo que no resuelve (p.ej. 'actuacion' de peón/capataz/sereno) se cruza con la
 // inscripción: cobra el entrenador → va bajo Entrenador, que es donde se paga. Lo que no cae en
@@ -1182,11 +1192,78 @@ async function cobInscripcionesCarrera(carreraId){
   return inscs;
 }
 
+// Carrera DUEÑA del incentivo de cada jockey: la de número más bajo (programa ?? turno; a igual
+// número, turno más bajo) en que largó. Pura: recibe las carreras no anuladas de la reunión y sus
+// inscripciones ratificadas con `largo` ya resuelto con la misma regla que cobInscripcionesCarrera.
+// → Map jockey_id → { carrera_id, nro }
+function cobDuenosIncentivo(carreras, inscs){
+  const car = {};
+  for (const c of carreras) car[c.id] = { nro: c.numero_carrera_programa ?? c.numero_turno ?? Infinity, turno: c.numero_turno ?? Infinity };
+  const duenos = new Map();
+  for (const i of inscs) {
+    const c = car[i.carrera_id];
+    if (!c || !i.largo || !i.jockey_titular_id) continue;
+    const prev = duenos.get(i.jockey_titular_id);
+    if (!prev || c.nro < prev.nro || (c.nro === prev.nro && c.turno < prev.turno))
+      duenos.set(i.jockey_titular_id, { carrera_id: i.carrera_id, nro: c.nro, turno: c.turno });
+  }
+  return duenos;
+}
+
+async function cobDuenosReunion(reunionId){
+  const c = cobDuenoCache[reunionId];
+  if (c && Date.now() - c.ts < COB_VISTA_TTL_MS) return c.duenos;
+  const { data: cars, error } = await sb.from('carreras').select('id,numero_turno,numero_carrera_programa')
+    .eq('reunion_id', reunionId).or('estado.is.null,estado.neq.anulada');
+  if (error) { console.error('[cobVistaCarrera/carreras]', error); throw error; }
+  const ids = (cars||[]).map(x => x.id);
+  let inscs = [];
+  if (ids.length) {
+    const { data, error: eI } = await sb.from('inscripciones')
+      .select('carrera_id,jockey_titular_id,resultado_posiciones(no_largo)')
+      .in('carrera_id', ids).eq('estado', 'ratificado');
+    if (eI) { console.error('[cobVistaCarrera/montas]', eI); throw eI; }
+    inscs = (data||[]).map(i => {
+      const rp = Array.isArray(i.resultado_posiciones) ? i.resultado_posiciones[0] : i.resultado_posiciones;
+      return { carrera_id: i.carrera_id, jockey_titular_id: i.jockey_titular_id, largo: !!rp && rp.no_largo === false };
+    });
+  }
+  const duenos = cobDuenosIncentivo(cars||[], inscs);
+  cobDuenoCache[reunionId] = { ts: Date.now(), duenos };
+  return duenos;
+}
+
+// Cómo se pagó una línea comprometida, o null si no cuenta como pagada. Con recibo: el recibo
+// manda (forma de pago y número); si está anulado, no cuenta. Sin recibo y 'pagado': saldado
+// administrativo (regularizado). recibos viene embebido 0..1 por recibo_id.
+function cobPagoDeLinea(l){
+  if (l.recibo_id) {
+    const r = Array.isArray(l.recibos) ? l.recibos[0] : l.recibos;
+    if (!r || r.estado === 'anulado') return null;
+    return { tipo: r.forma_pago === 'transferencia' ? 'transferencia' : 'efectivo', recibo_id: l.recibo_id, nro: r.numero_recibo };
+  }
+  return l.estado_linea === 'pagado' ? { tipo: 'regularizado' } : null;
+}
+// Filas crudas → líneas pagadas del club, marcadas con _pago. Pura (la prueba el probe).
+function cobMarcarPagadas(filas){
+  return (filas||[]).filter(cobDelClub).map(l => ({ ...l, _pago: cobPagoDeLinea(l) })).filter(l => l._pago);
+}
+async function cobLineasPagadasReunion(reunionId){
+  const { data, error } = await sb.from('liquidacion_detalle')
+    .select('id,beneficiario_tipo,beneficiario_id,monto_neto,reunion_id,inscripcion_id,carrera_id,descripcion,concepto,concepto_tipo,estado_linea,recibo_id,recibos(numero_recibo,forma_pago,estado),liquidaciones(club_id)')
+    .eq('reunion_id', reunionId).neq('beneficiario_tipo', 'club')
+    .or('recibo_id.not.is.null,estado_linea.eq.pagado');
+  if (error) { console.error('[cobVistaCarrera/pagadas]', error); throw error; }
+  return cobMarcarPagadas(data);
+}
+
 // Selección de las líneas de la carrera. Las tres puertas, en este orden:
 //   1. inscripcion_id de la carrera            → premio, bono, incentivo_entrenador, actuacion
 //   2. sin inscripción pero con carrera_id     → las líneas históricas de premio/bono sin inscripción
 //   3. incentivo_jockey de esta reunión cuyo beneficiario está en J (los que largaron acá)
-// Sin Set.has(null) en ningún lado: la 1 es falsa para null y la 3 no lo usa.
+// Sin Set.has(null) en ningún lado: la 1 es falsa para null y la 3 no lo usa. Recibe pagables y
+// pagadas juntas (las pagadas traen _pago); si el incentivo va con importe o como nota lo decide
+// el armado, con la carrera dueña.
 function cobLineasDeCarrera(lineas, carreraId, reunionId, inscs){
   const inscIds = new Set(inscs.map(i => i.id));
   const J = new Set(inscs.filter(i => i.largo && i.jockey_titular_id).map(i => i.jockey_titular_id));
@@ -1198,22 +1275,36 @@ function cobLineasDeCarrera(lineas, carreraId, reunionId, inscs){
 
 // Armado: bloques por caballo (posición ASC, los sin posición al final por gatera), dentro de
 // cada uno los roles en ORDEN_ROLES_VISTA, dentro del rol un sub-bloque por beneficiario, dentro
-// del beneficiario las líneas por ORDEN_CONCEPTO_VISTA. Devuelve datos, no HTML (lo prueba el probe).
-function cobArmarVistaCarrera(lineasCarrera, inscs, carreraId){
+// del beneficiario las líneas pagables por ORDEN_CONCEPTO_VISTA, sus pagos (chips) y sus notas.
+// Devuelve datos, no HTML (lo prueba el probe). `duenos` = cobDuenosIncentivo; sin dueño conocido
+// el incentivo va con importe (plata que no se ve es plata que no se paga).
+function cobArmarVistaCarrera(lineasCarrera, inscs, carreraId, duenos){
+  const nuevo = insc => ({ insc, roles:{}, total:0, n:0, pagos:[] });
   const porInsc = {};
-  for (const i of inscs) porInsc[i.id] = { insc:i, roles:{}, total:0, n:0 };
-  const sueltas = { insc:null, roles:{}, total:0, n:0 };   // líneas sin inscripción (puerta 2)
-  const meter = (bloque, l, rol) => {
+  for (const i of inscs) porInsc[i.id] = nuevo(i);
+  const sueltas = nuevo(null);   // líneas sin inscripción (puerta 2)
+  const k = l => `${l.beneficiario_tipo}|${l.beneficiario_id}`;
+  const benef = (bloque, l, rol) => {
     const r = (bloque.roles[rol] ||= {});
-    const k = `${l.beneficiario_tipo}|${l.beneficiario_id}`;
-    const b = (r[k] ||= { tipo:l.beneficiario_tipo, id:l.beneficiario_id, nombre:nombreBenef(l.beneficiario_tipo, l.beneficiario_id), lineas:[], total:0 });
+    return (r[k(l)] ||= { tipo:l.beneficiario_tipo, id:l.beneficiario_id, nombre:nombreBenef(l.beneficiario_tipo, l.beneficiario_id), lineas:[], pagos:[], notas:[], total:0 });
+  };
+  const meter = (bloque, l, rol) => {
+    const b = benef(bloque, l, rol);
+    if (l._pago) { b.pagos.push(l._pago); bloque.pagos.push({ ...l._pago, benef: k(l) }); return; }
     b.lineas.push(l); b.total += parseFloat(l.monto_neto)||0;
     bloque.total += parseFloat(l.monto_neto)||0; bloque.n++;
   };
   for (const l of lineasCarrera) {
     if (l.concepto_tipo === 'incentivo_jockey') {
-      // bajo CADA caballo que ese jockey montó y largó en esta carrera
-      for (const i of inscs) if (i.largo && i.jockey_titular_id === l.beneficiario_id) meter(porInsc[i.id], l, 'Jockey');
+      // bajo el caballo que ese jockey montó y largó acá: con importe sólo en la carrera dueña
+      const d = duenos?.get(l.beneficiario_id);
+      const esDuena = !d || d.carrera_id === carreraId;
+      for (const i of inscs) if (i.largo && i.jockey_titular_id === l.beneficiario_id) {
+        if (esDuena) { meter(porInsc[i.id], l, 'Jockey'); continue; }
+        const nota = `Incentivo por reunión: figura en la carrera ${d.nro}`;
+        const b = benef(porInsc[i.id], l, 'Jockey');
+        if (!b.notas.includes(nota)) b.notas.push(nota);
+      }
       continue;
     }
     const bloque = porInsc[l.inscripcion_id] || sueltas;
@@ -1227,9 +1318,41 @@ function cobArmarVistaCarrera(lineasCarrera, inscs, carreraId){
   }));
   const bloques = Object.values(porInsc)
     .sort((a, b) => (a.insc.posicion ?? 999) - (b.insc.posicion ?? 999) || (a.insc.numero_partidor ?? 999) - (b.insc.numero_partidor ?? 999))
-    .map(b => ({ insc:b.insc, total:b.total, n:b.n, roles: ordenar(b) }));
-  if (sueltas.n) bloques.push({ insc:null, total:sueltas.total, n:sueltas.n, roles: ordenar(sueltas) });
+    .map(b => ({ insc:b.insc, total:b.total, n:b.n, pagos:b.pagos, roles: ordenar(b) }));
+  if (sueltas.n || sueltas.pagos.length) bloques.push({ insc:null, total:sueltas.total, n:sueltas.n, pagos:sueltas.pagos, roles: ordenar(sueltas) });
   return bloques;
+}
+
+// Chips de lo pagado de UN beneficiario: uno por recibo (no por línea) y uno solo de regularizado.
+function cobChipsPago(pagos){
+  const chips = [], vistos = new Set();
+  for (const p of pagos) {
+    if (p.tipo === 'regularizado') { if (!vistos.has('reg')) { vistos.add('reg'); chips.push('✓ Pagado (regularizado)'); } continue; }
+    if (vistos.has(p.recibo_id)) continue;
+    vistos.add(p.recibo_id);
+    chips.push(`✓ ${p.tipo === 'transferencia' ? 'Transferido' : 'Efectivo'} · Rec. #${p.nro}`);
+  }
+  return chips;
+}
+
+// Rótulo del caballo sin nada pagable: "todo pagado (N transferencia, M efectivo)" si hubo pagos
+// (N y M cuentan RECIBOS; los saldados sin recibo se agregan como ", K regularizados", K = personas;
+// si no hubo recibos, "todo pagado (K regularizados)"), "Sin deuda pagable" a secas si nunca hubo
+// líneas. Con retenidas del caballo no es "todo": queda plata por habilitar (doping), así que dice
+// "Pagado · resta lo retenido por antidoping" (pedido del 24/09).
+function cobRotuloSinDeuda(bloque, retenidas){
+  if (!bloque.pagos.length) return 'Sin deuda pagable';
+  const rec = { transferencia: new Set(), efectivo: new Set() }, reg = new Set();
+  for (const p of bloque.pagos) {
+    if (p.tipo === 'regularizado') reg.add(p.benef); else rec[p.tipo].add(p.recibo_id);
+  }
+  // Con retenidas NO se dice "pagado" a secas: leído apurado, el caballo se anota como cerrado.
+  if (retenidas) return 'Sin deuda pagable · Pagado · resta lo retenido por antidoping';
+  const conRecibo = rec.transferencia.size + rec.efectivo.size;
+  const partes = conRecibo
+    ? `${rec.transferencia.size} transferencia, ${rec.efectivo.size} efectivo${reg.size ? `, ${reg.size} regularizados` : ''}`
+    : `${reg.size} regularizados`;
+  return `Sin deuda pagable · todo pagado (${partes})`;
 }
 
 // q en la vista filtra BLOQUES: pasa el caballo si su nombre matchea o si algún beneficiario del
@@ -1240,6 +1363,31 @@ function cobBloqueMatch(bloque, q, propIdsPorCaballeriza){
   return bloque.roles.some(r => r.beneficiarios.some(b => cobMatch(q, benefSearch(b.tipo, b.id)) || propIdsPorCaballeriza.has(b.id)));
 }
 
+// HTML de la vista. Pura (datos → string): el probe la corre con bloques sintéticos para los chips.
+function cobHtmlVistaCarrera(bloques, retenidas){
+  const puesto = i => !i ? 'Sin inscripción' : i.posicion != null ? `${i.posicion}°` : (i.no_largo ? 'NL' : '—');
+  const rotuloLinea = l => l.concepto_tipo === 'incentivo_jockey'
+    ? `${escapeHtml(l.concepto || 'Incentivo jockey')} <span class="cob-por-reunion">· Incentivo por reunión — se paga una sola vez</span>`
+    : escapeHtml(l.concepto || l.descripcion || l.concepto_tipo || '');
+  const ret = b => (b.insc && retenidas[b.insc.id]) || 0;
+  return `<div class="liq-grid cob-vista">${bloques.map(b => `<div class="liq-card cob-caballo${b.n ? '' : ' cob-caballo-vacio'}">
+    <div class="liq-header">
+      <div><div class="liq-prof">${escapeHtml(puesto(b.insc))} · ${escapeHtml(b.insc?.caballo || 'líneas sin inscripción')}</div>
+        <div class="liq-recibo">${b.n ? `${b.n} línea(s) pagable(s)` : escapeHtml(cobRotuloSinDeuda(b, ret(b)))}${ret(b) ? ` · 🔒 ${ret(b)} retenida(s) — habilitar desde Pagar` : ''}</div></div>
+      ${b.n ? `<div class="monto-item"><div class="monto-lbl">Pagable</div><div class="monto-val neto">${fmt(b.total)}</div></div>` : ''}
+    </div>
+    ${b.roles.map(r => `<div class="cob-rol"><div class="cob-rol-titulo">${escapeHtml(r.rol)}</div>
+      ${r.beneficiarios.map(be => `<div class="cob-benef">
+        <div class="cob-benef-cab"><span class="cob-benef-nombre">${escapeHtml(be.nombre)}</span>
+          ${be.lineas.length ? `<span class="cob-benef-total">${fmt(be.total)}</span>` : ''}
+          ${cobChipsPago(be.pagos).map(c => `<span class="cob-pagado">${escapeHtml(c)}</span>`).join('')}
+          ${be.lineas.length ? `<button class="btn-sm btn-pagar" onclick="cobrosDetalle('${be.tipo}','${be.id}')">🧾 Pagar</button>` : ''}</div>
+        <ul class="cob-lineas">${be.lineas.map(l => `<li><span>${rotuloLinea(l)}</span><span>${fmt(l.monto_neto)}</span></li>`).join('')}${be.notas.map(n => `<li class="cob-nota"><span>${escapeHtml(n)}</span></li>`).join('')}</ul>
+      </div>`).join('')}
+    </div>`).join('')}
+  </div>`).join('')}</div>`;
+}
+
 async function cobRenderVistaCarrera(lineas, carreraId, rid, q, propIdsPorCaballeriza){
   const cont = document.getElementById('cob-beneficiarios');
   let inscs;
@@ -1248,7 +1396,14 @@ async function cobRenderVistaCarrera(lineas, carreraId, rid, q, propIdsPorCaball
   // reunión de la carrera: la del selector (el select de carreras sólo se llena con reunión elegida);
   // de respaldo, la de las propias líneas.
   const reunionId = rid || lineas.find(l => l.inscripcion_id && inscs.some(i => i.id === l.inscripcion_id))?.reunion_id || null;
-  const lineasCarrera = cobLineasDeCarrera(lineas, carreraId, reunionId, inscs);
+  // Dueña del incentivo + lo ya pagado. Si falla, no se rinde nada: sin dueños el incentivo
+  // volvería a sumarse en cada carrera, y sin pagadas los chips mentirían "nunca hubo pagos".
+  let duenos = new Map(), pagadas = [];
+  if (reunionId) {
+    try { [duenos, pagadas] = await Promise.all([cobDuenosReunion(reunionId), cobLineasPagadasReunion(reunionId)]); }
+    catch (e) { toast(e.message, 'error'); cont.innerHTML = ''; return; }
+  }
+  const lineasCarrera = cobLineasDeCarrera([...lineas, ...pagadas], carreraId, reunionId, inscs);
   // Retenidas (1° y 2°, doping) por caballo: sólo el contador — se habilitan desde Pagar, como hoy.
   const retenidas = {};
   if (inscs.length) {
@@ -1258,30 +1413,12 @@ async function cobRenderVistaCarrera(lineas, carreraId, rid, q, propIdsPorCaball
     if (eRet) console.error('[cobVistaCarrera/retenidas]', eRet);
     for (const l of (ret||[])) if (cobDelClub(l)) retenidas[l.inscripcion_id] = (retenidas[l.inscripcion_id]||0) + 1;
   }
-  const bloques = cobArmarVistaCarrera(lineasCarrera, inscs, carreraId).filter(b => cobBloqueMatch(b, q, propIdsPorCaballeriza));
+  const bloques = cobArmarVistaCarrera(lineasCarrera, inscs, carreraId, duenos).filter(b => cobBloqueMatch(b, q, propIdsPorCaballeriza));
   if (!bloques.length) {
     cont.innerHTML = `<div class="empty-state"><div class="icon">∅</div><h3>${inscs.length ? 'Ningún caballo de esta carrera para esa búsqueda' : 'Esta carrera no tiene inscripciones ratificadas'}</h3></div>`;
     return;
   }
-  const puesto = i => !i ? 'Sin inscripción' : i.posicion != null ? `${i.posicion}°` : (i.no_largo ? 'NL' : '—');
-  const rotuloLinea = l => l.concepto_tipo === 'incentivo_jockey'
-    ? `${escapeHtml(l.concepto || 'Incentivo jockey')} <span class="cob-por-reunion">· por reunión — se paga una vez</span>`
-    : escapeHtml(l.concepto || l.descripcion || l.concepto_tipo || '');
-  cont.innerHTML = `<div class="liq-grid cob-vista">${bloques.map(b => `<div class="liq-card cob-caballo${b.n ? '' : ' cob-caballo-vacio'}">
-    <div class="liq-header">
-      <div><div class="liq-prof">${escapeHtml(puesto(b.insc))} · ${escapeHtml(b.insc?.caballo || 'líneas sin inscripción')}</div>
-        <div class="liq-recibo">${b.n ? `${b.n} línea(s) pagable(s)` : 'sin deuda pagable'}${b.insc && retenidas[b.insc.id] ? ` · 🔒 ${retenidas[b.insc.id]} retenida(s) — habilitar desde Pagar` : ''}</div></div>
-      ${b.n ? `<div class="monto-item"><div class="monto-lbl">Pagable</div><div class="monto-val neto">${fmt(b.total)}</div></div>` : ''}
-    </div>
-    ${b.roles.map(r => `<div class="cob-rol"><div class="cob-rol-titulo">${escapeHtml(r.rol)}</div>
-      ${r.beneficiarios.map(be => `<div class="cob-benef">
-        <div class="cob-benef-cab"><span class="cob-benef-nombre">${escapeHtml(be.nombre)}</span>
-          <span class="cob-benef-total">${fmt(be.total)}</span>
-          <button class="btn-sm btn-pagar" onclick="cobrosDetalle('${be.tipo}','${be.id}')">🧾 Pagar</button></div>
-        <ul class="cob-lineas">${be.lineas.map(l => `<li><span>${rotuloLinea(l)}</span><span>${fmt(l.monto_neto)}</span></li>`).join('')}</ul>
-      </div>`).join('')}
-    </div>`).join('')}
-  </div>`).join('')}</div>`;
+  cont.innerHTML = cobHtmlVistaCarrera(bloques, retenidas);
 }
 // ═══ VISTA POR CARRERA — FIN ═══
 
