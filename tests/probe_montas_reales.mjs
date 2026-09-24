@@ -66,7 +66,7 @@ function extraerGate() {
 }
 
 /* ── S0 — sensibilidad: contra main nada de esto existe ────────────────────── */
-const faltantes = ['moInscripciones', 'moOpciones', 'montasFaltantes', 'openMontas', 'saveMontas']
+const faltantes = ['moInscripciones', 'moOpciones', 'noLargoIds', 'montasFaltantes', 'openMontas', 'saveMontas']
   .filter(n => SRC.indexOf(`function ${n}(`) < 0 && SRC.indexOf(`async function ${n}(`) < 0);
 const tieneGate = SRC.includes(GATE_INI) && SRC.includes(GATE_FIN);
 const tieneModal = SRC.includes('id="modal-montas"') && SRC.includes('openMontas()');
@@ -81,7 +81,10 @@ if (faltantes.length || !tieneGate || !tieneModal) {
 
 /* ── Harness: el código real, con dependencias inyectadas ──────────────────── */
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-const FUENTE = ['moInscripciones', 'moOpciones', 'montasFaltantes'].map(extraerFn).join('\n\n');
+// noLargoIds: montasFaltantes la llama desde 5e0a57b (12/09), cuando la lógica de "no largó" se sacó a
+// una función propia para compartirla con el aviso de jockey repetido. Sin extraerla, el probe se caía
+// con ReferenceError antes del primer assert (inventario del 24/09, issue #13).
+const FUENTE = ['moInscripciones', 'moOpciones', 'noLargoIds', 'montasFaltantes'].map(extraerFn).join('\n\n');
 const GATE   = extraerGate();
 
 function correr(estado) {

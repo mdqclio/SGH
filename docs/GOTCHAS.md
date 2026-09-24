@@ -1760,3 +1760,41 @@ Control del 2026-09-22 sobre las cinco funciones ya aplicadas de esta tanda — 
 
 Emparentado con GOTCHA #95 (`apply_migration` deja rastro en el historial de migraciones, así que el DDL efímero va por `execute_sql`): los dos salen de tratar a `apply_migration` como si fuera "correr el archivo", cuando en realidad es "correr el texto que le pasé".
 
+
+## 100. Un assert con un número fijo o atado a los datos de prod del día caduca solo — y después nadie sabe si el rojo es bug o vejez (2026-09-24)
+
+**Qué pasó.** El 24/09 dos probes estaban rojos en `main` y nadie sabía desde cuándo ni por qué. El inventario (issue #13) encontró **cero bugs**: las cinco fallas eran de los probes.
+
+| probe · assert | escrito | qué esperaba | qué había el 24/09 | por qué envejeció |
+|---|---|---|---|---|
+| `probe_pagos_rol_carrera` · read-only | 27/08 | `liquidacion_detalle` = **493** filas | **640** | se liquidaron R8 y R9: número fijo contra una tabla viva |
+| `probe_pagos_rol_carrera` · read-only | 27/08 | `spcs` = **181** | **210** | Yesi dio de alta ejemplares (baseline del 23/08) |
+| `probe_pagos_rol_carrera` · 1c | 27/08 | ≥ 1 beneficiario impago con dos roles | **0 de 27** | el único (tipo `ambos`) cobró: 4 líneas, 0 impagas. El código no cambió; se había ido el dato |
+| `probe_pagos_rol_carrera` · 1a | 27/08 | el literal `.select('…,carrera_id')` de `cobrosDetalle` | `…,carrera_id,liquidaciones(club_id)` | ISSUE-060 (`09ddb5b`, 29/08) agregó el club al select; las columnas del rol seguían ahí |
+| `probe_montas_reales` · todo | 28/08 | extraer `montasFaltantes` y correrla | `ReferenceError: noLargoIds is not defined` | `5e0a57b` (12/09) sacó su lógica a `noLargoIds` sin cambiarla; el probe no la extraía |
+
+Los cinco decían ❌ con la misma cara que un bug. Para saber que no lo eran hubo que rastrear commit por commit, correr una copia del probe con la extracción corregida (34/34) y consultar la base.
+
+**Cómo se detectó.** El rojo de `probe_pagos_rol_carrera` (42/46) apareció al correrlo como regresión del PR #12. Salía igual contra `main`, así que no era del PR. Pero tampoco decía qué era.
+
+**Regla que queda.**
+
+> **Un assert no puede tener un valor esperado que dependa del día en que se escribió.** El esperado se calcula desde la base **en la misma corrida**, o el assert compara una **relación que no envejece** (antes/después dentro de la corrida, "lo que muestra = lo que hay"). Un caso que necesita cierto dato en prod (un multi-rol, un NL, una transferencia) se **fabrica**: un fixture en la 9999 con teardown verificado por estado, o líneas sintéticas en las funciones puras. Y se verifica **comportamiento** (lo que la función real rinde o persiste), no el texto del código: un literal buscado se rompe con cualquier cambio legítimo y no dice si el comportamiento cambió.
+
+Corolarios:
+- Un "read-only: la tabla X tiene N filas" no prueba nada aunque N se calcule al arrancar: en una base viva, otro usuario cambia N en el medio (GOTCHA #77). Lo que se verifica es el **estado de lo que el probe toca**: su fixture no quedó, la 9999 está línea por línea como estaba (`tests/lib/estado_lineas.mjs`).
+- Si hoy no hay dato para ejercer un caso, el probe dice "sin caso hoy" y **no** pinta ❌: un rojo que no es bug entrena a ignorar los rojos.
+- La lista de funciones que extrae un harness también es un "valor fijo". Si la función bajo prueba empieza a llamar a otra, el harness cae con `ReferenceError`. Eso por lo menos es ruidoso; el riesgo es arreglarlo reimplementando la función en el test, y eso no se hace.
+
+**Cómo se verifica.**
+
+```bash
+set -a; . ./.env; set +a
+node tests/probe_pagos_rol_carrera.mjs              # 65/65; fixture multi-rol en la 9999 + restore por estado y conteos
+node tests/probe_pagos_rol_carrera.mjs --mutantes   # 11/11
+node tests/probe_montas_reales.mjs                  # 34/34
+# asserts con número fijo o literal de código que quedan (candidatos a esta regla):
+grep -nE "=== [0-9]{3,}\b|\(\s*[0-9]{3,}\s*\)'" tests/*.mjs
+```
+
+Quedan en `probe_pagos_rol_carrera` asserts de la **misma clase** que no se tocaron en este arreglo (se pidieron sólo los 4 rojos): 2c "hay beneficiarios sólo con incentivo por reunión" y 2a "el fallback a `numero_turno` se ejerce" dependen de los datos de prod del día; 1b, 1c (tarjeta), 2e y C0 buscan texto de `liquidaciones.html`. Hoy están verdes; van a envejecer igual.

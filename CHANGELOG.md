@@ -1,5 +1,40 @@
 # Changelog
 
+## [2026-09-24] — Probes rojos de `main`: `probe_montas_reales` y `probe_pagos_rol_carrera` (issue #13) + GOTCHA #100
+
+> Sólo tests y docs. No se tocó `liquidaciones.html` ni `resultados.html`. En la base, sólo el fixture del probe en la 9999, que se crea y se borra en cada corrida.
+
+- `tests/probe_montas_reales.mjs`: extrae también `noLargoIds`, que `montasFaltantes` llama desde `5e0a57b` (12/09).
+  Se caía con `ReferenceError` antes del primer assert. **34/34.**
+- `tests/probe_pagos_rol_carrera.mjs`, las 4 fallas reescritas:
+  - 1a de `cobrosDetalle`: antes buscaba el literal del select. Ahora corre `cobrosDetalle` **real** sobre un fixture
+    y chequea la columna Rol y la Carrera de 3 líneas (por inscripción, por reunión, por el respaldo `carrera_id`).
+  - 1c "hay un multi-rol en prod": ahora un profesional sintético inactivo en la **9999**, con líneas de Entrenador y
+    de Jockey. `cobrosBuscar` **real** tiene que rendir "Entrenador / Jockey · 3 línea(s) · C1, C2 · + incentivo por
+    reunión".
+  - read-only 493/181: reemplazados por restore **por estado**. Del fixture no queda nada (líneas, header, auditoría,
+    ficha), la 9999 está línea por línea como al arrancar y no hubo que restaurar nada ajeno.
+  - **Condiciones del probe que escribe:**
+    - **Guard**: `guardSandbox` exige id = 9999, `es_prueba`, club Dolores y `numero` 9999. Corre al arrancar y otra
+      vez pegado a la primera escritura. Con `PROBE_REUNION=<otra>` sale con 2 sin escribir nada.
+    - **Conteos** antes y después con assert propio: líneas y headers de la 9999, fichas del probe, auditoría y
+      recibos del fixture.
+    - **`club_secuencias`**: no se compara contra el valor inicial (un recibo real emitido en el medio lo mueve). El
+      assert es que **el probe no dejó consumidos sus propios números**. Si el caso emite recibos, se borran y la
+      secuencia se devuelve **sólo** si nadie emitió en el medio: no hay recibos ajenos con número > antes, y
+      compare-and-set `UPDATE … WHERE ultimo_numero = <lo que dejó el probe>`. Si no, no escribe nada y queda
+      **aviso** (no rojo): "alguien emitió durante la corrida, secuencia no restaurada". Restaurar a ciegas puede
+      repetir un número de recibo real. 4 escenarios con stub (S1–S4).
+    - **Aborto**: `--abortar=<tras_ficha|tras_header|tras_lineas|en_pantalla>` y SIGINT/SIGTERM pasan por el mismo
+      `finally`. `kill -9` no pasa por ningún `finally`: lo limpia un **barrido al arrancar** la corrida siguiente,
+      antes de leer datos reales.
+  - **65/65, 11/11 mutantes** (`detalle_sin_rol`, `detalle_sin_carrera`, `roles_solo_primero`,
+    `teardown_sin_auditoria`, `teardown_sin_ficha`, `teardown_ensucia_9999`, `sin_guard`, `sin_cas`,
+    `sin_chequeo_ajenos`, `no_devuelve`, `ajena_como_rojo`). No hay mutante "el
+    teardown se olvida una línea": `liquidacion_detalle.liquidacion_id` es `ON DELETE CASCADE` y sería equivalente.
+- GOTCHA #100: un assert con número fijo o atado a los datos de prod del día caduca solo. Evidencia: las 5 fallas del
+  24/09, cero bugs.
+
 ## [2026-09-23] — Recibo de Pagos: la línea de corte cae a la mitad de la hoja
 
 > Valeria corta la hoja por la mitad y pedía el duplicado más abajo: el corte quedaba donde terminaba el original
