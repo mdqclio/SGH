@@ -14,9 +14,18 @@
     reunión".
   - read-only 493/181: reemplazados por restore **por estado**. Del fixture no queda nada (líneas, header, auditoría,
     ficha), la 9999 está línea por línea como al arrancar y no hubo que restaurar nada ajeno.
-  - **51/51, 6/6 mutantes** (`detalle_sin_rol`, `detalle_sin_carrera`, `roles_solo_primero`,
-    `teardown_sin_auditoria`, `teardown_sin_ficha`, `teardown_ensucia_9999`). No hay mutante "el teardown se olvida
-    una línea": `liquidacion_detalle.liquidacion_id` es `ON DELETE CASCADE` y sería equivalente.
+  - **Condiciones del probe que escribe:**
+    - **Guard**: `guardSandbox` exige id = 9999, `es_prueba`, club Dolores y `numero` 9999. Corre al arrancar y otra
+      vez pegado a la primera escritura. Con `PROBE_REUNION=<otra>` sale con 2 sin escribir nada.
+    - **Conteos** antes y después con assert propio: líneas y headers de la 9999, fichas del probe, auditoría y
+      recibos del fixture, y `club_secuencias` entera. Si alguna vez el caso emite recibos, se borran y la secuencia
+      vuelve si no hubo recibos ajenos en el medio.
+    - **Aborto**: `--abortar=<tras_ficha|tras_header|tras_lineas|en_pantalla>` y SIGINT/SIGTERM pasan por el mismo
+      `finally`. `kill -9` no pasa por ningún `finally`: lo limpia un **barrido al arrancar** la corrida siguiente,
+      antes de leer datos reales.
+  - **60/60, 7/7 mutantes** (`detalle_sin_rol`, `detalle_sin_carrera`, `roles_solo_primero`,
+    `teardown_sin_auditoria`, `teardown_sin_ficha`, `teardown_ensucia_9999`, `sin_guard`). No hay mutante "el
+    teardown se olvida una línea": `liquidacion_detalle.liquidacion_id` es `ON DELETE CASCADE` y sería equivalente.
 - GOTCHA #100: un assert con número fijo o atado a los datos de prod del día caduca solo. Evidencia: las 5 fallas del
   24/09, cero bugs.
 
