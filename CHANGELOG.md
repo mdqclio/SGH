@@ -1,5 +1,25 @@
 # Changelog
 
+## [2026-09-24] — Probes rojos de `main`: `probe_montas_reales` y `probe_pagos_rol_carrera` (issue #13) + GOTCHA #100
+
+> Sólo tests y docs. No se tocó `liquidaciones.html` ni `resultados.html`. En la base, sólo el fixture del probe en la 9999, que se crea y se borra en cada corrida.
+
+- `tests/probe_montas_reales.mjs`: extrae también `noLargoIds`, que `montasFaltantes` llama desde `5e0a57b` (12/09).
+  Se caía con `ReferenceError` antes del primer assert. **34/34.**
+- `tests/probe_pagos_rol_carrera.mjs`, las 4 fallas reescritas:
+  - 1a de `cobrosDetalle`: antes buscaba el literal del select. Ahora corre `cobrosDetalle` **real** sobre un fixture
+    y chequea la columna Rol y la Carrera de 3 líneas (por inscripción, por reunión, por el respaldo `carrera_id`).
+  - 1c "hay un multi-rol en prod": ahora un profesional sintético inactivo en la **9999**, con líneas de Entrenador y
+    de Jockey. `cobrosBuscar` **real** tiene que rendir "Entrenador / Jockey · 3 línea(s) · C1, C2 · + incentivo por
+    reunión".
+  - read-only 493/181: reemplazados por restore **por estado**. Del fixture no queda nada (líneas, header, auditoría,
+    ficha), la 9999 está línea por línea como al arrancar y no hubo que restaurar nada ajeno.
+  - **51/51, 6/6 mutantes** (`detalle_sin_rol`, `detalle_sin_carrera`, `roles_solo_primero`,
+    `teardown_sin_auditoria`, `teardown_sin_ficha`, `teardown_ensucia_9999`). No hay mutante "el teardown se olvida
+    una línea": `liquidacion_detalle.liquidacion_id` es `ON DELETE CASCADE` y sería equivalente.
+- GOTCHA #100: un assert con número fijo o atado a los datos de prod del día caduca solo. Evidencia: las 5 fallas del
+  24/09, cero bugs.
+
 ## [2026-09-23] — Recibo de Pagos: la línea de corte cae a la mitad de la hoja
 
 > Valeria corta la hoja por la mitad y pedía el duplicado más abajo: el corte quedaba donde terminaba el original

@@ -1,17 +1,24 @@
 /**
- * Probe — rol y número de carrera en la tarjeta del tab Pagos (real-code, READ-ONLY).
+ * Probe — rol y número de carrera en la tarjeta del tab Pagos (real-code).
  *
  * Corre el CÓDIGO REAL extraído de liquidaciones.html, no una copia:
  *   - rolDeLinea()        (ya existía; la usa el recibo desde 67f9371)
  *   - etiquetaRoles()     (nueva — cambio 1c)
  *   - etiquetaCarreras()  (nueva — cambio 2b)
  *   - el bloque de resolución de nº de carrera de cobrosBuscar() (nuevo — cambio 2a/2b)
- * Sin browser (chromium no corre en ubuntu 26.04). Sólo SELECT: no escribe una fila.
+ * Sin browser (chromium no corre en ubuntu 26.04).
+ *
+ * ESCRIBE (desde 2026-09-24, issue #13) un fixture en la reunión 9999 —un profesional sintético
+ * inactivo, su liquidación y 3 líneas impagas— para los casos que antes dependían de que prod
+ * tuviera ese día un beneficiario multi-rol. Teardown en el finally; restore verificado por ESTADO
+ * (tests/lib/estado_lineas.mjs), no contando filas. Nada de baselines fijos (GOTCHA #100).
  *
  * CAMBIO 1 — rol en la pantalla
- *   1a) las 3 columnas del rol viajan en los SELECT de cobrosBuscar y cobrosDetalle
+ *   1a) cobrosDetalle REAL rinde el rol y la carrera de cada línea (fixture: Entrenador por
+ *       inscripción, Jockey por reunión, Jockey con carrera_id sin inscripción)
  *   1b) la tabla del detalle tiene columna Rol y los colspan acompañan
- *   1c) etiquetaRoles muestra TODOS los roles, no el de la primera línea
+ *   1c) etiquetaRoles muestra TODOS los roles, no el de la primera línea (fixture: cobrosBuscar
+ *       REAL sobre la 9999 rinde la tarjeta del multi-rol como "Entrenador / Jockey")
  *   1d) vocabulario exacto Propietario/Entrenador/Jockey — nunca "cuidador"
  *   1e) ninguna tarjeta cae al genérico "profesional"
  *
@@ -28,11 +35,28 @@
  *   C3) si el conjunto de líneas crece (liberar_linea, sacar el filtro) pide sólo los ids nuevos
  *   C4/C5) el negativo también se cachea: un id inexistente no se re-pide
  *   C6) cambiar de reunión invalida y rearma, y la reunión nueva vuelve a cachear
+ *
+ * MUTANTES (`--mutante=<nombre>` / `--mutantes`) de los asserts reescritos el 24/09:
+ *   detalle_sin_rol      cobrosDetalle no trae descripcion/concepto_tipo   → 1a (rol) cae a "Profesional"
+ *   detalle_sin_carrera  cobrosDetalle no trae carrera_id                  → 1a (C del respaldo) queda "—"
+ *   roles_solo_primero   etiquetaRoles devuelve sólo el primer rol          → 1c
+ *   teardown_sin_auditoria  el teardown no borra la auditoría del header    → restore: "no queda nada"
+ *   teardown_sin_ficha      el teardown no borra el profesional sintético   → restore: "no queda nada"
+ *   teardown_ensucia_9999   el probe toca una línea AJENA de la 9999        → restore por estado (2 asserts)
+ * Después de los asserts de restore corre una red de seguridad que borra lo que haya quedado del
+ * fixture, así que el mutante de teardown no deja basura.
+ *
+ * Uso:
+ *   set -a; . ./.env; set +a
+ *   node tests/probe_pagos_rol_carrera.mjs
+ *   node tests/probe_pagos_rol_carrera.mjs --mutantes
  */
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { snapshotLineas, diffLineas, restaurarLineas, describir } from './lib/estado_lineas.mjs';
 
 const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
 const KEY = process.env.SUPABASE_SECRET_KEY;
@@ -40,7 +64,46 @@ if (!KEY) throw new Error('Falta SUPABASE_SECRET_KEY (source .env antes de corre
 
 const sb = createClient(SUPABASE_URL, KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SRC = readFileSync(join(HERE, '..', 'liquidaciones.html'), 'utf8');
+const SELF = fileURLToPath(import.meta.url);
+let SRC = readFileSync(join(HERE, '..', 'liquidaciones.html'), 'utf8');
+const CLUB_ID = '0649e9c5-9e87-4aad-842f-101458e6b33c';
+const R9999 = 'a0000000-0000-0000-0000-000000009999';
+
+const SEL_DET = "'id,concepto,descripcion,concepto_tipo,beneficiario_tipo,monto_neto,posicion,reunion_id,inscripcion_id,carrera_id,liquidaciones(club_id)'";
+const MUTANTES = {
+  detalle_sin_rol:     [SEL_DET, "'id,concepto,beneficiario_tipo,monto_neto,posicion,reunion_id,inscripcion_id,carrera_id,liquidaciones(club_id)'"],
+  detalle_sin_carrera: [SEL_DET, "'id,concepto,descripcion,concepto_tipo,beneficiario_tipo,monto_neto,posicion,reunion_id,inscripcion_id,liquidaciones(club_id)'"],
+  roles_solo_primero:  ["function etiquetaRoles(g){ return [...g.roles].join(' / ') || g.tipo; }", "function etiquetaRoles(g){ return [...g.roles][0] || g.tipo; }"],
+  // lado probe (ver teardown()). No hay mutante "se olvida una línea": liquidacion_detalle.liquidacion_id
+  // es ON DELETE CASCADE, borrar el header arrastra las líneas — ese mutante sería equivalente.
+  teardown_sin_auditoria: null,
+  teardown_sin_ficha:     null,
+  teardown_ensucia_9999:  null,
+};
+const args = process.argv.slice(2);
+const mutArg = args.find(a => a.startsWith('--mutante='))?.split('=')[1];
+if (args.includes('--mutantes')) {
+  let vivos = 0;
+  for (const m of Object.keys(MUTANTES)) {
+    const r = spawnSync(process.execPath, [SELF, `--mutante=${m}`], { encoding: 'utf8', env: process.env });
+    const murio = r.status !== 0; if (!murio) vivos++;
+    const fallos = (r.stdout.match(/^\s*❌ .*$/gm) || []);
+    console.log(`${murio ? '💀' : '🧟'} mutante ${m.padEnd(20)} → ${murio ? `muerto (${fallos.length} assert(s))` : 'VIVO — el probe no lo detecta'}`);
+    fallos.slice(0, 4).forEach(f => console.log('     ' + f.trim()));
+    if (murio && !fallos.length) console.log('     ' + (r.stderr || r.stdout).trim().split('\n').slice(-3).join(' | '));
+  }
+  console.log(`\n${Object.keys(MUTANTES).length - vivos}/${Object.keys(MUTANTES).length} mutantes muertos`);
+  process.exit(vivos ? 1 : 0);
+}
+if (mutArg) {
+  if (!(mutArg in MUTANTES)) { console.error(`mutante desconocido: ${mutArg}`); process.exit(2); }
+  if (MUTANTES[mutArg]) {
+    const [de, a] = MUTANTES[mutArg];
+    if (!SRC.includes(de)) { console.error(`el mutante ${mutArg} no aplica`); process.exit(2); }
+    SRC = SRC.replace(de, a);
+  }
+  console.log(`⚠ MUTANTE ${mutArg} aplicado`);
+}
 
 const results = [];
 const ok = (t, c, n = '') => { results.push({ t, s: c ? '✅' : '❌', n }); return c; };
@@ -68,8 +131,8 @@ ok('1a) cobrosBuscar trae descripcion y concepto_tipo (rol) y carrera_id',
    ['descripcion', 'concepto_tipo', 'beneficiario_tipo', 'carrera_id'].every(c => selBuscar.includes(c)),
    selBuscar);
 
-const selDetalle = SRC.match(/\.select\('id,concepto,descripcion,concepto_tipo,beneficiario_tipo,monto_neto,posicion,reunion_id,inscripcion_id,carrera_id'\)/);
-ok('1a) cobrosDetalle trae las 3 columnas del rol + carrera_id', !!selDetalle);
+// 1a de cobrosDetalle: se verifica por COMPORTAMIENTO con el fixture de la 9999 (sección F, al final).
+// Antes buscaba el literal del .select y se rompió cuando ISSUE-060 le agregó liquidaciones(club_id).
 
 ok('1b) la tabla de pagables tiene columna Rol',
    SRC.includes('<th>Puesto</th><th>Rol</th><th>Concepto</th>'));
@@ -131,9 +194,10 @@ ok('1e) ninguna tarjeta muestra el genérico "profesional"',
    gs.every(g => !/^profesional$/i.test(etiquetaRoles(g))));
 
 // ── 1c — el caso que obliga a mostrar todos los roles ───────────────────────
+// El caso multi-rol ya NO se exige a los datos de prod (el único, tipo 'ambos', cobró y el assert
+// quedó rojo sin que hubiera bug): se garantiza con el fixture de la sección F. Si prod tiene alguno
+// hoy, se chequea igual.
 const multi = gs.filter(g => g.roles.size > 1);
-ok('1c) hay al menos un beneficiario con más de un rol (si no, el test no prueba nada)',
-   multi.length >= 1, `${multi.length} de ${gs.length} beneficiarios`);
 for (const g of multi) {
   const et = etiquetaRoles(g);
   ok(`1c) el beneficiario multi-rol los muestra todos: "${et}"`,
@@ -284,11 +348,154 @@ viajes = []; await correr(stubSb, 'R2', lns, st);
 ok('C6) y la reunión nueva también cachea (segunda tecla: cero viajes)', viajes.length === 0,
    `${viajes.length} consultas`);
 
-// ── read-only: nada escrito ────────────────────────────────────────────────
-const { count: postLineas } = await sb.from('liquidacion_detalle').select('*', { count: 'exact', head: true });
-const { count: postSpcs } = await sb.from('spcs').select('*', { count: 'exact', head: true });
-ok('read-only: liquidacion_detalle intacta (493)', postLineas === 493, `${postLineas} filas`);
-ok('read-only: spcs intacta (181)', postSpcs === 181, `${postSpcs} filas`);
+// ── F) FIXTURE en la 9999: 1a (cobrosDetalle) y 1c (multi-rol) por COMPORTAMIENTO ─────────────
+// Un profesional sintético INACTIVO (no aparece en ningún select de la UI), su liquidación en la
+// 9999 y 3 líneas impagas:
+//   F1 premio "— Entrenador" con inscripción de la 9999   → rol Entrenador, carrera por inscripción
+//   F2 incentivo_jockey sin inscripción ni carrera          → rol Jockey, carrera "—"
+//   F3 premio "— Jockey" SIN inscripción, CON carrera_id    → rol Jockey, carrera por el respaldo
+// Lo esperado sale de la base en esta corrida (numero_carrera_programa ?? numero_turno), no de
+// números escritos acá. Reemplaza a los viejos "read-only: … intacta (493)/(181)": contar filas
+// globales contra un número fijo caducó solo (GOTCHA #100) y, en una base viva, contar la tabla
+// entera antes/después tampoco prueba nada (GOTCHA #77) — se verifica el ESTADO de lo que el probe
+// toca: la 9999 línea por línea, y que del fixture no quede nada (líneas, header, auditoría, ficha).
+function extraerFirma(firma) {
+  const i = SRC.indexOf(firma);
+  if (i < 0) throw new Error(`no encontré: ${firma}`);
+  // el cuerpo arranca en el "){" que cierra la firma: un default `opts = {}` no es el cuerpo
+  const cuerpo = SRC.indexOf('){', i);
+  if (cuerpo < 0 || cuerpo > SRC.indexOf('\n', i)) throw new Error(`firma sin "){" en su línea: ${firma}`);
+  let d = 0;
+  for (let k = cuerpo + 1; k < SRC.length; k++) {
+    if (SRC[k] === '{') d++;
+    else if (SRC[k] === '}') { d--; if (d === 0) return SRC.slice(i, k + 1); }
+  }
+  throw new Error(`no pude cerrar: ${firma}`);
+}
+const bloqueEntre = (ini, fin) => { const i = SRC.indexOf(ini), j = SRC.indexOf(fin, i); if (i < 0 || j < 0) throw new Error(`no encontré ${ini}`); return SRC.slice(SRC.indexOf('\n', i) + 1, j); };
+const escapeHtml = x => String(x ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt = n => '$' + Number(n).toFixed(2);
+function mkDocument(campos) {
+  const nodos = {};
+  const get = id => (nodos[id] ||= { value: campos[id] ?? '', innerHTML: '', textContent: '', style: {}, classList: { add(){}, remove(){}, toggle(){} }, scrollIntoView(){} });
+  Object.keys(campos).forEach(get); ['cob-detalle', 'cob-beneficiarios'].forEach(get);
+  return { getElementById: id => get(id), _n: nodos, querySelectorAll: () => [] };
+}
+const fuenteCob = [
+  ROL_DECL, extraerFirma('function rolDeLinea(l)'), extraerFirma('function nombreBenef(tipo, id)'),
+  bloqueEntre('// ═══ MATCHEO DEL BUSCADOR — ANCLAS DEL PROBE', '// ═══ MATCHEO DEL BUSCADOR — FIN ═══'),
+  extraerFirma('function benefSearch(tipo, id)'), extraerFirma('function etiquetaRoles(g)'), extraerFirma('function etiquetaCarreras(g)'),
+  extraerFirma('async function cobCargarReunPrueba()'), extraerFirma('function cobVisible(l, rid)'), extraerFirma('function cobDelClub(l)'),
+  bloqueEntre('// ═══ VISTA POR CARRERA — INICIO', '// ═══ VISTA POR CARRERA — FIN ═══'), extraerFirma('async function cobrosBuscar()'),
+  SRC.slice(SRC.indexOf('const GRUPO_DE_TIPO_COB'), SRC.indexOf('\n\n', SRC.indexOf('const ORDEN_GRUPOS_COB'))),
+  extraerFirma('function grupoDeTipo(t)'), extraerFirma('function rotuloGrupo(grupo, tipos)'), extraerFirma('function cobrosGruposPresentes()'),
+  extraerFirma('function cobChecked(l, selPrevia, idsPrevios, filtro)'), extraerFirma('async function cobrosDetalle(tipo, id, opts = {})'),
+].join('\n\n');
+async function pantalla(profesionalesMap) {
+  const document = mkDocument({ 'cob-q': '', 'cob-reunion': R9999, 'cob-carrera': '' });
+  const api = await new AsyncFunction('sb', 'CLUB_ID', 'document', 'toast', 'fmt', 'escapeHtml', 'propietariosMap', 'profesionales',
+    `let cobCaballerizas = [], cobInscCarrera = {}, cobNroCarrera = {}, cobMapsScope = null, cobReunPrueba = null;
+     let cobLineas = [], cobBenef = null, cobApoderados = [], cobFiltro = 'todo';
+     function cobLimpiarPanelRecibo(){}   // DOM puro (panel del recibo emitido)
+     function cobrosFiltrar(){}           // DOM puro (chips/aviso sobre el HTML ya puesto)
+     ${fuenteCob}
+     return { cobrosBuscar, cobrosDetalle };`)(sb, CLUB_ID, document, m => { throw new Error('toast: ' + m); }, fmt, escapeHtml, {}, profesionalesMap);
+  return { api, document };
+}
+const unesc = x => String(x).replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+const filasDetalle = html => [...html.matchAll(/<tr class="cob-row"[^>]*>([\s\S]*?)<\/tr>/g)].map(m => {
+  const td = [...m[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map(t => unesc(t[1].replace(/<[^>]+>/g, '').trim()));
+  const id = /value="([^"]+)"/.exec(m[1])?.[1];
+  return { id, fecha: td[1], carrera: td[2], caballo: td[3], puesto: td[4], rol: td[5], concepto: td[6], neto: td[7] };
+});
+
+const tag = `PROBE-ROL-${Date.now()}`;
+const fx = { prof: null, liq: null, lineas: [] };
+const antes9999 = await snapshotLineas(sb, R9999);
+const { data: car9999, error: eCar } = await sb.from('carreras').select('id,numero_turno,numero_carrera_programa').eq('reunion_id', R9999).order('numero_turno');
+if (eCar) throw eCar;
+const { data: ins9999, error: eIns } = await sb.from('inscripciones').select('id,carrera_id').in('carrera_id', car9999.map(c => c.id));
+if (eIns) throw eIns;
+const cA = car9999.find(c => ins9999.some(i => i.carrera_id === c.id));
+const cB = car9999.find(c => c.id !== cA?.id);
+if (!cA || !cB) throw new Error('la 9999 no tiene dos carreras (una con inscripciones) para armar el fixture');
+const inscA = ins9999.find(i => i.carrera_id === cA.id);
+const nroDe = c => c.numero_carrera_programa ?? c.numero_turno;
+
+async function teardown() {
+  const ids = fx.lineas.map(l => l.id);
+  if (ids.length) await sb.from('liquidacion_detalle').delete().in('id', ids);
+  if (fx.liq) {
+    await sb.from('liquidaciones').delete().eq('id', fx.liq.id);
+    // el DELETE del header dispara trg_audit_liquidaciones: la auditoría se borra DESPUÉS
+    if (mutArg !== 'teardown_sin_auditoria') await sb.from('auditoria').delete().eq('registro_id', fx.liq.id);
+  }
+  if (fx.prof && mutArg !== 'teardown_sin_ficha') await sb.from('profesionales').delete().eq('id', fx.prof.id);
+  if (mutArg === 'teardown_ensucia_9999') {
+    const ajena = Object.keys(antes9999)[0];
+    if (ajena) await sb.from('liquidacion_detalle').update({ pagado_at: new Date().toISOString() }).eq('id', ajena);
+  }
+}
+async function quedoDelFixture() {
+  const [l, h, a, p] = await Promise.all([
+    fx.liq ? sb.from('liquidacion_detalle').select('id').eq('liquidacion_id', fx.liq.id) : { data: [] },
+    fx.liq ? sb.from('liquidaciones').select('id').eq('id', fx.liq.id) : { data: [] },
+    fx.liq ? sb.from('auditoria').select('id').eq('registro_id', fx.liq.id) : { data: [] },
+    fx.prof ? sb.from('profesionales').select('id').eq('id', fx.prof.id) : { data: [] },
+  ]);
+  return { lineas: l.data?.length ?? -1, header: h.data?.length ?? -1, auditoria: a.data?.length ?? -1, ficha: p.data?.length ?? -1 };
+}
+try {
+  const { data: prof, error: eP } = await sb.from('profesionales')
+    .insert({ club_id: CLUB_ID, tipo: 'ambos', apellido: 'PROBE', nombre: tag, activo: false, notas: `${tag} — fixture de tests/probe_pagos_rol_carrera.mjs, se borra solo` })
+    .select('id,apellido,nombre,tipo').single();
+  if (eP) throw eP; fx.prof = prof;
+  const { data: liq, error: eH } = await sb.from('liquidaciones')
+    .insert({ club_id: CLUB_ID, reunion_id: R9999, profesional_id: prof.id, estado: 'borrador' }).select('id').single();
+  if (eH) throw eH; fx.liq = liq;
+  const base = { liquidacion_id: liq.id, reunion_id: R9999, beneficiario_tipo: 'profesional', beneficiario_id: prof.id, estado_linea: 'impago', monto_descuento: 0 };
+  const { data: lineas, error: eD } = await sb.from('liquidacion_detalle').insert([
+    { ...base, concepto_tipo: 'premio', concepto: `Carrera ${nroDe(cA)} — 1° puesto`, descripcion: `Carrera ${nroDe(cA)} — 1° puesto — Entrenador (${tag})`, monto_bruto: 1000, posicion: 1, inscripcion_id: inscA.id, carrera_id: cA.id, orden_display: 1 },
+    { ...base, concepto_tipo: 'incentivo_jockey', concepto: 'Incentivo jockey', descripcion: `Incentivo jockey (${tag})`, monto_bruto: 600, orden_display: 2 },
+    { ...base, concepto_tipo: 'premio', concepto: `Carrera ${nroDe(cB)} — 2° puesto`, descripcion: `Carrera ${nroDe(cB)} — 2° puesto — Jockey (${tag})`, monto_bruto: 300, posicion: 2, inscripcion_id: null, carrera_id: cB.id, orden_display: 3 },
+  ]).select('id,concepto_tipo');
+  if (eD) throw eD; fx.lineas = lineas;
+
+  const profMap = { ...Object.fromEntries((await sb.from('profesionales').select('id,apellido,nombre,tipo,documento_nro').eq('club_id', CLUB_ID)).data.map(p => [p.id, p])), [prof.id]: prof };
+  // 1a — cobrosDetalle REAL
+  const { api, document } = await pantalla(profMap);
+  await api.cobrosDetalle('profesional', prof.id);
+  const filas = filasDetalle(document._n['cob-detalle'].innerHTML);
+  const f = k => filas.find(r => r.id === lineas[k].id);
+  ok(`1a) cobrosDetalle rinde las ${lineas.length} líneas del fixture`, filas.length === lineas.length && lineas.every((_, k) => f(k)), `${filas.length} filas`);
+  ok('1a) premio con inscripción → Rol "Entrenador", Carrera por la inscripción', f(0)?.rol === 'Entrenador' && f(0)?.carrera === `C${nroDe(cA)}`, JSON.stringify(f(0)));
+  ok('1a) incentivo de jockey por reunión → Rol "Jockey", Carrera "—"', f(1)?.rol === 'Jockey' && f(1)?.carrera === '—', JSON.stringify(f(1)));
+  ok('1a) premio sin inscripción → Rol "Jockey", Carrera por el respaldo carrera_id', f(2)?.rol === 'Jockey' && f(2)?.carrera === `C${nroDe(cB)}`, JSON.stringify(f(2)));
+  // 1c — cobrosBuscar REAL sobre la 9999: la tarjeta del multi-rol
+  const { api: api2, document: doc2 } = await pantalla(profMap);
+  await api2.cobrosBuscar();
+  const nombre = `${prof.apellido}, ${prof.nombre}`;
+  const tarj = [...doc2._n['cob-beneficiarios'].innerHTML.matchAll(/<div class="liq-prof">([^<]*)<\/div><div class="liq-recibo">([^<]*)<\/div>/g)]
+    .map(m => ({ nombre: unesc(m[1]), info: unesc(m[2]) })).find(t => t.nombre === nombre);
+  ok('1c) la tarjeta del beneficiario multi-rol muestra TODOS sus roles: "Entrenador / Jockey"', /^Entrenador \/ Jockey · 3 línea\(s\) pagable\(s\) · /.test(tarj?.info || ''), tarj?.info || 'sin tarjeta');
+  ok('1c) y sus carreras + el rótulo del incentivo por reunión', tarj?.info?.endsWith(`· ${[nroDe(cA), nroDe(cB)].sort((a, b) => a - b).map(n => `C${n}`).join(', ')} · + incentivo por reunión`), tarj?.info);
+} finally {
+  await teardown();
+  const quedo = await quedoDelFixture();
+  ok('restore: del fixture no queda nada (líneas, header, auditoría del header, ficha)', quedo.lineas === 0 && quedo.header === 0 && quedo.auditoria === 0 && quedo.ficha === 0, JSON.stringify(quedo));
+  const despues = await snapshotLineas(sb, R9999);
+  const arregladas = await restaurarLineas(sb, antes9999, despues);
+  const v = diffLineas(antes9999, await snapshotLineas(sb, R9999));
+  ok('restore: la 9999 quedó línea por línea como al arrancar (por estado)', diffLineas(antes9999, despues).limpio, describir(diffLineas(antes9999, despues)));
+  ok('restore: no hubo que restaurar ninguna línea ajena', arregladas === 0, `${arregladas} restauradas`);
+  // red de seguridad: pase lo que pase arriba (mutante incluido), no queda basura
+  if (fx.liq) { await sb.from('liquidacion_detalle').delete().eq('liquidacion_id', fx.liq.id); await sb.from('liquidaciones').delete().eq('id', fx.liq.id); await sb.from('auditoria').delete().eq('registro_id', fx.liq.id); }
+  if (fx.prof) await sb.from('profesionales').delete().eq('id', fx.prof.id);
+  const final = await quedoDelFixture();
+  console.log(`  [red de seguridad] fixture al final: ${JSON.stringify(final)} · 9999 ${v.limpio ? 'limpia' : describir(v)}`);
+  if (final.lineas || final.header || final.auditoria || final.ficha) { console.error('❌ QUEDÓ BASURA DEL FIXTURE EN PROD', JSON.stringify(final), JSON.stringify(fx)); process.exitCode = 3; }
+}
+
 
 // ── Reporte ────────────────────────────────────────────────────────────────
 console.log('\n=== probe_pagos_rol_carrera — rol y nº de carrera en el tab Pagos ===\n');
@@ -303,4 +510,4 @@ for (const g of gs.sort((a, b) => b.total - a.total).slice(0, 12))
 for (const g of multi)
   console.log(`    [multi-rol] ${etiquetaRoles(g)} · ${g.n} línea(s) · ${etiquetaCarreras(g)}`);
 console.log('');
-process.exit(fall ? 1 : 0);
+process.exit(fall ? 1 : (process.exitCode || 0));

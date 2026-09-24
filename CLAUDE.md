@@ -352,7 +352,7 @@ Después de fixear un bug, agregar o extender un probe en `tests/` que verifique
 
 ```bash
 set -a; . ./.env; set +a                  # exporta SUPABASE_SECRET_KEY
-node tests/probe_pagos_rol_carrera.mjs    # rol y nº de carrera en el tab Pagos (48 asserts)
+node tests/probe_pagos_rol_carrera.mjs    # rol y nº de carrera en el tab Pagos (51 asserts); 1a/1c por comportamiento con fixture multi-rol en la 9999 (ESCRIBE, restore por estado); --mutantes 6/6; sin baselines fijos (GOTCHA #100)
 node tests/probe_edad_reglamentaria.mjs   # la regla del 1° de julio en el gate de inscripción
 node tests/probe_no_largo.mjs             # "No corrió" persiste {posicion:null,no_largo:true}
 node tests/probe_reunion_es_prueba.mjs    # ISSUE-055: reuniones.es_prueba fuera del circuito de cobro
@@ -529,7 +529,7 @@ salidas de queries, `git status`, `git log`, los diffs, y cualquier cosa pedida 
     343 líneas, $22,3M) y es la mayoría de lo cobrado. Vale para queries, guards, asserts e informes.
     PostgREST: `.or('recibo_id.not.is.null,estado_linea.eq.pagado')`. Mordió dos veces (GOTCHAS #74, #88).
 
-Ver `docs/GOTCHAS.md` para la lista completa (99 entradas).
+Ver `docs/GOTCHAS.md` para la lista completa (100 entradas).
 
 ---
 
