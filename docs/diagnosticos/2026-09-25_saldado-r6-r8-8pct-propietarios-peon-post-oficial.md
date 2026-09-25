@@ -550,3 +550,18 @@ y `:333`: `const freshRows = detalleRows.filter(d => !paidKeys.has(lineKey(d)));
   leyeron de la rama `reports` **local**: no están en `origin/reports`, que se reescribió en la auditoría de PII.
 - Informe commiteado en el worktree sobre `origin/reports` (5200736) y pusheado como fast-forward. La rama
   `reports` local no se tocó.
+
+## Verificación del push (commit del informe)
+
+```
+$ git push origin HEAD:refs/heads/reports
+   5200736..f2fa6be  HEAD -> reports
+$ git rev-parse HEAD
+f2fa6be324a43d0cccaceb62c057fbd9b3a5c837
+$ git ls-remote origin reports
+f2fa6be324a43d0cccaceb62c057fbd9b3a5c837	refs/heads/reports
+$ curl -s -o /dev/null -w '%{http_code}' https://raw.githubusercontent.com/mdqclio/SGH/reports/docs/diagnosticos/2026-09-25_saldado-r6-r8-8pct-propietarios-peon-post-oficial.md
+200
+```
+Este bloque se agregó en un commit posterior ("verificación de push"), así que el SHA final de `reports` es
+el de ese commit, no `f2fa6be`.
