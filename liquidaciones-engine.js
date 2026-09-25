@@ -33,12 +33,43 @@
 
   // Clave estable de una línea para el dedup paid-safe. Debe identificar la MISMA línea
   // entre dos recálculos: beneficiario + concepto_tipo + caballo/puesto + texto del concepto
-  // (el concepto desambigua subs "Peón — X" y premio vs bono del mismo puesto).
+  // (el concepto desambigua premio vs bono del mismo puesto, y el rol de cada sub: "Peón",
+  // "Capataz", "Sereno"). El concepto de una sub es SÓLO el rol, sin el nombre: si llevara el
+  // nombre, cargarlo o cambiarlo después de pagada crearía otra línea con otra clave y el %
+  // se pagaría dos veces (ISSUE-092). El nombre viaja en la descripción.
   function lineKey(d) {
     return [d.beneficiario_tipo, d.beneficiario_id, d.concepto_tipo,
             d.inscripcion_id || '', d.posicion == null ? '' : d.posicion,
             d.concepto || ''].join('|');
   }
+
+  const r2 = (x) => Math.round((x + 1e-9) * 100) / 100;
+
+  // Montos por rol de UN caballo premiado, en centavos exactos (Fede/Valeria 25/09: el 100 %
+  // se reparte, y el recibo del entrenador es 10 % + peón 4 % + capataz 3 % + sereno 1 % = 18 %).
+  // Redondear cada línea por separado deja ±1 centavo por caballo (medido: 4 de 23 en R9). La
+  // regla de residuo lo absorbe SIN mover las líneas que ya existían (propietario, entrenador y
+  // jockey siguen siendo r2(P × %), idénticas a lo ya liquidado o cobrado):
+  //   · el sereno cierra el 18 %:   sereno = r2(P × 18 %) − entrenador − peón − capataz
+  //   · el fondo cierra el 100 %:   fondo  = r2(P) − propietario − jockey − r2(P × 18 %)
+  // Sin fondo (pct 0), el 100 % lo cierra el propietario.
+  // ═══ RESIDUO — INICIO (el probe extrae y muta este bloque por estas anclas) ═══
+  function montosReparto(premio, PCTS, fondoPct) {
+    const P = r2(premio);
+    const m = {
+      propietario: r2(premio * PCTS.propietario),
+      entrenador:  r2(premio * PCTS.entrenador),
+      jockey:      r2(premio * PCTS.jockey),
+      peon:        r2(premio * PCTS.peon),
+      capataz:     r2(premio * PCTS.capataz),
+    };
+    const e18 = r2(premio * (PCTS.entrenador + PCTS.peon + PCTS.capataz + PCTS.sereno));
+    m.sereno = r2(e18 - m.entrenador - m.peon - m.capataz);
+    if (fondoPct > 0) m.fondo = r2(P - m.propietario - m.jockey - e18);
+    else { m.fondo = 0; m.propietario = r2(P - m.jockey - e18); }
+    return m;
+  }
+  // ═══ RESIDUO — FIN ═══
 
   async function recomputeHeaderTotals(sb, liqId) {
     const { data: lines } = await sb.from('liquidacion_detalle')
@@ -65,6 +96,21 @@
     const fmt = opts.fmt || defaultFmt;
     if (!rid) return { created: 0, headers: 0, preserved: 0, error: 'sin reunión' };
 
+    // ── Reunión con la liquidación CERRADA (saldada): no se recalcula nada ──
+    // ISSUE-091: recalcular una reunión saldada generaba como nuevas —y cobrables— las líneas de
+    // todo lo que se completó después de liquidarla. El corte va ANTES de cualquier lectura de
+    // líneas y de cualquier escritura. La base lo sostiene aparte con un trigger sobre
+    // liquidacion_detalle/liquidaciones (migrations/reunion_liquidacion_cerrada.sql), así que
+    // esto es la primera capa, no la única. select('*'): la columna puede no existir todavía.
+    // ═══ CIERRE — INICIO (el probe muta este bloque por estas anclas) ═══
+    const { data: reunionRow, error: reunionErr } = await sb.from('reuniones').select('*').eq('id', rid).single();
+    if (reunionErr) return { created: 0, headers: 0, preserved: 0, error: `no se pudo leer la reunión (${reunionErr.message})` };
+    if (reunionRow?.liquidacion_cerrada_at) {
+      return { created: 0, headers: 0, preserved: 0, cerrada: true,
+               error: 'la liquidación de esta reunión está cerrada (saldada): no se recalcula' };
+    }
+    // ═══ CIERRE — FIN ═══
+
     // Config de reparto (la pasa la página; si no, la carga el motor).
     let liqConfig = opts.liqConfig;
     if (!liqConfig) {
@@ -75,11 +121,10 @@
     if (!liqConfig) return { created: 0, headers: 0, preserved: 0, error: 'sin liquidacion_config' };
 
     // ── Cargar datos de la reunión ───────────────────────────────────────
-    const [{ data: cars }, comCfgRes, { data: reunionRow }] = await Promise.all([
+    const [{ data: cars }, comCfgRes] = await Promise.all([
       sb.from('carreras').select('id,numero_turno,numero_carrera_programa,bolsa_total,distribucion_premios').eq('reunion_id', rid),
       opts.comCfg ? Promise.resolve({ data: opts.comCfg })
                   : sb.from('comision_config').select('*').eq('club_id', clubId).eq('activo', true),
-      sb.from('reuniones').select('fecha').eq('id', rid).single(),
     ]);
     const comCfg = comCfgRes.data || [];
     const carIds = (cars || []).map(c => c.id);
@@ -181,29 +226,36 @@
           const insc = (inscs || []).find(i => i.id === pos.inscripcion_id);
           if (!insc) continue;
           if (premioEfectivo > 0) {
+            const m = montosReparto(premioEfectivo, PCTS, fondoPct);
+            // Peón / capataz / sereno se generan SIEMPRE (Fede/Valeria 25/09): con el nombre si
+            // está cargado en la inscripción y "sin nombre" si no. Antes sólo nacían con nombre, y
+            // como nadie lo carga el reparto quedaba en 92 %. Van colgadas del entrenador: se
+            // pagan en su recibo, discriminadas. Un % en 0 en la config no genera línea.
+            // ═══ SUBS — INICIO (el probe muta este bloque por estas anclas) ═══
             const subs = [
-              { nombre: insc.peon,    rol: 'Peón',    pct: PCTS.peon },
-              { nombre: insc.capataz, rol: 'Capataz', pct: PCTS.capataz },
-              { nombre: insc.sereno,  rol: 'Sereno',  pct: PCTS.sereno },
-            ].filter(s => s.nombre && s.nombre.trim());
+              { nombre: insc.peon,    rol: 'Peón',    pct: PCTS.peon,    monto: m.peon },
+              { nombre: insc.capataz, rol: 'Capataz', pct: PCTS.capataz, monto: m.capataz },
+              { nombre: insc.sereno,  rol: 'Sereno',  pct: PCTS.sereno,  monto: m.sereno },
+            ].filter(s => s.pct > 0).map(s => ({ ...s, nombre: (s.nombre || '').trim() || null }));
+            // ═══ SUBS — FIN ═══
             addActor(insc.propietario_id, 'propietario', {
-              premio: premioEfectivo, pct: PCTS.propietario, subs: [], conceptoTipo: 'premio',
+              premio: premioEfectivo, pct: PCTS.propietario, monto: m.propietario, subs: [], conceptoTipo: 'premio',
               concepto: conceptoBase, descripcion: `${conceptoBase} — Propietario (bolsa: ${bolsaFmt})`,
               posicion: posNum, inscripcion_id: insc.id, carrera_id: car.id,
             });
             addActor(insc.entrenador_id, 'entrenador', {
-              premio: premioEfectivo, pct: PCTS.entrenador, subs, conceptoTipo: 'premio',
+              premio: premioEfectivo, pct: PCTS.entrenador, monto: m.entrenador, subs, conceptoTipo: 'premio',
               concepto: conceptoBase, descripcion: `${conceptoBase} — Entrenador (bolsa: ${bolsaFmt})`,
               posicion: posNum, inscripcion_id: insc.id, carrera_id: car.id,
             });
             addActor(insc.jockey_titular_id, 'jockey', {
-              premio: premioEfectivo, pct: PCTS.jockey, subs: [], conceptoTipo: 'premio',
+              premio: premioEfectivo, pct: PCTS.jockey, monto: m.jockey, subs: [], conceptoTipo: 'premio',
               concepto: conceptoBase, descripcion: `${conceptoBase} — Jockey (bolsa: ${bolsaFmt})`,
               posicion: posNum, inscripcion_id: insc.id, carrera_id: car.id,
             });
             if (fondoPct > 0) {
               addActor(clubId, 'club', {
-                premio: premioEfectivo, pct: fondoPct / 100, subs: [], conceptoTipo: 'fondo_solidario',
+                premio: premioEfectivo, pct: fondoPct / 100, monto: m.fondo, subs: [], conceptoTipo: 'fondo_solidario',
                 concepto: `${conceptoBase} — Fondo solidario`,
                 descripcion: `Fondo solidario ${fondoPct}% (premio: ${bolsaFmt})`,
                 posicion: posNum, inscripcion_id: insc.id, carrera_id: car.id,
@@ -301,7 +353,9 @@
                   : 'profesional';
       const detalleRows = [];
       for (const item of actorData.items) {
-        const bruto = item.premio * item.pct;
+        // Premio y fondo traen el monto ya repartido en centavos (montosReparto); bono e
+        // incentivos, no (100 % de un monto entero).
+        const bruto = item.monto != null ? item.monto : item.premio * item.pct;
         const aplicaDesc = item.conceptoTipo === 'premio';
         const desc = aplicaDesc ? bruto * descPct / 100 : 0;
         const retenido = item.conceptoTipo === 'premio' && (item.posicion === 1 || item.posicion === 2);
@@ -315,11 +369,13 @@
           fecha_liberacion: retenido ? fechaLiberacion : null,
         });
         for (const sub of (item.subs || [])) {
-          const sb2 = item.premio * sub.pct;
+          const sb2 = sub.monto != null ? sub.monto : item.premio * sub.pct;
           const sd2 = sb2 * descPct / 100;
           detalleRows.push({
-            concepto: `${sub.rol} — ${sub.nombre}`,
-            descripcion: `${item.concepto} — A redistribuir (${Math.round(sub.pct * 100)}%)`,
+            // ═══ CONCEPTO SUB — INICIO (el probe muta esta línea por estas anclas) ═══
+            concepto: sub.rol,
+            // ═══ CONCEPTO SUB — FIN ═══
+            descripcion: `${item.concepto} — ${sub.rol}: ${sub.nombre || '(sin nombre cargado)'} — A redistribuir (${Math.round(sub.pct * 100)}%)`,
             monto_bruto: sb2, porcentaje_desc: descPct || null, monto_descuento: sd2,
             concepto_tipo: 'actuacion', posicion: item.posicion,
             inscripcion_id: item.inscripcion_id, carrera_id: item.carrera_id ?? null,

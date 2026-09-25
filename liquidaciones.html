@@ -203,6 +203,8 @@
       .recibo-table th { background: #f0f0f0; }
       .recibo-total { font-weight: 700; font-size: 13px; text-align: right; margin-top: 8px; }
       .recibo-total p { margin: 1px 0; }
+      .recibo-subtotales { font-size: 11px; text-align: right; margin-top: 6px; }
+      .recibo-subtotales p { margin: 1px 0; }
       .recibo-cobrador { font-size: 12px; margin-top: 10px; }
       .recibo-cobrador p { margin: 2px 0; }
       .recibo-firma { display: flex; justify-content: center; gap: 30px; text-align: center; font-size: 11px; margin-top: 24px; }
@@ -259,7 +261,8 @@
       <option value="pagada">Pagada</option>
       <option value="anulada">Anulada</option>
     </select>
-    <button class="btn-primary" onclick="generarLiquidaciones()" title="Recalcula la reunión desde los resultados oficiales. Paid-safe: preserva lo ya pagado.">🔄 Recalcular reunión</button>
+    <button class="btn-primary" id="btn-recalcular" onclick="generarLiquidaciones()" title="Recalcula la reunión desde los resultados oficiales. Paid-safe: preserva lo ya pagado.">🔄 Recalcular reunión</button>
+    <span id="liq-cerrada-badge" class="badge" style="display:none;margin-left:8px;" title="">🔒 Liquidación cerrada</span>
   </div>
   <div class="content">
     <div id="liq-container">
@@ -700,10 +703,34 @@ async function loadLiquidaciones() {
   if (rid) q = q.eq('reunion_id', rid);
   if (estado) q = q.eq('estado', estado);
   q = q.order('created_at', {ascending:false});
-  const { data, error } = await q;
+  const [{ data, error }] = await Promise.all([q, liqPintarCierre(rid)]);
   if (error) { toast(error.message,'error'); return; }
   liquidaciones = data||[];
   renderLiquidaciones();
+}
+
+// ISSUE-091 — reunión con la liquidación CERRADA (saldada): el botón Recalcular se deshabilita y
+// se muestra el candado con la nota del cierre. El motor y la base lo rechazan igual; esto es para
+// que nadie apriete un botón que no va a hacer nada. select('*'): la columna puede no existir todavía.
+async function liqPintarCierre(rid) {
+  const btn = document.getElementById('btn-recalcular');
+  const badge = document.getElementById('liq-cerrada-badge');
+  let cerrada = null;
+  if (rid) {
+    const { data: reu, error } = await sb.from('reuniones').select('*').eq('id', rid).maybeSingle();
+    if (error) console.error('[liqPintarCierre]', error);
+    if (reu?.liquidacion_cerrada_at) cerrada = reu;
+  }
+  if (btn) {
+    btn.disabled = !!cerrada;
+    btn.title = cerrada
+      ? 'La liquidación de esta reunión está cerrada (saldada): no se recalcula.'
+      : 'Recalcula la reunión desde los resultados oficiales. Paid-safe: preserva lo ya pagado.';
+  }
+  if (badge) {
+    badge.style.display = cerrada ? '' : 'none';
+    badge.title = cerrada ? (cerrada.liquidacion_cerrada_nota || '') : '';
+  }
 }
 
 // ═══════════ ISSUE-067 · no borrar liquidaciones con plata ya cobrada ═══════════
@@ -981,6 +1008,7 @@ async function loadResumen(){
 // ════════════ COBROS (Fase 4) — buscador + emisión de recibo ════════════
 // PAGOS — Pagable = estado_linea='impago' (la retención se libera A MANO con liberar_linea).
 let cobLineas = [];        // líneas pagables del beneficiario seleccionado
+let cobRetLineas = [];     // líneas retenidas del beneficiario seleccionado (para "Habilitar caballo")
 let cobBenef = null;       // {tipo, id, nombre}
 let cobApoderados = [];    // apoderados vigentes del beneficiario abierto (alimenta el select de cobrador)
 let cobEmitirIds = [];     // líneas tildadas al abrir el modal de cobrador
@@ -1368,7 +1396,7 @@ function cobHtmlVistaCarrera(bloques, retenidas){
   const puesto = i => !i ? 'Sin inscripción' : i.posicion != null ? `${i.posicion}°` : (i.no_largo ? 'NL' : '—');
   const rotuloLinea = l => l.concepto_tipo === 'incentivo_jockey'
     ? `${escapeHtml(l.concepto || 'Incentivo jockey')} <span class="cob-por-reunion">· Incentivo por reunión — se paga una sola vez</span>`
-    : escapeHtml(l.concepto || l.descripcion || l.concepto_tipo || '');
+    : escapeHtml((l.concepto_tipo === 'actuacion' ? conceptoDeLinea(l) : l.concepto) || l.descripcion || l.concepto_tipo || '');
   const ret = b => (b.insc && retenidas[b.insc.id]) || 0;
   return `<div class="liq-grid cob-vista">${bloques.map(b => `<div class="liq-card cob-caballo${b.n ? '' : ' cob-caballo-vacio'}">
     <div class="liq-header">
@@ -1702,13 +1730,24 @@ async function cobrosDetalle(tipo, id, opts = {}){
   cobFiltro = (filtroPrevio !== 'todo' && gruposPresentes.has(filtroPrevio)) ? filtroPrevio : 'todo';
   const total = cobLineas.reduce((s,l)=>s+(parseFloat(l.monto_neto)||0),0);
   const rows = cobLineas.map(l=>`<tr class="cob-row" data-grupo="${grupoDeTipo(l.concepto_tipo)}"><td><input type="checkbox" class="cob-chk" value="${l.id}" data-monto="${l.monto_neto}"${cobChecked(l, selPrevia, idsPrevios, cobFiltro) ? ' checked' : ''} onchange="cobrosRecalc()"></td>
-      <td>${cellFecha(l)}</td><td>${cellCarrera(l)}</td><td>${cellCaballo(l)}</td><td>${l.posicion?l.posicion+'°':'—'}</td><td>${rolDeLinea(l)||'—'}</td><td>${l.concepto||''}</td>
+      <td>${cellFecha(l)}</td><td>${cellCarrera(l)}</td><td>${escapeHtml(cellCaballo(l))}</td><td>${l.posicion?l.posicion+'°':'—'}</td><td>${rolDeLinea(l)||'—'}</td><td>${escapeHtml(conceptoDeLinea(l))}</td>
       <td style="text-align:right">${fmt(l.monto_neto)}</td></tr>`).join('');
-  const retRows = retLineas.map(l=>`<tr>
-      <td>${cellFecha(l)}</td><td>${cellCarrera(l)}</td><td>${cellCaballo(l)}</td><td>${l.posicion?l.posicion+'°':'—'}</td><td>${rolDeLinea(l)||'—'}</td><td>${l.concepto||''}</td>
+  // "Habilitar caballo": el premio del entrenador de 1°/2° viene con 3 sub-líneas retenidas
+  // (peón/capataz/sereno). Van al mismo recibo, así que se liberan juntas con un solo click
+  // en la primera fila de cada caballo que tenga más de una retenida.
+  cobRetLineas = retLineas;
+  const retPorInsc = {}; retLineas.forEach(l => { if (l.inscripcion_id) retPorInsc[l.inscripcion_id] = (retPorInsc[l.inscripcion_id]||0) + 1; });
+  const retPrimera = new Set();
+  const retRows = retLineas.map(l=>{
+    const n = l.inscripcion_id ? retPorInsc[l.inscripcion_id] : 0;
+    const btnCaballo = n > 1 && !retPrimera.has(l.inscripcion_id)
+      ? (retPrimera.add(l.inscripcion_id), ` <button class="btn-sm btn-aprobar" onclick="habilitarCaballo('${l.inscripcion_id}','${tipo}','${id}')">✅ Habilitar caballo (${n})</button>`)
+      : '';
+    return `<tr>
+      <td>${cellFecha(l)}</td><td>${cellCarrera(l)}</td><td>${escapeHtml(cellCaballo(l))}</td><td>${l.posicion?l.posicion+'°':'—'}</td><td>${rolDeLinea(l)||'—'}</td><td>${escapeHtml(conceptoDeLinea(l))}</td>
       <td style="text-align:right">${fmt(l.monto_neto)}</td>
       <td style="font-size:11px;color:var(--muted)">ref. ${l.fecha_liberacion||'—'}</td>
-      <td><button class="btn-sm btn-aprobar" onclick="habilitarLinea('${l.id}','${tipo}','${id}')">✅ Habilitar</button></td></tr>`).join('');
+      <td><button class="btn-sm btn-aprobar" onclick="habilitarLinea('${l.id}','${tipo}','${id}')">✅ Habilitar</button>${btnCaballo}</td></tr>`;}).join('');
   // ISSUE-028 v1.1 — bloque read-only de autorizados a cobrar (sin botones; el alta/baja vive en propietarios/profesionales).
   const apoBlock = apoderados.length
     ? `<div class="config-card" style="margin:6px 0 14px;border:1px solid var(--accent);background:rgba(201,168,76,0.07);">
@@ -1749,6 +1788,23 @@ function cobrosRecalc(){
   if (el) el.textContent = fmt(t);
   cobrosRenderAvisoOculto();
 }
+// Habilitar TODAS las retenidas de un caballo (entrenador + peón/capataz/sereno) de una vez.
+// Una llamada a liberar_linea por línea (la RPC es por línea y tiene sus guards); si una falla,
+// se corta y se dice cuántas quedaron habilitadas.
+async function habilitarCaballo(inscId, tipo, id){
+  const ls = cobRetLineas.filter(l => l.inscripcion_id === inscId);
+  if (!ls.length) return;
+  if (!confirm(`¿Habilitar las ${ls.length} líneas retenidas por doping de este caballo? Pasan a pagables.`)) return;
+  let ok = 0;
+  for (const l of ls) {
+    const { error } = await sb.rpc('liberar_linea', { p_linea_id: l.id });
+    if (error) { toast(`Se habilitaron ${ok} de ${ls.length}: ${error.message}`, 'error', 9000); break; }
+    ok++;
+  }
+  await cobrosDetalle(tipo, id, { preservar: true });
+  if (ok === ls.length) toast(`${ok} líneas habilitadas`);
+}
+
 // Habilitar (liberar) una línea retenida por doping → pasa a impago (pagable). Liberación MANUAL.
 async function habilitarLinea(lineaId, tipo, id){
   if (!confirm('¿Habilitar esta línea retenida por doping? Pasa a pagable.')) return;
@@ -1985,12 +2041,33 @@ async function cobrosAnularConfirmar(){
 // entrenador imprimen el mismo texto (mismo caballo, mismo puesto) y no se distinguen.
 const ROL_POR_BENEFICIARIO = { propietario:'Propietario', profesional:'Profesional', club:'Club' };
 function rolDeLinea(l){
+  if (l.concepto_tipo === 'actuacion') return subRolDeLinea(l).rol;
   if (l.concepto_tipo === 'bono') return 'Propietario';
   if (l.concepto_tipo === 'incentivo_entrenador') return 'Entrenador';
   if (l.concepto_tipo === 'incentivo_jockey') return 'Jockey';
   const m = /—\s*(Propietario|Entrenador|Jockey)\b/.exec(l.descripcion || '');
   if (m) return m[1];
   return ROL_POR_BENEFICIARIO[l.beneficiario_tipo] || '';
+}
+
+// Peón / capataz / sereno (concepto_tipo 'actuacion'). Se pagan en el recibo del ENTRENADOR
+// (beneficiario_id = el entrenador), discriminados (Fede/Valeria 25/09). Formato vigente del
+// motor: concepto = 'Peón' y el nombre en la descripción ("… — Peón: <nombre> — A redistribuir
+// (4%)", o "(sin nombre cargado)"). Formato viejo (hasta 25/09, sólo en la 9999): concepto =
+// 'Peón — <nombre>'. Se leen los dos.
+function subRolDeLinea(l){
+  const c = String(l.concepto || '');
+  const rol = (/^(Peón|Capataz|Sereno)\b/.exec(c) || [])[1] || 'Personal';
+  let nombre = (/—\s*(?:Peón|Capataz|Sereno):\s*(.+?)\s*—\s*A redistribuir/.exec(l.descripcion || '') || [])[1] || null;
+  if (!nombre) nombre = (/^(?:Peón|Capataz|Sereno)\s*—\s*(.+)$/.exec(c) || [])[1] || null;
+  if (nombre && /^\(sin nombre/.test(nombre)) nombre = null;
+  return { rol, nombre: nombre ? nombre.trim() : null };
+}
+// Texto de la columna Concepto (sin escapar: escapar al usarlo).
+function conceptoDeLinea(l){
+  if (l.concepto_tipo !== 'actuacion') return l.concepto || '';
+  const { rol, nombre } = subRolDeLinea(l);
+  return `${rol} — ${nombre || '(sin nombre)'}`;
 }
 
 // ═══════════ HISTORIAL DE RECIBOS (opción B de ISSUE-056) — ANCLAS DEL PROBE ═══════════
@@ -2243,7 +2320,7 @@ async function recibosDetalle(reciboId){
       <table class="detalle-table"><thead><tr><th>Fecha</th><th>Carrera</th><th>Caballo</th><th>Puesto</th><th>Rol</th><th>Concepto</th><th style="text-align:right">Neto</th></tr></thead>
         <tbody>${lineas.map(l=>`<tr class="rec-linea" data-linea="${l.id}">
           <td>${cellFecha(l)}</td><td>${cellCarrera(l)}</td><td>${cellCaballo(l)}</td>
-          <td>${l.posicion?l.posicion+'°':'—'}</td><td>${rolDeLinea(l)||'—'}</td><td>${escapeHtml(l.concepto||'')}</td>
+          <td>${l.posicion?l.posicion+'°':'—'}</td><td>${rolDeLinea(l)||'—'}</td><td>${escapeHtml(conceptoDeLinea(l))}</td>
           <td style="text-align:right">${fmt(l.monto_neto)}</td></tr>`).join('')
           || '<tr><td colspan="7" style="text-align:center;padding:14px;color:var(--muted)">Sin líneas registradas</td></tr>'}</tbody>
         <tfoot><tr><td colspan="6">TOTAL DE LAS LÍNEAS</td><td style="text-align:right;color:var(--success)" id="rec-total">${fmt(suma)}</td></tr>
@@ -2296,7 +2373,9 @@ async function imprimirReciboCobro(recibo, lineaIds, opts){
   ]);
   const reunMap=Object.fromEntries((reuns||[]).map(r=>[r.id,r])); const inscMap=Object.fromEntries((inscs||[]).map(i=>[i.id,i]));
   const carrMap=Object.fromEntries((carrs||[]).map(c=>[c.id,c]));
-  const rolesLineas=[...new Set((lns||[]).map(rolDeLinea).filter(Boolean))];
+  // Peón/capataz/sereno no son roles del titular: van en su recibo como personal a su cargo.
+  const hayPersonal=(lns||[]).some(l=>l.concepto_tipo==='actuacion');
+  const rolesLineas=[...new Set((lns||[]).filter(l=>l.concepto_tipo!=='actuacion').map(rolDeLinea).filter(Boolean))];
   const rows=(lns||[]).map(l=>{const r=reunMap[l.reunion_id];const ins=inscMap[l.inscripcion_id];
     const fecha=r?new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR'):'—';
     const d=carrMap[l.carrera_id];
@@ -2304,7 +2383,13 @@ async function imprimirReciboCobro(recibo, lineaIds, opts){
                 ?? d?.numero_carrera_programa ?? d?.numero_turno;
     const carrera=nroCarr!=null?`C${nroCarr}`:'—'; const caballo=ins?.spcs?.nombre||'—';
     const puesto=l.posicion?`${l.posicion}°`:'—';
-    return `<tr><td>${fecha}</td><td>${carrera}</td><td>${caballo}</td><td>${puesto}</td><td>${rolDeLinea(l)||'—'}</td><td>${l.concepto||''}</td><td style="text-align:right">${fmt(l.monto_neto)}</td></tr>`;}).join('');
+    return `<tr><td>${fecha}</td><td>${carrera}</td><td>${escapeHtml(caballo)}</td><td>${puesto}</td><td>${rolDeLinea(l)||'—'}</td><td>${escapeHtml(conceptoDeLinea(l))}</td><td style="text-align:right">${fmt(l.monto_neto)}</td></tr>`;}).join('');
+  // Discriminado del entrenador (25/09): su premio y el del personal de caballeriza, por separado.
+  const sumaDe=f=>(lns||[]).filter(f).reduce((a,l)=>a+(parseFloat(l.monto_neto)||0),0);
+  const subtotalPersonal = hayPersonal ? `<div class="recibo-subtotales">
+      <p>Premio entrenador: ${fmt(sumaDe(l=>l.concepto_tipo==='premio' && rolDeLinea(l)==='Entrenador'))}</p>
+      <p>Personal de caballeriza (peón / capataz / sereno): ${fmt(sumaDe(l=>l.concepto_tipo==='actuacion'))}</p>
+    </div>` : '';
   // Fetch del club con logo_url (el global `club` puede no tenerlo en el flujo de Pagos).
   const { data: cl } = await sb.from('clubs').select('nombre,domicilio,localidad,provincia,logo_url').eq('id', CLUB_ID).single();
   // Pie: quién retira + firma. Los datos salen del recibo recién creado (RETURNING del RPC),
@@ -2345,12 +2430,13 @@ async function imprimirReciboCobro(recibo, lineaIds, opts){
       <h3>RECIBO DE PAGO N° ${recibo.numero_recibo}</h3>
       <p>Fecha: ${new Date().toLocaleDateString('es-AR')}</p>
     </div>
-    <p class="recibo-benef"><strong>A nombre de:</strong> ${cobBenef?.nombre||'—'}${rolesLineas.length?` — <strong>${rolesLineas.join(' / ')}</strong>`:''}</p>
+    <p class="recibo-benef"><strong>A nombre de:</strong> ${escapeHtml(cobBenef?.nombre||'—')}${rolesLineas.length?` — <strong>${rolesLineas.join(' / ')}</strong>`:''}${hayPersonal?' (incluye personal de caballeriza)':''}</p>
     <table class="recibo-table">
       <thead><tr><th>Fecha</th><th>Carrera</th><th>Caballo</th><th>Puesto</th><th>Rol</th><th>Concepto</th><th>Neto</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     <div class="recibo-pie">
+      ${subtotalPersonal}
       <div class="recibo-total">
         <p>Total premios: ${fmt(recibo.total_premios)}</p>
         <p>Descuentos: -${fmt(recibo.total_descuentos)}</p>
@@ -2375,6 +2461,7 @@ async function generarLiquidaciones() {
   if (!rid) { toast('Seleccionar una reunión para recalcular', 'error'); return; }
   if (!confirm('¿Recalcular las liquidaciones de esta reunión?\nSe preservan las líneas ya pagadas (con recibo) y se recalcula el resto desde los resultados oficiales.')) return;
   const r = await generarLiquidacionesReunion({ sb, clubId: CLUB_ID, reunionId: rid, liqConfig, fmt });
+  if (r.cerrada) { toast('La liquidación de esta reunión está cerrada (saldada): no se recalculó nada.', 'error', 9000); liqPintarCierre(rid); return; }
   if (r.error) { toast(r.error, 'error'); return; }
   toast(`Reunión recalculada — ${r.headers} liquidación(es)` + (r.preserved ? ` · ${r.preserved} línea(s) pagada(s) preservada(s)` : ''));
   loadLiquidaciones();

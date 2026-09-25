@@ -91,7 +91,8 @@ const nodos = {};
 const document = { getElementById: id => (nodos[id] ||= { innerHTML: '' }) };
 const src = [
   SRC.slice(SRC.indexOf('const ROL_POR_BENEFICIARIO'), SRC.indexOf('\n', SRC.indexOf('const ROL_POR_BENEFICIARIO'))),
-  extractFn(SRC, 'function rolDeLinea(l)'), extractFn(SRC, 'function escapeHtml(s)'),
+  extractFn(SRC, 'function rolDeLinea(l)'), extractFn(SRC, 'function subRolDeLinea(l)'), extractFn(SRC, 'function conceptoDeLinea(l)'),
+  extractFn(SRC, 'function escapeHtml(s)'),
   extractFn(SRC, 'async function imprimirReciboCobro(recibo, lineaIds, opts)'),
 ].join('\n\n');
 const fmt = n => '$' + (Math.round((parseFloat(n) || 0) * 100) / 100).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

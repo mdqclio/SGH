@@ -137,7 +137,8 @@ const { data: lns } = await sb.from('liquidacion_detalle').select('id').eq('reci
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 const nodos = {}; const document = { getElementById: id => (nodos[id] ||= { innerHTML: '' }) };
 const src = [SRC.slice(SRC.indexOf('const ROL_POR_BENEFICIARIO'), SRC.indexOf('\n', SRC.indexOf('const ROL_POR_BENEFICIARIO'))),
-  extractFn(SRC, 'function rolDeLinea(l)'), extractFn(SRC, 'function escapeHtml(s)'), extractFn(SRC, 'async function imprimirReciboCobro(recibo, lineaIds, opts)')].join('\n\n');
+  extractFn(SRC, 'function rolDeLinea(l)'), extractFn(SRC, 'function subRolDeLinea(l)'), extractFn(SRC, 'function conceptoDeLinea(l)'),
+  extractFn(SRC, 'function escapeHtml(s)'), extractFn(SRC, 'async function imprimirReciboCobro(recibo, lineaIds, opts)')].join('\n\n');
 let printed = 0;
 await new AsyncFunction('sb', 'CLUB_ID', 'document', 'window', 'fmt', 'cobBenef', 'precargarLogo', 'recibo', 'lineaIds',
   `${src}\n await imprimirReciboCobro(recibo, lineaIds, {});`)(sb, CLUB_ID, document, { print: () => { printed++; } }, n => '$' + Number(n).toFixed(2), cobBenef, async () => {}, reciboRow, (lns || []).map(l => l.id));
