@@ -1,5 +1,42 @@
 # Changelog
 
+## [2026-09-25] — Reparto al 100 %: peón/capataz/sereno siempre (recibo del entrenador 18 %) + reuniones con la liquidación cerrada (PR, **sin aplicar**)
+
+> Definición de Fede y Valeria (audios 25/09 11:48): peón 4 %, capataz 3 % y sereno 1 % se pagan **con el entrenador,
+> en su mismo recibo**, discriminados en el detalle. Hasta hoy el motor sólo generaba esas líneas si el nombre estaba
+> cargado, y nadie lo carga: el reparto quedaba en 92 %. Plan y números en `reports`:
+> `docs/diagnosticos/2026-09-25_plan-reparto-100-subroles-fase1.md`. PR #17.
+> **Estado al 25/09:** paso 1 hecho — migración **aplicada** (`20260925163044`), md5 de las 3 funciones verificado, R6/R8
+> cerradas (16:30:44 UTC), R9 abierta, INSERT en R6 por la API → P0091. Paso 2 (motor y UI) con el merge del PR. **Paso 3
+> (recálculo de R9) NO corrido: espera la ventana de Valeria.**
+
+- **Motor** (`liquidaciones-engine.js`): las tres sub-líneas nacen **siempre**, con el nombre o "(sin nombre cargado)".
+  `concepto` = el rol y el nombre en la descripción (clave de dedup estable: cierra ISSUE-092). **Regla de residuo** por
+  caballo (`montosReparto`): propietario, entrenador y jockey siguen siendo `r2(P × %)`, idénticos a lo ya liquidado; el
+  sereno cierra el 18 % y el fondo cierra el 100 %, al centavo. **Corte en reunión cerrada** (ISSUE-091).
+- **Base** (`migrations/reunion_liquidacion_cerrada.sql`, NO aplicada): `reuniones.liquidacion_cerrada_at/_nota` +
+  triggers que rechazan escribir líneas o headers de una reunión cerrada (salvo service_role o migración) y que sólo
+  dejan cerrar o reabrir a super_admin. En la misma transacción se cierran **R6 y R8 TAL COMO ESTÁN**, sin el 8 % y sin
+  las líneas de ISSUE-091. **No es la decisión final sobre esa plata: quedan congeladas hasta que Fede conteste.**
+  Rollback: `migrations/rollback_reunion_liquidacion_cerrada.sql`.
+- **R9 queda abierta.** Al recalcularla nacen **69** sub-líneas (23 caballos × 3), $564.096,66: 30 retenidas (1°/2°), 12
+  impagas que van en el mismo recibo que el 10 % del entrenador y **27 de 9 caballos cuyos entrenadores ya cobraron**
+  (recibos 35, 37, 40, 45, 46, 48, 56, 61). Esas 27 quedan impagas y se pagan con un **recibo complementario**; los
+  recibos emitidos no se tocan. El recálculo lo hace `tests/recalculo_r9_subroles.mjs`: plan en seco, copia de las
+  147 líneas, verificación por md5 y rollback. No se corre sin ventana confirmada (Valeria fuera de Pagos).
+- **`resultados.html`**: GATE ENTRENADORES en `oficializar()`, igual que el de montas. Sin entrenador, el motor perdía en
+  silencio el 10 % + el 8 % + el incentivo. Mensajes claros cuando la reunión está cerrada. Des-oficializar bloqueado en
+  reunión cerrada.
+- **`liquidaciones.html`**: Recalcular deshabilitado con 🔒 en reunión cerrada. Peón/capataz/sereno discriminados en el
+  recibo, en Pagos (detalle, retenidas, vista por carrera) y en el historial: Rol = el sub-rol, Concepto = "Peón —
+  nombre" o "(sin nombre)". El recibo lleva subtotales "Premio entrenador" / "Personal de caballeriza" y
+  "(incluye personal de caballeriza)". **"✅ Habilitar caballo"** libera juntas las retenidas de un caballo. Se escapa
+  el concepto.
+- **Tests**: `tests/probe_reparto_100.mjs` (nuevo): sintético en memoria + pantallas + prod sólo lectura (R9: 69 nuevas,
+  23 caballos al 100 % y al 18 % exactos, md5 sin cambios) + triggers en el sandbox. **41/41, 5/5 mutantes.**
+  `tests/lib/motor_dryrun.mjs` (nuevo): motor real en seco. `probe_recibo_una_hoja` y `render_recibo_pdf` extraen los
+  helpers nuevos (19/19, 8/8 mutantes).
+
 ## [2026-09-24] — Pagos, vista por carrera: el incentivo de jockey una sola vez + lo pagado a la vista
 
 > Sólo presentación (`liquidaciones.html`, bloque VISTA POR CARRERA). No se tocó el motor, `emitir_recibo` ni

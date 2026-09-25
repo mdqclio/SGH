@@ -1640,6 +1640,21 @@ async function oficializar(carreraId) {
     return;
   }
   // ═══ GATE MONTAS — FIN ═══
+  // ═══ GATE ENTRENADORES — INICIO (el probe extrae este bloque por estas anclas) ═══
+  // Sin entrenador no se oficializa, por la misma razón que sin jockey: el motor descarta en
+  // SILENCIO todo lo que cuelga del entrenador (addActor: `if (!id) return;`) — su 10 %, el 8 %
+  // de peón/capataz/sereno (4+3+1, que se pagan en su recibo) y su incentivo por caballo corrido.
+  // Decisión del 25/09 (opción a). En Resultados no se edita el entrenador: se carga en
+  // Inscripciones, así que el aviso no ofrece abrir nada.
+  const faltanEntrenadores = entrenadoresFaltantes(carreraId);
+  if (faltanEntrenadores.length) {
+    const lista = faltanEntrenadores.map(n => `  • ${n}`).join('\n');
+    alert(`No se puede oficializar: ${faltanEntrenadores.length} caballo(s) que largaron no tienen entrenador cargado.\n\n${lista}\n\n`
+        + `Sin entrenador, la liquidación no genera el premio del entrenador ni el de peón/capataz/sereno, y no avisa.\n\n`
+        + `Cargalo en Inscripciones y volvé a oficializar.`);
+    return;
+  }
+  // ═══ GATE ENTRENADORES — FIN ═══
   if (!confirm('¿Hacer oficial el resultado y generar su liquidación?\nEs reversible: se puede des-oficializar mientras no haya pagos emitidos.')) return;
   await aplicar(carreraId, 'oficial');
   const res = resultados[carreraId];
@@ -1668,7 +1683,8 @@ async function oficializar(carreraId) {
   }
   // Generar/recalcular la liquidación de la reunión (incluye la carrera recién oficializada).
   const r = await generarLiquidacionesReunion({ sb, clubId: CLUB_ID, reunionId: rid });
-  if (r.error) toast(`Resultado oficial, pero la liquidación no se generó (${r.error}). Usá "Recalcular reunión".`, 'error');
+  if (r.cerrada) toast('✅ Resultado oficial. La liquidación de esta reunión está CERRADA (saldada): no se generó ni se tocó ninguna línea.', 'warning', 9000);
+  else if (r.error) toast(`Resultado oficial, pero la liquidación no se generó (${r.error}). Usá "Recalcular reunión".`, 'error');
   else toast('✅ Resultado oficial · liquidación generada');
   abrirResultado(carreraId);
 }
@@ -1680,6 +1696,11 @@ async function oficializar(carreraId) {
 // Hardening DB opcional: RPC desoficializar_carrera() en migrations/ (aplicar por MCP).
 async function desoficializar(resId, carreraId) {
   if (!confirm('¿Des-oficializar el resultado para corregirlo?\nSe quita lo oficial y se recalcula la liquidación de la reunión.')) return;
+  // Reunión con la liquidación cerrada (ISSUE-091): des-oficializar dejaría líneas de una carrera
+  // que ya no es oficial y el recálculo no corre. select('*'): la columna puede no existir todavía.
+  const ridCierre = (carreras.find(c=>c.id===carreraId)?.reunion_id) || document.getElementById('sel-reunion').value;
+  const { data: reuCierre } = await sb.from('reuniones').select('*').eq('id', ridCierre).single();
+  if (reuCierre?.liquidacion_cerrada_at) { toast('La liquidación de esta reunión está cerrada (saldada): no se puede des-oficializar.', 'error', 9000); return; }
   const { data: insX } = await sb.from('inscripciones').select('id').eq('carrera_id', carreraId);
   const inscIds = (insX||[]).map(i=>i.id);
   const scope = inscIds.length ? `carrera_id.eq.${carreraId},inscripcion_id.in.(${inscIds.join(',')})` : `carrera_id.eq.${carreraId}`;
@@ -2130,7 +2151,8 @@ async function saveMontas() {
     const carrera = carreras.find(c => c.id === currentCarreraId);
     const rid = carrera?.reunion_id || document.getElementById('sel-reunion').value;
     const r = await generarLiquidacionesReunion({ sb, clubId: CLUB_ID, reunionId: rid });
-    if (r.error) toast(`Monta guardada, pero la liquidación no se recalculó (${r.error}). Usá "Recalcular reunión" en Liquidaciones.`, 'error');
+    if (r.cerrada) toast('Monta guardada. La liquidación de esta reunión está CERRADA (saldada): no se recalculó.', 'warning', 9000);
+    else if (r.error) toast(`Monta guardada, pero la liquidación no se recalculó (${r.error}). Usá "Recalcular reunión" en Liquidaciones.`, 'error');
     else toast('Liquidación de la reunión recalculada con la monta nueva', 'success');
   }
   if (errors.length) return;   // el modal queda abierto con las filas rechazadas en su valor real
@@ -2156,6 +2178,16 @@ function montasFaltantes(carreraId) {
   const noLargo = noLargoIds(carreraId);
   return insc
     .filter(i => !noLargo.has(i.id) && !i.jockey_titular_id)
+    .map(i => spcsMap[i.spc_id]?.nombre || '(sin nombre)');
+}
+
+// Ratificados que LARGARON y no tienen entrenador — lo que mira el GATE ENTRENADORES de
+// oficializar(). Mismo universo que montasFaltantes.
+function entrenadoresFaltantes(carreraId) {
+  const insc = moInscripciones(carreraId);
+  const noLargo = noLargoIds(carreraId);
+  return insc
+    .filter(i => !noLargo.has(i.id) && !i.entrenador_id)
     .map(i => spcsMap[i.spc_id]?.nombre || '(sin nombre)');
 }
 
