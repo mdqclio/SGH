@@ -222,3 +222,13 @@ El de la base es `6388f313…`.)
   "✅ Habilitar caballo" que libera las 4 retenidas del caballo de una vez.
 - Si se cargan los nombres de peón, capataz o sereno en Inscripciones, se ven en el recibo del próximo recálculo. Ya no
   hay riesgo de duplicado: el `concepto` es el rol.
+
+## Verificación del push (commit del informe)
+
+```
+$ git rev-parse HEAD
+5a7851ae210d6ab1722b40f89b83b9fd6b259b89
+$ git ls-remote origin reports
+5a7851ae210d6ab1722b40f89b83b9fd6b259b89	refs/heads/reports
+```
+Este bloque va en un commit posterior ("verificación de push"): el SHA final de `reports` es el de ese commit.
