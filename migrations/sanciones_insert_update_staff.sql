@@ -1,7 +1,10 @@
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- SEGURIDAD — sanciones: INSERT y UPDATE exigen además fn_is_staff() (igual que SELECT)
 --
--- ESTADO EN PRODUCCIÓN: **NO APLICADA.** Sólo con OK explícito (PR fix/sanciones-alta-club-staff).
+-- ESTADO EN PRODUCCIÓN: **APLICADA el 2026-09-25** (`20260925205245 sanciones_insert_update_staff`; se aplicó
+-- este archivo con el encabezado anterior — sólo cambió este comentario). md5 de las 4 políticas verificado
+-- contra el esperado de abajo; probe contra prod 13/13 (portal: INSERT 42501 y UPDATE sin efecto). Informe:
+-- docs/diagnosticos/2026-09-25_aplicacion-sanciones-merge-pr19.md (reports).
 --
 -- Por qué: sanciones_insert y sanciones_update sólo pedían `super_admin OR club_id = fn_get_user_club_id()`.
 -- Un usuario del PORTAL (profesional/propietario) con club_id — hay 16 activos, todos con club — podía
