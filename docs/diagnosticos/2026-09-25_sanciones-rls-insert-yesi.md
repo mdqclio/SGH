@@ -271,3 +271,13 @@ select rol, activo, count(*) usuarios, count(*) filter (where club_id is not nul
    pantalla tiene que ofrecer "todos los hipódromos"? Es de producto (Fede).
 4. Endurecer `sanciones_insert`/`_update` con `fn_is_staff()` (Observación). Es una migración, con su probe.
 5. Trigger de auditoría en `sanciones` (hoy no hay).
+
+## Verificación del push (commit del informe)
+
+```
+$ git rev-parse HEAD
+df443d8dad63e7f0a2f476962aaf309de255ee09
+$ git ls-remote origin reports
+df443d8dad63e7f0a2f476962aaf309de255ee09	refs/heads/reports
+```
+Este bloque va en un commit posterior ("verificación de push"): el SHA final de `reports` es el de ese commit.
