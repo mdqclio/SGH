@@ -261,3 +261,13 @@ Objetos de ESTA migración:
   `node tests/recalculo_r9_subroles.mjs --ejecutar --ventana-confirmada`.
 - OK para el REVOKE del hallazgo 1.
 - Qué hacer con las tablas del hallazgo 2.
+
+## Verificación del push (commit del informe)
+
+```
+$ git rev-parse HEAD
+42faff248e47ec1fc09afac05feb6dfc994a56ec
+$ git ls-remote origin reports
+42faff248e47ec1fc09afac05feb6dfc994a56ec	refs/heads/reports
+```
+Este bloque va en un commit posterior ("verificación de push"): el SHA final de `reports` es el de ese commit.
