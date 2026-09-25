@@ -121,3 +121,13 @@ built 4d95511d4212bb30a7c18fb7a7045d7a2cfe458b 2026-09-25T20:54:16Z
 
 - La Observación del informe anterior sigue abierta: otras 8 tablas con escritura para el portal de su club, entre ellas
   `liquidacion_config` y `club_secuencias`. No se tocó.
+
+## Verificación del push (commit del informe)
+
+```
+$ git rev-parse HEAD
+2bf954e95210d9a3b8c810c9d0a5f9e959aa0e2a
+$ git ls-remote origin reports
+2bf954e95210d9a3b8c810c9d0a5f9e959aa0e2a	refs/heads/reports
+```
+Este bloque va en un commit posterior ("verificación de push"): el SHA final de `reports` es el de ese commit.
