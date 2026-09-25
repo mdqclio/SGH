@@ -1,8 +1,8 @@
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- SEGURIDAD — fn_reunion_liq_cerrada deja de ser ejecutable por PUBLIC y anon
 --
--- ESTADO EN PRODUCCIÓN: **APLICADA el 2026-09-25** (`20260925165014 revoke_fn_reunion_liq_cerrada`, texto
--- exacto de este archivo). has_function_privilege: anon true → false; authenticated/service_role siguen
+-- ESTADO EN PRODUCCIÓN: **APLICADA el 2026-09-25** (`20260925165014 revoke_fn_reunion_liq_cerrada`; se aplicó
+-- este archivo con el encabezado anterior — la sentencia REVOKE es idéntica, sólo cambió este comentario). has_function_privilege: anon true → false; authenticated/service_role siguen
 -- en true; PUBLIC salió del ACL. /rest/v1/rpc como anon → 42501; INSERT en R6 como authenticated sigue
 -- dando P0091. Informe: docs/diagnosticos/2026-09-25_revoke-fn-reunion-liq-cerrada.md (reports).
 --
