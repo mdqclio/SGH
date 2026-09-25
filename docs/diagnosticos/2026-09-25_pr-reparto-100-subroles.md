@@ -436,3 +436,14 @@ migración y antes del recálculo de R9, o en el sandbox si soportan `SUPABASE_U
    cobraron (recibos 35, 37, 40, 45, 46, 48, 56, 61). Sale del flujo normal de Pagos: las líneas están impagas y
    aparecen tildadas en el detalle del entrenador.
 5. R6/R8 **congeladas** hasta que Fede conteste. Reabrirlas es una migración (o un super_admin).
+
+## Verificación del push (commit del informe)
+
+```
+$ git push origin HEAD:refs/heads/reports
+$ git rev-parse HEAD
+1d47c7b78b9635ef39ff3ba28c7dc372ccf33a98
+$ git ls-remote origin reports
+1d47c7b78b9635ef39ff3ba28c7dc372ccf33a98	refs/heads/reports
+```
+Este bloque va en un commit posterior ("verificación de push"): el SHA final de `reports` es el de ese commit.
