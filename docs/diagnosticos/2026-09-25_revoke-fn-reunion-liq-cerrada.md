@@ -127,3 +127,13 @@ fn_reunion_liq_cerrada:
 
 - **Merge del PR #18** con tu OK. Trae a `main` la migración, el rollback, CLAUDE.md y CHANGELOG. En prod ya está aplicada.
 - **Recálculo de R9**: sigue esperando la ventana de Valeria.
+
+## Verificación del push (commit del informe)
+
+```
+$ git rev-parse HEAD
+20ea785b746c2e2ad73253cc394295765d449ae8
+$ git ls-remote origin reports
+20ea785b746c2e2ad73253cc394295765d449ae8	refs/heads/reports
+```
+Este bloque va en un commit posterior ("verificación de push"): el SHA final de `reports` es el de ese commit.
