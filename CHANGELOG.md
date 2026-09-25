@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-09-25] — Sanciones: el alta vuelve a funcionar + INSERT/UPDATE sólo para staff (PR #19; migración **aplicada** `20260925205245`)
+
+> Yesi no podía guardar una sanción: "new row violates row-level security policy for table sanciones". El payload del alta
+> de `sanciones.html` no manda `club_id` desde `5eb0e38` (07/05), y la política de INSERT lo compara contra el club del
+> usuario. Diagnóstico en `reports`: `docs/diagnosticos/2026-09-25_sanciones-rls-insert-yesi.md`.
+
+- `sanciones.html`: el alta manda `club_id: CLUB_ID`, `creado_por` (`usuarios.id` de la sesión: `initAuth` ahora trae `id`)
+  y `alcance: 'club'` explícito. La edición no cambia ni el club ni el autor.
+- `migrations/sanciones_insert_update_staff.sql` (**aplicada** el 25/09, md5 de las políticas verificado, probe `--prod` 13/13): `sanciones_insert` y `sanciones_update` exigen
+  `fn_is_staff()` además del club, como la de SELECT. Hasta ahora un usuario de portal con club podía **insertar**
+  sanciones y **editar/revocar una sanción sobre sí mismo** (demostrado en la réplica del sandbox). Rollback exacto:
+  `migrations/rollback_sanciones_insert_update_staff.sql` (md5 de las políticas medido).
+- `tests/probe_sanciones_alta.mjs` (nuevo) + `tests/local/sanciones_sandbox.sql` (réplica exacta de las políticas de hoy):
+  13/13 y **7/7 mutantes** en el sandbox.
+
 ## [2026-09-25] — SEGURIDAD: `fn_reunion_liq_cerrada` deja de ser ejecutable por PUBLIC y anon
 
 > La migración de ISSUE-091 revocó las dos funciones de trigger pero no la helper `fn_reunion_liq_cerrada`

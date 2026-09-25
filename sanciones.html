@@ -215,7 +215,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 let sb, CLUB_ID, currentUser;
-async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
+async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('id,club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,usuario_id:usr.id,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
 // Categorías: jockey, spc, caballeriza, profesional (entrenador)
@@ -372,9 +372,17 @@ async function saveRecord() {
     estado: document.getElementById('f-estado-s').value,
     notas: document.getElementById('f-notas').value.trim()||null,
   };
+  // Alta: el club dueño, quién la carga y el alcance van SIEMPRE. `club_id` es NOT NULL sin default
+  // y la política de INSERT lo compara contra el club del usuario: sin él, el alta rebota por RLS
+  // (se perdió en 5eb0e38, 07/05; diagnóstico 2026-09-25 en reports). `creado_por` es usuarios.id, no
+  // el auth.uid(). `alcance` explícito: por ahora siempre 'club'. En la edición no se tocan: una
+  // sanción no cambia de club ni de autor.
+  // ═══ ALTA SANCION — INICIO (el probe extrae y muta este bloque por estas anclas) ═══
+  const altaPayload = { ...payload, club_id: CLUB_ID, creado_por: currentUser?.usuario_id || null, alcance: 'club' };
+  // ═══ ALTA SANCION — FIN ═══
   const { error } = id
     ? await sb.from('sanciones').update(payload).eq('id',id)
-    : await sb.from('sanciones').insert(payload);
+    : await sb.from('sanciones').insert(altaPayload);
   btn.disabled=false; btn.textContent='Guardar';
   if (error) { toast(error.message,'error'); return; }
   toast(id ? 'Sanción actualizada' : 'Sanción creada');
