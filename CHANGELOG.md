@@ -5,7 +5,10 @@
 > Definición de Fede y Valeria (audios 25/09 11:48): peón 4 %, capataz 3 % y sereno 1 % se pagan **con el entrenador,
 > en su mismo recibo**, discriminados en el detalle. Hasta hoy el motor sólo generaba esas líneas si el nombre estaba
 > cargado, y nadie lo carga: el reparto quedaba en 92 %. Plan y números en `reports`:
-> `docs/diagnosticos/2026-09-25_plan-reparto-100-subroles-fase1.md`. Rama `feat/reparto-100-subroles`; **nada aplicado en prod**.
+> `docs/diagnosticos/2026-09-25_plan-reparto-100-subroles-fase1.md`. PR #17.
+> **Estado al 25/09:** paso 1 hecho — migración **aplicada** (`20260925163044`), md5 de las 3 funciones verificado, R6/R8
+> cerradas (16:30:44 UTC), R9 abierta, INSERT en R6 por la API → P0091. Paso 2 (motor y UI) con el merge del PR. **Paso 3
+> (recálculo de R9) NO corrido: espera la ventana de Valeria.**
 
 - **Motor** (`liquidaciones-engine.js`): las tres sub-líneas nacen **siempre**, con el nombre o "(sin nombre cargado)".
   `concepto` = el rol y el nombre en la descripción (clave de dedup estable: cierra ISSUE-092). **Regla de residuo** por

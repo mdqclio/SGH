@@ -1,7 +1,12 @@
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- ISSUE-091 — Liquidación CERRADA por reunión + marcado de R6 y R8 (congeladas)
 --
--- ESTADO EN PRODUCCIÓN: **NO APLICADA.** Se aplica sólo con OK explícito, y en este orden
+-- ESTADO EN PRODUCCIÓN: **APLICADA el 2026-09-25** (`20260925163044 reunion_liquidacion_cerrada_issue_091`,
+-- texto exacto de este archivo). md5(pg_get_functiondef) verificado inmediatamente después: las tres
+-- coinciden con el esperado de abajo. R6 y R8 quedaron con liquidacion_cerrada_at = 2026-09-25 16:30:44 UTC;
+-- R9 en NULL; ninguna línea de R6/R8/R9 cambió (md5 antes = después). Prueba por la API: INSERT en R6 con
+-- sesión authenticated → P0091. Informe: docs/diagnosticos/2026-09-25_aplicacion-cierre-merge-pr17.md (reports).
+-- Se aplicó con OK explícito, en este orden
 -- (condición a del OK del 25/09): (1) ESTE archivo entero —columna, triggers y marcado de
 -- R6/R8 en la MISMA transacción—; (2) recién después, deploy del motor y la UI de la rama
 -- feat/reparto-100-subroles; (3) recién después, el recálculo de R9 con

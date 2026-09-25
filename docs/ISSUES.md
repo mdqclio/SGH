@@ -2539,7 +2539,7 @@ where n.nspname='public' and p.proname in ('emitir_recibo','anular_recibo','libe
 ### ISSUE-091: recalcular una reunión saldada genera líneas nuevas cobrables — R6+R8: 33 líneas, $1.345.823,34 (31 impagas)
 
 **Prioridad**: 🔴 **ALTA** — plata cobrable en Pagos sobre reuniones que se dieron por pagadas.
-**Estado**: 🟡 **FIX EN PR, SIN APLICAR** (2026-09-25) — rama `feat/reparto-100-subroles`. Nada aplicado en prod hasta el OK.
+**Estado**: 🟡 **EN DEPLOY** (2026-09-25) — PR #17. Paso 1 hecho: migración aplicada (`20260925163044`), R6/R8 cerradas, R9 abierta, INSERT en R6 por la API → P0091. Paso 2 (motor y UI) con el merge. Paso 3 (recálculo de R9) pendiente de la ventana de Valeria.
 Decisiones del 25/09 (opción A del plan de `reports` `2026-09-25_plan-reparto-100-subroles-fase1.md`):
 - **Protección**: `reuniones.liquidacion_cerrada_at` + trigger en la base (`liquidacion_detalle`, `liquidaciones`) +
   corte en el motor + botón Recalcular deshabilitado. Cerrar y reabrir: sólo super_admin (o migración). La UI para
