@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-09-25] — SEGURIDAD: `fn_reunion_liq_cerrada` deja de ser ejecutable por PUBLIC y anon
+
+> La migración de ISSUE-091 revocó las dos funciones de trigger pero no la helper `fn_reunion_liq_cerrada`
+> (SECURITY DEFINER), que quedó llamable por `/rest/v1/rpc/` (advisors 0028/0029). Exponía sólo un boolean.
+
+- `migrations/revoke_fn_reunion_liq_cerrada.sql`: `REVOKE EXECUTE … FROM PUBLIC, anon`. **Aplicada** el 25/09
+  (`20260925165014`). `authenticated` y `service_role` **conservan** el EXECUTE (alcance del OK); el advisor 0029 sigue a
+  sabiendas. Rollback: `migrations/rollback_revoke_fn_reunion_liq_cerrada.sql` (GRANT a PUBLIC y anon).
+- Verificado: `has_function_privilege` anon true → **false**; RPC como anon → `42501`; la función no cambió (md5
+  `11730b64…`); el trigger sigue rebotando un INSERT en R6 con `P0091` (sandbox D 7/7 y prod).
+
 ## [2026-09-25] — Reparto al 100 %: peón/capataz/sereno siempre (recibo del entrenador 18 %) + reuniones con la liquidación cerrada (PR, **sin aplicar**)
 
 > Definición de Fede y Valeria (audios 25/09 11:48): peón 4 %, capataz 3 % y sereno 1 % se pagan **con el entrenador,

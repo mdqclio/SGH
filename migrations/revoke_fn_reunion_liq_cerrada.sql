@@ -1,0 +1,24 @@
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- SEGURIDAD — fn_reunion_liq_cerrada deja de ser ejecutable por PUBLIC y anon
+--
+-- ESTADO EN PRODUCCIÓN: **APLICADA el 2026-09-25** (`20260925165014 revoke_fn_reunion_liq_cerrada`, texto
+-- exacto de este archivo). has_function_privilege: anon true → false; authenticated/service_role siguen
+-- en true; PUBLIC salió del ACL. /rest/v1/rpc como anon → 42501; INSERT en R6 como authenticated sigue
+-- dando P0091. Informe: docs/diagnosticos/2026-09-25_revoke-fn-reunion-liq-cerrada.md (reports).
+--
+-- Por qué: migrations/reunion_liquidacion_cerrada.sql (ISSUE-091, aplicada el 25/09) revocó las
+-- dos funciones de trigger pero no esta helper, que es SECURITY DEFINER y quedó llamable por
+-- /rest/v1/rpc/fn_reunion_liq_cerrada (advisors 0028/0029). Sólo expone si una reunión tiene
+-- la liquidación cerrada (un boolean), pero anon no tiene por qué llamarla.
+--
+-- Alcance (OK del 25/09): PUBLIC y anon. `authenticated` y `service_role` CONSERVAN el EXECUTE
+-- (el advisor 0029 de authenticated sigue, a sabiendas). Los triggers no se ven afectados: la
+-- llaman desde fn_liq_cerrada_guard, que es SECURITY DEFINER y corre como el dueño (postgres).
+-- La función no cambia: su md5(pg_get_functiondef) sigue en 11730b64066014745a40500ab5f97fb0.
+--
+-- Verificación: has_function_privilege(<rol>, 'public.fn_reunion_liq_cerrada(uuid)', 'EXECUTE')
+-- antes → anon true / authenticated true; después → anon false / authenticated true.
+-- Rollback: migrations/rollback_revoke_fn_reunion_liq_cerrada.sql.
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+REVOKE EXECUTE ON FUNCTION public.fn_reunion_liq_cerrada(uuid) FROM PUBLIC, anon;
