@@ -2539,7 +2539,20 @@ where n.nspname='public' and p.proname in ('emitir_recibo','anular_recibo','libe
 ### ISSUE-091: recalcular una reunión saldada genera líneas nuevas cobrables — R6+R8: 33 líneas, $1.345.823,34 (31 impagas)
 
 **Prioridad**: 🔴 **ALTA** — plata cobrable en Pagos sobre reuniones que se dieron por pagadas.
-**Estado**: 🔴 **ABIERTO** (2026-09-25). **Sin arreglar.** No se tocó nada de R6, R8 ni de `inscripciones`.
+**Estado**: 🟡 **FIX EN PR, SIN APLICAR** (2026-09-25) — rama `feat/reparto-100-subroles`. Nada aplicado en prod hasta el OK.
+Decisiones del 25/09 (opción A del plan de `reports` `2026-09-25_plan-reparto-100-subroles-fase1.md`):
+- **Protección**: `reuniones.liquidacion_cerrada_at` + trigger en la base (`liquidacion_detalle`, `liquidaciones`) +
+  corte en el motor + botón Recalcular deshabilitado. Cerrar y reabrir: sólo super_admin (o migración). La UI para
+  cerrar queda fuera de este cambio: por ahora se cierra por migración (`migrations/reunion_liquidacion_cerrada.sql`).
+- **R6 y R8 se cierran TAL COMO ESTÁN**, sin el 8 % de peón/capataz/sereno y sin las 33 líneas de este issue.
+  **No es la decisión final sobre esa plata: es congelarlas hasta que Fede conteste.** La nota queda escrita en
+  `reuniones.liquidacion_cerrada_nota` de las dos.
+- **R9 queda abierta.**
+- Orden de deploy: (1) migración + cierre de R6/R8 en la MISMA transacción; (2) motor y UI; (3) recálculo de R9
+  (`tests/recalculo_r9_subroles.mjs`, fuera del horario de Valeria). Si algo falla en el medio, se para.
+- Probe: `tests/probe_reparto_100.mjs` (41/41, 5/5 mutantes).
+
+Texto original del 25/09 (antes de las decisiones): **Sin arreglar.** No se tocó nada de R6, R8 ni de `inscripciones`.
 Relevado en `reports`: `docs/diagnosticos/2026-09-25_issue-091-092-recalculo-saldadas-peon.md` (dry-run y salidas crudas).
 
 **El vector.** El motor (`liquidaciones-engine.js`, `generarLiquidacionesReunion`) recalcula **la reunión entera** desde
@@ -2638,7 +2651,12 @@ query de control del informe no tiene que moverse.
 
 ### ISSUE-092: peón/capataz/sereno cargados después de oficializar generan su sub-línea cobrable en el próximo recálculo, aunque el entrenador ya haya cobrado; cambiar el nombre después de pagada duplica el %
 
-**Estado**: 🟠 **ABIERTO** (2026-09-25). **Sin arreglar.** Hoy la exposición es 0: ninguna inscripción real tiene peón,
+**Estado**: 🟡 **FIX EN PR, SIN APLICAR** (2026-09-25) — rama `feat/reparto-100-subroles`. Se resuelve con el fix 3 de
+abajo: el `concepto` de la sub-línea pasa a ser **sólo el rol** (`Peón`/`Capataz`/`Sereno`) y el nombre va en la
+descripción, así que cargar o cambiar el nombre después de pagada no duplica (probe S5/S6, mutante M3). Que la
+sub-línea nazca aunque el entrenador ya haya cobrado deja de ser un accidente: desde el 25/09 las tres nacen
+**siempre** (Fede/Valeria), y las de entrenadores que ya cobraron se pagan con un recibo complementario.
+Texto original: **Sin arreglar.** Hoy la exposición es 0: ninguna inscripción real tiene peón,
 capataz ni sereno (sólo 3 de la 9999). Pero el camino está abierto y no avisa. Relevado en el mismo doc que ISSUE-091.
 
 **Cómo se llega**:

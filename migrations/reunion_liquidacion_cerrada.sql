@@ -10,8 +10,8 @@
 -- md5(pg_get_functiondef) esperado (medido aplicando ESTE archivo en el sandbox tests/local/,
 -- GOTCHA #99; hay que compararlo inmediatamente después del apply_migration):
 --   fn_reunion_liq_cerrada   → 11730b64066014745a40500ab5f97fb0 (292 bytes)
---   fn_liq_cerrada_guard     → c0eaf6277644b9d5ec6529697707d3a4 (825 bytes)
---   fn_reunion_cierre_guard  → feb6722228b1b22ee3f06ab3c4069c31 (781 bytes)
+--   fn_liq_cerrada_guard     → e17f0c81a60afa0356fcda83819f5d4a (1042 bytes)
+--   fn_reunion_cierre_guard  → e531d5094c6ca559d3e0898b38c8839c (799 bytes)
 --   select p.proname, md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
 --    where n.nspname='public' and p.proname in ('fn_reunion_liq_cerrada','fn_liq_cerrada_guard','fn_reunion_cierre_guard');
 --
@@ -24,8 +24,9 @@
 -- Qué hace:
 --   1. reuniones.liquidacion_cerrada_at / liquidacion_cerrada_nota. NULL = abierta.
 --   2. Trigger en liquidacion_detalle y liquidaciones (INSERT/UPDATE/DELETE): si la reunión
---      está cerrada, RAISE P0091. Pasan SÓLO service_role (auth.role()) y la sesión directa sin
---      JWT (auth.role() IS NULL: migraciones por MCP/psql), que es por donde se regulariza.
+--      está cerrada, RAISE P0091. Pasan SÓLO service_role (auth.role()) y la sesión directa a la
+--      base (session_user ≠ 'authenticator': migraciones por MCP/psql; medido en prod el 25/09:
+--      por MCP session_user='postgres', auth.role() NULL), que es por donde se regulariza.
 --      Nadie más: ni super_admin. Para tocar plata de una reunión cerrada, primero se reabre.
 --      Alcanza también a emitir_recibo / anular_recibo / liberar_linea sobre esas líneas: la
 --      reunión queda congelada entera, que es lo que se pidió.
@@ -66,8 +67,10 @@ DECLARE
   v_old uuid;
   v_new uuid;
 BEGIN
-  -- Regularización: service_role (API con la secret key) o sesión directa sin JWT (migración).
-  IF auth.role() IS NULL OR auth.role() = 'service_role' THEN
+  -- Regularización: sesión directa a la base (migración por MCP/psql: session_user no es el
+  -- 'authenticator' de PostgREST) o service_role (API con la secret key). Todo lo que entra por la
+  -- API con sesión de usuario (anon/authenticated) pasa por 'authenticator' y queda sujeto al guard.
+  IF session_user::text <> 'authenticator' OR auth.role() = 'service_role' THEN
     RETURN COALESCE(NEW, OLD);
   END IF;
   IF TG_OP IN ('UPDATE', 'DELETE') THEN v_old := OLD.reunion_id; END IF;
@@ -104,7 +107,7 @@ BEGIN
   IF TG_OP = 'INSERT' AND NEW.liquidacion_cerrada_at IS NULL AND NEW.liquidacion_cerrada_nota IS NULL THEN
     RETURN NEW;
   END IF;
-  IF auth.role() IS NULL OR auth.role() = 'service_role' OR fn_is_super_admin() THEN
+  IF session_user::text <> 'authenticator' OR auth.role() = 'service_role' OR fn_is_super_admin() THEN
     RETURN NEW;
   END IF;
   RAISE EXCEPTION 'Sólo un super_admin puede cerrar o reabrir la liquidación de una reunión. ISSUE-091'
