@@ -1,0 +1,26 @@
+node_modules/
+docs/smoke_screenshots/
+
+# Salida generada del generador de JSON de reunión (datos reales, regenerable)
+tools/_out/
+# Estado local del Supabase CLI (link al proyecto)
+supabase/.temp/
+
+# Secretos / credenciales — NUNCA commitear
+.env
+.env.*
+*.key
+*service*account*.json
+tools/__pycache__/
+
+# Artefactos generados del build de Edge Functions (se regeneran con _build/build.mjs)
+supabase/functions/*/_build/r6_build.json
+
+# Directorio de trabajo — nada de tmp/ se commitea
+tmp/
+
+# Planillas y export de trabajo (suelen traer PII: DNI, teléfonos, nombres)
+*.csv
+*.xls
+*.xlsx
+tests/local/out/
