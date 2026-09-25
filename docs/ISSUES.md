@@ -2535,3 +2535,150 @@ where n.nspname='public' and p.proname in ('emitir_recibo','anular_recibo','libe
 -- hoy: patron_viejo=true, usa_auth_role=false en las tres
 ```
 
+
+### ISSUE-091: recalcular una reunión saldada genera líneas nuevas cobrables — R6+R8: 33 líneas, $1.345.823,34 (31 impagas)
+
+**Prioridad**: 🔴 **ALTA** — plata cobrable en Pagos sobre reuniones que se dieron por pagadas.
+**Estado**: 🔴 **ABIERTO** (2026-09-25). **Sin arreglar.** No se tocó nada de R6, R8 ni de `inscripciones`.
+Relevado en `reports`: `docs/diagnosticos/2026-09-25_issue-091-092-recalculo-saldadas-peon.md` (dry-run y salidas crudas).
+
+**El vector.** El motor (`liquidaciones-engine.js`, `generarLiquidacionesReunion`) recalcula **la reunión entera** desde
+los datos de **hoy**: preserva lo comprometido (`pagado` o con recibo, `:274-279`), borra el resto (`:283-289`) y genera
+de nuevo todo lo que falte; sólo saltea las claves que ya están pagadas (`:333`, `lineKey` en `:37-41`). No sabe que
+una reunión está "saldada". Todo dato que se completó **después** de liquidar es una línea que nunca existió y no está en
+`paidKeys`, así que **nace** `impago` (o `retenido` si es premio de 1°/2°) y aparece cobrable en Pagos. En R6/R8 eso
+pasó con:
+- **propietarios asignados después**: 4 inscripciones de R6 recibieron `propietario_id` el 2026-09-11 21:07 UTC
+  (`service_role`, una sola transacción), y en R8 hay 4 más;
+- **entrenadores y jockeys completados después** en R8: premio, incentivo de entrenador por caballo e incentivo
+  de jockey por reunión;
+- el incentivo de jockey sale con el monto **vigente** en `liquidacion_config` (60.000), no con el que regía cuando se
+  corrió R8 (las 19 líneas de R8 que ya existen son de 50.000).
+
+Hay un único filtro que alcanza a las saldadas, y es **por reunión**: `reuniones.es_prueba`, que sólo usa la 9999.
+
+**Los disparadores** (quién llama al motor, `git grep generarLiquidacionesReunion main`), y cuáles alcanzan hoy a
+R6/R8:
+
+| Disparador | Dónde | ¿Guard? | Hoy en R6/R8 |
+|---|---|---|---|
+| **Hacer oficial** una carrera de la reunión | `resultados.html:1623` → `:1670` | gate de montas (sólo pide jockey en los que largaron) | **R6 carrera 3 (turno 3) está `provisional`**: oficializarla recalcula R6 entera. R8: todas oficiales. |
+| **Cambiar una monta** en carrera oficial | `rpc_cambiar_monta` → `resultados.html:2132` | bloquea sólo si el jockey **saliente** tiene plata comprometida en **esa** inscripción (o en el incentivo, si era su única monta) | **Pasa en 61 montas**: R6 22 + 11 sin jockey; R8 24 + 4 sin jockey (sin jockey → `v_viejo` NULL → no mira nada). Cualquiera de esas recalcula la reunión. |
+| **Des-oficializar** | `resultados.html:1681` → `:1699` | `desoficializar_carrera`: RAISE si la carrera tiene líneas comprometidas | **Bloqueado** en las 15 carreras oficiales (R6 7, R8 8) (todas tienen líneas saldadas). |
+| **🔄 Recalcular reunión** | `liquidaciones.html:262` → `:2377` | sólo un `confirm()` | **Sin guard.** Un click. |
+
+**Las líneas exactas.** Salen de correr el **motor real** de `main` en seco: lecturas contra prod, escrituras
+capturadas y nunca enviadas. El md5 de líneas, headers e inscripciones de R6/R8 quedó igual antes y después. Monto =
+`monto_bruto`. Los jockeys del incentivo van como J1–J5 (el repo es público).
+
+| Reunión | Carrera | Puesto | Caballo | Línea | Monto | Estado al nacer | `inscripcion_id` |
+|---|---|---|---|---|---:|---|---|
+| R6 | 1 | 4° | CONESERA | premio propietario | 84.000,00 | impago | `803a4268-69ef-4c71-a6c2-981abe494d39` |
+| R6 | 6 | 3° | CHAMPION GOLDEN | premio propietario | 109.200,00 | impago | `f82f4462-c9d3-4ee7-ab1b-6b8b6f059df1` |
+| R6 | 7 | 3° | SEMBRADOR CHUCK | premio propietario | 167.090,00 | impago | `24cae834-69c6-4b1d-9c6d-d1f5cad50af8` |
+| R6 | 7 | 5° | DOLAR JOHAN | premio propietario | 70.000,00 | impago | `d4b7577d-e5c8-4fda-9cdb-fdd91ec3606e` |
+| R8 | 1 | 6° | TOUCH OF BLUE | incentivo entrenador | 10.000,00 | impago | `11c68ef9-2299-407d-b892-c8aaf588e306` |
+| R8 | 1 | 8° | DOCTOR SKY | incentivo entrenador | 10.000,00 | impago | `10b4601e-dba0-4772-b4f4-e0755991f34b` |
+| R8 | 1 | 9° | BACHUNA | incentivo entrenador | 10.000,00 | impago | `deebc6ad-89ab-4f1d-a09c-d34ff7c192bb` |
+| R8 | 1 | 10° | BESO CURIOSO | incentivo entrenador | 10.000,00 | impago | `5de4f156-3439-4b20-bd4a-80fa9acfb01f` |
+| R8 | 3 | 8° | ALIADO SCAT | incentivo entrenador | 10.000,00 | impago | `b3ffb23b-df80-40c4-9da6-107fe808c600` |
+| R8 | 3 | 9° | FLORENTINA IN YOU | incentivo entrenador | 10.000,00 | impago | `714d8716-3e05-4b4e-99c7-11bdb66d5aab` |
+| R8 | 3 | 10° | INFILTRADO SLEW | incentivo entrenador | 10.000,00 | impago | `73cd96b9-ae0c-4306-ac28-6689c881d6d8` |
+| R8 | 4 | 7° | IX GOAL TUN | incentivo entrenador | 10.000,00 | impago | `db0c95a1-54c9-4162-894f-e56f14d112f3` |
+| R8 | 5 | 7° | Wave Rimout | incentivo entrenador | 10.000,00 | impago | `6f9cfdff-fb50-43a3-9d84-c9bc3d24e4c7` |
+| R8 | 5 | 8° | Icy Tom | incentivo entrenador | 10.000,00 | impago | `fe8a3a29-ef2a-472f-8708-2f2de495d4e7` |
+| R8 | 7 | 6° | ABELITO MIMOSO | incentivo entrenador | 10.000,00 | impago | `47bccbdf-02a0-4f28-bf3f-d197e3b33631` |
+| R8 | 8 | 2° | LE BATEAU | incentivo entrenador | 10.000,00 | impago | `bde2d35b-bf27-4a47-8bed-c2a606e3fd55` |
+| R8 | 8 | 2° | LE BATEAU | premio entrenador | 22.641,67 | retenido (libera 2026-09-15) | `bde2d35b-bf27-4a47-8bed-c2a606e3fd55` |
+| R8 | 8 | 2° | LE BATEAU | premio propietario | 158.491,67 | retenido (libera 2026-09-15) | `bde2d35b-bf27-4a47-8bed-c2a606e3fd55` |
+| R8 | 8 | 3° | BOHEMIO TOP | incentivo entrenador | 10.000,00 | impago | `52a23e94-0ed6-4548-a28e-66c0f94019d0` |
+| R8 | 8 | 3° | BOHEMIO TOP | premio entrenador | 14.300,00 | impago | `52a23e94-0ed6-4548-a28e-66c0f94019d0` |
+| R8 | 8 | 3° | BOHEMIO TOP | premio propietario | 100.100,00 | impago | `52a23e94-0ed6-4548-a28e-66c0f94019d0` |
+| R8 | 8 | 4° | LE CHAT MIMOUS | incentivo entrenador | 10.000,00 | impago | `9a0507d8-567d-4b6b-9be6-bf0509d689a6` |
+| R8 | 8 | 4° | LE CHAT MIMOUS | premio entrenador | 10.000,00 | impago | `9a0507d8-567d-4b6b-9be6-bf0509d689a6` |
+| R8 | 8 | 4° | LE CHAT MIMOUS | premio jockey | 10.000,00 | impago | `9a0507d8-567d-4b6b-9be6-bf0509d689a6` |
+| R8 | 8 | 4° | LE CHAT MIMOUS | premio propietario | 70.000,00 | impago | `9a0507d8-567d-4b6b-9be6-bf0509d689a6` |
+| R8 | 8 | 5° | ECHO IN THE SKY | incentivo entrenador | 10.000,00 | impago | `77a73523-e0f4-4cea-8799-1f8da0d54b52` |
+| R8 | 8 | 5° | ECHO IN THE SKY | premio entrenador | 10.000,00 | impago | `77a73523-e0f4-4cea-8799-1f8da0d54b52` |
+| R8 | 8 | 5° | ECHO IN THE SKY | premio propietario | 70.000,00 | impago | `77a73523-e0f4-4cea-8799-1f8da0d54b52` |
+| R8 | — | — | — | incentivo jockey (jockey J1) | 60.000,00 | impago | `(por reunión)` |
+| R8 | — | — | — | incentivo jockey (jockey J2) | 60.000,00 | impago | `(por reunión)` |
+| R8 | — | — | — | incentivo jockey (jockey J3) | 60.000,00 | impago | `(por reunión)` |
+| R8 | — | — | — | incentivo jockey (jockey J4) | 60.000,00 | impago | `(por reunión)` |
+| R8 | — | — | — | incentivo jockey (jockey J5) | 60.000,00 | impago | `(por reunión)` |
+
+| | Líneas | Monto | impago | retenido |
+|---|---:|---:|---:|---:|
+| R6 | 4 | 430.290,00 | 4 · 430.290,00 | 0 |
+| R8 | 29 | 915.533,34 | 27 · 734.400,00 | 2 · 181.133,34 (liberables desde el 2026-09-15) |
+| **Total** | **33** | **1.345.823,34** | **31 · 1.164.690,00** | **2 · 181.133,34** |
+
+(El informe del 25/09 estimaba "13 líneas, $895.823,20" porque sólo miraba premios. Faltaban los 15 incentivos de
+entrenador y los 5 de jockey de R8, y los montos salían de `fondo / 0,02`.)
+
+**Efectos laterales del mismo recálculo**, capturados en el dry-run y sin plata en juego: se borran y se recrean con
+ids nuevos las 35 + 40 líneas de fondo solidario (`impago`, mismos montos); en R6 se borrarían **12 headers vacíos**; y se
+recalculan los totales de los 74 + 93 headers.
+
+**Fix sugerido** (aparte, con su probe; es de producto qué es "saldada"):
+1. Marca explícita de reunión cerrada/saldada (por ejemplo `reuniones.liquidacion_cerrada_at`). El motor no genera
+   nada nuevo en una reunión cerrada, y un guard en la base (trigger `BEFORE INSERT` sobre `liquidacion_detalle`) rechaza
+   la inserción aunque el cliente la intente.
+2. Mientras no exista: en `liquidaciones.html` y `resultados.html`, antes de llamar al motor, cortar si la reunión tiene
+   líneas `pagado` sin recibo con la marca `[REGULARIZACION 2026-08-28` (R6/R8), con un toast que lo explique.
+3. Decidir con Fede qué se hace con R6 carrera 3 (`provisional`, 5 puestos, $1.409.291,67 de premio): oficializarla hoy
+   dispara las 33.
+
+**Cómo se verifica**: correr el dry-run del informe (`dryrun_recalc.mjs <reunion_id> <out.json>`, que está completo en
+el doc de `reports`) sobre R6 y R8. Hoy da `NUEVA: 4` y `NUEVA: 29`. Con el fix tiene que dar 0 en las dos, y el md5 de la
+query de control del informe no tiene que moverse.
+
+**Relacionado**: ISSUE-084 (recálculo por cambio de monta), ISSUE-089 (el próximo recálculo borra lo no pagado), GOTCHA
+#47 (inscripciones sin `propietario_id`), GOTCHA #74 (saldado administrativo).
+
+### ISSUE-092: peón/capataz/sereno cargados después de oficializar generan su sub-línea cobrable en el próximo recálculo, aunque el entrenador ya haya cobrado; cambiar el nombre después de pagada duplica el %
+
+**Estado**: 🟠 **ABIERTO** (2026-09-25). **Sin arreglar.** Hoy la exposición es 0: ninguna inscripción real tiene peón,
+capataz ni sereno (sólo 3 de la 9999). Pero el camino está abierto y no avisa. Relevado en el mismo doc que ISSUE-091.
+
+**Cómo se llega**:
+- `inscripciones.html` muestra ✏️ en todas las filas (`:690`), sin mirar si la carrera está oficial, y `saveRecord()`
+  (`:821-856`) hace un `UPDATE` directo con `peon/capataz/sereno` **sin llamar al motor**.
+- El payload lleva `jockey_titular_id`, así que dispara `trg_insc_monta_oficial`. Pero el guard sale por
+  `IF NEW.jockey_titular_id IS NOT DISTINCT FROM OLD.jockey_titular_id THEN RETURN NEW`. En la base no hay `CHECK`,
+  trigger ni función que mire `peon`.
+- En el **próximo recálculo** de la reunión (cualquiera de los disparadores de ISSUE-091), el motor arma la sub-línea
+  (`liquidaciones-engine.js:182-203`, `:317-328`): `concepto_tipo='actuacion'`, `concepto='Peón — <nombre>'`,
+  `beneficiario_id` = **el entrenador**. Nace `retenido` si el caballo fue 1° o 2° e `impago` si no (`:307`).
+
+**Por qué es plata**:
+1. **El entrenador ya cobró y la sub-línea nace igual.** La clave (`lineKey`) es la de la sub-línea, no la del 10 %
+   del entrenador. Aunque el premio del entrenador esté pagado (con recibo o saldado), la sub-línea aparece cobrable en
+   Pagos dentro de su deuda.
+2. **Renombrar después de pagada duplica.** `lineKey` incluye el `concepto`, o sea el nombre. Si `Peón — X` ya está
+   pagada y el nombre pasa a `Y`, el recálculo preserva la pagada (clave `…|Peón — X`) y crea `Peón — Y` como línea
+   nueva: se paga dos veces el 4 % (3 % para capataz, 1 % para sereno). Si no estaba pagada, se borra y se regenera con
+   el nombre nuevo, sin duplicar.
+
+**Evidencia ejecutada** (dry-run del motor real, con los datos alterados **en memoria**, nunca en la base):
+- R6, GREAT ORPEN (C1, 3°, 10 % del entrenador **saldado**), con peón `PEON SIMULADO` → nace
+  `actuacion | Peón — PEON SIMULADO | Carrera 1 — 3° puesto — A redistribuir (4%) | 9.600,00 | impago`.
+- Mismo caballo, con `Peón — PEON SIMULADO` simulada `pagado` y el peón renombrado a `PEON RENOMBRADO` → el motor
+  preserva 158 líneas (157 + la simulada) y **además** crea `Peón — PEON RENOMBRADO | 9.600,00 | impago`.
+  Duplicado confirmado.
+
+**Fix sugerido** (aparte, con su probe):
+1. En `inscripciones.html`, si la carrera tiene resultado `oficial`, peón/capataz/sereno se editan por una RPC que haga
+   lo mismo que `rpc_cambiar_monta`: guard de plata comprometida de la sub-línea saliente, borrar lo pagable y pedir
+   recálculo. Si no, bloquear la edición con un aviso.
+2. Trigger `BEFORE UPDATE OF peon, capataz, sereno` sobre `inscripciones`, con carrera oficial → RAISE salvo la RPC
+   (mismo patrón que `trg_insc_monta_oficial`).
+3. Que la clave de dedup de la sub-línea no dependa del nombre (`rol` + inscripción + posición) y que el nombre viaje en
+   la descripción. Así renombrar no duplica. Pero cambia la identidad de las 9 sub-líneas de la 9999: va con su migración
+   y su probe.
+
+**Cómo se verifica**: `git grep -n "peon" main -- ratificacion.html resultados.html` → vacío (no hay control);
+`select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and pg_get_functiondef(p.oid) ilike '%peon%'`
+→ 0. Y el dry-run con el hook de renombre del doc de `reports`.
+
+**Relacionado**: ISSUE-091 (los disparadores), ISSUE-084 (el mismo patrón para montas, ya resuelto con RPC + trigger).
