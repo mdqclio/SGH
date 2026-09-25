@@ -395,3 +395,13 @@ réplica del sandbox, igual que hoy.
 2. **Aplicar** `migrations/sanciones_insert_update_staff.sql`, comparar los dos md5 del encabezado y correr
    `node tests/probe_sanciones_alta.mjs --prod`.
 3. Decidir sobre la Observación.
+
+## Verificación del push (commit del informe)
+
+```
+$ git rev-parse HEAD
+3539547810495ad6e4a4bdc1e2773e39bc4c9830
+$ git ls-remote origin reports
+3539547810495ad6e4a4bdc1e2773e39bc4c9830	refs/heads/reports
+```
+Este bloque va en un commit posterior ("verificación de push"): el SHA final de `reports` es el de ese commit.
