@@ -556,3 +556,17 @@ R6 y R8 son idénticas a la foto de Q1. El md5 de líneas de R9 es idéntico al 
   salidas se cortó (`Exit code 137`). Los números de ISSUE-091 que se citan acá (33 / $1.345.823,34) están
   re-medidos en esta sesión (Q3: `otras(ISSUE-091)`).
 - Informe commiteado en el worktree sobre `origin/reports` y pusheado como fast-forward. La rama `reports` local no se tocó.
+
+## Verificación del push (commit del informe)
+
+```
+$ git push origin HEAD:refs/heads/reports
+   aa4635d..32c8190  HEAD -> reports
+$ git rev-parse HEAD
+32c8190104977cfb78219c33c9f14273e22e607b
+$ git ls-remote origin reports
+32c8190104977cfb78219c33c9f14273e22e607b	refs/heads/reports
+$ curl -s -o /dev/null -w '%{http_code}' https://raw.githubusercontent.com/mdqclio/SGH/reports/docs/diagnosticos/2026-09-25_plan-reparto-100-subroles-fase1.md
+200
+```
+Este bloque va en un commit posterior ("verificación de push"): el SHA final de `reports` es el de ese commit.
