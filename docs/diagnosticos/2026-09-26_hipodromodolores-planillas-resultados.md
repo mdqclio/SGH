@@ -317,3 +317,13 @@ r2026-08-16: filas=67 | SPC 67 (en spcs 66) | jockeys 26 (en padrón 25) | entre
 3. Numeración: sitio #7 = 16/08/2026 vs SGH R9 = 20/09/2026, con 8 posts en 2026. ¿Hay una reunión sin post?
 4. ¿Para qué es la carga histórica? Si es estadística (jockey/entrenador/caballeriza), alcanzan nombres normalizados. Si es para `spcs` real, el costo son las ~cientos de altas por Stud Book, y ahí está el cuello de botella.
 5. `8A`/`11A` (acoplados, 2024): SGH hoy no modela acoplados en el mandil 1..N.
+
+## Verificación de push
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+b7370deca9eea1d72ab87d2e2a8cb724b64a9658	refs/heads/reports
+b7370deca9eea1d72ab87d2e2a8cb724b64a9658
+```
+
+Commit del informe: `b7370deca9eea1d72ab87d2e2a8cb724b64a9658` = `origin/reports`. (La rama `reports` **local** del VPS diverge de origin, 1154/25 commits; no la toqué. Publiqué desde un worktree separado en `origin/reports`.)
