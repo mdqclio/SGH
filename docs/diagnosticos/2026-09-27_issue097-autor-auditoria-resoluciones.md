@@ -312,3 +312,15 @@ motivo) es otra decisión: Q1.
   secretaría?
 - **Q5** — El placebo de borrar una sanción siendo secretario u operador: ¿se ocultan los botones que la RLS no deja
   usar (como en `usuarios.html`)? Es front, va aparte.
+
+---
+
+## Verificación de push
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+6ac15e69abdbd1b253eb5fb15411ba66170265a4	refs/heads/reports
+6ac15e69abdbd1b253eb5fb15411ba66170265a4
+```
+
+Este apéndice va en un commit posterior de `reports`; su SHA se informa en el chat.
