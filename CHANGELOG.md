@@ -94,6 +94,10 @@
 > **Estado al 25/09:** paso 1 hecho — migración **aplicada** (`20260925163044`), md5 de las 3 funciones verificado, R6/R8
 > cerradas (16:30:44 UTC), R9 abierta, INSERT en R6 por la API → P0091. Paso 2 (motor y UI) en `main` con el merge del PR #17 (`afc6af5`, 25/09). **Paso 3
 > (recálculo de R9) NO corrido: espera la ventana de Valeria.**
+>
+> **Cierre (agregado el 27/09):** el paso 3 **se ejecutó el 25/09** a las 17:16:34 UTC — 69 sub-líneas, **$564.096,66**
+> ($447.336,66 retenido + $116.760,00 impago), sin rollback. No volver a correrlo. Informe:
+> `docs/diagnosticos/2026-09-25_recalculo-r9-subroles.md` (reports).
 
 - **Motor** (`liquidaciones-engine.js`): las tres sub-líneas nacen **siempre**, con el nombre o "(sin nombre cargado)".
   `concepto` = el rol y el nombre en la descripción (clave de dedup estable: cierra ISSUE-092). **Regla de residuo** por
