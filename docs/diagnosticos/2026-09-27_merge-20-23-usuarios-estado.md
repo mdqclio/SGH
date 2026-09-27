@@ -20,7 +20,7 @@
 ## 1. PR #20
 
 ```
-$ gh pr merge 20 --merge …
+$ gh pr merge 20 --merge --subject "merge: XSS — nombres del portal escapados en usuarios, admin pendientes e inscripciones (ISSUE-018) — PR #20" --body "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 GraphQL: Pull Request has merge conflicts (mergePullRequest)
 $ git checkout fix/xss-usuarios-portal && git merge --no-ff --no-commit origin/main
 Auto-merging CHANGELOG.md
@@ -54,7 +54,7 @@ $ git log --oneline -1 && git rev-parse HEAD && git ls-remote origin main
 0551d50a7e5995439d341240a7df6378b4f8869c	refs/heads/main
 ```
 
-Quedaron dos menciones viejas de "sin merge" en docs (la entrada de ISSUE-093 en CHANGELOG dice "rama … sin
+Quedaron dos menciones viejas de "sin merge" en docs (la entrada de ISSUE-093 en CHANGELOG dice "rama `fix/politicas-escritura-staff` sin
 mergear" y el avance de ISSUE-018 en `docs/ISSUES.md` dice "rama `fix/xss-usuarios-portal`, sin merge"). No las toqué
 (no estaban en el pedido); son de texto, se corrigen en el próximo PR de docs.
 
@@ -95,7 +95,7 @@ from supabase_migrations.schema_migrations where version in ('20260801042905','2
 ```
 version        | name                    | menciona_estado | fragmento
 20260801042905 | sec_rls_fase1_auth_uid  | false           | ALTER TABLE public.usuarios ADD COLUMN IF NOT EXISTS auth_user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL; CREATE UNIQUE INDEX IF NOT EXISTS ux_usuarios_auth_user_id ON public.usuarios (auth_user_id) WHERE auth_user_id IS NOT NULL; UPDATE public.usuarios u SET auth_user_id = a.id FROM auth
-20260804024455 | sec_autoregistro_gate1  | false           | -- Gate 1 de auto-registro — cerrar los huecos que el flujo activa. -- Ver migrations/sec_autoregistro_gate1.sql y docs/AUTOREGISTRO_PLAN.md §B.2/§A.4/§A.5. … DROP POLICY IF EXISTS performanc
+20260804024455 | sec_autoregistro_gate1  | false           | -- Gate 1 de auto-registro — cerrar los huecos que el flujo activa. -- Ver migrations/sec_autoregistro_gate1.sql y docs/AUTOREGISTRO_PLAN.md §C. -- 1 · performances_select — era USING (true). -- Sin club_id (historial cross-club): se copia el criterio de spcs_select. DROP POLICY IF EXISTS performanc
 ```
 ```bash
 git log --format='%h %ad %s' --date=short -S"usuarios_estado_check" main      # (vacío)
@@ -128,7 +128,7 @@ Intentos: **no hay forma de contarlos desde la base**. El UPDATE rechazado por e
 `trg_audit_usuarios` (AFTER) no llega a registrar nada. Los logs de Postgres/API tendrían el error, pero:
 
 ```
-query_logs(project_id='unlhcuanfrtpatoipwve', sql='select source, count(*) … from logs group by source')
+query_logs(project_id='unlhcuanfrtpatoipwve', sql='select source, count(*) n, min(timestamp) desde, max(timestamp) hasta from logs group by source order by n desc limit 20')
 → MCP error -32600: You do not have permission to perform this action
 get_logs(service='api')
 → The logs.all endpoint has been removed. Use GET /v1/projects/{ref}/analytics/endpoints/logs instead.
@@ -228,7 +228,7 @@ función usa `'activo'` — cuerpo completo en el informe `2026-09-27_xss-nombre
 ## 3. PR #23
 
 El PR estaba apilado sobre `fix/xss-usuarios-portal`. `gh pr edit --base` falló por la API vieja de proyectos
-(`GraphQL: Projects (classic) is being deprecated …`); se re-apuntó con la REST:
+(`GraphQL: Projects (classic) is being deprecated in favor of the new Projects experience, see: https://github.blog/changelog/2024-05-23-sunset-notice-projects-classic/. (repository.pullRequest.projectCards)`); se re-apuntó con la REST:
 
 ```
 $ gh api -X PATCH repos/mdqclio/SGH/pulls/23 -f base=main -q '.base.ref'
@@ -274,3 +274,16 @@ Contenido nuevo servido: `grep -c "Usuarios del portal\|'suspendido'" prod_usuar
   un super_admin: un secretario no ve el botón en filas ajenas desde #23, ver D1 del informe anterior).
 - **Q2** — Docs pendientes: CHANGELOG/CLAUDE.md del #23 (línea del probe) y las dos menciones viejas de "sin merge".
   ¿Un PR de docs chico?
+
+---
+
+## Verificación de push
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+2d3736a7602ccb538ab4d23c104607095046fe07	refs/heads/reports
+2d3736a7602ccb538ab4d23c104607095046fe07
+```
+
+Este apéndice (y el reemplazo de cinco recortes "…" por el texto exacto) va en un commit posterior de `reports`; su
+SHA se informa en el chat.
