@@ -591,12 +591,15 @@ Ver `docs/GOTCHAS.md` para la lista completa (101 entradas).
 - **Modificar desde el portal** (`rpc_modificar_inscripcion`, 16/09): no aplica a R9 salvo que Yesi extienda
   `cierre_ratificacion` desde `carta-llamados.html` — las dos ventanas cerraron el 14/09.
 
-### Reparto al 100 % y reuniones cerradas (25/09) — PR #17 (merge `afc6af5`): migración APLICADA y R6/R8 cerradas el 25/09; motor y UI en `main` desde el 25/09; **recálculo de R9 PENDIENTE** (ventana de Valeria)
+### Reparto al 100 % y reuniones cerradas (25/09) — PR #17 (merge `afc6af5`): migración APLICADA y R6/R8 cerradas el 25/09; motor y UI en `main` desde el 25/09; **recálculo de R9 EJECUTADO el 25/09** (17:16 UTC)
 - Peón 4 % / capataz 3 % / sereno 1 % se generan **siempre** y se pagan en el recibo del entrenador (18 %), discriminados.
 - **R6 y R8 se cierran TAL COMO ESTÁN** (sin el 8 % y sin ISSUE-091): **no es la decisión final sobre esa plata, están
   congeladas hasta que Fede conteste**. R9 queda abierta: al recalcular nacen 69 sub-líneas ($564.096,66); las 27 de
   entrenadores que ya cobraron se pagan con recibo complementario (no se tocan los recibos emitidos).
 - Orden de deploy: migración (+ cierre R6/R8) → motor y UI → recálculo de R9 fuera del horario de Valeria. Ver ISSUE-091/092.
+- **R9 ya está recalculada — NO volver a correr `tests/recalculo_r9_subroles.mjs --ejecutar`.** Se ejecutó el 2026-09-25 a las
+  17:16:34 UTC: nacieron las **69 sub-líneas** (**$564.096,66**: $447.336,66 retenido + $116.760,00 impago), 23 caballos al
+  100 % exacto, pagadas y retenidas previas idénticas, R6/R8 sin cambios, sin rollback. Informe: `docs/diagnosticos/2026-09-25_recalculo-r9-subroles.md` (reports).
 
 ### Pendiente confirmar con Fede
 - Formato K E S P en programa oficial.

@@ -266,6 +266,12 @@ Módulo: inscripciones / spcs. Estado: ⏳ Abierto — a investigar. Prioridad: 
 ### ISSUE-037: `fix/edad-siempre-abierta` — espera confirmación de Fede
 Descripción: fix de la condición de edad "siempre abierta" en branch, esperando confirmación de Fede antes de mergear.
 Módulo: por confirmar. Estado: ⏳ Abierto — branch a la espera de Fede. Prioridad: Baja.
+Nota 2026-09-27: **no se pudo determinar si el arreglo está en `main`.** La rama `fix/edad-siempre-abierta` **no existe en
+origin** y ningún commit de ninguna ref la menciona (el issue nació en `06e45c2`, 21/07, sin describir el bug más allá
+de este texto), así que no hay contra qué comparar el código. Sí existen en origin `fix/edad-reglamentaria-unica`
+(`54ccbad`) y `diag/edad-gate-inscripcion` (`7de5461`), las dos ya contenidas en `main`, pero resuelven otra cosa: la
+regla del 1° de julio para la edad reglamentaria. Para cerrarlo hace falta que Fede diga qué era la condición "siempre
+abierta".
 
 ### ISSUE-038: Programa oficial — carreras y banner desaparecían por filtro de estado no NULL-safe — ✅ RESUELTO (2026-07-22)
 Descripción: dos bugs en el mismo filtro. (1) **Carreras**: `.neq('estado','anulada')` sobre `carreras.estado` (VARCHAR libre que admite NULL, gotcha #5) se traduce a `estado <> 'anulada'`, que para NULL da NULL y descarta la fila en silencio — el **turno 2 de la R6 desaparecía del programa** con todos sus ratificados. (2) **Banner de próxima reunión**: el mismo `.neq('estado','anulada')` sobre `reuniones.estado`, que es el ENUM `estado_reunion` y **no tiene** la etiqueta `anulada` (usa `cancelada`) → error `22P02`, `proximaReunion` en null y el banner **nunca renderizó**.
@@ -2546,7 +2552,7 @@ where n.nspname='public' and p.proname in ('emitir_recibo','anular_recibo','libe
 ### ISSUE-091: recalcular una reunión saldada genera líneas nuevas cobrables — R6+R8: 33 líneas, $1.345.823,34 (31 impagas)
 
 **Prioridad**: 🔴 **ALTA** — plata cobrable en Pagos sobre reuniones que se dieron por pagadas.
-**Estado**: 🟡 **EN DEPLOY** (2026-09-25) — PR #17. Paso 1 hecho: migración aplicada (`20260925163044`), R6/R8 cerradas, R9 abierta, INSERT en R6 por la API → P0091. Paso 2 (motor y UI) en `main` con el merge del PR #17 (`afc6af5`, 25/09). Paso 3 (recálculo de R9) pendiente de la ventana de Valeria.
+**Estado**: 🟡 **EN DEPLOY** (2026-09-25) — PR #17. Paso 1 hecho: migración aplicada (`20260925163044`), R6/R8 cerradas, R9 abierta, INSERT en R6 por la API → P0091. Paso 2 (motor y UI) en `main` con el merge del PR #17 (`afc6af5`, 25/09). Paso 3 (recálculo de R9) **EJECUTADO el 2026-09-25 a las 17:16:34 UTC**: 69 sub-líneas, **$564.096,66** ($447.336,66 retenido + $116.760,00 impago), 23 caballos al 100 % exacto, pagadas/retenidas previas idénticas, R6/R8 sin cambios, sin rollback. **No hay que volver a correrlo.** Informe: `docs/diagnosticos/2026-09-25_recalculo-r9-subroles.md` (reports).
 Decisiones del 25/09 (opción A del plan de `reports` `2026-09-25_plan-reparto-100-subroles-fase1.md`):
 - **Protección**: `reuniones.liquidacion_cerrada_at` + trigger en la base (`liquidacion_detalle`, `liquidaciones`) +
   corte en el motor + botón Recalcular deshabilitado. Cerrar y reabrir: sólo super_admin (o migración). La UI para
