@@ -2749,3 +2749,42 @@ políticas, previa búsqueda de referencias (`git grep resultado_log main`, `pg_
 **Relacionado**: ISSUE-093 (se detectó al pedir que oficializar "siga escribiendo resultado_log"),
 `docs/diagnosticos/2026-09-27_issue093-aplicado.md` §2 (reports).
 
+### ISSUE-097: resoluciones y sanciones sin trazabilidad — no queda registrado quién carga, edita o revoca
+**Estado**: abierto (2026-09-27). Sin arreglar.
+**El hecho**: las resoluciones N° 39 y 40 del 25/09 (doping, suspensión de un entrenador por 2 años y medio) se
+cargaron el 27/09 a las 18:10 y 18:14 (hora argentina) y **no se puede demostrar quién las cargó**. La mejor
+inferencia sale de las sesiones de Auth (una sola persona de staff inició sesión 4 minutos antes; otra tenía una
+sesión que todavía podía servir para la primera), no de un dato de la base.
+Informe: la respuesta del 27/09 en el chat y el informe del mismo día sobre R8 C1 en `reports`
+(`docs/diagnosticos/2026-09-27_r8-c1-distanciamiento-loca-dubai.md`).
+
+**Por qué no queda rastro** (medido el 27/09):
+
+| Tabla | `creado_por` | Valor en las filas | Trigger de auditoría | Otra traza |
+|---|---|---|---|---|
+| `resoluciones` | existe (`uuid`, nullable, sin default, FK a `usuarios`) | **NULL en las 2** (`resoluciones.html:305` no lo manda en el payload) | **ninguno** | ninguna |
+| `resolucion_entidades` | no existe | — | **ninguno** | ninguna |
+| `sanciones` | existe (`uuid`, nullable, sin default, FK a `usuarios`) | 4 de 4 desde el arreglo del 25/09 (PR #19); 1 de 5 en total sin dato (la anterior al arreglo) | **ninguno** | ninguna |
+
+- **`resoluciones`**: no hay nada. Ni `creado_por`, ni auditoría, ni `updated_at`/`updated_by`.
+- **`sanciones`**: el alta sí registra `creado_por` desde el PR #19, pero lo **manda el cliente**. La base no lo
+  impone ni lo verifica: `sanciones_insert` no compara `creado_por` con la sesión, así que un staff puede mandar NULL
+  u otro `usuarios.id`. Y **ninguna edición** queda registrada: sin auditoría, cambiar `fecha_fin` o pasar la sanción
+  a `revocada` no deja quién ni cuándo.
+- ISSUE-019 ya anotaba "sin auditar: caballerizas, resoluciones, hipodromos, propietarios, profesionales, spcs,
+  sanciones". Esto es el caso concreto: una resolución que suspende a una persona 2 años y medio.
+
+**Arreglo propuesto** (con migración, rollback y probe, fuera de esta anotación):
+1. `trg_audit_resoluciones`, `trg_audit_resolucion_entidades` y `trg_audit_sanciones` →
+   `fn_auditoria_log()` (INSERT/UPDATE/DELETE, con el `usuario_id` de la sesión). Cubre alta, edición y revocación.
+2. Trigger `BEFORE INSERT` en `resoluciones` y `sanciones` que **imponga** `creado_por` desde la sesión
+   (`usuarios.id` de `auth.uid()`), ignorando lo que mande el cliente. Service_role y las migraciones quedan con lo
+   que manden, o NULL.
+3. Front: `resoluciones.html` manda `creado_por` igual que `sanciones.html`. Es redundante con el punto 2, pero deja
+   el payload consistente.
+4. Opcional: `updated_at` / `updated_by` en las dos tablas, para la última edición sin tener que ir a la auditoría.
+
+**No recupera** el autor de la 39 y la 40: sólo sirve para adelante. Si hace falta dejarlo asentado, se completa a
+mano con lo que diga la secretaría, por migración y con nota.
+**Relacionado**: ISSUE-019 (auditoría extendida), ISSUE-094 (`club_secuencias` sin auditoría), PR #19 (sanciones).
+
