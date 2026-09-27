@@ -1,4 +1,6 @@
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
+-- ESTADO EN PRODUCCIÓN: **APLICADA el 2026-09-27** (`20260927223658 resoluciones_sanciones_autor`). Foto de prod después = tests/local/resoluciones_sanciones_md5_esperado.txt (55/55). Probe --prod 32/32. Este bloque de ESTADO
+-- se agregó DESPUÉS de aplicar: las sentencias son idénticas a las aplicadas.
 -- ISSUE-097 · pieza A — autor y última modificación EN LA FILA, impuestos por la base.
 --
 -- resoluciones y sanciones:

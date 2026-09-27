@@ -1,6 +1,6 @@
 # Changelog
 
-## [2026-09-27] — ISSUE-097: autor y auditoría en resoluciones y sanciones; borrar sólo super_admin (rama `fix/resoluciones-sanciones-autor`, **sin aplicar**)
+## [2026-09-27] — ISSUE-097: autor y auditoría en resoluciones y sanciones; borrar sólo super_admin (PR #26; migraciones **aplicadas** `20260927223658` / `…223701` / `…223704`)
 
 > No se podía saber quién cargó las resoluciones N° 39 y 40 (doping, suspensión de 2 años y medio):
 > `resoluciones.creado_por` quedaba NULL y ninguna de las tres tablas tenía auditoría.
@@ -17,6 +17,9 @@
 - Probe `tests/probe_resoluciones_sanciones_autor.mjs` (sandbox): 33/33, 11/11 mutantes. Ajustados
   `probe_politicas_escritura_staff.mjs` (borrar resolución sólo super_admin; 281/281, 14/14) y
   `probe_sanciones_alta.mjs` (M2 retirado; 13/13, 6/6). Rollback por pieza probado en el sandbox.
+- Aplicadas en prod el 27/09 en orden A, B, C: foto de prod = esperado del sandbox (55/55). Probe `--prod` 32/32 +
+  4/4 mutantes de pantalla (los de base sólo en el sandbox). `probe_sanciones_alta` limpia la auditoría de sus
+  usuarios antes de borrarlos (la tabla ahora está auditada).
 
 ## [2026-09-27] — Pantalla Usuarios: personal y portal separados, acciones según rol, nunca éxito sobre 0 filas; Desactivar vuelve a funcionar (PR #23)
 

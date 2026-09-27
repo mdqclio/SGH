@@ -1,4 +1,6 @@
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
+-- ESTADO EN PRODUCCIÓN: **APLICADA el 2026-09-27** (`20260927223701 audit_resoluciones_sanciones`). Foto de prod después = tests/local/resoluciones_sanciones_md5_esperado.txt (55/55). Probe --prod 32/32. Este bloque de ESTADO
+-- se agregó DESPUÉS de aplicar: las sentencias son idénticas a las aplicadas.
 -- ISSUE-097 · pieza B — auditoría de resoluciones, resolucion_entidades y sanciones.
 -- Mismo patrón que trg_audit_liquidacion_config / trg_audit_clubs: AFTER INSERT OR DELETE OR UPDATE,
 -- fn_auditoria_log() sin cambios (usuario por el email del JWT; sin sesión → usuario_id NULL, "Sistema").

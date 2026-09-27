@@ -154,6 +154,14 @@ async function correr(htmlSrc) {
 async function limpiar() {
   const errores = [];
   const { error: e1 } = await admin.from('sanciones').delete().eq('notas', RUN); if (e1) errores.push('sanciones: ' + e1.message);
+  // Desde ISSUE-097 sanciones está auditada: lo que hicieron los usuarios del probe deja filas en `auditoria`, que
+  // referencia a usuarios (FK). Se borran ANTES que los usuarios (mismo orden que probe_guard_staff_rpcs / 093).
+  // En el sandbox puede no existir la tabla auditoria: ahí se tolera.
+  const ids = creados.map(c => c.usuarioId);
+  if (ids.length) {
+    const { error: eA } = await admin.from('auditoria').delete().in('usuario_id', ids);
+    if (eA && (EN_PROD || !/auditoria|does not exist|schema cache/i.test(eA.message))) errores.push('auditoria: ' + eA.message);
+  }
   for (const c of creados) {
     const { error } = await admin.from('usuarios').delete().eq('id', c.usuarioId); if (error) errores.push('usuarios: ' + error.message);
     if (EN_PROD) { const { error: eA } = await admin.auth.admin.deleteUser(c.authId); if (eA) errores.push('auth: ' + eA.message); }

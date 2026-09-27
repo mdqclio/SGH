@@ -2750,7 +2750,8 @@ políticas, previa búsqueda de referencias (`git grep resultado_log main`, `pg_
 `docs/diagnosticos/2026-09-27_issue093-aplicado.md` §2 (reports).
 
 ### ISSUE-097: resoluciones y sanciones sin trazabilidad — no queda registrado quién carga, edita o revoca
-**Estado**: 🟡 **FIX EN PR, SIN APLICAR** (2026-09-27) — rama `fix/resoluciones-sanciones-autor`: migraciones
+**Estado**: 🟢 **MIGRACIONES APLICADAS el 2026-09-27** (`20260927223658` A, `20260927223701` B, `20260927223704` C; foto de
+prod = esperado 55/55; probe --prod 32/32). Front en el PR #26 (rama `fix/resoluciones-sanciones-autor`): migraciones
 `resoluciones_sanciones_autor.sql` (A), `audit_resoluciones_sanciones.sql` (B) y `resoluciones_delete_super_admin.sql` (C),
 con rollback por pieza; front en `resoluciones.html`, `sanciones.html` y `auditoria.html`; probe
 `tests/probe_resoluciones_sanciones_autor.mjs` (sandbox 33/33, 11/11 mutantes). Decisiones del 27/09: autor y

@@ -2,7 +2,9 @@
  * probe_resoluciones_sanciones_autor.mjs — ISSUE-097: autor y última modificación impuestos por la base,
  * auditoría en resoluciones / resolucion_entidades / sanciones, y borrado sólo de super_admin (base + pantalla).
  *
- * SÓLO SANDBOX (GOTCHA #101): crea usuarios de todos los roles.
+ * Sandbox por defecto. Con --prod corre contra prod DESPUÉS de aplicar: usuarios sintéticos en clubs reales (no crea
+ * clubs ni reuniones, GOTCHA #101), sin sesión directa (A8 por MCP) y SIN los mutantes de base (M1–M7), que en prod
+ * dejarían un rato sin autor ni auditoría; los de pantalla (M8–M11) sí.
  *   tests/local/up.sh sql < tests/local/usuarios_sandbox.sql
  *   tests/local/up.sh sql < tests/local/auditoria_sandbox.sql
  *   tests/local/up.sh sql < migrations/resoluciones_sanciones_autor.sql
@@ -33,9 +35,16 @@ import jsdom from 'jsdom';
 const { JSDOM, VirtualConsole, requestInterceptor } = jsdom;
 
 const ROOT = new URL('..', import.meta.url).pathname;
-const BASE_URL = process.env.SUPABASE_URL, KEY = process.env.SUPABASE_SECRET_KEY, JWT_SECRET = process.env.LOCAL_JWT_SECRET, PSQL = process.env.PSQL_CMD;
-if (!BASE_URL || BASE_URL.includes('unlhcuanfrtpatoipwve')) { console.error('Sólo sandbox (GOTCHA #101)'); process.exit(2); }
-if (!KEY || !JWT_SECRET || !PSQL) { console.error('Faltan SUPABASE_SECRET_KEY / LOCAL_JWT_SECRET / PSQL_CMD del sandbox'); process.exit(2); }
+const PROD_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
+const EN_PROD = process.argv.includes('--prod');
+const BASE_URL = EN_PROD ? PROD_URL : process.env.SUPABASE_URL, KEY = process.env.SUPABASE_SECRET_KEY, JWT_SECRET = process.env.LOCAL_JWT_SECRET, PSQL = process.env.PSQL_CMD;
+const PUB = process.env.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK';
+// En prod: usuarios SINTÉTICOS en clubs reales (Dolores, Mi Club Hípico), sesiones por magiclink, fixtures marcados
+// que el finally borra (antes su auditoría y sus filas, después los usuarios: FK). Sin sesión directa (A8 se prueba
+// aparte, por MCP, en una transacción revertida) y SIN mutantes de base: modificar triggers o políticas de prod para
+// probar dejaría un rato sin autor ni auditoría. Los mutantes de pantalla (jsdom) sí corren.
+if (!EN_PROD && (!BASE_URL || BASE_URL.includes('unlhcuanfrtpatoipwve'))) { console.error('Sin --prod, sólo sandbox'); process.exit(2); }
+if (!KEY || (!EN_PROD && (!JWT_SECRET || !PSQL))) { console.error('Faltan SUPABASE_SECRET_KEY (y en sandbox LOCAL_JWT_SECRET / PSQL_CMD)'); process.exit(2); }
 const DOLORES = '0649e9c5-9e87-4aad-842f-101458e6b33c', OTRO = 'a6da7e40-1515-45dc-8933-4eef33ce937a';
 const RUN = `PROBE-097-${Date.now()}`;
 const admin = createClient(BASE_URL, KEY, { auth: { persistSession: false } });
@@ -49,9 +58,18 @@ process.on('unhandledRejection', () => {});
 // ── perfiles ───────────────────────────────────────────────────────────────────────────────────
 const P = {};
 async function perfil(k, rol, club, extra = {}) {
-  const authId = randomUUID(), email = `${RUN.toLowerCase()}-${k}@example.invalid`;
+  const email = `${RUN.toLowerCase()}-${k}@example.invalid`;
+  let authId;
+  if (EN_PROD) { const { data, error } = await admin.auth.admin.createUser({ email, password: 'Px-' + randomUUID(), email_confirm: true }); if (error) throw error; authId = data.user.id; }
+  else authId = randomUUID();
   const u = await q(admin.from('usuarios').insert({ email, password_hash: '', nombre_completo: `${RUN} ${k}`, rol, club_id: club, activo: true, estado: 'activo', auth_user_id: authId, ...extra }).select('id').single(), `alta ${k}`);
-  P[k] = { id: u.id, authId, email, rol, cli: createClient(BASE_URL, KEY, { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${jwt(authId, email)}` } } }) };
+  let cli;
+  if (EN_PROD) {
+    const { data: link, error: eL } = await admin.auth.admin.generateLink({ type: 'magiclink', email }); if (eL) throw eL;
+    cli = createClient(BASE_URL, PUB, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { error: eV } = await cli.auth.verifyOtp({ token_hash: link.properties.hashed_token, type: 'magiclink' }); if (eV) throw eV;
+  } else cli = createClient(BASE_URL, KEY, { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${jwt(authId, email)}` } } });
+  P[k] = { id: u.id, authId, email, rol, cli };
 }
 const resol = (extra = {}) => ({ club_id: DOLORES, numero: `${RUN}-${randomUUID().slice(0, 6)}`, fecha: '2099-01-01', tipo: 'probe', texto: RUN, ...extra });
 const sanc = (extra = {}) => ({ club_id: DOLORES, entidad_tipo: 'spc', entidad_id: randomUUID(), tipo_sancion: 'probe', motivo: RUN, fecha_inicio: '2099-01-01', alcance: 'club', ...extra });
@@ -88,9 +106,11 @@ async function suiteBase() {
   if (a1.data) {
     const a7 = await admin.from('resoluciones').update({ texto: `${RUN} sr`, creado_por: null }).eq('id', a1.data.id).select('*').single();
     ok('A7) service_role edita: creado_por congelado, modificado_por NULL, modificado_at ahora', !a7.error && a7.data.creado_por === P.sec.id && a7.data.modificado_por === null && reciente(a7.data.modificado_at), JSON.stringify({ e: a7.error?.message, d: a7.data && { c: a7.data.creado_por, mp: a7.data.modificado_por } }));
-    // A8 sesión directa (como una migración)
-    psql(`UPDATE resoluciones SET creado_por = NULL WHERE id = '${a1.data.id}';`);
-    ok('A8) sesión directa (migración) tampoco cambia creado_por', (await leer('resoluciones', a1.data.id)).creado_por === P.sec.id);
+    // A8 sesión directa (como una migración). En prod no hay sesión directa desde acá: se prueba por MCP.
+    if (!EN_PROD) {
+      psql(`UPDATE resoluciones SET creado_por = NULL WHERE id = '${a1.data.id}';`);
+      ok('A8) sesión directa (migración) tampoco cambia creado_por', (await leer('resoluciones', a1.data.id)).creado_por === P.sec.id);
+    }
   }
 
   // B · auditoría
@@ -214,6 +234,7 @@ async function barrer() {
   if (ids.length) {
     await admin.from('auditoria').delete().in('usuario_id', ids);
     await admin.from('usuarios').delete().in('id', ids);
+    if (EN_PROD) for (const p of Object.values(P)) await admin.auth.admin.deleteUser(p.authId);
   }
   const c = async (t, f) => (await f(admin.from(t).select('*', { count: 'exact', head: true }))).count;
   return { resoluciones: await c('resoluciones', x => x.like('numero', `${RUN}%`)), sanciones: await c('sanciones', x => x.eq('motivo', RUN)),
@@ -224,13 +245,13 @@ let codigo = 0;
 try {
   await perfil('sec', 'secretario_carreras', DOLORES); await perfil('ope', 'operador', DOLORES); await perfil('sa', 'super_admin', DOLORES);
   await perfil('portal', 'profesional', DOLORES, { entidad_tipo: 'profesional', entidad_id: randomUUID() }); await perfil('otro', 'operador', OTRO);
-  console.log(`contexto: RUN=${RUN} · sandbox · ${Object.keys(P).length} perfiles`);
+  console.log(`contexto: RUN=${RUN} · ${EN_PROD ? 'PROD (sin mutantes de base)' : 'sandbox'} · ${Object.keys(P).length} perfiles`);
   const res = [...await suiteBase(), ...await suiteFront(HTML.res, HTML.san, HTML.aud)];
   for (const x of res) console.log(`${x.c ? '✅' : '❌'} ${x.t}${x.c ? '' : '  ← ' + x.n}`);
   const bien = res.filter(x => x.c).length; console.log(`\nSUITE: ${bien}/${res.length}`); if (bien !== res.length) codigo = 1;
   if (process.argv.includes('--mutantes')) {
     let muertos = 0, total = 0;
-    for (const [nom, [mut, rest]] of Object.entries(MUT_SQL)) {
+    for (const [nom, [mut, rest]] of Object.entries(EN_PROD ? {} : MUT_SQL)) {
       total++; psql(mut); psql("NOTIFY pgrst, 'reload schema';");
       let rr; try { rr = await suiteBase(); } finally { psql(rest); psql("NOTIFY pgrst, 'reload schema';"); }
       const rojos = rr.filter(x => !x.c); if (rojos.length) muertos++;
