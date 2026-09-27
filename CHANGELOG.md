@@ -1,6 +1,6 @@
 # Changelog
 
-## [2026-09-27] — XSS: nombres del portal en pantallas del staff (ISSUE-018, tramo terceros) — rama `fix/xss-usuarios-portal`, sin merge
+## [2026-09-27] — XSS: nombres del portal en pantallas del staff (ISSUE-018, tramo terceros) — PR #20
 
 > Los usuarios del portal eligen su nombre (solicitar-acceso) y pueden reescribir su fila de `usuarios` por la API. Ese
 > texto iba crudo a `innerHTML` y a atributos `onclick` en pantallas del personal. Hallazgo H6 de
@@ -17,6 +17,27 @@
   `loadInscripciones()` reales contra prod con 5 nombres hostiles (usuarios + inscripciones portal en la 9999), clicks
   reales en Editar/Aprobar/Rechazar. 82/82; `--mutantes` 3/3 (escape identidad, `main` pre-fix, sin el `<script src>`).
   Pre-fix: `__pwn=2` al tocar Editar, `__pwn=3` al tocar Aprobar.
+
+## [2026-09-27] — SEGURIDAD: escritura de 14 tablas sólo para staff (ISSUE-093) — migración **aplicada** `20260927202948`, rama `fix/politicas-escritura-staff` sin mergear
+
+> Las políticas de escritura de 14 tablas sólo comparaban el club de la fila con `fn_get_user_club_id()`, que devuelve el
+> club de cualquier usuario activo: un profesional o propietario del portal podía escribir por la API en
+> `liquidacion_config`, `club_secuencias`, `clubs`, `comision_config`, `resultado_apuestas`, `carrera_apuestas`, etc.
+> Relevamiento: `docs/diagnosticos/2026-09-27_issue093-politicas-escritura-portal.md` (reports).
+
+- `migrations/politicas_escritura_staff_14.sql`: las 36 políticas pasan a `fn_is_super_admin() OR (fn_is_staff() AND <club>)`.
+  Generada por `tests/local/gen_politicas_escritura_staff.py`. **Aplicada** el 27/09; md5 de las 36 expresiones en prod
+  = el medido en el sandbox (36/36, `tests/local/politicas_escritura_md5_esperado.txt`).
+- `migrations/rollback_politicas_escritura_staff_14.sql`: las 36 exactas de antes (md5 36/36 contra prod; probado en el
+  sandbox).
+- `tests/probe_politicas_escritura_staff.mjs` (nuevo): 14 tablas × INSERT/UPDATE/DELETE × 7 perfiles con sesión real
+  (portal, propietario del portal, operador inactivo, operador de otro club, secretario, operador, super_admin). Sandbox:
+  con las políticas de antes 201/281 (los 80 rojos, todos de portal); después 281/281; 14/14 mutantes (uno por tabla).
+  Prod: 281/281, limpieza por estado OK.
+- Oficializar no se rompe: `aplicar_resultado` (SECURITY DEFINER) sigue escribiendo `resultado_apuestas` con sesión de
+  secretario, probado en prod en transacción revertida antes y después de aplicar. `resultado_log` no la escribe ninguna
+  función (0 filas; así ya era).
+- Nuevos: ISSUE-094 (`club_secuencias` sin auditoría) e ISSUE-095 (en prod no se puede borrar ningún club).
 
 ## [2026-09-25] — Sanciones: el alta vuelve a funcionar + INSERT/UPDATE sólo para staff (PR #19; migración **aplicada** `20260925205245`)
 
