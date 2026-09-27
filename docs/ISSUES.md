@@ -2750,7 +2750,15 @@ políticas, previa búsqueda de referencias (`git grep resultado_log main`, `pg_
 `docs/diagnosticos/2026-09-27_issue093-aplicado.md` §2 (reports).
 
 ### ISSUE-097: resoluciones y sanciones sin trazabilidad — no queda registrado quién carga, edita o revoca
-**Estado**: abierto (2026-09-27). Sin arreglar.
+**Estado**: 🟢 **MIGRACIONES APLICADAS el 2026-09-27** (`20260927223658` A, `20260927223701` B, `20260927223704` C; foto de
+prod = esperado 55/55; probe --prod 32/32). Front en el PR #26 (rama `fix/resoluciones-sanciones-autor`): migraciones
+`resoluciones_sanciones_autor.sql` (A), `audit_resoluciones_sanciones.sql` (B) y `resoluciones_delete_super_admin.sql` (C),
+con rollback por pieza; front en `resoluciones.html`, `sanciones.html` y `auditoria.html`; probe
+`tests/probe_resoluciones_sanciones_autor.mjs` (sandbox 33/33, 11/11 mutantes). Decisiones del 27/09: autor y
+última modificación **en la fila** (`creado_por` impuesto y congelado, `modificado_por` / `modificado_at`); auditoría en
+las tres; borrar sólo super_admin (y el botón oculto para el resto); la resolución **no** se vuelve inmutable en este
+cambio (costo en el informe `docs/diagnosticos/2026-09-27_issue097-fase2.md`, reports; decide Fede). Las **N° 39 y 40
+quedan sin autor**, sin completar a mano: el motivo queda en el `COMMENT` de `resoluciones.creado_por`.
 **El hecho**: las resoluciones N° 39 y 40 del 25/09 (doping, suspensión de un entrenador por 2 años y medio) se
 cargaron el 27/09 a las 18:10 y 18:14 (hora argentina) y **no se puede demostrar quién las cargó**. La mejor
 inferencia sale de las sesiones de Auth (una sola persona de staff inició sesión 4 minutos antes; otra tenía una

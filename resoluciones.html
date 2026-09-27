@@ -263,7 +263,7 @@ function renderList(data) {
         <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(r)})'>✏️ Editar</button>
         ${r.estado==='borrador'?`<button class="btn-sm btn-pub" onclick="cambiarEstado('${r.id}','publicada')">📢 Publicar</button>`:''}
         ${r.estado==='publicada'?`<button class="btn-sm btn-not" onclick="cambiarEstado('${r.id}','notificada')">✅ Notificar</button>`:''}
-        <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}')">🗑️</button>
+        ${puedeBorrar() ? `<button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}')">🗑️</button>` : ''}
       </div>
     </div>`;
   }).join('')}</div>`;
@@ -322,10 +322,16 @@ async function saveRecord() {
   load();
 }
 
+// Borrar una resolución: sólo super_admin (política resoluciones_delete, ISSUE-097). Al resto no se le
+// muestra el botón; y si igual llegara acá, la RLS filtra la fila y PostgREST devuelve 0 filas SIN error:
+// se pide la fila de vuelta para no decir "eliminada" sin haber borrado nada.
+function puedeBorrar() { return currentUser?.rol === 'super_admin'; }
+
 async function deleteRecord(id) {
   if (!confirm('¿Eliminar esta resolución?')) return;
-  const { error } = await sb.from('resoluciones').delete().eq('id',id);
+  const { data, error } = await sb.from('resoluciones').delete().eq('id',id).select('id');
   if (error) { toast(error.message,'error'); return; }
+  if (!data || !data.length) { toast('No tenés permiso para eliminar esta resolución', 'error'); return; }
   toast('Resolución eliminada');
   allData = allData.filter(r=>r.id!==id);
   updateStats();

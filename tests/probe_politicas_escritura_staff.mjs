@@ -142,7 +142,9 @@ function spec(ctx) {
       upd: { entidad_tipo: 'upd' }, marca: ['descripcion', RUN] },
     resoluciones: {
       nueva: () => ({ club_id: DOLORES, numero: `${RUN}-${rnd()}`, fecha: '2099-01-01', tipo: 'probe', texto: RUN }),
-      upd: { estado: 'upd' }, marca: ['texto', RUN] },
+      upd: { estado: 'upd' }, marca: ['texto', RUN],
+      // ISSUE-097 (pieza C): borrar una resolución es sólo de super_admin.
+      borraSoloSuperAdmin: true },
     resultado_apuestas: {
       nueva: () => ({ resultado_id: RESULTADO, tipo: 'CAD', composicion: RUN, orden: apuOrden++ }),
       upd: { div_orig: 1 }, marca: ['composicion', RUN] },
@@ -151,6 +153,8 @@ function spec(ctx) {
       upd: { datos_despues: { upd: true } }, marca: ['accion', RUN] },
   };
 }
+// Migraciones aplicadas DESPUÉS de ISSUE-093 sobre alguna de estas tablas (el restore de los mutantes las reaplica).
+const POSTERIORES = { resoluciones: ['migrations/resoluciones_delete_super_admin.sql'] };   // ISSUE-097 pieza C
 const TABLAS = ['caballeriza_responsables', 'carrera_apuestas', 'categorias_carrera', 'club_configuracion', 'club_secuencias', 'clubs',
   'comision_config', 'hipodromos', 'liquidacion_config', 'novedades_reunion', 'resolucion_entidades', 'resoluciones', 'resultado_apuestas', 'resultado_log'];
 
@@ -199,7 +203,10 @@ async function probarTabla(t, P, ctx, ok) {
     ok(`${t}.UPDATE.${n}) 1 fila`, !up.error && (up.data || []).length === 1, JSON.stringify({ e: up.error?.message, n: up.data?.length }));
     const fd = keyDe(s, await fixture(t, s));
     const del = await aplicarKey(P[n].cli.from(t).delete(), fd).select('*');
-    ok(`${t}.DELETE.${n}) 1 fila`, !del.error && (del.data || []).length === 1 && !(await leerFila(t, fd)), JSON.stringify({ e: del.error?.message, n: del.data?.length }));
+    if (s.borraSoloSuperAdmin && n !== 'superadmin')
+      ok(`${t}.DELETE.${n}) 0 filas y fixture sigue (sólo super_admin borra)`, !(del.data || []).length && !!(await leerFila(t, fd)), JSON.stringify({ e: del.error?.code, n: del.data?.length }));
+    else
+      ok(`${t}.DELETE.${n}) 1 fila`, !del.error && (del.data || []).length === 1 && !(await leerFila(t, fd)), JSON.stringify({ e: del.error?.message, n: del.data?.length }));
   }
 }
 
@@ -290,7 +297,11 @@ try {
     for (const t of TABLAS) {
       execSync(PSQL, { input: bloques(rb, t), encoding: 'utf8', stdio: ['pipe', 'ignore', 'inherit'] });   // ESA tabla vuelve a la política de hoy
       const r = []; const okM = (x, c, n = '') => r.push({ t: x, c: !!c, n });
-      try { await probarTabla(t, P, ctx, okM); } finally { execSync(PSQL, { input: bloques(fw, t), encoding: 'utf8', stdio: ['pipe', 'ignore', 'inherit'] }); }
+      try { await probarTabla(t, P, ctx, okM); } finally {
+        execSync(PSQL, { input: bloques(fw, t), encoding: 'utf8', stdio: ['pipe', 'ignore', 'inherit'] });
+        // Migraciones posteriores a ISSUE-093 que tocan la misma tabla: si no se reaplican, el restore de 093 las pisaría.
+        for (const f of (POSTERIORES[t] || [])) execSync(PSQL, { input: readFileSync(ROOT + f, 'utf8'), encoding: 'utf8', stdio: ['pipe', 'ignore', 'inherit'] });
+      }
       const rojos = r.filter(x => !x.c);
       const soloPortal = rojos.every(x => /portal/.test(x.t));
       log(`${rojos.length ? '💀 muere' : '🧟 SOBREVIVE'} M-${t} (política de hoy sólo en esa tabla) — ${rojos.length}/${r.length} en rojo${rojos.length ? (soloPortal ? ', todos de perfiles de portal' : ', OJO: rojos fuera del portal') : ''}: ${rojos.map(x => x.t).join(' | ')}`);

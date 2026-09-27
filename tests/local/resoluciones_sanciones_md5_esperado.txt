@@ -1,0 +1,58 @@
+# ISSUE-097 — estado esperado DESPUÉS de las piezas A+B+C (medido en el sandbox tests/local, PG 16.15, 2026-09-27).
+# Formato: pol = md5(USING|CHECK) · trg = md5(pg_get_triggerdef) · fn = md5(pg_get_functiondef) · comment = md5(col_description).
+# Consulta: la de 'foto' en el informe docs/diagnosticos/2026-09-27_issue097-fase2.md (reports).
+col resolucion_entidades.descripcion text YES
+col resolucion_entidades.entidad_id uuid NO
+col resolucion_entidades.entidad_tipo character varying NO
+col resolucion_entidades.id uuid NO
+col resolucion_entidades.resolucion_id uuid NO
+col resoluciones.club_id uuid NO
+col resoluciones.creado_por uuid YES
+col resoluciones.created_at timestamp with time zone NO
+col resoluciones.documento_url text YES
+col resoluciones.estado character varying NO
+col resoluciones.fecha date NO
+col resoluciones.id uuid NO
+col resoluciones.modificado_at timestamp with time zone YES
+col resoluciones.modificado_por uuid YES
+col resoluciones.numero character varying NO
+col resoluciones.reunion_id uuid YES
+col resoluciones.texto text YES
+col resoluciones.tipo character varying NO
+col sanciones.alcance character varying NO
+col sanciones.club_id uuid NO
+col sanciones.codigo_resolucion character varying YES
+col sanciones.creado_por uuid YES
+col sanciones.created_at timestamp with time zone NO
+col sanciones.entidad_id uuid NO
+col sanciones.entidad_tipo USER-DEFINED NO
+col sanciones.estado USER-DEFINED NO
+col sanciones.fecha_fin date YES
+col sanciones.fecha_inicio date NO
+col sanciones.id uuid NO
+col sanciones.modificado_at timestamp with time zone YES
+col sanciones.modificado_por uuid YES
+col sanciones.motivo text YES
+col sanciones.notas text YES
+col sanciones.resolucion_url text YES
+col sanciones.tipo_sancion character varying NO
+comment resoluciones.creado_por 208f870519eb969e9f4d7f1825a26f86
+comment sanciones.creado_por 955f1853042b6b551c95a47c77e7e39a
+fn fn_autor_fila b9f80c456cd3578ab5fbd11c51df7a24
+pol resolucion_entidades.resolucion_entidades_delete c2cb0e12ae1cff5f383e7bc3c5efee60
+pol resolucion_entidades.resolucion_entidades_insert 3f38ad29c81ad76f3a9d9aa364255c97
+pol resolucion_entidades.resolucion_entidades_select 7a26cdc2729437155a2514805fb17748
+pol resolucion_entidades.resolucion_entidades_update c93e0192c669dd79e5ccc46ca56f92db
+pol resoluciones.resoluciones_delete 06c736d81c93b99ecdc19b348c5804d5
+pol resoluciones.resoluciones_insert 851412fcb330fce19eebb3de7055282c
+pol resoluciones.resoluciones_select bd6203cb2a293196a30603f45ccf2556
+pol resoluciones.resoluciones_update 037b23db86ad676cb86984cac876da25
+pol sanciones.sanciones_delete 06c736d81c93b99ecdc19b348c5804d5
+pol sanciones.sanciones_insert 851412fcb330fce19eebb3de7055282c
+pol sanciones.sanciones_select 32f0c2e74c578a5806836d566c8dcf16
+pol sanciones.sanciones_update 037b23db86ad676cb86984cac876da25
+trg resolucion_entidades.trg_audit_resolucion_entidades 4f82c47c477cc53f09c96fc5b5894791
+trg resoluciones.trg_audit_resoluciones 72027e41bf602ad38a24f734a97a843b
+trg resoluciones.trg_resoluciones_autor 50ed8be0091e9bfd074fd03c3e720da8
+trg sanciones.trg_audit_sanciones 05fa0a501381d10a90a46ccb3325abc9
+trg sanciones.trg_sanciones_autor 8ae7c307a7e2be70a1c9987e5b1aa5a0
