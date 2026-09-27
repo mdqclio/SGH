@@ -551,3 +551,17 @@ decisión de producto, pendiente.
 - **Q5** — Antes del 2026-07-23 no hay auditoría de `usuarios`. Si importa confirmar el historial
   de `admin@`, `dolores@` y `yesica@`, la única otra fuente serían los logs de Postgres/API
   (retención limitada; probablemente ya no están).
+
+---
+
+## Verificación de push
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+762ed1704320db72cb213a66c8c65412f0747ec5	refs/heads/reports
+762ed1704320db72cb213a66c8c65412f0747ec5
+```
+
+El informe se commiteó desde un worktree de `origin/reports` (la `reports` local está divergida:
+ahead 1154 / behind 27 — no se tocó). Este apéndice va en un commit posterior; su SHA se verifica
+igual en la salida del chat de esa sesión.
