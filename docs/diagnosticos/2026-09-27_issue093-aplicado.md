@@ -1483,3 +1483,18 @@ INSERT | 28
 - **Q5** — ISSUE-095 (no se puede borrar un club): ¿se arregla en `fn_auditoria_log` (club_id NULL en la baja de
   clubs) o con `ON DELETE SET NULL` en la FK?
 - **Q6** — ISSUE-094: la tabla no tiene `id`; hay que decidir cómo la registra `fn_auditoria_log`.
+
+---
+
+## Verificación de push
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+6ad917f7d9165ba3de833feb7625b9f7e70ccce2	refs/heads/reports
+6ad917f7d9165ba3de833feb7625b9f7e70ccce2
+
+$ git ls-remote origin fix/politicas-escritura-staff
+05f665fa347a24ffcb7719a8604d8ab8d0170a87	refs/heads/fix/politicas-escritura-staff
+```
+
+Este apéndice va en un commit posterior de `reports`; su SHA se informa en el chat.
