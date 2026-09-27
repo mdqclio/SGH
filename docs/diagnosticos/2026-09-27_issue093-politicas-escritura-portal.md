@@ -979,3 +979,15 @@ resultados.html:557:    resIds.length ? sb.from('resultado_apuestas').select('*'
 resultados.html:1346:  const { data } = await sb.from('resultado_apuestas').select('*').eq('resultado_id', res.id).order('orden');
 === resultado_log
 ```
+
+---
+
+## Verificación de push
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+468b66b7e58e55aef445ea5784b589bffba8a9a6	refs/heads/reports
+468b66b7e58e55aef445ea5784b589bffba8a9a6
+```
+
+Este apéndice va en un commit posterior de `reports`; su SHA se informa en el chat.
