@@ -488,3 +488,18 @@ aplicar" de ISSUE-097 ya dicen "aplicadas".
   rechaza (pieza C) y la pantalla todavía dice "Resolución eliminada" sin borrar: es el placebo que el front del #26
   corrige.
 - Después del merge: md5 de las tres pantallas del sitio contra `main`.
+
+---
+
+## Verificación de push
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+bce13b5c22ba5a0453126cb6bf6535069fc775c2	refs/heads/reports
+bce13b5c22ba5a0453126cb6bf6535069fc775c2
+
+$ git ls-remote origin fix/resoluciones-sanciones-autor
+806889003db2e799c628feb6fb9db99ac4d953ab	refs/heads/fix/resoluciones-sanciones-autor
+```
+
+Este apéndice va en un commit posterior de `reports`; su SHA se informa en el chat.
