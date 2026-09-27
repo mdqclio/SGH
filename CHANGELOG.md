@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026-09-27] — ISSUE-097: autor y auditoría en resoluciones y sanciones; borrar sólo super_admin (rama `fix/resoluciones-sanciones-autor`, **sin aplicar**)
+
+> No se podía saber quién cargó las resoluciones N° 39 y 40 (doping, suspensión de 2 años y medio):
+> `resoluciones.creado_por` quedaba NULL y ninguna de las tres tablas tenía auditoría.
+
+- **A** `migrations/resoluciones_sanciones_autor.sql`: `fn_autor_fila` + `trg_resoluciones_autor` / `trg_sanciones_autor`.
+  La base pone `creado_por` con el usuario de la sesión (ignora lo que mande la pantalla) y lo congela en las
+  ediciones. Columnas nuevas `modificado_por` y `modificado_at`, también impuestas. Sin sesión: NULL.
+  En la fila, porque la auditoría se purga a los 12 meses.
+- **B** `migrations/audit_resoluciones_sanciones.sql`: auditoría en `resoluciones`, `resolucion_entidades` y `sanciones`.
+- **C** `migrations/resoluciones_delete_super_admin.sql`: borrar una resolución, sólo super_admin (como las sanciones).
+- Front: el botón de borrar sólo aparece para super_admin en `resoluciones.html` y `sanciones.html`, y si se llega sin
+  permiso muestra error en vez de "eliminada" (era un placebo). `auditoria.html` ofrece las tres tablas.
+- Las N° 39 y 40 quedan sin autor (decisión del 27/09), con la nota en el `COMMENT` de la columna.
+- Probe `tests/probe_resoluciones_sanciones_autor.mjs` (sandbox): 33/33, 11/11 mutantes. Ajustados
+  `probe_politicas_escritura_staff.mjs` (borrar resolución sólo super_admin; 281/281, 14/14) y
+  `probe_sanciones_alta.mjs` (M2 retirado; 13/13, 6/6). Rollback por pieza probado en el sandbox.
+
 ## [2026-09-27] — Pantalla Usuarios: personal y portal separados, acciones según rol, nunca éxito sobre 0 filas; Desactivar vuelve a funcionar (PR #23)
 
 > Reportes de la semana: los usuarios del portal mezclados con el personal (Fede), botones que decían "Usuario
