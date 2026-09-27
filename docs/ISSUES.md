@@ -181,7 +181,7 @@ Estado: ✅ RESUELTO (14/05/2026) — 8/8 tablas hardenadas. Ver SESION_HARDENIN
 Descripción: Varios módulos usan template literals con `${variable}` dentro de `innerHTML` sin escapar. Un valor de DB con `<script>` o `"` puede ejecutar JS arbitrario en el browser del usuario.
 Solución: Agregar `escapeHtml()` (reemplaza &, <, >, ", ') en todos los templates literales que van a innerHTML con datos de usuario.
 Estado: Pendiente — recorrer todos los módulos HTML
-Avance 2026-09-27 (rama `fix/xss-usuarios-portal`, sin merge): cerrado el tramo **texto que escribe un tercero sin
+Avance 2026-09-27 (PR #20): cerrado el tramo **texto que escribe un tercero sin
 privilegios** (usuario del portal: nombre, teléfono, email) en pantallas del staff — `usuarios.html` (lista + Editar),
 `admin.html` (aprobaciones pendientes) e `inscripciones.html` ("Cargada por"). Función única `escape-html.js`; los
 onclick pasan sólo el id. Pre-fix era explotable: un nombre con `&quot;});…` ejecutaba JS al tocar Editar, uno con
@@ -266,6 +266,12 @@ Módulo: inscripciones / spcs. Estado: ⏳ Abierto — a investigar. Prioridad: 
 ### ISSUE-037: `fix/edad-siempre-abierta` — espera confirmación de Fede
 Descripción: fix de la condición de edad "siempre abierta" en branch, esperando confirmación de Fede antes de mergear.
 Módulo: por confirmar. Estado: ⏳ Abierto — branch a la espera de Fede. Prioridad: Baja.
+Nota 2026-09-27: **no se pudo determinar si el arreglo está en `main`.** La rama `fix/edad-siempre-abierta` **no existe en
+origin** y ningún commit de ninguna ref la menciona (el issue nació en `06e45c2`, 21/07, sin describir el bug más allá
+de este texto), así que no hay contra qué comparar el código. Sí existen en origin `fix/edad-reglamentaria-unica`
+(`54ccbad`) y `diag/edad-gate-inscripcion` (`7de5461`), las dos ya contenidas en `main`, pero resuelven otra cosa: la
+regla del 1° de julio para la edad reglamentaria. Para cerrarlo hace falta que Fede diga qué era la condición "siempre
+abierta".
 
 ### ISSUE-038: Programa oficial — carreras y banner desaparecían por filtro de estado no NULL-safe — ✅ RESUELTO (2026-07-22)
 Descripción: dos bugs en el mismo filtro. (1) **Carreras**: `.neq('estado','anulada')` sobre `carreras.estado` (VARCHAR libre que admite NULL, gotcha #5) se traduce a `estado <> 'anulada'`, que para NULL da NULL y descarta la fila en silencio — el **turno 2 de la R6 desaparecía del programa** con todos sus ratificados. (2) **Banner de próxima reunión**: el mismo `.neq('estado','anulada')` sobre `reuniones.estado`, que es el ENUM `estado_reunion` y **no tiene** la etiqueta `anulada` (usa `cancelada`) → error `22P02`, `proximaReunion` en null y el banner **nunca renderizó**.
@@ -2238,7 +2244,7 @@ nada más. Módulo: portal / RPCs de inscripción. Prioridad: Media (no bloquea 
 
 ### ISSUE-083: `caballerizas.html` exigía apellido+nombre+DNI del propietario y bloqueaba el alta sin titular y la edición de 95/295 caballerizas
 
-**Estado**: 🟢 **CERRADO en rama** `feat/caballeriza-titular-opcional-provisorio` (16/09/2026, pendiente de merge).
+**Estado**: ✅ **CERRADO — en `main`** (rama `feat/caballeriza-titular-opcional-provisorio`, merge `a259783`, 16/09/2026).
 
 **El hecho**: `validateResponsables` (desde `d5b441a`, 11/05) cortaba `saveRecord` — alta y edición — si el propietario no
 tenía apellido, nombre y DNI. La base nunca lo exigió (`caballerizas` sólo `nombre`/`club_id` NOT NULL, `caballeriza_responsables`
@@ -2546,7 +2552,7 @@ where n.nspname='public' and p.proname in ('emitir_recibo','anular_recibo','libe
 ### ISSUE-091: recalcular una reunión saldada genera líneas nuevas cobrables — R6+R8: 33 líneas, $1.345.823,34 (31 impagas)
 
 **Prioridad**: 🔴 **ALTA** — plata cobrable en Pagos sobre reuniones que se dieron por pagadas.
-**Estado**: 🟡 **EN DEPLOY** (2026-09-25) — PR #17. Paso 1 hecho: migración aplicada (`20260925163044`), R6/R8 cerradas, R9 abierta, INSERT en R6 por la API → P0091. Paso 2 (motor y UI) con el merge. Paso 3 (recálculo de R9) pendiente de la ventana de Valeria.
+**Estado**: 🟡 **EN DEPLOY** (2026-09-25) — PR #17. Paso 1 hecho: migración aplicada (`20260925163044`), R6/R8 cerradas, R9 abierta, INSERT en R6 por la API → P0091. Paso 2 (motor y UI) en `main` con el merge del PR #17 (`afc6af5`, 25/09). Paso 3 (recálculo de R9) **EJECUTADO el 2026-09-25 a las 17:16:34 UTC**: 69 sub-líneas, **$564.096,66** ($447.336,66 retenido + $116.760,00 impago), 23 caballos al 100 % exacto, pagadas/retenidas previas idénticas, R6/R8 sin cambios, sin rollback. **No hay que volver a correrlo.** Informe: `docs/diagnosticos/2026-09-25_recalculo-r9-subroles.md` (reports).
 Decisiones del 25/09 (opción A del plan de `reports` `2026-09-25_plan-reparto-100-subroles-fase1.md`):
 - **Protección**: `reuniones.liquidacion_cerrada_at` + trigger en la base (`liquidacion_detalle`, `liquidaciones`) +
   corte en el motor + botón Recalcular deshabilitado. Cerrar y reabrir: sólo super_admin (o migración). La UI para
@@ -2658,7 +2664,8 @@ query de control del informe no tiene que moverse.
 
 ### ISSUE-092: peón/capataz/sereno cargados después de oficializar generan su sub-línea cobrable en el próximo recálculo, aunque el entrenador ya haya cobrado; cambiar el nombre después de pagada duplica el %
 
-**Estado**: 🟡 **FIX EN PR, SIN APLICAR** (2026-09-25) — rama `feat/reparto-100-subroles`. Se resuelve con el fix 3 de
+**Estado**: ✅ **FIX EN `main` y en el sitio desde el 2026-09-25** — PR #17 (merge `afc6af5`; `liquidaciones-engine.js:376`
+`concepto: sub.rol`, sitio = main verificado el 27/09). Se resuelve con el fix 3 de
 abajo: el `concepto` de la sub-línea pasa a ser **sólo el rol** (`Peón`/`Capataz`/`Sereno`) y el nombre va en la
 descripción, así que cargar o cambiar el nombre después de pagada no duplica (probe S5/S6, mutante M3). Que la
 sub-línea nazca aunque el entrenador ya haya cobrado deja de ser un accidente: desde el 25/09 las tres nacen
@@ -2709,7 +2716,7 @@ capataz ni sereno (sólo 3 de la 9999). Pero el camino está abierto y no avisa.
 **Relacionado**: ISSUE-091 (los disparadores), ISSUE-084 (el mismo patrón para montas, ya resuelto con RPC + trigger).
 
 ### ISSUE-093: 14 tablas con políticas de escritura sin guard de staff — el portal podía escribir liquidacion_config, club_secuencias, clubs, resultado_apuestas…
-**Estado**: migración **APLICADA 2026-09-27** (`20260927202948 politicas_escritura_staff_14`), rama `fix/politicas-escritura-staff` **sin mergear** (el merge sólo trae archivos: migración, rollback, probe, generador).
+**Estado**: migración **APLICADA 2026-09-27** (`20260927202948 politicas_escritura_staff_14`), archivos en `main` con el PR #21 (`f10ae9c`, 27/09): migración, rollback, probe, generador.
 **Qué pasaba**: las 36 políticas de INSERT/UPDATE/DELETE (y las dos FOR ALL `_rls`) de `caballeriza_responsables`, `carrera_apuestas`, `categorias_carrera`, `club_configuracion`, `club_secuencias`, `clubs`, `comision_config`, `hipodromos`, `liquidacion_config`, `novedades_reunion`, `resolucion_entidades`, `resoluciones`, `resultado_apuestas`, `resultado_log` sólo comparaban el club de la fila con `fn_get_user_club_id()`, que devuelve el club de cualquier usuario activo — portal incluido.
 **Arreglo**: `fn_is_super_admin() OR (fn_is_staff() AND <club>)` en las 36. Generadas por `tests/local/gen_politicas_escritura_staff.py`; rollback exacto (md5 36/36 contra prod); md5 post-aplicación 36/36 = sandbox. `aplicar_resultado`, `fn_siguiente_recibo` y `rpc_caballeriza_provisorio` son DEFINER (dueño postgres) y no dependen de las políticas: oficializar en la 9999 con sesión de secretario siguió escribiendo `resultado_apuestas` (probado antes y después de aplicar, en transacción revertida).
 **Evidencia de explotación**: ninguna donde hay auditoría (liquidacion_config, clubs, categorias_carrera); 11 de las 14 no tienen auditoría.

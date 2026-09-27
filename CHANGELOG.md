@@ -1,5 +1,25 @@
 # Changelog
 
+## [2026-09-27] — Pantalla Usuarios: personal y portal separados, acciones según rol, nunca éxito sobre 0 filas; Desactivar vuelve a funcionar (PR #23)
+
+> Reportes de la semana: los usuarios del portal mezclados con el personal (Fede), botones que decían "Usuario
+> actualizado"/"desactivado" sin haber cambiado nada, y editar un usuario del portal mandaba `rol: ''`.
+> Sólo front: la base ya impedía el cambio de rol (RLS + dos triggers).
+
+- `usuarios.html`: dos secciones con conteo, **Personal del hipódromo** y **Usuarios del portal**. Filas del portal sin
+  Editar. Las acciones siguen lo que la base permite según quien mira: super_admin edita y da de alta/baja; secretario y
+  operador sólo editan su propia fila. Nadie se da de baja a sí mismo.
+- `saveEdit` y `toggleActivo` piden la fila con `.select()`: si vuelven 0 filas muestran "No tenés permiso para
+  modificar este usuario" en vez de éxito.
+- `rol` sólo se manda si cambió y quien edita puede cambiarlo; si el rol de la fila no es una opción, el campo no
+  aparece.
+- **Desactivar** escribe `estado: 'suspendido'`. La restricción `usuarios_estado_check` admite sólo
+  `pendiente / activo / rechazado / suspendido` y **nunca aceptó `'inactivo'`** (anterior a la primera migración
+  registrada, 14/05; ninguna migración la cambió). El bug del 23/08 (`7535a1d`) fue elegir un valor inexistente en la
+  pantalla, no un cambio de la base: desde entonces Desactivar fallaba siempre. Bajas efectivas en ese período: 0.
+- `tests/probe_usuarios_pantalla.mjs` (nuevo, sólo sandbox) + `tests/local/usuarios_sandbox.sql` (réplica de RLS,
+  triggers y CHECK de `usuarios`): 27/27, 8/8 mutantes; la versión anterior da 7/27.
+
 ## [2026-09-27] — XSS: nombres del portal en pantallas del staff (ISSUE-018, tramo terceros) — PR #20
 
 > Los usuarios del portal eligen su nombre (solicitar-acceso) y pueden reescribir su fila de `usuarios` por la API. Ese
@@ -18,7 +38,7 @@
   reales en Editar/Aprobar/Rechazar. 82/82; `--mutantes` 3/3 (escape identidad, `main` pre-fix, sin el `<script src>`).
   Pre-fix: `__pwn=2` al tocar Editar, `__pwn=3` al tocar Aprobar.
 
-## [2026-09-27] — SEGURIDAD: escritura de 14 tablas sólo para staff (ISSUE-093) — migración **aplicada** `20260927202948`, rama `fix/politicas-escritura-staff` sin mergear
+## [2026-09-27] — SEGURIDAD: escritura de 14 tablas sólo para staff (ISSUE-093) — migración **aplicada** `20260927202948`, PR #21
 
 > Las políticas de escritura de 14 tablas sólo comparaban el club de la fila con `fn_get_user_club_id()`, que devuelve el
 > club de cualquier usuario activo: un profesional o propietario del portal podía escribir por la API en
@@ -65,15 +85,19 @@
 - Verificado: `has_function_privilege` anon true → **false**; RPC como anon → `42501`; la función no cambió (md5
   `11730b64…`); el trigger sigue rebotando un INSERT en R6 con `P0091` (sandbox D 7/7 y prod).
 
-## [2026-09-25] — Reparto al 100 %: peón/capataz/sereno siempre (recibo del entrenador 18 %) + reuniones con la liquidación cerrada (PR, **sin aplicar**)
+## [2026-09-25] — Reparto al 100 %: peón/capataz/sereno siempre (recibo del entrenador 18 %) + reuniones con la liquidación cerrada (PR #17, `afc6af5`)
 
 > Definición de Fede y Valeria (audios 25/09 11:48): peón 4 %, capataz 3 % y sereno 1 % se pagan **con el entrenador,
 > en su mismo recibo**, discriminados en el detalle. Hasta hoy el motor sólo generaba esas líneas si el nombre estaba
 > cargado, y nadie lo carga: el reparto quedaba en 92 %. Plan y números en `reports`:
 > `docs/diagnosticos/2026-09-25_plan-reparto-100-subroles-fase1.md`. PR #17.
 > **Estado al 25/09:** paso 1 hecho — migración **aplicada** (`20260925163044`), md5 de las 3 funciones verificado, R6/R8
-> cerradas (16:30:44 UTC), R9 abierta, INSERT en R6 por la API → P0091. Paso 2 (motor y UI) con el merge del PR. **Paso 3
+> cerradas (16:30:44 UTC), R9 abierta, INSERT en R6 por la API → P0091. Paso 2 (motor y UI) en `main` con el merge del PR #17 (`afc6af5`, 25/09). **Paso 3
 > (recálculo de R9) NO corrido: espera la ventana de Valeria.**
+>
+> **Cierre (agregado el 27/09):** el paso 3 **se ejecutó el 25/09** a las 17:16:34 UTC — 69 sub-líneas, **$564.096,66**
+> ($447.336,66 retenido + $116.760,00 impago), sin rollback. No volver a correrlo. Informe:
+> `docs/diagnosticos/2026-09-25_recalculo-r9-subroles.md` (reports).
 
 - **Motor** (`liquidaciones-engine.js`): las tres sub-líneas nacen **siempre**, con el nombre o "(sin nombre cargado)".
   `concepto` = el rol y el nombre en la descripción (clave de dedup estable: cierra ISSUE-092). **Regla de residuo** por
@@ -323,7 +347,7 @@
   (la 9999 restaurada: 640 líneas totales, 76 en la 9999, 42 recibos, 0 residuo) → merge del PR #7 → deploy del front.
   Informe: `docs/diagnosticos/2026-09-22_paso2-despliegue-issue-084.md` (reports).
 
-## [2026-09-21] — Registro de aprendizajes: encabezado de GOTCHAS + #98, ISSUE-084/086/087/088, regla 18 en CLAUDE.md (sin merge)
+## [2026-09-21] — Registro de aprendizajes: encabezado de GOTCHAS + #98, ISSUE-084/086/087/088, regla 18 en CLAUDE.md (PR #6, `d20feff`)
 
 - `docs/GOTCHAS.md`: encabezado con el formato de cuatro partes (qué pasó / cómo se detectó / regla / cómo se verifica) y la regla de mantenimiento (dos veces → sube a reglas, queda puntero); **#98** (copia del doc de modelo fuera del repo + encabezado viejo dieron por pendiente el Resumen, vivo desde `80d9b7e` 10/06); punteros en #74 y #88; "⚠ superada" en #22 y #75. `CLAUDE.md` § Gotchas críticos **18**: plata comprometida = `recibo_id IS NOT NULL OR estado_linea='pagado'`. `docs/LIQUIDACIONES_MODELO.md:4-9` pasa a puntero (no lleva estado); `docs/LIQUIDACIONES_GAP_ANALYSIS.md` marcado "foto del 2026-06-08". `docs/ISSUES.md`: **ISSUE-084** (monta cambiada post-oficialización, FREE CRY, 94 min), **086** (Transferencia en un select que arranca en Efectivo — recomendada la fila de radios), **087** (no hay pago parcial: línea indivisible), **088** (programa oficial imprime `peso_declarado`, el resto `peso_final || peso_declarado`). Sólo documentación. Informe: `docs/diagnosticos/2026-09-21_registro-aprendizajes-fase1.md` (reports).
 

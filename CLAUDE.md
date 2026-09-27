@@ -390,6 +390,7 @@ node tests/smoke_pago_staff_9999.mjs                # SMOKE del camino de pago c
 node tests/probe_guard_staff_rpcs.mjs [--fn <nombre>] [--mutantes]   # guard de staff: 7 RPC sensibles × 8 perfiles (service_role/superadmin/secretario/operador/otroclub/portal/sinfila/anon) = 60/60 contra prod; --fn corre una sola; --mutantes 8/8 necesita PSQL_CMD + SUPABASE_URL del sandbox tests/local/ (M7 declarado equivalente); ESCRIBE en la 9999 y la restaura por estado
 node tests/probe_recibo_una_hoja.mjs [nro]          # recibo ORIGINAL+DUPLICADO en una hoja — CSS (sin break-after:page, copia y pie atómicos, sin 100vh), HTML real (2 copias + corte, firma dentro del pie), Chromium opcional (1/2/≥3 páginas); --mutantes 5/5; solo lectura; LIQUIDACIONES_HTML acepta URL
 node tests/render_recibo_pdf.mjs <nro|id> <out_dir> [--lineas=N] [--css=…] [--html=…]   # recibo real a PDF con Chromium headless: medidas en mm por copia, páginas del PDF, PNG por página real (visor PDFium del Chromium completo; libs en docs/SERVER.md). Es la verificación VISUAL del recibo — mirar _pdf_pN.png; solo lectura, sin usuario
+node tests/probe_usuarios_pantalla.mjs [--mutantes]      # usuarios.html — secciones personal/portal con conteo, acciones según rol (espejo de usuarios_update y los triggers de rol), 0 filas = error y no éxito, rol sólo si cambió, baja con estado válido ('suspendido'); SÓLO SANDBOX (GOTCHA #101): antes tests/local/up.sh sql < tests/local/usuarios_sandbox.sql; 27/27, 8/8 mutantes; USUARIOS_HTML acepta ruta
 node tests/probe_xss_portal_nombres.mjs [--mutantes]  # ISSUE-018 tramo portal — nombres hostiles (comillas, <script>, &, D'Elía) en usuarios/admin pendientes/inscripciones "Cargada por": HTML real en jsdom + load() reales + clicks en Editar/Aprobar; 82/82, 3/3 mutantes; ESCRIBE 5 usuarios probe.xss + 5 inscripciones portal en la 9999 T3, teardown por estado (ids de la 9999)
 node tests/render_programa_pdf.mjs <reunion_id> color <out_dir> [https://sigh.com.ar]   # programa oficial a PDF + PNG con Chromium headless (LD_LIBRARY_PATH, ver docs/SERVER.md); reporta grilla y celdas que envuelven; ESCRIBE 1 usuario, teardown verificado. Es la verificación VISUAL — mirar las imágenes
 ```
@@ -590,12 +591,15 @@ Ver `docs/GOTCHAS.md` para la lista completa (101 entradas).
 - **Modificar desde el portal** (`rpc_modificar_inscripcion`, 16/09): no aplica a R9 salvo que Yesi extienda
   `cierre_ratificacion` desde `carta-llamados.html` — las dos ventanas cerraron el 14/09.
 
-### Reparto al 100 % y reuniones cerradas (25/09) — PR #17: migración APLICADA y R6/R8 cerradas el 25/09; motor y UI con el merge; **recálculo de R9 PENDIENTE** (ventana de Valeria)
+### Reparto al 100 % y reuniones cerradas (25/09) — PR #17 (merge `afc6af5`): migración APLICADA y R6/R8 cerradas el 25/09; motor y UI en `main` desde el 25/09; **recálculo de R9 EJECUTADO el 25/09** (17:16 UTC)
 - Peón 4 % / capataz 3 % / sereno 1 % se generan **siempre** y se pagan en el recibo del entrenador (18 %), discriminados.
 - **R6 y R8 se cierran TAL COMO ESTÁN** (sin el 8 % y sin ISSUE-091): **no es la decisión final sobre esa plata, están
   congeladas hasta que Fede conteste**. R9 queda abierta: al recalcular nacen 69 sub-líneas ($564.096,66); las 27 de
   entrenadores que ya cobraron se pagan con recibo complementario (no se tocan los recibos emitidos).
 - Orden de deploy: migración (+ cierre R6/R8) → motor y UI → recálculo de R9 fuera del horario de Valeria. Ver ISSUE-091/092.
+- **R9 ya está recalculada — NO volver a correr `tests/recalculo_r9_subroles.mjs --ejecutar`.** Se ejecutó el 2026-09-25 a las
+  17:16:34 UTC: nacieron las **69 sub-líneas** (**$564.096,66**: $447.336,66 retenido + $116.760,00 impago), 23 caballos al
+  100 % exacto, pagadas y retenidas previas idénticas, R6/R8 sin cambios, sin rollback. Informe: `docs/diagnosticos/2026-09-25_recalculo-r9-subroles.md` (reports).
 
 ### Pendiente confirmar con Fede
 - Formato K E S P en programa oficial.
