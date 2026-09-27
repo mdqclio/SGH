@@ -445,3 +445,18 @@ index 87a843b..14b25ca 100644
   RPC con guard.
 - **Q3** — D4: ¿`'suspendido'` para la baja, o preferís otro valor del CHECK (`'rechazado'`)? Está en un commit aparte.
 - **Q4** — ¿Agrego CHANGELOG y la línea del probe en `CLAUDE.md` en el mismo PR antes del merge?
+
+---
+
+## Verificación de push
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+7c0d09caffd74afdea7fd6a785b6ee9f5afd6bac	refs/heads/reports
+7c0d09caffd74afdea7fd6a785b6ee9f5afd6bac
+
+$ git ls-remote origin fix/usuarios-pantalla-roles
+692635939b57c9c7a07ff9e7f1d4d9dfbe1ab0a9	refs/heads/fix/usuarios-pantalla-roles
+```
+
+Este apéndice va en un commit posterior de `reports`; su SHA se informa en el chat.
