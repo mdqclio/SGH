@@ -406,3 +406,15 @@ que las políticas nuevas de ISSUE-093 no le cerraron `resoluciones` al staff.
   compensación contra premios futuros)? Hoy no existe.
 - **Q6** — ¿Se agrega a `resultados.html` un control de "distanciado" (que marque `descalificado` y corra el
   marcador)? Y que `aplicar_resultado` avise o frene en reuniones cerradas.
+
+---
+
+## Verificación de push
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+7699e750d8058e653915c46c9089df0d860e4595	refs/heads/reports
+7699e750d8058e653915c46c9089df0d860e4595
+```
+
+Este apéndice va en un commit posterior de `reports`; su SHA se informa en el chat.
