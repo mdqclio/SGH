@@ -537,14 +537,16 @@ async function saveEdit() {
  * `estado='pendiente'`, la red de contención de activacion-pendiente.js
  * reactivaría al usuario en su próximo login y la baja sería un placebo.
  *
- * De ahí el 'inactivo' al desactivar: es un valor que `esRescatable()` NO
- * acepta. Está cubierto por tests/probe_activacion_pendiente.mjs.
+ * De ahí el 'suspendido' al desactivar: es un valor que `esRescatable()` NO
+ * acepta (sólo rescata 'pendiente'). Está cubierto por tests/probe_activacion_pendiente.mjs.
+ * Hasta el 27/09 escribía 'inactivo', que el CHECK usuarios_estado_check no admite
+ * (pendiente/activo/rechazado/suspendido): Desactivar fallaba siempre en prod desde 7535a1d.
  */
 async function toggleActivo(id, activo) {
   const u = allData.find(x => x.id === id);
   if (!confirm(`¿Deseas ${activo ? 'activar' : 'desactivar'} al usuario "${u?.nombre_completo}"?`)) return;
   const { data, error } = await sb.from('usuarios')
-    .update({ activo, estado: activo ? 'activo' : 'inactivo' })
+    .update({ activo, estado: activo ? 'activo' : 'suspendido' })
     .eq('id', id)
     .select('id');
   if (error) { toast(error.message, 'error'); return; }
