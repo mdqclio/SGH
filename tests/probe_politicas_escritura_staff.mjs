@@ -21,10 +21,12 @@
  *             (leído con service_role) · positivo = 1 fila.
  *   DELETE  → sobre un fixture propio de esa celda: negativo = 0 filas y el fixture sigue · positivo =
  *             1 fila y el fixture ya no está.
- *   `clubs` sólo tiene UPDATE en el cambio (INSERT/DELETE ya eran sólo super_admin): los negativos
- *   de Dolores prueban un UPDATE no-op sobre la fila real de Dolores (mismo valor; si la política
- *   fallara no cambia nada), y los positivos corren sobre un CLUB FIXTURE con su propio secretario y
- *   operador — la fila real de Dolores nunca se escribe.
+ *   `clubs` sólo tiene UPDATE en el cambio (INSERT/DELETE ya eran sólo super_admin). Todos los intentos
+ *   son UPDATE no-op sobre la fila real de Dolores (sigla = la misma sigla): negativos → 0 filas,
+ *   positivos → 1 fila. El contenido no cambia; en los positivos se mueve `updated_at` (trigger) y el
+ *   trigger de auditoría no registra nada (descarta cambios que sólo tocan updated_at). No se usa un
+ *   club fixture: en prod ningún club se puede borrar (fn_auditoria_log audita la baja con el club_id
+ *   del club recién borrado y viola auditoria_club_id_fkey).
  *
  * Fixtures: todo marcado con RUN (PROBE-093-…) y fuera de circuito: filas de liquidacion_config y
  * comision_config con activo=false y vigencia 2099, hipódromo inactivo, apuestas/log sobre la 9999,
@@ -42,7 +44,7 @@
  *     … mismo comando → verde. Con PSQL_CMD="tests/local/up.sh sql" y --mutantes: 14 mutantes, uno por
  *     tabla (se le vuelve a poner a ESA tabla la política de hoy); cada uno tiene que morir.
  *   Prod (sólo DESPUÉS de aplicar): node tests/probe_politicas_escritura_staff.mjs --prod
- *     ESCRIBE: usuarios de auth + filas de usuarios temporales, un club fixture y fixtures marcados; borra
+ *     ESCRIBE: usuarios de auth + filas de usuarios temporales y fixtures marcados; borra
  *     todo en el finally. Los mutantes no corren en prod.
  *   --tabla=<t> corre una sola tabla.
  */
@@ -160,21 +162,20 @@ const leerFila = async (t, k) => (await q(aplicarKey(admin.from(t).select('*'), 
 const md5 = o => createHash('md5').update(JSON.stringify(o)).digest('hex');
 
 // ── una tabla ────────────────────────────────────────────────────────────────────────────────
+const NEG = ['portal', 'portal_prop', 'inactivo', 'otroclub'], POS = ['secretario', 'operador', 'superadmin'];
 async function probarTabla(t, P, ctx, ok) {
-  const NEG = ['portal', 'portal_prop', 'inactivo', 'otroclub'], POS = ['secretario', 'operador', 'superadmin'];
   if (t === 'clubs') {
     const real = await leerFila('clubs', { id: DOLORES });
     for (const n of NEG) {
       const { data, error } = await P[n].cli.from('clubs').update({ sigla: real.sigla }).eq('id', DOLORES).select('id');
       ok(`${t}.UPDATE.${n}) Dolores (no-op): 0 filas`, !error && (data || []).length === 0 || error?.code === '42501', JSON.stringify({ n: data?.length, e: error?.code }));
     }
-    const fxAntes = await leerFila('clubs', { id: ctx.clubFx });
-    const { data: dN } = await P.portal_fx.cli.from('clubs').update({ telefono: 'upd-portal' }).eq('id', ctx.clubFx).select('id');
-    ok(`${t}.UPDATE.portal_fx) club fixture: 0 filas y fila igual`, (dN || []).length === 0 && md5(await leerFila('clubs', { id: ctx.clubFx })) === md5(fxAntes), `n=${dN?.length}`);
-    for (const n of ['secretario_fx', 'operador_fx', 'superadmin']) {
-      const { data, error } = await P[n].cli.from('clubs').update({ telefono: `upd-${n}` }).eq('id', ctx.clubFx).select('id');
-      ok(`${t}.UPDATE.${n}) club fixture: 1 fila`, !error && (data || []).length === 1, JSON.stringify({ n: data?.length, e: error?.message }));
+    for (const n of POS) {
+      const { data, error } = await P[n].cli.from('clubs').update({ sigla: real.sigla }).eq('id', DOLORES).select('id');
+      ok(`${t}.UPDATE.${n}) Dolores (no-op): 1 fila`, !error && (data || []).length === 1, JSON.stringify({ n: data?.length, e: error?.message }));
     }
+    const despues = await leerFila('clubs', { id: DOLORES });
+    ok(`${t}) Dolores sin cambios de contenido (sólo updated_at)`, md5({ ...real, updated_at: 0 }) === md5({ ...despues, updated_at: 0 }));
     return;
   }
   const s = spec(ctx)[t];
@@ -223,23 +224,29 @@ async function barrer(ctx) {
   // resoluciones fixture del contexto (numero con RUN) y caballeriza
   await admin.from('resoluciones').delete().like('numero', `${RUN}%`);
   await admin.from('caballerizas').delete().eq('nombre', RUN);
+  // auditoria.usuario_id tiene FK a usuarios: las filas que generaron los perfiles del probe (sus
+  // escrituras en tablas auditadas y su propia alta/baja) se borran ANTES que los usuarios.
+  const ids = creados.map(c => c.usuarioId);
+  if (ids.length) {
+    const { error } = await admin.from('auditoria').delete().in('usuario_id', ids);
+    // el sandbox no tiene tabla auditoria (el clon de la 9999 no la trae): sólo ahí se tolera
+    if (error && (EN_PROD || !/auditoria|does not exist|schema cache/i.test(error.message))) errores.push(`auditoria: ${error.message}`);
+  }
   for (const c of creados.splice(0)) {
     const { error } = await admin.from('usuarios').delete().eq('id', c.usuarioId); if (error) errores.push(`usuarios: ${error.message}`);
     if (EN_PROD) { const { error: eA } = await admin.auth.admin.deleteUser(c.authId); if (eA) errores.push(`auth: ${eA.message}`); }
   }
-  await admin.from('clubs').delete().eq('nombre', RUN);
   const quedan = {};
   for (const t of orden) quedan[t] = (await filtro(admin.from(t).select('*', { count: 'exact', head: true }), s[t].marca)).count;
   quedan.resoluciones += (await admin.from('resoluciones').select('*', { count: 'exact', head: true }).like('numero', `${RUN}%`)).count;
   quedan.caballerizas = (await admin.from('caballerizas').select('*', { count: 'exact', head: true }).eq('nombre', RUN)).count;
-  quedan.clubs = (await admin.from('clubs').select('*', { count: 'exact', head: true }).eq('nombre', RUN)).count;
   quedan.usuarios = (await admin.from('usuarios').select('*', { count: 'exact', head: true }).like('email', `${RUN.toLowerCase()}%`)).count;
   return { errores, quedan };
 }
 
 async function fotoReales() {
   return {
-    clubs: md5(await leerFila('clubs', { id: DOLORES })),
+    clubs: md5({ ...(await leerFila('clubs', { id: DOLORES })), updated_at: 0 }),   // los positivos de clubs son no-op: sólo mueven updated_at
     liquidacion_config: md5(await q(admin.from('liquidacion_config').select('*').eq('club_id', DOLORES).eq('activo', true), 'liq')),
     club_secuencias: md5(await q(admin.from('club_secuencias').select('*').order('club_id'), 'seq')),
   };
@@ -250,11 +257,10 @@ const lineas = []; const log = s => { lineas.push(s); console.log(s); };
 let codigo = 0, ctx = null, foto = null;
 try {
   foto = await fotoReales();
-  // contexto: caballeriza, resolución, club fixture, pool de carrera_apuestas libres
+  // contexto: caballeriza, resolución, pool de carrera_apuestas libres
   const cab = await q(admin.from('caballerizas').insert({ club_id: DOLORES, nombre: RUN, activo: false }).select('id').single(), 'cab');
   const resol = await q(admin.from('resoluciones').insert({ club_id: DOLORES, numero: `${RUN}-ctx`, fecha: '2099-01-01', tipo: 'probe' }).select('id').single(), 'resol');
-  const clubFx = await q(admin.from('clubs').insert({ nombre: RUN, sigla: `P93${rnd()}`, activo: false }).select('id').single(), 'club fx');
-  ctx = { cab: cab.id, resol: resol.id, clubFx: clubFx.id };
+  ctx = { cab: cab.id, resol: resol.id };
   await llenarPoolApuestas();
 
   const P = {};
@@ -266,9 +272,6 @@ try {
   P.secretario = await sesion('secretario', 'secretario_carreras', DOLORES);
   P.operador = await sesion('operador', 'operador', DOLORES);
   P.superadmin = await sesion('superadmin', 'super_admin', DOLORES);
-  P.portal_fx = await sesion('portal_fx', 'profesional', ctx.clubFx, { entidad_tipo: 'profesional', entidad_id: randomUUID() });
-  P.secretario_fx = await sesion('secretario_fx', 'secretario_carreras', ctx.clubFx);
-  P.operador_fx = await sesion('operador_fx', 'operador', ctx.clubFx);
   log(`contexto: RUN=${RUN} · ${EN_PROD ? 'PROD' : 'sandbox'} · ${Object.keys(P).length} perfiles con sesión real · pool apuestas=${apuPool.length}`);
 
   const tablas = SOLO ? [SOLO] : TABLAS;

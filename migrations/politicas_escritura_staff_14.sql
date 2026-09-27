@@ -1,6 +1,11 @@
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
 -- ISSUE-093 — las políticas de ESCRITURA de 14 tablas exigen fn_is_staff() en la rama de club.
 --
+-- ESTADO EN PRODUCCIÓN: **APLICADA el 2026-09-27** (`20260927202948 politicas_escritura_staff_14`).
+-- md5 de las 36 expresiones en prod = tests/local/politicas_escritura_md5_esperado.txt (36/36).
+-- Probe --prod 281/281. Este bloque de ESTADO se agregó DESPUÉS de aplicar: las sentencias son
+-- idénticas a las aplicadas (sólo cambian estos comentarios).
+--
 -- Hasta hoy la rama no-super_admin era sólo "el club de la fila = fn_get_user_club_id()", y
 -- fn_get_user_club_id() devuelve el club de CUALQUIER usuario activo: un profesional o propietario
 -- del portal (club Dolores) podía, por la API directa, escribir en liquidacion_config,

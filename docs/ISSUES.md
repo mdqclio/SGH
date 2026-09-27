@@ -2700,3 +2700,23 @@ capataz ni sereno (sólo 3 de la 9999). Pero el camino está abierto y no avisa.
 → 0. Y el dry-run con el hook de renombre del doc de `reports`.
 
 **Relacionado**: ISSUE-091 (los disparadores), ISSUE-084 (el mismo patrón para montas, ya resuelto con RPC + trigger).
+
+### ISSUE-093: 14 tablas con políticas de escritura sin guard de staff — el portal podía escribir liquidacion_config, club_secuencias, clubs, resultado_apuestas…
+**Estado**: migración **APLICADA 2026-09-27** (`20260927202948 politicas_escritura_staff_14`), rama `fix/politicas-escritura-staff` **sin mergear** (el merge sólo trae archivos: migración, rollback, probe, generador).
+**Qué pasaba**: las 36 políticas de INSERT/UPDATE/DELETE (y las dos FOR ALL `_rls`) de `caballeriza_responsables`, `carrera_apuestas`, `categorias_carrera`, `club_configuracion`, `club_secuencias`, `clubs`, `comision_config`, `hipodromos`, `liquidacion_config`, `novedades_reunion`, `resolucion_entidades`, `resoluciones`, `resultado_apuestas`, `resultado_log` sólo comparaban el club de la fila con `fn_get_user_club_id()`, que devuelve el club de cualquier usuario activo — portal incluido.
+**Arreglo**: `fn_is_super_admin() OR (fn_is_staff() AND <club>)` en las 36. Generadas por `tests/local/gen_politicas_escritura_staff.py`; rollback exacto (md5 36/36 contra prod); md5 post-aplicación 36/36 = sandbox. `aplicar_resultado`, `fn_siguiente_recibo` y `rpc_caballeriza_provisorio` son DEFINER (dueño postgres) y no dependen de las políticas: oficializar en la 9999 con sesión de secretario siguió escribiendo `resultado_apuestas` (probado antes y después de aplicar, en transacción revertida).
+**Evidencia de explotación**: ninguna donde hay auditoría (liquidacion_config, clubs, categorias_carrera); 11 de las 14 no tienen auditoría.
+**Probe**: `tests/probe_politicas_escritura_staff.mjs` — sandbox 281/281 y 14/14 mutantes (con las políticas de antes: 201/281, los 80 rojos todos de portal); prod 281/281.
+**Informe**: `docs/diagnosticos/2026-09-27_issue093-aplicado.md` (reports).
+
+### ISSUE-094: `club_secuencias` sin trigger de auditoría
+**Estado**: abierto (pedido 2026-09-27, no implementado).
+**Qué pasa**: `club_secuencias` es la numeración de recibos y es la única de las tablas críticas sin `trg_audit_*`: no hay rastro de quién cambia `ultimo_numero`. Hoy la escriben `fn_siguiente_recibo` (DEFINER) y los probes (service_role); desde ISSUE-093 un cliente sólo puede si es staff.
+**Propuesta**: `CREATE TRIGGER trg_audit_club_secuencias AFTER INSERT OR UPDATE OR DELETE … EXECUTE FUNCTION fn_auditoria_log()`. Ojo: la tabla no tiene columna `id` (PK = `club_id, tipo`) y `fn_auditoria_log` usa `NEW.id`/`OLD.id` → hay que adaptar la función o el trigger. Y cada emisión de recibo generaría una fila de auditoría (volumen bajo: ~decenas por reunión).
+
+### ISSUE-095: ningún club se puede borrar en prod — `fn_auditoria_log` audita la baja con el `club_id` del club recién borrado
+**Estado**: abierto (hallado 2026-09-27 limpiando el probe de ISSUE-093).
+**Qué pasa**: `trg_audit_clubs` (AFTER DELETE) inserta en `auditoria` con `club_id = OLD.id`, y `auditoria_club_id_fkey` (sin ON DELETE) exige que el club exista → `DELETE FROM clubs` falla siempre con 23503. El botón de borrar hipódromo de `admin.html:858` no puede funcionar. En la historia hay 0 bajas de club auditadas. Además las filas de `auditoria` de ese club también bloquean la baja.
+**Workaround usado** (una vez, club fixture vacío del probe, 0 referencias): `SET LOCAL session_replication_role = replica` en una transacción acotada a esa fila.
+**Propuesta**: en `fn_auditoria_log`, para `TG_TABLE_NAME = 'clubs' AND TG_OP = 'DELETE'` guardar `club_id = NULL` (el id queda en `registro_id` y `datos_antes`), o `ON DELETE SET NULL` en la FK. Decidir junto con la política de retención de auditoría.
+
