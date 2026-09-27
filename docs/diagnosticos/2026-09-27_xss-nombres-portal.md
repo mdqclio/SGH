@@ -642,3 +642,19 @@ arrancar barre lo que pudiera haber dejado un kill -9 (`barridos de corridas ant
 - **Q3** — ¿Unificar las 11 copias inline de `escapeHtml`/`esc` al nuevo `escape-html.js` en un PR aparte?
 - **Q4** — `rpc_solicitar_acceso` acepta `p_documento_tipo` libre. Inofensivo con el escape, pero ¿se restringe a
   DNI/LC/LE/CI/PAS en la base?
+
+---
+
+## Verificación de push
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+67dc5ab25e04d4c990f6929010aaeae6151f1180	refs/heads/reports
+67dc5ab25e04d4c990f6929010aaeae6151f1180
+
+$ git ls-remote origin fix/xss-usuarios-portal && git rev-parse fix/xss-usuarios-portal
+067722257009d464291a5e1392c41115dc724fb2	refs/heads/fix/xss-usuarios-portal
+067722257009d464291a5e1392c41115dc724fb2
+```
+
+Este apéndice va en un commit posterior de `reports`; su SHA se informa en el chat.
