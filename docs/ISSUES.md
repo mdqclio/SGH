@@ -2720,3 +2720,18 @@ capataz ni sereno (sólo 3 de la 9999). Pero el camino está abierto y no avisa.
 **Workaround usado** (una vez, club fixture vacío del probe, 0 referencias): `SET LOCAL session_replication_role = replica` en una transacción acotada a esa fila.
 **Propuesta**: en `fn_auditoria_log`, para `TG_TABLE_NAME = 'clubs' AND TG_OP = 'DELETE'` guardar `club_id = NULL` (el id queda en `registro_id` y `datos_antes`), o `ON DELETE SET NULL` en la FK. Decidir junto con la política de retención de auditoría.
 
+### ISSUE-096: `resultado_log` es una tabla fantasma — no la escribe nadie y está vacía desde el origen
+**Estado**: abierto (registrado 2026-09-27, sin decidir).
+**Qué pasa**: `resultado_log` (`id, resultado_id, usuario_id, accion, datos_antes, datos_despues, created_at`) tiene 0
+filas. Ninguna función la nombra (`prosrc`), ninguna pantalla ni Edge Function la escribe; `aplicar_resultado`
+(oficializar) toca `resultados`, `resultado_posiciones` y `resultado_apuestas`, no el log. Tiene RLS, 4 políticas
+(desde ISSUE-093, las de escritura sólo para staff) y la función `fn_club_de_resultado` que la usa.
+**Por qué importa**: parece un registro de cambios de resultados y no lo es: quien la mire para saber quién cambió un
+resultado va a concluir "nadie" cuando la verdad es "no se registra". La traza real de `resultados` está en `auditoria`
+(`trg_audit_*`), no acá.
+**Decidir**: (a) usarla — que `aplicar_resultado` / `desoficializar_carrera` escriban antes/después del resultado y
+quién (reemplaza o complementa a `auditoria` para resultados), o (b) eliminarla — `DROP TABLE resultado_log` con sus
+políticas, previa búsqueda de referencias (`git grep resultado_log main`, `pg_depend`, vistas).
+**Relacionado**: ISSUE-093 (se detectó al pedir que oficializar "siga escribiendo resultado_log"),
+`docs/diagnosticos/2026-09-27_issue093-aplicado.md` §2 (reports).
+

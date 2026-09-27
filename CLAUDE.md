@@ -538,7 +538,11 @@ salidas de queries, `git status`, `git log`, los diffs, y cualquier cosa pedida 
     343 líneas, $22,3M) y es la mayoría de lo cobrado. Vale para queries, guards, asserts e informes.
     PostgREST: `.or('recibo_id.not.is.null,estado_linea.eq.pagado')`. Mordió dos veces (GOTCHAS #74, #88).
 
-Ver `docs/GOTCHAS.md` para la lista completa (100 entradas).
+19. **Un probe no crea entidades raíz en prod** (club, reunión, usuario de un club inexistente): eso va en la 9999 o en
+    el sandbox. En prod un club ni siquiera se puede borrar (ISSUE-095); el 27/09 hubo que usar
+    `session_replication_role = replica` para sacar un club fixture (GOTCHA #101).
+
+Ver `docs/GOTCHAS.md` para la lista completa (101 entradas).
 
 ---
 
