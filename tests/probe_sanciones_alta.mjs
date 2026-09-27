@@ -13,7 +13,7 @@
  *   D1 super_admin: INSERT con club_id Dolores → OK.
  *
  * Mutantes (--mutantes), uno por regla:
- *   M1 el alta sin club_id · M2 sin creado_por · M3 sin alcance explícito        (texto de sanciones.html)
+ *   M1 el alta sin club_id · M3 sin alcance explícito (M2 retirado: ISSUE-097)    (texto de sanciones.html)
  *   M4 INSERT sin fn_is_staff · M5 UPDATE sin fn_is_staff                          (SQL, sólo sandbox)
  *   M6 INSERT sin el chequeo de club · M7 UPDATE sin el chequeo de club            (SQL, sólo sandbox)
  *
@@ -192,7 +192,9 @@ COMMIT; NOTIFY pgrst, 'reload schema';`;
   const SIN_CLUB = `(SELECT fn_is_super_admin()) OR (SELECT fn_is_staff())`;
   const MUT = [
     ['M1', 'el alta sin club_id', { html: mutHtml(' club_id: CLUB_ID,', '') }],
-    ['M2', 'el alta sin creado_por', { html: mutHtml(' creado_por: currentUser?.usuario_id || null,', '') }],
+    // M2 ('el alta sin creado_por') retirado el 2026-09-27: desde ISSUE-097 la BASE impone creado_por con la sesión
+    // (trg_sanciones_autor) e ignora el del front, así que sacarlo del payload ya no cambia nada. Lo cubre
+    // tests/probe_resoluciones_sanciones_autor.mjs (A2, y el mutante M7 = sin el trigger).
     ['M3', 'el alta sin alcance explícito', { html: mutHtml(", alcance: 'club'", '') }],
     ['M4', 'INSERT sin fn_is_staff', { sql: pol(SIN_STAFF, BUENA) }],
     ['M5', 'UPDATE sin fn_is_staff', { sql: pol(BUENA, SIN_STAFF) }],

@@ -320,7 +320,7 @@ function renderList(data) {
       </div>
       <div class="card-actions">
         <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(r)})'>✏️ Editar</button>
-        <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}')">🗑️ Eliminar</button>
+        ${puedeBorrar() ? `<button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}')">🗑️ Eliminar</button>` : ''}
       </div>
     </div>`;
   }).join('')}</div>`;
@@ -372,7 +372,8 @@ async function saveRecord() {
     estado: document.getElementById('f-estado-s').value,
     notas: document.getElementById('f-notas').value.trim()||null,
   };
-  // Alta: el club dueño, quién la carga y el alcance van SIEMPRE. `club_id` es NOT NULL sin default
+  // Alta: el club dueño, quién la carga y el alcance van SIEMPRE. (Desde ISSUE-097 la base impone
+  // creado_por con la sesión e ignora lo que se mande acá: se deja por consistencia del payload.) `club_id` es NOT NULL sin default
   // y la política de INSERT lo compara contra el club del usuario: sin él, el alta rebota por RLS
   // (se perdió en 5eb0e38, 07/05; diagnóstico 2026-09-25 en reports). `creado_por` es usuarios.id, no
   // el auth.uid(). `alcance` explícito: por ahora siempre 'club'. En la edición no se tocan: una
@@ -390,10 +391,16 @@ async function saveRecord() {
   load();
 }
 
+// Borrar una sanción: sólo super_admin (política sanciones_delete). Al resto no se le muestra el botón; y si
+// igual llegara acá, la RLS filtra la fila y PostgREST devuelve 0 filas SIN error: se pide la fila de vuelta
+// para no decir "eliminada" sin haber borrado nada (era el mismo placebo que usuarios.html, ISSUE-097).
+function puedeBorrar() { return currentUser?.rol === 'super_admin'; }
+
 async function deleteRecord(id) {
   if (!confirm('¿Eliminar esta sanción?')) return;
-  const { error } = await sb.from('sanciones').delete().eq('id',id);
+  const { data, error } = await sb.from('sanciones').delete().eq('id',id).select('id');
   if (error) { toast(error.message,'error'); return; }
+  if (!data || !data.length) { toast('No tenés permiso para eliminar esta sanción', 'error'); return; }
   toast('Sanción eliminada');
   load();
 }
