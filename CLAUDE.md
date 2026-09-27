@@ -591,7 +591,7 @@ Ver `docs/GOTCHAS.md` para la lista completa (101 entradas).
 - **Modificar desde el portal** (`rpc_modificar_inscripcion`, 16/09): no aplica a R9 salvo que Yesi extienda
   `cierre_ratificacion` desde `carta-llamados.html` — las dos ventanas cerraron el 14/09.
 
-### Reparto al 100 % y reuniones cerradas (25/09) — PR #17: migración APLICADA y R6/R8 cerradas el 25/09; motor y UI con el merge; **recálculo de R9 PENDIENTE** (ventana de Valeria)
+### Reparto al 100 % y reuniones cerradas (25/09) — PR #17 (merge `afc6af5`): migración APLICADA y R6/R8 cerradas el 25/09; motor y UI en `main` desde el 25/09; **recálculo de R9 PENDIENTE** (ventana de Valeria)
 - Peón 4 % / capataz 3 % / sereno 1 % se generan **siempre** y se pagan en el recibo del entrenador (18 %), discriminados.
 - **R6 y R8 se cierran TAL COMO ESTÁN** (sin el 8 % y sin ISSUE-091): **no es la decisión final sobre esa plata, están
   congeladas hasta que Fede conteste**. R9 queda abierta: al recalcular nacen 69 sub-líneas ($564.096,66); las 27 de

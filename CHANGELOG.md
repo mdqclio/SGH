@@ -85,14 +85,14 @@
 - Verificado: `has_function_privilege` anon true → **false**; RPC como anon → `42501`; la función no cambió (md5
   `11730b64…`); el trigger sigue rebotando un INSERT en R6 con `P0091` (sandbox D 7/7 y prod).
 
-## [2026-09-25] — Reparto al 100 %: peón/capataz/sereno siempre (recibo del entrenador 18 %) + reuniones con la liquidación cerrada (PR, **sin aplicar**)
+## [2026-09-25] — Reparto al 100 %: peón/capataz/sereno siempre (recibo del entrenador 18 %) + reuniones con la liquidación cerrada (PR #17, `afc6af5`)
 
 > Definición de Fede y Valeria (audios 25/09 11:48): peón 4 %, capataz 3 % y sereno 1 % se pagan **con el entrenador,
 > en su mismo recibo**, discriminados en el detalle. Hasta hoy el motor sólo generaba esas líneas si el nombre estaba
 > cargado, y nadie lo carga: el reparto quedaba en 92 %. Plan y números en `reports`:
 > `docs/diagnosticos/2026-09-25_plan-reparto-100-subroles-fase1.md`. PR #17.
 > **Estado al 25/09:** paso 1 hecho — migración **aplicada** (`20260925163044`), md5 de las 3 funciones verificado, R6/R8
-> cerradas (16:30:44 UTC), R9 abierta, INSERT en R6 por la API → P0091. Paso 2 (motor y UI) con el merge del PR. **Paso 3
+> cerradas (16:30:44 UTC), R9 abierta, INSERT en R6 por la API → P0091. Paso 2 (motor y UI) en `main` con el merge del PR #17 (`afc6af5`, 25/09). **Paso 3
 > (recálculo de R9) NO corrido: espera la ventana de Valeria.**
 
 - **Motor** (`liquidaciones-engine.js`): las tres sub-líneas nacen **siempre**, con el nombre o "(sin nombre cargado)".
@@ -343,7 +343,7 @@
   (la 9999 restaurada: 640 líneas totales, 76 en la 9999, 42 recibos, 0 residuo) → merge del PR #7 → deploy del front.
   Informe: `docs/diagnosticos/2026-09-22_paso2-despliegue-issue-084.md` (reports).
 
-## [2026-09-21] — Registro de aprendizajes: encabezado de GOTCHAS + #98, ISSUE-084/086/087/088, regla 18 en CLAUDE.md (sin merge)
+## [2026-09-21] — Registro de aprendizajes: encabezado de GOTCHAS + #98, ISSUE-084/086/087/088, regla 18 en CLAUDE.md (PR #6, `d20feff`)
 
 - `docs/GOTCHAS.md`: encabezado con el formato de cuatro partes (qué pasó / cómo se detectó / regla / cómo se verifica) y la regla de mantenimiento (dos veces → sube a reglas, queda puntero); **#98** (copia del doc de modelo fuera del repo + encabezado viejo dieron por pendiente el Resumen, vivo desde `80d9b7e` 10/06); punteros en #74 y #88; "⚠ superada" en #22 y #75. `CLAUDE.md` § Gotchas críticos **18**: plata comprometida = `recibo_id IS NOT NULL OR estado_linea='pagado'`. `docs/LIQUIDACIONES_MODELO.md:4-9` pasa a puntero (no lleva estado); `docs/LIQUIDACIONES_GAP_ANALYSIS.md` marcado "foto del 2026-06-08". `docs/ISSUES.md`: **ISSUE-084** (monta cambiada post-oficialización, FREE CRY, 94 min), **086** (Transferencia en un select que arranca en Efectivo — recomendada la fila de radios), **087** (no hay pago parcial: línea indivisible), **088** (programa oficial imprime `peso_declarado`, el resto `peso_final || peso_declarado`). Sólo documentación. Informe: `docs/diagnosticos/2026-09-21_registro-aprendizajes-fase1.md` (reports).
 

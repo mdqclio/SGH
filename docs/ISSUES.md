@@ -2238,7 +2238,7 @@ nada más. Módulo: portal / RPCs de inscripción. Prioridad: Media (no bloquea 
 
 ### ISSUE-083: `caballerizas.html` exigía apellido+nombre+DNI del propietario y bloqueaba el alta sin titular y la edición de 95/295 caballerizas
 
-**Estado**: 🟢 **CERRADO en rama** `feat/caballeriza-titular-opcional-provisorio` (16/09/2026, pendiente de merge).
+**Estado**: ✅ **CERRADO — en `main`** (rama `feat/caballeriza-titular-opcional-provisorio`, merge `a259783`, 16/09/2026).
 
 **El hecho**: `validateResponsables` (desde `d5b441a`, 11/05) cortaba `saveRecord` — alta y edición — si el propietario no
 tenía apellido, nombre y DNI. La base nunca lo exigió (`caballerizas` sólo `nombre`/`club_id` NOT NULL, `caballeriza_responsables`
@@ -2546,7 +2546,7 @@ where n.nspname='public' and p.proname in ('emitir_recibo','anular_recibo','libe
 ### ISSUE-091: recalcular una reunión saldada genera líneas nuevas cobrables — R6+R8: 33 líneas, $1.345.823,34 (31 impagas)
 
 **Prioridad**: 🔴 **ALTA** — plata cobrable en Pagos sobre reuniones que se dieron por pagadas.
-**Estado**: 🟡 **EN DEPLOY** (2026-09-25) — PR #17. Paso 1 hecho: migración aplicada (`20260925163044`), R6/R8 cerradas, R9 abierta, INSERT en R6 por la API → P0091. Paso 2 (motor y UI) con el merge. Paso 3 (recálculo de R9) pendiente de la ventana de Valeria.
+**Estado**: 🟡 **EN DEPLOY** (2026-09-25) — PR #17. Paso 1 hecho: migración aplicada (`20260925163044`), R6/R8 cerradas, R9 abierta, INSERT en R6 por la API → P0091. Paso 2 (motor y UI) en `main` con el merge del PR #17 (`afc6af5`, 25/09). Paso 3 (recálculo de R9) pendiente de la ventana de Valeria.
 Decisiones del 25/09 (opción A del plan de `reports` `2026-09-25_plan-reparto-100-subroles-fase1.md`):
 - **Protección**: `reuniones.liquidacion_cerrada_at` + trigger en la base (`liquidacion_detalle`, `liquidaciones`) +
   corte en el motor + botón Recalcular deshabilitado. Cerrar y reabrir: sólo super_admin (o migración). La UI para
@@ -2709,7 +2709,7 @@ capataz ni sereno (sólo 3 de la 9999). Pero el camino está abierto y no avisa.
 **Relacionado**: ISSUE-091 (los disparadores), ISSUE-084 (el mismo patrón para montas, ya resuelto con RPC + trigger).
 
 ### ISSUE-093: 14 tablas con políticas de escritura sin guard de staff — el portal podía escribir liquidacion_config, club_secuencias, clubs, resultado_apuestas…
-**Estado**: migración **APLICADA 2026-09-27** (`20260927202948 politicas_escritura_staff_14`), rama `fix/politicas-escritura-staff` **sin mergear** (el merge sólo trae archivos: migración, rollback, probe, generador).
+**Estado**: migración **APLICADA 2026-09-27** (`20260927202948 politicas_escritura_staff_14`), archivos en `main` con el PR #21 (`f10ae9c`, 27/09): migración, rollback, probe, generador.
 **Qué pasaba**: las 36 políticas de INSERT/UPDATE/DELETE (y las dos FOR ALL `_rls`) de `caballeriza_responsables`, `carrera_apuestas`, `categorias_carrera`, `club_configuracion`, `club_secuencias`, `clubs`, `comision_config`, `hipodromos`, `liquidacion_config`, `novedades_reunion`, `resolucion_entidades`, `resoluciones`, `resultado_apuestas`, `resultado_log` sólo comparaban el club de la fila con `fn_get_user_club_id()`, que devuelve el club de cualquier usuario activo — portal incluido.
 **Arreglo**: `fn_is_super_admin() OR (fn_is_staff() AND <club>)` en las 36. Generadas por `tests/local/gen_politicas_escritura_staff.py`; rollback exacto (md5 36/36 contra prod); md5 post-aplicación 36/36 = sandbox. `aplicar_resultado`, `fn_siguiente_recibo` y `rpc_caballeriza_provisorio` son DEFINER (dueño postgres) y no dependen de las políticas: oficializar en la 9999 con sesión de secretario siguió escribiendo `resultado_apuestas` (probado antes y después de aplicar, en transacción revertida).
 **Evidencia de explotación**: ninguna donde hay auditoría (liquidacion_config, clubs, categorias_carrera); 11 de las 14 no tienen auditoría.
