@@ -1798,3 +1798,38 @@ grep -nE "=== [0-9]{3,}\b|\(\s*[0-9]{3,}\s*\)'" tests/*.mjs
 ```
 
 Quedan en `probe_pagos_rol_carrera` **16 asserts** de la **misma clase** que no se tocaron en este arreglo (se pidieron sólo los 4 rojos; issue #15): **3 dependen de los datos de prod del día** — "hay líneas pagables para probar", 2c "hay beneficiarios sólo con incentivo por reunión" y 2a "el fallback a `numero_turno` se ejerce" —; **13 buscan texto de `liquidaciones.html`** — 1a de `cobrosBuscar`, 1b ×3, 1c (tarjeta), 2e ×2, 2a "sin offsets", 1d ×2 y C0 ×3. Hoy están verdes; van a envejecer igual.
+
+## 101. Un probe no crea entidades nuevas en prod: clubs, usuarios o reuniones que no existen van en la 9999 o en el sandbox (2026-09-27)
+
+**Regla.** Si el caso necesita una entidad de primer nivel que no existe —un club, una reunión, un usuario de un club
+que no existe—, se arma sobre la **reunión 9999** (Dolores, `es_prueba`) o en el **sandbox** `tests/local/`. En prod el
+probe sólo agrega filas **hijas** marcadas (fixtures de tablas de detalle, usuarios temporales de clubs reales) que su
+`finally` sabe borrar y verificar por estado.
+
+**Por qué.** Crear una entidad raíz en prod es fácil; sacarla, no siempre. El 27/09 el probe de ISSUE-093
+(`tests/probe_politicas_escritura_staff.mjs`, primera versión) creó un **club fixture** para probar la política de
+`clubs` sin tocar la fila de Dolores. Al limpiar:
+
+- los usuarios del probe no se podían borrar: sus escrituras en tablas auditadas dejaron filas en `auditoria`
+  (`auditoria_usuario_id_fkey`);
+- el club **no se podía borrar de ninguna manera**: `fn_auditoria_log` audita la baja de un club con
+  `club_id = OLD.id` y `auditoria_club_id_fkey` exige que ese club exista (ISSUE-095 — en prod ningún club se puede
+  borrar).
+
+Hubo que borrar a mano la auditoría de esos usuarios y del club, y sacar el club con
+`SET LOCAL session_replication_role = replica` en una transacción acotada a esa fila, después de verificar 0
+referencias en las 19 FKs que apuntan a `clubs`. Funcionó, pero es un bypass de triggers y FKs en prod para arreglar
+lo que un probe no debió crear. La versión final del probe prueba `clubs` con un UPDATE no-op sobre la fila real de
+Dolores y no crea ningún club.
+
+**Cómo se aplica.**
+- Antes de escribir un fixture en prod: ¿es una fila hija de algo que ya existe (la 9999, Dolores, Mi Club Hípico)?
+  Si no, va al sandbox.
+- Usuarios temporales en prod: sí, pero en clubs reales, y el `finally` borra **primero** su auditoría y después el
+  usuario (ya estaba en `probe_guard_staff_rpcs`: "borrar auditoría y recibos ANTES que los usuarios").
+- Si un caso sólo se puede probar con una entidad raíz nueva, se prueba en el sandbox y en prod se verifica por
+  lectura o en una transacción revertida (como el test de oficializar de ISSUE-093).
+
+**Relacionado**: GOTCHA #77 (restore por estado), ISSUE-095, `docs/diagnosticos/2026-09-27_issue093-aplicado.md` §6
+(reports).
+
