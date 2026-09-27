@@ -181,7 +181,7 @@ Estado: ✅ RESUELTO (14/05/2026) — 8/8 tablas hardenadas. Ver SESION_HARDENIN
 Descripción: Varios módulos usan template literals con `${variable}` dentro de `innerHTML` sin escapar. Un valor de DB con `<script>` o `"` puede ejecutar JS arbitrario en el browser del usuario.
 Solución: Agregar `escapeHtml()` (reemplaza &, <, >, ", ') en todos los templates literales que van a innerHTML con datos de usuario.
 Estado: Pendiente — recorrer todos los módulos HTML
-Avance 2026-09-27 (rama `fix/xss-usuarios-portal`, sin merge): cerrado el tramo **texto que escribe un tercero sin
+Avance 2026-09-27 (PR #20): cerrado el tramo **texto que escribe un tercero sin
 privilegios** (usuario del portal: nombre, teléfono, email) en pantallas del staff — `usuarios.html` (lista + Editar),
 `admin.html` (aprobaciones pendientes) e `inscripciones.html` ("Cargada por"). Función única `escape-html.js`; los
 onclick pasan sólo el id. Pre-fix era explotable: un nombre con `&quot;});…` ejecutaba JS al tocar Editar, uno con

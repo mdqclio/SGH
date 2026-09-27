@@ -1,5 +1,25 @@
 # Changelog
 
+## [2026-09-27] — Pantalla Usuarios: personal y portal separados, acciones según rol, nunca éxito sobre 0 filas; Desactivar vuelve a funcionar (PR #23)
+
+> Reportes de la semana: los usuarios del portal mezclados con el personal (Fede), botones que decían "Usuario
+> actualizado"/"desactivado" sin haber cambiado nada, y editar un usuario del portal mandaba `rol: ''`.
+> Sólo front: la base ya impedía el cambio de rol (RLS + dos triggers).
+
+- `usuarios.html`: dos secciones con conteo, **Personal del hipódromo** y **Usuarios del portal**. Filas del portal sin
+  Editar. Las acciones siguen lo que la base permite según quien mira: super_admin edita y da de alta/baja; secretario y
+  operador sólo editan su propia fila. Nadie se da de baja a sí mismo.
+- `saveEdit` y `toggleActivo` piden la fila con `.select()`: si vuelven 0 filas muestran "No tenés permiso para
+  modificar este usuario" en vez de éxito.
+- `rol` sólo se manda si cambió y quien edita puede cambiarlo; si el rol de la fila no es una opción, el campo no
+  aparece.
+- **Desactivar** escribe `estado: 'suspendido'`. La restricción `usuarios_estado_check` admite sólo
+  `pendiente / activo / rechazado / suspendido` y **nunca aceptó `'inactivo'`** (anterior a la primera migración
+  registrada, 14/05; ninguna migración la cambió). El bug del 23/08 (`7535a1d`) fue elegir un valor inexistente en la
+  pantalla, no un cambio de la base: desde entonces Desactivar fallaba siempre. Bajas efectivas en ese período: 0.
+- `tests/probe_usuarios_pantalla.mjs` (nuevo, sólo sandbox) + `tests/local/usuarios_sandbox.sql` (réplica de RLS,
+  triggers y CHECK de `usuarios`): 27/27, 8/8 mutantes; la versión anterior da 7/27.
+
 ## [2026-09-27] — XSS: nombres del portal en pantallas del staff (ISSUE-018, tramo terceros) — PR #20
 
 > Los usuarios del portal eligen su nombre (solicitar-acceso) y pueden reescribir su fila de `usuarios` por la API. Ese
@@ -18,7 +38,7 @@
   reales en Editar/Aprobar/Rechazar. 82/82; `--mutantes` 3/3 (escape identidad, `main` pre-fix, sin el `<script src>`).
   Pre-fix: `__pwn=2` al tocar Editar, `__pwn=3` al tocar Aprobar.
 
-## [2026-09-27] — SEGURIDAD: escritura de 14 tablas sólo para staff (ISSUE-093) — migración **aplicada** `20260927202948`, rama `fix/politicas-escritura-staff` sin mergear
+## [2026-09-27] — SEGURIDAD: escritura de 14 tablas sólo para staff (ISSUE-093) — migración **aplicada** `20260927202948`, PR #21
 
 > Las políticas de escritura de 14 tablas sólo comparaban el club de la fila con `fn_get_user_club_id()`, que devuelve el
 > club de cualquier usuario activo: un profesional o propietario del portal podía escribir por la API en
