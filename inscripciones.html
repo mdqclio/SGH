@@ -202,6 +202,7 @@
   <script src="active-reunion.js"></script>
   <script src="edad-spc.js"></script>
   <script src="jockey-repetido.js"></script>
+  <script src="escape-html.js"></script>
 </head>
 <body>
 <div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;"></div></div>
@@ -669,8 +670,9 @@ function renderInscripciones() {
     // Quién cargó la inscripción. Con inscripción libre (24/08/2026) cualquier
     // entrenador puede anotar cualquier SPC, y este dato ES el control que
     // reemplaza al filtro por tenencia: la comisión de carreras sanciona con él.
+    // El nombre lo eligió el propio usuario del portal → escapeHtml.
     const cargadaCell = i.canal === 'portal'
-      ? `<div style="font-size:12px;line-height:1.4;"><span style="color:var(--oro,#c9a84c);">Portal</span><br><span style="color:var(--muted);">${i.cargador?.nombre_completo || '—'}</span></div>`
+      ? `<div style="font-size:12px;line-height:1.4;"><span style="color:var(--oro,#c9a84c);">Portal</span><br><span style="color:var(--muted);">${escapeHtml(i.cargador?.nombre_completo || '—')}</span></div>`
       : `<span style="font-size:12px;color:var(--muted);">Secretaría</span>`;
     const gateraCell = (i.estado==='forfait'||i.estado==='mal_inscrito')
       ? `<span style="color:var(--muted)">—</span>`

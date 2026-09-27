@@ -55,6 +55,7 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 ├── jockey-repetido.js           Aviso (no bloqueo) de jockey repetido en el turno: sólo inscripto+ratificado (4 pantallas)
 ├── premios-utils.js             Utilitarios de liquidación de premios
 ├── profesionales-duplicados.js  Aviso de fichas parecidas en el alta de entrenadores/jockeys
+├── escape-html.js               escapeHtml() única para texto de terceros en innerHTML (portal → pantallas del staff; ISSUE-018)
 ├── supabase.js                  createClient centralizado
 │
 ├── SCHEMA.md                    Schema de DB documentado (fuente de verdad)
@@ -389,6 +390,7 @@ node tests/smoke_pago_staff_9999.mjs                # SMOKE del camino de pago c
 node tests/probe_guard_staff_rpcs.mjs [--fn <nombre>] [--mutantes]   # guard de staff: 7 RPC sensibles × 8 perfiles (service_role/superadmin/secretario/operador/otroclub/portal/sinfila/anon) = 60/60 contra prod; --fn corre una sola; --mutantes 8/8 necesita PSQL_CMD + SUPABASE_URL del sandbox tests/local/ (M7 declarado equivalente); ESCRIBE en la 9999 y la restaura por estado
 node tests/probe_recibo_una_hoja.mjs [nro]          # recibo ORIGINAL+DUPLICADO en una hoja — CSS (sin break-after:page, copia y pie atómicos, sin 100vh), HTML real (2 copias + corte, firma dentro del pie), Chromium opcional (1/2/≥3 páginas); --mutantes 5/5; solo lectura; LIQUIDACIONES_HTML acepta URL
 node tests/render_recibo_pdf.mjs <nro|id> <out_dir> [--lineas=N] [--css=…] [--html=…]   # recibo real a PDF con Chromium headless: medidas en mm por copia, páginas del PDF, PNG por página real (visor PDFium del Chromium completo; libs en docs/SERVER.md). Es la verificación VISUAL del recibo — mirar _pdf_pN.png; solo lectura, sin usuario
+node tests/probe_xss_portal_nombres.mjs [--mutantes]  # ISSUE-018 tramo portal — nombres hostiles (comillas, <script>, &, D'Elía) en usuarios/admin pendientes/inscripciones "Cargada por": HTML real en jsdom + load() reales + clicks en Editar/Aprobar; 82/82, 3/3 mutantes; ESCRIBE 5 usuarios probe.xss + 5 inscripciones portal en la 9999 T3, teardown por estado (ids de la 9999)
 node tests/render_programa_pdf.mjs <reunion_id> color <out_dir> [https://sigh.com.ar]   # programa oficial a PDF + PNG con Chromium headless (LD_LIBRARY_PATH, ver docs/SERVER.md); reporta grilla y celdas que envuelven; ESCRIBE 1 usuario, teardown verificado. Es la verificación VISUAL — mirar las imágenes
 ```
 

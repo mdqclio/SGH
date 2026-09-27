@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026-09-27] — XSS: nombres del portal en pantallas del staff (ISSUE-018, tramo terceros) — PR #20
+
+> Los usuarios del portal eligen su nombre (solicitar-acceso) y pueden reescribir su fila de `usuarios` por la API. Ese
+> texto iba crudo a `innerHTML` y a atributos `onclick` en pantallas del personal. Hallazgo H6 de
+> `docs/diagnosticos/2026-09-27_usuarios-roles-portal-escalada.md` (reports). Sólo front: cero cambios en la base.
+
+- `escape-html.js` (nuevo): `escapeHtml()` única, misma implementación que la inline de auditoria/jockeys/spcs/etc.
+- `usuarios.html`: nombre, teléfono, email y rol escapados; **Editar** pasa sólo el id (`openEdit(id)` busca en `allData`)
+  en vez de serializar el objeto al atributo — una comilla simple (`D'Elía`) rompía el botón.
+- `admin.html` (aprobaciones pendientes): nombre, email, rol y mensaje de error escapados; **Aprobar/Rechazar** pasan sólo
+  el id (el nombre se busca en `pendientesData`). El `.replace(/'/g,"\\'")` no alcanzaba: `&#39;` o `"` en el nombre
+  escapaban del onclick.
+- `inscripciones.html`: "Cargada por" (nombre del usuario del portal) escapado.
+- `tests/probe_xss_portal_nombres.mjs` (nuevo): HTML real en jsdom con sus scripts, `load()`/`loadPendientes()`/
+  `loadInscripciones()` reales contra prod con 5 nombres hostiles (usuarios + inscripciones portal en la 9999), clicks
+  reales en Editar/Aprobar/Rechazar. 82/82; `--mutantes` 3/3 (escape identidad, `main` pre-fix, sin el `<script src>`).
+  Pre-fix: `__pwn=2` al tocar Editar, `__pwn=3` al tocar Aprobar.
+
 ## [2026-09-27] — SEGURIDAD: escritura de 14 tablas sólo para staff (ISSUE-093) — migración **aplicada** `20260927202948`, rama `fix/politicas-escritura-staff` sin mergear
 
 > Las políticas de escritura de 14 tablas sólo comparaban el club de la fila con `fn_get_user_club_id()`, que devuelve el
