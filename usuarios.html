@@ -47,6 +47,10 @@
     .badge-inactivo { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
     .badge-rol { background: rgba(201,168,76,0.08); color: var(--accent); border: 1px solid rgba(201,168,76,0.2); font-size: 10px; }
     .actions-cell { display: flex; gap: 6px; flex-wrap: wrap; }
+    .seccion { margin-bottom: 28px; }
+    .seccion-titulo { font-family: 'Playfair Display', serif; font-size: 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .seccion-conteo { font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--muted); font-weight: 500; }
+    .seccion-vacia { color: var(--muted); font-size: 13px; padding: 14px 4px; }
     .btn-sm { padding: 5px 12px; border-radius: 7px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; border: none; transition: all 0.2s; white-space: nowrap; }
     .btn-edit       { background: rgba(116,176,247,0.1); color: #74b0f7; border: 1px solid rgba(116,176,247,0.3); }
     .btn-edit:hover { background: rgba(116,176,247,0.2); }
@@ -180,7 +184,7 @@
           <input type="text" id="e-telefono">
         </div>
       </div>
-      <div class="form-group">
+      <div class="form-group" id="e-rol-group">
         <label>Rol *</label>
         <select id="e-rol">
           <option value="secretario_carreras">Secretario de carreras</option>
@@ -239,20 +243,32 @@ async function load() {
   renderTable();
 }
 
-function renderTable() {
-  if (!allData.length) {
-    document.getElementById('list-container').innerHTML = '<div class="empty-state"><div class="icon">👥</div><h3>Sin usuarios registrados</h3></div>';
-    return;
-  }
-  const rows = allData.map(u => {
-    const activo = u.activo !== false;
-    const toggleBtn = activo
-      ? `<button class="btn-sm btn-toggle-on" onclick="toggleActivo('${u.id}',false)">Desactivar</button>`
-      : `<button class="btn-sm btn-toggle-off" onclick="toggleActivo('${u.id}',true)">Activar</button>`;
-    // nombre, teléfono y email los escribe el propio usuario del portal
-    // (solicitar-acceso, o su fila por la API): todo por escapeHtml. El onclick
-    // lleva sólo el id; openEdit busca el objeto en allData.
-    return `<tr>
+/* ---- PERMISOS (espejo de la base; la base es la que manda) ----
+ * usuarios_update (RLS): super_admin cualquier fila; el resto sólo la propia
+ * (auth_user_id = auth.uid()). Cambiar rol: sólo super_admin (trg_proteger_rol_club_id_usuario
+ * y trg_usuarios_guard_privilegios). La pantalla sólo ofrece lo que la base va a dejar hacer. */
+const ROLES_PERSONAL = ['super_admin', 'secretario_carreras', 'operador'];
+const ROLES_PORTAL   = ['profesional', 'propietario'];
+function esPortal(u)        { return ROLES_PORTAL.includes(u.rol); }
+function esSuperAdmin()     { return currentUser?.rol === 'super_admin'; }
+function esPropia(u)        { return !!currentUser?.id && u.auth_user_id === currentUser.id; }
+function puedeModificar(u)  { return esSuperAdmin() || esPropia(u); }
+function puedeEditar(u)     { return !esPortal(u) && puedeModificar(u); }
+// Darse de baja a uno mismo deja la cuenta afuera del sistema: no se ofrece.
+function puedeAltaBaja(u)   { return puedeModificar(u) && !esPropia(u); }
+function puedeCambiarRol(u) { return esSuperAdmin() && [...document.getElementById('e-rol').options].some(o => o.value === u.rol); }
+
+function filaHTML(u) {
+  const activo = u.activo !== false;
+  const acciones = [];
+  if (puedeEditar(u)) acciones.push(`<button class="btn-sm btn-edit" onclick="openEdit('${u.id}')">✏️ Editar</button>`);
+  if (puedeAltaBaja(u)) acciones.push(activo
+    ? `<button class="btn-sm btn-toggle-on" onclick="toggleActivo('${u.id}',false)">Desactivar</button>`
+    : `<button class="btn-sm btn-toggle-off" onclick="toggleActivo('${u.id}',true)">Activar</button>`);
+  // nombre, teléfono y email los escribe el propio usuario del portal
+  // (solicitar-acceso, o su fila por la API): todo por escapeHtml. El onclick
+  // lleva sólo el id; openEdit busca el objeto en allData.
+  return `<tr data-id="${u.id}">
       <td>
         <div class="cell-name">${escapeHtml(u.nombre_completo || '—')}</div>
         ${u.telefono ? `<div class="cell-sub">📞 ${escapeHtml(u.telefono)}</div>` : ''}
@@ -260,24 +276,35 @@ function renderTable() {
       <td><div class="cell-sub">${escapeHtml(u.email)}</div></td>
       <td><span class="badge badge-rol">${escapeHtml(ROL_LABELS[u.rol] || u.rol)}</span></td>
       <td><span class="badge badge-${activo ? 'activo' : 'inactivo'}">${activo ? 'Activo' : 'Inactivo'}</span></td>
-      <td>
-        <div class="actions-cell">
-          <button class="btn-sm btn-edit" onclick="openEdit('${u.id}')">✏️ Editar</button>
-          ${toggleBtn}
-        </div>
-      </td>
+      <td><div class="actions-cell">${acciones.join('')}</div></td>
     </tr>`;
-  }).join('');
+}
 
-  document.getElementById('list-container').innerHTML = `
-    <div class="table-wrap">
-      <table>
-        <thead><tr>
-          <th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acciones</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
+function seccionHTML(clave, titulo, lista) {
+  const n = lista.length;
+  const cuerpo = n
+    ? `<div class="table-wrap"><table>
+        <thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody>${lista.map(filaHTML).join('')}</tbody>
+      </table></div>`
+    : `<div class="seccion-vacia">Sin usuarios en esta sección.</div>`;
+  return `<section class="seccion" data-seccion="${clave}">
+      <div class="seccion-titulo">${titulo} <span class="seccion-conteo">${n} ${n === 1 ? 'usuario' : 'usuarios'}</span></div>
+      ${cuerpo}
+    </section>`;
+}
+
+function renderTable() {
+  if (!allData.length) {
+    document.getElementById('list-container').innerHTML = '<div class="empty-state"><div class="icon">👥</div><h3>Sin usuarios registrados</h3></div>';
+    return;
+  }
+  // allData ya viene ordenado por nombre_completo (load); filter conserva el orden.
+  const portal   = allData.filter(esPortal);
+  const personal = allData.filter(u => !esPortal(u));
+  document.getElementById('list-container').innerHTML =
+    seccionHTML('personal', 'Personal del hipódromo', personal) +
+    seccionHTML('portal', 'Usuarios del portal', portal);
 }
 
 /* ---- CREAR ---- */
@@ -467,7 +494,11 @@ function openEdit(id) {
   document.getElementById('e-nombre').value  = u.nombre_completo || '';
   document.getElementById('e-email').value   = u.email || '';
   document.getElementById('e-telefono').value= u.telefono || '';
-  document.getElementById('e-rol').value     = u.rol || 'operador';
+  // El campo rol sólo aparece si quien edita puede cambiarlo y el rol de la fila
+  // es una de las opciones (un rol del portal no lo es: el select quedaría en '').
+  const conRol = puedeCambiarRol(u);
+  document.getElementById('e-rol-group').hidden = !conRol;
+  document.getElementById('e-rol').value = conRol ? u.rol : '';
   document.getElementById('modal-edit').classList.add('open');
 }
 function closeEdit() { document.getElementById('modal-edit').classList.remove('open'); }
@@ -476,15 +507,21 @@ async function saveEdit() {
   const id     = document.getElementById('e-id').value;
   const nombre = document.getElementById('e-nombre').value.trim();
   if (!nombre) { toast('El nombre es requerido', 'error'); return; }
-  const btn = document.getElementById('btn-edit-save');
-  btn.disabled = true; btn.textContent = 'Guardando…';
-  const { error } = await sb.from('usuarios').update({
+  const u = allData.find(x => x.id === id);
+  const cambios = {
     nombre_completo: nombre,
     telefono: document.getElementById('e-telefono').value.trim() || null,
-    rol:      document.getElementById('e-rol').value,
-  }).eq('id', id);
+  };
+  // rol: sólo si quien edita puede cambiarlo y efectivamente cambió. Nunca ''.
+  const rolNuevo = document.getElementById('e-rol').value;
+  if (u && puedeCambiarRol(u) && rolNuevo && rolNuevo !== u.rol) cambios.rol = rolNuevo;
+  const btn = document.getElementById('btn-edit-save');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  // .select(): si la RLS filtra la fila, PostgREST devuelve 0 filas SIN error.
+  const { data, error } = await sb.from('usuarios').update(cambios).eq('id', id).select('id');
   btn.disabled = false; btn.textContent = 'Guardar cambios';
   if (error) { toast(error.message, 'error'); return; }
+  if (!data || !data.length) { toast('No tenés permiso para modificar este usuario', 'error'); return; }
   toast('Usuario actualizado');
   closeEdit();
   load();
@@ -500,16 +537,21 @@ async function saveEdit() {
  * `estado='pendiente'`, la red de contención de activacion-pendiente.js
  * reactivaría al usuario en su próximo login y la baja sería un placebo.
  *
- * De ahí el 'inactivo' al desactivar: es un valor que `esRescatable()` NO
- * acepta. Está cubierto por tests/probe_activacion_pendiente.mjs.
+ * De ahí el 'suspendido' al desactivar: es un valor que `esRescatable()` NO
+ * acepta (sólo rescata 'pendiente'). Está cubierto por tests/probe_activacion_pendiente.mjs.
+ * Hasta el 27/09 escribía 'inactivo', que el CHECK usuarios_estado_check no admite
+ * (pendiente/activo/rechazado/suspendido): Desactivar fallaba siempre en prod desde 7535a1d.
  */
 async function toggleActivo(id, activo) {
   const u = allData.find(x => x.id === id);
   if (!confirm(`¿Deseas ${activo ? 'activar' : 'desactivar'} al usuario "${u?.nombre_completo}"?`)) return;
-  const { error } = await sb.from('usuarios')
-    .update({ activo, estado: activo ? 'activo' : 'inactivo' })
-    .eq('id', id);
+  const { data, error } = await sb.from('usuarios')
+    .update({ activo, estado: activo ? 'activo' : 'suspendido' })
+    .eq('id', id)
+    .select('id');
   if (error) { toast(error.message, 'error'); return; }
+  // 0 filas sin error = la RLS filtró la fila: no hubo cambio.
+  if (!data || !data.length) { toast('No tenés permiso para modificar este usuario', 'error'); return; }
   toast(`Usuario ${activo ? 'activado' : 'desactivado'}`);
   load();
 }
