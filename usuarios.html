@@ -197,6 +197,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="escape-html.js"></script>
 <script>
 const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK';
@@ -248,17 +249,20 @@ function renderTable() {
     const toggleBtn = activo
       ? `<button class="btn-sm btn-toggle-on" onclick="toggleActivo('${u.id}',false)">Desactivar</button>`
       : `<button class="btn-sm btn-toggle-off" onclick="toggleActivo('${u.id}',true)">Activar</button>`;
+    // nombre, teléfono y email los escribe el propio usuario del portal
+    // (solicitar-acceso, o su fila por la API): todo por escapeHtml. El onclick
+    // lleva sólo el id; openEdit busca el objeto en allData.
     return `<tr>
       <td>
-        <div class="cell-name">${u.nombre_completo || '—'}</div>
-        ${u.telefono ? `<div class="cell-sub">📞 ${u.telefono}</div>` : ''}
+        <div class="cell-name">${escapeHtml(u.nombre_completo || '—')}</div>
+        ${u.telefono ? `<div class="cell-sub">📞 ${escapeHtml(u.telefono)}</div>` : ''}
       </td>
-      <td><div class="cell-sub">${u.email}</div></td>
-      <td><span class="badge badge-rol">${ROL_LABELS[u.rol] || u.rol}</span></td>
+      <td><div class="cell-sub">${escapeHtml(u.email)}</div></td>
+      <td><span class="badge badge-rol">${escapeHtml(ROL_LABELS[u.rol] || u.rol)}</span></td>
       <td><span class="badge badge-${activo ? 'activo' : 'inactivo'}">${activo ? 'Activo' : 'Inactivo'}</span></td>
       <td>
         <div class="actions-cell">
-          <button class="btn-sm btn-edit" onclick='openEdit(${JSON.stringify(u)})'>✏️ Editar</button>
+          <button class="btn-sm btn-edit" onclick="openEdit('${u.id}')">✏️ Editar</button>
           ${toggleBtn}
         </div>
       </td>
@@ -456,7 +460,9 @@ function mensajeError(e) {
 }
 
 /* ---- EDITAR ---- */
-function openEdit(u) {
+function openEdit(id) {
+  const u = allData.find(x => x.id === id);
+  if (!u) return;
   document.getElementById('e-id').value      = u.id;
   document.getElementById('e-nombre').value  = u.nombre_completo || '';
   document.getElementById('e-email').value   = u.email || '';

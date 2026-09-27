@@ -374,6 +374,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="escape-html.js"></script>
 <script>
 let sb, CLUB_ID, currentUser, CURRENT_ROLE = 'super_admin';
 async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(!usr){await sb.auth.signOut();window.location.replace('login.html');return false;}if(usr.rol!=='super_admin'&&!usr.club_id){window.location.replace('index.html');return false;}CLUB_ID=usr.club_id||null;CURRENT_ROLE=usr.rol;currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
@@ -862,6 +863,9 @@ async function deleteClub(id){
 }
 
 /* ---- APROBACIONES PENDIENTES ---- */
+// Nombre y email de un pendiente los escribió el propio usuario: van por
+// escapeHtml y el onclick lleva sólo el id (aprobar/rechazar buscan acá).
+let pendientesData = [];
 async function loadPendientes() {
   const { data, error } = await sb.from('usuarios')
     .select('id,email,nombre_completo,rol,created_at')
@@ -869,8 +873,9 @@ async function loadPendientes() {
     .order('created_at', { ascending: true });
   const cont = document.getElementById('pendientes-container');
   const badge = document.getElementById('pendientes-badge');
-  if (error) { cont.innerHTML = `<p style="color:var(--danger);font-size:13px;">Error al cargar pendientes: ${error.message}</p>`; return; }
+  if (error) { cont.innerHTML = `<p style="color:var(--danger);font-size:13px;">Error al cargar pendientes: ${escapeHtml(error.message)}</p>`; return; }
   const lista = data || [];
+  pendientesData = lista;
   if (badge) { badge.textContent = lista.length; badge.style.display = lista.length ? '' : 'none'; }
   if (!lista.length) {
     cont.innerHTML = `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;text-align:center;color:var(--muted);font-size:14px;">✅ Sin registros pendientes de aprobación</div>`;
@@ -879,13 +884,13 @@ async function loadPendientes() {
   const rolLabel = { propietario: '👔 Propietario', profesional: '🧢 Entrenador' };
   const rows = lista.map(u => `
     <tr>
-      <td><div style="font-weight:600;color:var(--text);">${u.nombre_completo||'—'}</div><div style="font-size:11px;color:var(--muted);">${u.email}</div></td>
-      <td><span class="badge badge-activo" style="background:rgba(116,176,247,0.1);color:#74b0f7;border-color:rgba(116,176,247,0.3);">${rolLabel[u.rol]||u.rol}</span></td>
+      <td><div style="font-weight:600;color:var(--text);">${escapeHtml(u.nombre_completo||'—')}</div><div style="font-size:11px;color:var(--muted);">${escapeHtml(u.email)}</div></td>
+      <td><span class="badge badge-activo" style="background:rgba(116,176,247,0.1);color:#74b0f7;border-color:rgba(116,176,247,0.3);">${escapeHtml(rolLabel[u.rol]||u.rol)}</span></td>
       <td style="font-size:12px;color:var(--muted);">${new Date(u.created_at).toLocaleDateString('es-AR')}</td>
       <td>
         <div class="actions-cell">
-          <button class="btn-sm btn-toggle-off" onclick="aprobarUsuario('${u.id}','${(u.nombre_completo||u.email).replace(/'/g,"\\'")}')">✅ Aprobar</button>
-          <button class="btn-sm btn-toggle-on" onclick="rechazarUsuario('${u.id}','${(u.nombre_completo||u.email).replace(/'/g,"\\'")}')">❌ Rechazar</button>
+          <button class="btn-sm btn-toggle-off" onclick="aprobarUsuario('${u.id}')">✅ Aprobar</button>
+          <button class="btn-sm btn-toggle-on" onclick="rechazarUsuario('${u.id}')">❌ Rechazar</button>
         </div>
       </td>
     </tr>`).join('');
@@ -895,7 +900,13 @@ async function loadPendientes() {
   </table></div>`;
 }
 
-async function aprobarUsuario(id, nombre) {
+function nombrePendiente(id) {
+  const u = pendientesData.find(x => x.id === id);
+  return u ? (u.nombre_completo || u.email) : id;
+}
+
+async function aprobarUsuario(id) {
+  const nombre = nombrePendiente(id);
   if (!confirm(`¿Aprobar el registro de "${nombre}"?`)) return;
   const { error } = await sb.from('usuarios').update({ estado: 'activo', activo: true }).eq('id', id);
   if (error) { toast(error.message, 'error'); return; }
@@ -903,7 +914,8 @@ async function aprobarUsuario(id, nombre) {
   loadPendientes();
 }
 
-async function rechazarUsuario(id, nombre) {
+async function rechazarUsuario(id) {
+  const nombre = nombrePendiente(id);
   if (!confirm(`¿Rechazar el registro de "${nombre}"? Esta acción lo marcará como rechazado.`)) return;
   const { error } = await sb.from('usuarios').update({ estado: 'rechazado', activo: false }).eq('id', id);
   if (error) { toast(error.message, 'error'); return; }
