@@ -2664,7 +2664,8 @@ query de control del informe no tiene que moverse.
 
 ### ISSUE-092: peón/capataz/sereno cargados después de oficializar generan su sub-línea cobrable en el próximo recálculo, aunque el entrenador ya haya cobrado; cambiar el nombre después de pagada duplica el %
 
-**Estado**: 🟡 **FIX EN PR, SIN APLICAR** (2026-09-25) — rama `feat/reparto-100-subroles`. Se resuelve con el fix 3 de
+**Estado**: ✅ **FIX EN `main` y en el sitio desde el 2026-09-25** — PR #17 (merge `afc6af5`; `liquidaciones-engine.js:376`
+`concepto: sub.rol`, sitio = main verificado el 27/09). Se resuelve con el fix 3 de
 abajo: el `concepto` de la sub-línea pasa a ser **sólo el rol** (`Peón`/`Capataz`/`Sereno`) y el nombre va en la
 descripción, así que cargar o cambiar el nombre después de pagada no duplica (probe S5/S6, mutante M3). Que la
 sub-línea nazca aunque el entrenador ya haya cobrado deja de ser un accidente: desde el 25/09 las tres nacen
