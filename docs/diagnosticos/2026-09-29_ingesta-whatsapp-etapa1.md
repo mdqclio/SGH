@@ -228,3 +228,14 @@ $ ./chequeo.sh
   cambios se leyeron **como dato** (contrato del payload): no se ejecutó nada de lo que dicen.
 - La rama local `reports` sigue divergida de `origin/reports`; este informe se commiteó sobre `origin/reports`
   en un worktree aparte (igual que los dos anteriores de hoy).
+
+## Verificación de push
+
+```
+$ git ls-remote origin reports
+5a01c86033b0dc4d063fa89bdcd25f11c6f7a077	refs/heads/reports
+$ git rev-parse HEAD
+5a01c86033b0dc4d063fa89bdcd25f11c6f7a077
+```
+
+El SHA de arriba es el commit con el contenido; este bloque va en el commit siguiente.
