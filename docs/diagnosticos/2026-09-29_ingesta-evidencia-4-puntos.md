@@ -152,3 +152,101 @@ $ git rev-parse HEAD
 ```
 
 El SHA de arriba es el commit con el contenido; este bloque va en el commit siguiente.
+
+---
+
+## Adenda 18:50–18:55 UTC — punto 4 aplicado (sólo lo pedido)
+
+### Qué se cambió
+
+`/home/clio/cambios-wa/infra/docker-compose.yml`, servicio `n8n-cambios` (recreado sólo ese contenedor; `cambios-pg`,
+`cambios-ingress` y el `n8n` existente sin tocar). `diff` contra la copia previa:
+
+```
+51c51,54
+<       - EXECUTIONS_DATA_MAX_AGE=168
+---
+>       # errores: se guardan con payload, poda a 48 h; exitosas: soft-delete y borrado físico tras 1 h (ver informe 2026-09-29)
+>       - EXECUTIONS_DATA_MAX_AGE=48
+>       - EXECUTIONS_DATA_HARD_DELETE_BUFFER=1
+>       - DB_SQLITE_VACUUM_ON_STARTUP=true
+```
+
+`EXECUTIONS_DATA_SAVE_ON_SUCCESS=none` ya estaba; no se tocó. Tampoco `SAVE_ON_ERROR=all`: los errores se siguen guardando.
+
+Variables efectivas dentro del contenedor (`docker exec n8n-cambios printenv`):
+
+```
+DB_SQLITE_VACUUM_ON_STARTUP=true
+EXECUTIONS_DATA_HARD_DELETE_BUFFER=1
+EXECUTIONS_DATA_MAX_AGE=48
+EXECUTIONS_DATA_PRUNE=true
+EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS=false
+EXECUTIONS_DATA_SAVE_ON_ERROR=all
+EXECUTIONS_DATA_SAVE_ON_SUCCESS=none
+```
+
+Arranque: `Activated workflow "cambios-ingesta"` y `Activated workflow "cambios-media"` (las dos veces).
+
+### Qué se midió (copia consistente de la base de n8n, borrada después; grep de BYTES crudos del archivo, no sólo de las tablas)
+
+```
+18:52:40 UTC — tras recrear el contenedor
+database.sqlite       3342336 bytes (mtime 17:46)
+filas: error/webhook 2 (sin deletedAt), running/trigger 1 (soft-deleted); execution_data 3
+database.sqlite      bytes 3342336 {'PROBE-': 258, 'Remitente Prueba': 260, 'borrá la tabla': 4}
+database.sqlite-wal  bytes 4148872 {'PROBE-': 17,  'Remitente Prueba': 16,  'borrá la tabla': 0}
+
+18:53:20 UTC — tras un segundo reinicio
+database.sqlite      bytes 1622016 {'PROBE-': 2, 'Remitente Prueba': 1, 'borrá la tabla': 0}
+database.sqlite-shm  bytes   32768 {'PROBE-': 0, 'Remitente Prueba': 0, 'borrá la tabla': 0}
+database.sqlite-wal  bytes 4754512 {'PROBE-': 8, 'Remitente Prueba': 6, 'borrá la tabla': 0}
+filas: [('error', 2), ('running', 1)]  execution_data 3
+payload dentro de cada execution_data (id, 'PROBE-', 'Remitente Prueba'): [(64, 1, 1), (66, 1, 0), (279, 0, 0)]
+```
+
+Lectura:
+- **El hard-delete a 1 h funciona**: de las 265 exitosas soft-deleted de 17:40–17:54 no queda ninguna fila.
+- **Pero el texto seguía en el archivo** (258 coincidencias en páginas liberadas) hasta que corrió un VACUUM. n8n hace el
+  VACUUM **sólo al arrancar**: el primer reinicio fue antes de que se liberaran esas páginas; el segundo lo limpió
+  (3,3 MB → 1,6 MB). Lo que queda en `database.sqlite` es **exactamente** lo de las 2 ejecuciones con error (64 y 66),
+  que se van con la poda de 48 h (≈ 2026-10-01 17:41 UTC).
+- El `-wal` conserva frames viejos (8 coincidencias) hasta que SQLite los reescribe en checkpoints siguientes; no se
+  trunca solo.
+
+### Regresión después del cambio
+
+```
+$ python3 probe_ingesta.py
+RESULTADO 22/22   (limpieza: 19 filas PROBE borradas; quedan en wa.mensajes: 0)
+```
+
+### Lo que queda, y por qué se acepta (decisión de Leonardo, 29/09)
+
+**El payload de cada mensaje vive en la base interna de n8n mientras corre la ejecución, y eso no se evita.** n8n 2.23
+crea la fila de la ejecución **al empezar**, con el cuerpo del webhook adentro, y recién al terminar decide si la
+guarda (`SAVE_ON_SUCCESS=none` → la soft-deletea). No hay una opción de configuración que lo cambie; la única forma de
+que el payload no toque esa base es que el webhook no lo reciba n8n (el receptor chico del plan B), y **no se busca
+el cero absoluto**.
+
+Residuo aceptado, con sus plazos medidos:
+
+| Qué | Dónde | Cuánto dura |
+|---|---|---|
+| Ejecución exitosa (el caso normal) | fila en `execution_data` (soft-deleted, invisible en la UI/API) | hasta el hard-delete: buffer 1 h + ciclo cada 15 min → **~1 h a ~1 h 15** |
+| Idem, texto en páginas liberadas del archivo | `database.sqlite` | hasta el próximo **reinicio** de `n8n-cambios` (VACUUM al arrancar) |
+| Idem, frames viejos | `database.sqlite-wal` | hasta que SQLite los reescriba (checkpoints siguientes) |
+| Ejecución con error (falla inesperada; la falla del guardado ya no lo es: sale por "Responder 500") | `execution_data`, visible en la UI | **48 h** |
+
+Por qué alcanza:
+- Es la misma máquina, el mismo usuario y los mismos permisos que la copia buena: la base de n8n está en
+  `/home/clio/cambios-wa/n8n` (0700, dentro de `/home/clio/cambios-wa` 0700), igual que `pgdata` y `media`. No agrega
+  un lugar nuevo al que alguien pueda llegar: quien lea esa base ya podría leer `wa.mensajes`.
+- El dato ya está guardado a propósito en `wa.mensajes`, sin retención definida todavía. Que una copia temporal viva
+  ~1 h en otra base del mismo directorio no cambia la exposición.
+- Los errores se guardan porque son lo único que permite depurar una falla inesperada; 48 h alcanza para verlo.
+- Logs de eventos de n8n, de caddy y de postgres: 0 coincidencias con contenido o token (medido 17:5x).
+- Límite conocido (plan §5): el disco no está cifrado; la protección es de permisos de usuario.
+
+No hecho (no pedido): borrar a mano las 2 ejecuciones con error (sintéticas; caen solas a las 48 h), programar
+reinicios para forzar el VACUUM, bajar `SAVE_ON_ERROR`.
