@@ -357,3 +357,14 @@ tiene algo de más de 1 día, es alarma: el barredor no está bajando y el enlac
 - La rama local `reports` de `/home/clio/dev/SGH` está **divergida** de `origin/reports` (ahead 1154, behind 47 —
   parece una historia reescrita en origin). **No se tocó**: este informe se commiteó sobre `origin/reports` en un
   worktree aparte y se pusheó como `HEAD:reports`. Conviene resolver esa rama local en otro momento.
+
+## Verificación de push
+
+```
+$ git ls-remote origin reports
+5229ecaa8b71380546a3438301f9eb08553370df	refs/heads/reports
+$ git rev-parse HEAD
+5229ecaa8b71380546a3438301f9eb08553370df
+```
+
+El SHA de arriba es el commit con el contenido del informe; este bloque se agregó en un commit siguiente.
