@@ -141,3 +141,14 @@ docker logs cambios-pg              PROBE=0 Remitente=0 x-cambios-token=0
   "nunca toca disco" con n8n no parece posible con la configuración: haría falta que el webhook lo recibiera otra cosa
   (el receptor chico en Node del plan B, §1.3 del plan).
 - Borrar ya las 2 ejecuciones con error (64, 66: sintéticas) y hacer `VACUUM` de la base de n8n.
+
+## Verificación de push
+
+```
+$ git ls-remote origin reports
+313214b0027aa01d1df33d63a8c76df20c8c6bc1	refs/heads/reports
+$ git rev-parse HEAD
+313214b0027aa01d1df33d63a8c76df20c8c6bc1
+```
+
+El SHA de arriba es el commit con el contenido; este bloque va en el commit siguiente.
