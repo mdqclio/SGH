@@ -139,3 +139,16 @@ Nota: los `postgres` de usuario 70 con ~140 MB RSS son los backends de `evolutio
   `python` de 750 MiB RSS (2505316): el comando para leer su cmdline no pasó el chequeo de permisos
   en esta sesión. Si son restos de sesiones viejas, matarlos libera ~1,8 GB entre RAM y swap.
 - Sesiones `claude` abiertas: al menos 5 (cada una con sus MCP node). Revisar cuáles siguen vivas a propósito.
+
+## Verificación de push
+
+Pre-commit (`git status` + `git diff --cached --stat`): un solo archivo, este `.md`, 141 líneas.
+Grep de contenido (`password|secret|token|api.?key|SUPABASE_|$VAR|postgres://|/home/|/tmp/|.env`): 0 coincidencias.
+Commit publicado desde un worktree sobre `origin/reports` (la rama local `reports` está desfasada: 1154 adelante / 49 atrás; no se tocó).
+
+```
+$ git ls-remote origin reports
+ebfc87bda5cf84154a886c1f0a793cfc1f96174b	refs/heads/reports
+$ git rev-parse HEAD
+ebfc87bda5cf84154a886c1f0a793cfc1f96174b
+```
