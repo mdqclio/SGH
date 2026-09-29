@@ -452,3 +452,14 @@ Además, hay altas que ya nacieron en true (INSERT con true: 43 el 15/06, 8 el 2
    que nadie carga. Es información falsa en pantalla.
 4. `spcs` sin auditoría: si el certificado (o cualquier dato del padrón) empieza a importar, falta el trigger de auditoría.
 5. Portal: ¿se quiere un "pedir alta de este caballo" que le llegue a la secretaría, en lugar del aviso por fuera?
+
+## Verificación de push
+
+```
+$ git ls-remote origin reports
+df9f1630e283d16d2ae3acc4ae95508d7085e55e	refs/heads/reports
+$ git rev-parse HEAD
+df9f1630e283d16d2ae3acc4ae95508d7085e55e
+```
+
+El SHA de arriba es el commit con el contenido; este bloque va en el commit siguiente.
