@@ -250,3 +250,12 @@ Por qué alcanza:
 
 No hecho (no pedido): borrar a mano las 2 ejecuciones con error (sintéticas; caen solas a las 48 h), programar
 reinicios para forzar el VACUUM, bajar `SAVE_ON_ERROR`.
+
+### Verificación de push (adenda)
+
+```
+$ git ls-remote origin reports
+1ec5bc4bc884e8f3200c5d91ddd61efd196ecb83	refs/heads/reports
+$ git rev-parse HEAD
+1ec5bc4bc884e8f3200c5d91ddd61efd196ecb83
+```
