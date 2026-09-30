@@ -122,3 +122,31 @@ de1971468abe547a8ab54cbc6deb2f6ad926907c	refs/heads/reports
 ```
 
 Nota: la rama `reports` LOCAL de /home/clio/dev/SGH diverge de origin (tiene commits que origin no tiene, p.ej. cf8461c, dd2985f). No la toqué: este informe se publicó con cherry-pick sobre `origin/reports` desde un worktree. Ver si fue una reescritura de historia (¿auditoría PII?) antes de pushear desde esa local.
+
+## Merge y deploy (2026-09-30, con OK del usuario)
+
+- PR #27 mergeado: `cf99bf45abdb990cda55d8f66314081ceb3f85b0` (merge commit en main; head b8691aa)
+
+```
+$ git log --oneline -3 main
+cf99bf4 merge: resoluciones — sacar el contador de Borrador — PR #27
+b8691aa chore(resoluciones): sacar el contador de Borrador de la cabecera
+7e5fc99 merge: ISSUE-097 — autor y auditoría en resoluciones y sanciones; borrar sólo super_admin — PR #26
+$ git ls-remote origin main
+cf99bf45abdb990cda55d8f66314081ceb3f85b0	refs/heads/main
+```
+
+md5 de https://sigh.com.ar/resoluciones.html vs `git show cf99bf4:resoluciones.html` (poll cada 15 s con ?v=$RANDOM; última línea = cantidad de `cnt-borrador` en lo servido):
+```
+main 12858d873b31fa2d63684ad7ca3182cf
+01:58:45 intento 1 prod 6000974c6d70c39d3736208c30b57c37
+01:59:00 intento 2 prod 6000974c6d70c39d3736208c30b57c37
+01:59:15 intento 3 prod 12858d873b31fa2d63684ad7ca3182cf
+12858d873b31fa2d63684ad7ca3182cf  /tmp/claude-1000/-home-clio-dev-SGH/6df04b77-3a2c-4f0d-9158-7e047bcd4d58/scratchpad/local.html
+12858d873b31fa2d63684ad7ca3182cf  /tmp/claude-1000/-home-clio-dev-SGH/6df04b77-3a2c-4f0d-9158-7e047bcd4d58/scratchpad/prod.html
+0
+
+[exited with code 0]
+```
+
+**Coinciden: `12858d873b31fa2d63684ad7ca3182cf`.** Prod sirve la versión sin el contador desde 01:59:15 UTC (el md5 anterior 6000974c… era la versión de 7e5fc99).
