@@ -112,3 +112,13 @@ Rama: 3 contadores correctos. Mutante: TypeError → el chequeo discrimina. No h
 ## Pendiente
 - Mergear PR #27 cuando des OK; después verificar md5 contra sigh.com.ar.
 - Baseline de `spcs` en CLAUDE.md: 210 → 212 (fuera del alcance de este pedido).
+
+## Verificación de push
+```
+$ git ls-remote origin chore/resoluciones-sin-contador-borrador
+b8691aa98f6415d7c35743b65c78b36eb9df7de1	refs/heads/chore/resoluciones-sin-contador-borrador
+$ git ls-remote origin reports   (commit del informe, antes de esta adenda)
+de1971468abe547a8ab54cbc6deb2f6ad926907c	refs/heads/reports
+```
+
+Nota: la rama `reports` LOCAL de /home/clio/dev/SGH diverge de origin (tiene commits que origin no tiene, p.ej. cf8461c, dd2985f). No la toqué: este informe se publicó con cherry-pick sobre `origin/reports` desde un worktree. Ver si fue una reescritura de historia (¿auditoría PII?) antes de pushear desde esa local.
