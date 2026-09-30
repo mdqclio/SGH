@@ -113,7 +113,6 @@
 <div class="content">
   <div class="stats-row">
     <div class="stat-chip"><div class="stat-chip-val" id="cnt-total">—</div><div class="stat-chip-lbl">Total</div></div>
-    <div class="stat-chip"><div class="stat-chip-val" id="cnt-borrador">—</div><div class="stat-chip-lbl">Borrador</div></div>
     <div class="stat-chip"><div class="stat-chip-val" id="cnt-publicadas">—</div><div class="stat-chip-lbl">Publicadas</div></div>
     <div class="stat-chip"><div class="stat-chip-val" id="cnt-notificadas">—</div><div class="stat-chip-lbl">Notificadas</div></div>
   </div>
@@ -221,7 +220,6 @@ async function load() {
 
 function updateStats() {
   document.getElementById('cnt-total').textContent = allData.length;
-  document.getElementById('cnt-borrador').textContent = allData.filter(r=>r.estado==='borrador').length;
   document.getElementById('cnt-publicadas').textContent = allData.filter(r=>r.estado==='publicada').length;
   document.getElementById('cnt-notificadas').textContent = allData.filter(r=>r.estado==='notificada').length;
 }
