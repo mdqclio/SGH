@@ -144,3 +144,9 @@ docs/DEPLOY_INVITE_USER_2026-07-28.md:151  la config de Auth (SMTP y rate limits
 ## Nota lateral
 
 La rama `reports` **local** tiene commits sin pushear que divergen de `origin/reports` (p. ej. `cf8461c`, `dd2985f`, `3562b6c`…). No la toqué: este informe se commiteó desde un worktree sobre `origin/reports`.
+
+## Verificación de push
+```
+git rev-parse HEAD (commit del informe): 3e10e1559a4430c19cdee45ddee3002b01480af3
+git ls-remote origin reports: 3e10e1559a4430c19cdee45ddee3002b01480af3	refs/heads/reports
+```
