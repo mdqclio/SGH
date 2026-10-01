@@ -274,11 +274,11 @@ Antes de cualquier operación de escritura sobre producción, verificar los tres
 
 ```
 pwd                          → /home/clio/dev/SGH
-SELECT count(*) FROM spcs    → 210        (baseline al 2026-09-16, altas de Yesi por spcs.html el 14/09)
+SELECT count(*) FROM spcs    → 238        (baseline al 2026-10-01, altas de Yesi por spcs.html del 30/09 y 01/10 para R10)
 ref del proyecto             → unlhcuanfrtpatoipwve
 ```
 
-⚠️ El 210 **incluye caballos de prueba**: `spcs` es global sin `club_id` (GOTCHA #13) y los
+⚠️ El 238 **incluye caballos de prueba**: `spcs` es global sin `club_id` (GOTCHA #13) y los
 ejemplares de test de "Mi Club Hípico" (`Pampa Libre`, `Don Facundo`) suman al conteo. Sirve para lo
 que se usa —detectar proyecto equivocado— pero **no es el padrón real de Dolores**. GOTCHA #75,
 ISSUE-061.
@@ -291,7 +291,10 @@ duplicados: se borraron `Fist Queen` y `Malenuchi`, ver `docs/PLAN_DUPLICADOS_SP
 (2026-09-11 noche, R9 tanda 3: BIEN COQUETA y EL MAS SABIO, `migrations/spcs_r9_tanda_3.sql`) → **205**
 (2026-09-12, Yesi dio de alta DAHUA y SOUTH GOTICO desde `spcs.html` con el buscador del Stud Book — primeras
 altas por UI, sin migración; ambos inscriptos en R9 T3 y T4) → **210** (2026-09-14, Yesi dio de alta LEONADA CHAT,
-OJO EXCELENTE, GRAN RAUL, CANDIDATA PIRANERA y ARTHURUS desde `spcs.html`; todos inscriptos en R9).
+OJO EXCELENTE, GRAN RAUL, CANDIDATA PIRANERA y ARTHURUS desde `spcs.html`; todos inscriptos en R9) → **238**
+(2026-09-30 y 2026-10-01, Yesi dio de alta 28 ejemplares desde `spcs.html` con el buscador del Stud Book, todos con
+`studbook_id` — los caballos de R10 que el portal no podía traer; recontado el 2026-10-01, informe
+`docs/diagnosticos/2026-10-01_portal-alta-spc-studbook.md` en reports).
 
 Los guards que aparecen dentro de los planes y bitácoras de `docs/` son **fotos de su fecha**, no el
 baseline vigente: no se reescriben.
@@ -373,8 +376,8 @@ node tests/probe_studbook_buscar_e2e.mjs           # studbook-buscar deployada �
 node tests/probe_spcs_studbook_alta.mjs            # spcs.html — buscar, Usar, prellenado, panel de duplicados (bloquea / Guardar igual), INSERT real; ESCRIBE 1 spc + 1 usuario, teardown verificado, count 205
 node tests/probe_orden_inscriptos.mjs             # inscripciones.html — pantalla y PDF en alfabético 'es' (= ratificacion); R9 T4 NIÑO OCEANICO < NISTEL WIN; solo lectura
 node tests/probe_aviso_jockey_repetido.mjs         # jockey repetido en el turno — aviso en 4 pantallas, sólo activos; R9 4 turnos avisan, R8 T5 backfill no bloqueado; solo lectura
-node tests/probe_caballeriza_provisorio.mjs        # caballerizas.html titular opcional + rpc_caballeriza_provisorio (UI con stubs + RPC con sesiones reales); ESCRIBE fixture (reunión 9985), teardown verificado, count 210; CABALLERIZAS_HTML acepta URL
-node tests/probe_modificar_inscripcion_portal.mjs   # Modificar desde el portal — rpc_modificar_inscripcion (guards = baja, cadena del propietario, GATE-1=B) + UI; ESCRIBE fixture 9987/9986, teardown verificado, count 210; PORTAL_HTML=https://sigh.com.ar/portal.html corre contra el HTML servido
+node tests/probe_caballeriza_provisorio.mjs        # caballerizas.html titular opcional + rpc_caballeriza_provisorio (UI con stubs + RPC con sesiones reales); ESCRIBE fixture (reunión 9985), teardown verificado, count 238; CABALLERIZAS_HTML acepta URL
+node tests/probe_modificar_inscripcion_portal.mjs   # Modificar desde el portal — rpc_modificar_inscripcion (guards = baja, cadena del propietario, GATE-1=B) + UI; ESCRIBE fixture 9987/9986, teardown verificado, count 238; PORTAL_HTML=https://sigh.com.ar/portal.html corre contra el HTML servido
 node tests/probe_carta_numero_turno.mjs [out_dir]   # carta-llamados PDF — `TURNO N — condición` con numero_turno (R9 T3=7 discrimina) + ancho con Chromium: nadie desborda, T5–T8 a 2 líneas, chip de distancia intacto; PNG; solo lectura; necesita ~/chromium-libs + fonts-liberation
 node tests/probe_mandil_colores.mjs                # partidor-colors.js vs nomenclador oficial de mandiles (Fede 18/09) — fondo por HSL, número exacto, fallback >16; sin Supabase; PARTIDOR_JS acepta URL
 node tests/probe_fmtinput_onblur.mjs               # liquidaciones.html — inputs de monto formatean por onblur, no por tecla (bug 19/09: tipear 60000 quedaba en $6,00 → base 6); saveReparto con sb stub; mutante = main pre-fix 7/20; sin Supabase; LIQUIDACIONES_HTML acepta URL
