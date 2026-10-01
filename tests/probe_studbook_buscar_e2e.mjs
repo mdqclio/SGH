@@ -6,7 +6,14 @@
  *   1) operador, term BIEN COQUETA   → 200, ok:true, 2 exactos, fuente presente
  *   2) operador, term MARIA CATU     → 200, 0 exactos, parcial MARIA CATULENGA
  *   3) operador, term "ab" (corto)   → 400 term_invalido
- *   4) profesional (portal)          → 403 solo_staff
+ *   4) profesional (portal) BUSCA    → 200 (desde 2026-10 el portal busca; antes era 403 solo_staff)
+ *   7) acción TRAER (2026-10) — sólo casos que NO crean ejemplares (en prod no se crean, GOTCHA #101):
+ *      7a operador traer                          → 403 solo_portal (la secretaría da de alta desde spcs.html)
+ *      7b portal traer, sb_id que no es del nombre  → 409 no_coincide (no llega a la RPC)
+ *      7c portal SIN entidad, traer                → 403 no_autorizado: es el G1 de la RPC → prueba que la función
+ *                                                    llega a rpc_spc_alta_studbook_portal con la key secreta
+ *      7d portal CON entidad, carrera de la 9999   → 422 "La inscripción para ese turno no está abierta." (V1)
+ *      7e count(*) FROM spcs igual antes y después
  *   5) sin token (fetch pelado)      → 401 (del gateway: verify_jwt)
  *   6) preflight OPTIONS desde sigh.com.ar → 204 con Access-Control-Allow-Origin
  * ESCRIBE: 2 usuarios de prueba; teardown en el finally, verificado por estado.
@@ -29,12 +36,12 @@ const results = [];
 const ok = (t, c, n = '') => { results.push({ t, s: c ? '✅' : '❌', n }); return c; };
 const creados = [];
 
-async function sesion(rol) {
+async function sesion(rol, extra = {}) {
   const email = `probe.sbb.${rol}.${RUN}@sgh.test`;
   const { data: au, error: eAu } = await sb.auth.admin.createUser({ email, password: `Px-${RUN}-${Math.random().toString(36).slice(2)}`, email_confirm: true });
   if (eAu) throw new Error('createUser: ' + eAu.message);
   creados.push({ email, authId: au.user.id });
-  const { error: eIns } = await sb.from('usuarios').insert({ email, nombre_completo: `Probe sbb ${rol} ${RUN}`, club_id: CLUB, rol, activo: true, estado: 'activo', password_hash: '', auth_user_id: au.user.id });
+  const { error: eIns } = await sb.from('usuarios').insert({ email, nombre_completo: `Probe sbb ${rol} ${RUN}`, club_id: CLUB, rol, activo: true, estado: 'activo', password_hash: '', auth_user_id: au.user.id, ...extra });
   if (eIns) throw new Error('insert usuarios: ' + eIns.message);
   const { data: link, error: eLink } = await sb.auth.admin.generateLink({ type: 'magiclink', email });
   if (eLink) throw new Error('generateLink: ' + eLink.message);
@@ -44,12 +51,13 @@ async function sesion(rol) {
   return cli;
 }
 // supabase-js no parsea el body del error de invoke (ver admin.html:654); se lee a mano.
-async function invocar(cli, term) {
-  const { data, error } = await cli.functions.invoke('studbook-buscar', { body: { term } });
+async function invocar(cli, termOBody) {
+  const body = typeof termOBody === 'string' ? { term: termOBody } : termOBody;
+  const { data, error } = await cli.functions.invoke('studbook-buscar', { body });
   if (!error) return { status: 200, body: data };
   const res = error.context;
-  let body = null; try { body = await res.json(); } catch {}
-  return { status: res?.status ?? -1, body };
+  let rb = null; try { rb = await res.json(); } catch {}
+  return { status: res?.status ?? -1, body: rb };
 }
 
 try {
@@ -63,7 +71,24 @@ try {
 
   const portal = await sesion('profesional');
   r = await invocar(portal, 'BIEN COQUETA');
-  ok('4) profesional (portal) → 403 solo_staff', r.status === 403 && r.body?.error === 'solo_staff', `${r.status} ${JSON.stringify(r.body)}`);
+  ok('4) profesional (portal) busca → 200, 2 exactos', r.status === 200 && r.body?.ok === true && r.body.exactos?.length === 2, `${r.status} ${JSON.stringify(r.body?.exactos?.map(c => c.sb_id))}`);
+
+  // ── 7) TRAER — sólo casos que no crean ejemplares ──
+  const { count: spcsAntes } = await sb.from('spcs').select('id', { count: 'exact', head: true });
+  const { data: c9999 } = await sb.from('carreras').select('id').eq('reunion_id', 'a0000000-0000-0000-0000-000000009999').limit(1).single();
+  const { data: ent } = await sb.from('profesionales').select('id').eq('club_id', CLUB).eq('activo', true).in('tipo', ['entrenador', 'ambos']).limit(1).single();
+  const traer = (sb_id, nombre = 'WAVE RIMOUT') => ({ accion: 'traer', sb_id, nombre, carrera_id: c9999.id });
+  r = await invocar(staff, traer('397805'));
+  ok('7a operador traer → 403 solo_portal', r.status === 403 && r.body?.error === 'solo_portal', `${r.status} ${JSON.stringify(r.body)}`);
+  r = await invocar(portal, traer('1'));
+  ok('7b portal traer con sb_id que no es de ese nombre → 409 no_coincide', r.status === 409 && r.body?.error === 'no_coincide', `${r.status} ${JSON.stringify(r.body)}`);
+  r = await invocar(portal, traer('397805'));
+  ok('7c portal SIN entidad → 403 no_autorizado del G1 de la RPC (la función llegó a la RPC con la key)', r.status === 403 && r.body?.error === 'no_autorizado' && /usuarios del portal/.test(r.body?.detalle || ''), `${r.status} ${JSON.stringify(r.body)}`);
+  const portalEnt = await sesion('profesional', { entidad_tipo: 'profesional', entidad_id: ent.id });
+  r = await invocar(portalEnt, traer('397805'));
+  ok('7d portal CON entidad, carrera de la 9999 (cancelada) → 422 V1', r.status === 422 && r.body?.error === 'rechazado' && r.body?.detalle === 'La inscripción para ese turno no está abierta.', `${r.status} ${JSON.stringify(r.body)}`);
+  const { count: spcsDespues } = await sb.from('spcs').select('id', { count: 'exact', head: true });
+  ok('7e count(*) FROM spcs sin cambios', spcsAntes === spcsDespues, `${spcsAntes} → ${spcsDespues}`);
 
   const r5 = await fetch(FN_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ term: 'BIEN COQUETA' }) });
   ok('5) sin token → 401', r5.status === 401, String(r5.status));

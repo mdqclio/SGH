@@ -1,5 +1,37 @@
 # Changelog
 
+## [2026-10-01] — Portal: traer del Stud Book un caballo que no está en el padrón e inscribirlo de corrido (rama `feat/portal-alta-spc-studbook`; migración **NO aplicada**)
+
+> Pedido de Yesi (audio 01/10 14:10): un entrenador registrado en el portal no pudo anotar porque el caballo no
+> estaba en el padrón, y ella lo tuvo que cargar a mano (28 altas entre el 30/09 y el 01/10). Camino liviano, sin
+> cola de aprobación: el ejemplar nace **pendiente de revisión** y la inscripción vale en el momento.
+> Relevamiento y plan: `docs/diagnosticos/2026-10-01_portal-alta-spc-studbook.md` (reports).
+
+- `migrations/portal_alta_spc_studbook.sql` (+ rollback): columnas `spcs.alta_origen / alta_por / revision_pendiente /
+  revision_motivos / revisado_por / revisado_at`, impuestas por `trg_spcs_alta_revision` (spcs.html no puede crear una
+  ficha "del portal" ni escribir quién revisó); **auditoría de `spcs`** (`trg_audit_spcs`, no existía); RPC
+  `rpc_spc_alta_studbook_portal` SECURITY DEFINER, **EXECUTE sólo `service_role`**: guard 0, usuario del portal con
+  entidad, turno abierto, forma de los datos, edad < 2 rechaza / > 12 crea con motivo, D1 reusa por nº de Stud Book,
+  D2 reusa por fecha+padres, D3 rechaza si hay dos fichas iguales (Wave Rimout), cupo 3 altas por usuario por día,
+  homónimo con motivo, `ON CONFLICT` sobre `spcs_studbook_id_uniq` (dos portales a la vez → una sola ficha). No cambia
+  ninguna política ni GRANT de tabla (ISSUE-093 intacto).
+- `supabase/functions/studbook-buscar`: **buscar** abierto al portal; acción nueva **traer** (sólo portal): vuelve a
+  pedirle el caballo al Stud Book por el `sb_id` elegido y llama la RPC con la key secreta. El navegador nunca manda la ficha.
+- `portal.html`: si el caballo no está en el padrón, botón "Buscar en el Stud Book" → candidatos → "Es este — anotarlo"
+  (o "Ya está en el padrón — anotarlo"). La monta se valida antes de traer; después anota con el mismo `rpc_inscribir`.
+- `spcs.html`: chip "Por revisar", filtro, badge y caja "Marcar revisado". De paso, el ✏️ abre la ficha por id: con
+  `JSON.stringify` en un atributo con comillas simples, un apóstrofo rompía el botón (12 fichas al 01/10, ej. DEVIL'S KING).
+  Corregido el comentario que ponía a Wave Rimout como homónimo (es el mismo caballo dos veces; se unifica aparte).
+- `inscripciones.html`: "Cargada por" avisa "ficha nueva, por revisar". `auditoria.html`: filtro `spcs`.
+- Probes: `probe_portal_alta_spc_studbook.mjs` (sandbox, base aparte) 49/49, 21/21 mutantes;
+  `probe_portal_alta_spc_ui.mjs` (jsdom + stub) 18/18, 8/8; `probe_studbook_buscar_fn.mjs` 18/18;
+  `probe_studbook_buscar_e2e.mjs` extendido (corre después del deploy; sin altas en prod). Arreglados dos probes que
+  ya fallaban en `main`: `probe_portal_validacion` (faltaban deps de `anotar`) y el tramo A de `probe_aviso_jockey_repetido`
+  (faltaba `escapeHtml`; su tramo de `saveMontas` sigue roto desde ISSUE-084, no es de esta rama).
+- **Orden de deploy**: migración → Edge Function → HTML. `inscripciones.html` pide `spcs(revision_pendiente)`: sin la
+  migración, la pantalla falla (lo mostró `probe_orden_inscriptos` contra prod).
+- Baseline del guard de `spcs`: 210 → **238**.
+
 ## [2026-09-27] — ISSUE-097: autor y auditoría en resoluciones y sanciones; borrar sólo super_admin (PR #26; migraciones **aplicadas** `20260927223658` / `…223701` / `…223704`)
 
 > No se podía saber quién cargó las resoluciones N° 39 y 40 (doping, suspensión de 2 años y medio):

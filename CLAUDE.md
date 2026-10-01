@@ -36,7 +36,7 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 ├── jockeys.html                 ABM jockeys
 ├── profesionales.html           ABM entrenadores/profesionales
 ├── propietarios.html            ABM propietarios
-├── spcs.html                    Stud Book (ejemplares SPC) — alta con búsqueda en el Stud Book + chequeo de duplicados (11/09)
+├── spcs.html                    Stud Book (ejemplares SPC) — alta con búsqueda en el Stud Book + chequeo de duplicados (11/09); marca "Por revisar" de las altas del portal (10/2026)
 ├── sanciones.html               Sanciones compartidas entre hipódromos
 ├── resoluciones.html            Resoluciones
 ├── usuarios.html                Gestión de usuarios por hipódromo
@@ -101,11 +101,12 @@ Cada módulo es un único archivo HTML autocontenido con CSS y JS inline. No hay
 │   ├── sanciones_insert_update_staff.sql  SEGURIDAD — sanciones_insert/_update exigen fn_is_staff() además del club (un usuario de portal con club podía insertar y editar/revocar sanciones sobre sí mismo); md5 de las políticas en el encabezado; rollback_sanciones_insert_update_staff.sql; **APLICADA 2026-09-25** (`20260925205245`; md5 de las políticas verificado; probe --prod 13/13)
 │   ├── politicas_escritura_staff_14.sql  SEGURIDAD ISSUE-093 — 36 políticas de escritura de 14 tablas (liquidacion_config, club_secuencias, clubs, resultado_apuestas…) exigen fn_is_staff() en la rama de club (el portal podía escribirlas); GENERADA por tests/local/gen_politicas_escritura_staff.py; rollback_politicas_escritura_staff_14.sql (md5 36/36 contra el estado anterior); **APLICADA 2026-09-27** (`20260927202948`; md5 36/36 = sandbox; probe --prod 281/281)
 │   ├── resoluciones_sanciones_autor.sql + audit_resoluciones_sanciones.sql + resoluciones_delete_super_admin.sql (+ rollback_*)  ISSUE-097 — autor y última modificación impuestos por la base en resoluciones/sanciones, auditoría en las tres tablas, borrar resolución sólo super_admin; **APLICADAS 2026-09-27** (`20260927223658` / `…223701` / `…223704`; foto de prod = esperado 55/55; probe --prod 32/32)
+│   ├── portal_alta_spc_studbook.sql  Alta de SPC desde el portal: columnas de alta/revisión en spcs + trigger que las impone + auditoría de spcs + RPC rpc_spc_alta_studbook_portal (sólo service_role; la llama studbook-buscar 'traer'); rollback_portal_alta_spc_studbook.sql; md5 esperado en tests/local/portal_alta_spc_md5_esperado.txt; **NO APLICADA** (rama feat/portal-alta-spc-studbook)
 │   └── rpc_cambiar_monta.sql       ISSUE-084 — RPC rpc_cambiar_monta + trigger trg_insc_monta_oficial (monta en carrera oficial: guard 0 de rol ANTES del lookup + guard de club + guard de plata comprometida + borra lo pagable del saliente + recalcular); rollback_rpc_cambiar_monta.sql; APLICADA 2026-09-22, md5(pg_get_functiondef)=d49299c2 (probe 24/24 contra prod)
 ├── supabase/functions/          Edge Functions (deploy por MCP `deploy_edge_function`)
 │   ├── reunion-json/            JSON de reunión para el Stud Book (v22, verify_jwt:false, token propio)
 │   ├── invite-user/             Alta de usuario por invitación (v5, verify_jwt:true)
-│   └── studbook-buscar/         Búsqueda de ejemplares en el Stud Book para spcs.html (v1, verify_jwt:true, solo staff; fuente = buscador público, NO API — GOTCHA #96)
+│   └── studbook-buscar/         Búsqueda de ejemplares en el Stud Book (v1 deployada: solo staff; en la rama feat/portal-alta-spc-studbook: buscar staff+portal y acción 'traer' sólo portal → rpc_spc_alta_studbook_portal) (verify_jwt:true; fuente = buscador público, NO API — GOTCHA #96)
 ```
 
 ---
@@ -397,6 +398,8 @@ node tests/render_recibo_pdf.mjs <nro|id> <out_dir> [--lineas=N] [--css=…] [--
 node tests/probe_resoluciones_sanciones_autor.mjs [--mutantes]   # ISSUE-097 — creado_por impuesto y congelado, modificado_por/at, auditoría en resoluciones/resolucion_entidades/sanciones, borrar sólo super_admin (base + botón oculto + 0 filas = error), portal y otro club rechazados; sandbox (usuarios_sandbox.sql + auditoria_sandbox.sql + las 3 migraciones): 33/33, 11/11 mutantes (PSQL_CMD); --prod: usuarios sintéticos en clubs reales, sin mutantes de base, 32/32 + 4/4 de pantalla
 node tests/probe_usuarios_pantalla.mjs [--mutantes]      # usuarios.html — secciones personal/portal con conteo, acciones según rol (espejo de usuarios_update y los triggers de rol), 0 filas = error y no éxito, rol sólo si cambió, baja con estado válido ('suspendido'); SÓLO SANDBOX (GOTCHA #101): antes tests/local/up.sh sql < tests/local/usuarios_sandbox.sql; 27/27, 8/8 mutantes; USUARIOS_HTML acepta ruta
 node tests/probe_xss_portal_nombres.mjs [--mutantes]  # ISSUE-018 tramo portal — nombres hostiles (comillas, <script>, &, D'Elía) en usuarios/admin pendientes/inscripciones "Cargada por": HTML real en jsdom + load() reales + clicks en Editar/Aprobar; 82/82, 3/3 mutantes; ESCRIBE 5 usuarios probe.xss + 5 inscripciones portal en la 9999 T3, teardown por estado (ids de la 9999)
+node tests/probe_portal_alta_spc_studbook.mjs [--mutantes]   # alta de SPC desde el portal — rpc_spc_alta_studbook_portal + trg_spcs_alta_revision + auditoría de spcs: SÓLO SANDBOX (base aparte sgh_pa_* en el contenedor sgh-local-pg, desde tests/local/portal_alta_spc_sandbox.sql con las funciones reales de prod; no toca la base `sgh`); 49/49, 21/21 mutantes; concurrencia real con dos conexiones; no crea ejemplares en prod
+node tests/probe_portal_alta_spc_ui.mjs [--mutantes]          # pantallas del alta desde el portal (portal.html buscar/traer/anotar, spcs.html Por revisar + ✏️ por id, inscripciones.html ficha nueva): jsdom + sb stub, sin red ni base; 18/18, 8/8 mutantes
 node tests/render_programa_pdf.mjs <reunion_id> color <out_dir> [https://sigh.com.ar]   # programa oficial a PDF + PNG con Chromium headless (LD_LIBRARY_PATH, ver docs/SERVER.md); reporta grilla y celdas que envuelven; ESCRIBE 1 usuario, teardown verificado. Es la verificación VISUAL — mirar las imágenes
 ```
 

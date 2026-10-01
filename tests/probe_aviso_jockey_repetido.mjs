@@ -156,10 +156,12 @@ for (const [r, m, t, jockey] of SIN_COLISION) {
 {
   const src = extractFn(INSC, 'function renderInscripciones() {');
   ok('A0) inscripciones.html carga jockey-repetido.js', /<script src="jockey-repetido\.js"><\/script>/.test(INSC));
-  const run = new Function('document', 'inscripciones', 'getSpc', 'getCab', 'getProf', 'conteoJockeysActivos', 'badgeJockeyDup', 'ESTADOS_ACTIVOS_MONTA', src + '\nrenderInscripciones();');
+  // escapeHtml real (escape-html.js): la celda "Cargada por" la usa desde ISSUE-018; faltaba acá.
+  const escapeHtml = new Function(rd('escape-html.js') + '\nreturn escapeHtml;')();
+  const run = new Function('document', 'inscripciones', 'getSpc', 'getCab', 'getProf', 'conteoJockeysActivos', 'badgeJockeyDup', 'ESTADOS_ACTIVOS_MONTA', 'escapeHtml', src + '\nrenderInscripciones();');
   const render = (insc) => {
     const dom = mkDom();
-    run(dom, insc, () => null, () => null, (id) => profsMap[id] || null, H.conteoJockeysActivos, H.badgeJockeyDup, H.ESTADOS_ACTIVOS_MONTA);
+    run(dom, insc, () => null, () => null, (id) => profsMap[id] || null, H.conteoJockeysActivos, H.badgeJockeyDup, H.ESTADOS_ACTIVOS_MONTA, escapeHtml);
     return dom._n['list-container'].innerHTML;
   };
   const htmlT2 = render(r9[2]);

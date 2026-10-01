@@ -276,6 +276,8 @@
         </div>
       </div>
       <div id="minsc-lista"></div>
+      <!-- Candidatos del Stud Book (studbook-buscar). Se limpia en cada tecla del buscador. -->
+      <div id="minsc-sb"></div>
       <div id="validation-msg" class="validation-msg"></div>
     </div>
     <div class="modal-footer">
@@ -773,6 +775,7 @@ const MIN_CHARS_BUSQUEDA = 3;
 // Coincidencia parcial en CUALQUIER posición —"quita" encuentra "MOSQUITA
 // GARDEN"— e insensible a mayúsculas y acentos.
 function onBuscarSpc(q) {
+  limpiarStudBookPortal();
   const t = normalizarBusqueda(q);
   if (t.length < MIN_CHARS_BUSQUEDA) {
     resultadosBusqueda = null;
@@ -949,6 +952,7 @@ function abrirInscripcion(carreraId, reunionId) {
 
   resultadosBusqueda = null;
   document.getElementById('minsc-buscar').value = '';
+  limpiarStudBookPortal();
   renderListaCaballosModal();
   document.getElementById('modal-inscribir').classList.add('open');
 
@@ -983,8 +987,9 @@ function renderListaCaballosModal() {
     cont.innerHTML = buscando
       ? `<div style="font-size:13px;color:var(--muted);line-height:1.7;padding:8px 0;">
            Ningún caballo del padrón coincide con esa búsqueda.<br>
-           Si el ejemplar existe y no aparece, todavía no está cargado en el sistema:
-           avisale a ${TEL}.
+           Si el ejemplar existe, buscalo en el Stud Book y anotalo desde acá:
+           <div style="margin:8px 0;">${botonStudBookPortal()}</div>
+           Si tampoco aparece ahí, avisale a ${TEL}.
          </div>`
       : `<div style="font-size:13px;color:var(--muted);line-height:1.7;padding:8px 0;">
            No tenés caballos asociados a tu ficha, pero <strong>podés anotar cualquier
@@ -1038,10 +1043,13 @@ function renderListaCaballosModal() {
           ? `<button class="btn-sm" style="opacity:.45;cursor:not-allowed;background:none;border:1px solid var(--border);color:var(--muted);" disabled>No habilitado</button>`
           : `<button class="btn-sm btn-success" onclick="anotar('${esc(c.id)}')">Anotar</button>`}
     </div>`;
-  }).join('');
+  }).join('') + (buscando
+    ? `<div style="font-size:12px;color:var(--muted);padding:10px 0 2px;">¿No es ninguno de estos? ${botonStudBookPortal()}</div>`
+    : '');
 }
 
 function closeModalInscribir() {
+  limpiarStudBookPortal();
   document.getElementById('modal-inscribir').classList.remove('open');
   carreraSeleccionada = null;
   resultadosBusqueda = null;
@@ -1049,8 +1057,11 @@ function closeModalInscribir() {
 
 // Toda la escritura pasa por rpc_inscribir. El portal NO tiene INSERT sobre
 // `inscripciones` — la policy lo excluye explícitamente.
-async function anotar(spcId) {
-  if (!carreraSeleccionada) return;
+// Lee y valida la monta declarada en el modal. Devuelve los ids, o null si falta
+// algo (y deja el mensaje en #validation-msg). La usan anotar() y traerYAnotar():
+// la segunda la corre ANTES de traer el caballo del Stud Book, para no crear una
+// ficha que después no se puede anotar por un select vacío.
+function leerMontaAnotar() {
   const vm = document.getElementById('validation-msg');
   vm.style.display = 'none';
 
@@ -1070,14 +1081,23 @@ async function anotar(spcId) {
     vm.textContent = `❌ Antes de anotar tenés que elegir ${falta}.`;
     vm.className = 'validation-msg validation-err';
     vm.style.display = 'block';
-    return;
+    return null;
   }
   if (suplenteId && !jockeyId) {
     vm.textContent = '❌ No se puede declarar un suplente sin jockey titular.';
     vm.className = 'validation-msg validation-err';
     vm.style.display = 'block';
-    return;
+    return null;
   }
+  return { caballerizaId, entrenadorId, jockeyId, suplenteId };
+}
+
+async function anotar(spcId) {
+  if (!carreraSeleccionada) return;
+  const vm = document.getElementById('validation-msg');
+  const monta = leerMontaAnotar();
+  if (!monta) return;
+  const { caballerizaId, entrenadorId, jockeyId, suplenteId } = monta;
 
   const { error } = await sb.rpc('rpc_inscribir', {
     p_spc_id: spcId, p_carrera_id: carreraSeleccionada.id,
@@ -1106,6 +1126,131 @@ async function anotar(spcId) {
     if (n >= 2) toast(`⚠ Ese jockey queda en ${n} caballos tuyos de este turno. Es un aviso: la monta se define en la ratificación.`, 'warning');
   }
   avisoJockeyRepetidoPortal();
+}
+
+/* ========== STUD BOOK: caballo que no está en el padrón ========== */
+// Pedido de Yesi (01/10/2026): el usuario del portal busca en el Stud Book, elige
+// el caballo y queda anotado en el momento, sin esperar a la secretaría. El
+// navegador manda SÓLO qué caballo eligió (sb_id + nombre); los datos los vuelve a
+// pedir la Edge Function studbook-buscar al Stud Book y la ficha la crea la RPC
+// rpc_spc_alta_studbook_portal (sólo service_role), pendiente de revisión. Después
+// se anota con el mismo anotar() de siempre. Diseño:
+// docs/diagnosticos/2026-10-01_portal-alta-spc-studbook.md (reports).
+let sbCandidatosPortal = [];
+
+function botonStudBookPortal() {
+  const q = (document.getElementById('minsc-buscar')?.value || '').trim();
+  return `<button class="btn-sm" style="background:none;border:1px solid var(--accent);color:var(--accent);"
+            onclick="buscarEnStudBookPortal()">🔎 Buscar${q ? ` «${esc(q)}»` : ''} en el Stud Book</button>`;
+}
+
+function limpiarStudBookPortal() {
+  sbCandidatosPortal = [];
+  const el = document.getElementById('minsc-sb');
+  if (el) el.innerHTML = '';
+}
+
+// supabase-js no parsea el body cuando la función responde != 2xx (lo deja en
+// error.context). Igual que spcs.html.
+async function parseFnErrorPortal(error) {
+  const status = error?.context?.status ?? null;
+  let body = null;
+  try { body = await error?.context?.json?.(); } catch (_) { /* body no-JSON */ }
+  return { status, code: body?.error || null, detalle: body?.detalle || error?.message || 'Error desconocido.' };
+}
+
+function mensajeStudBookPortal(e) {
+  if (e.code === 'studbook_no_disponible') return `El Stud Book no responde ahora. Pedile a ${TEL} que lo cargue.`;
+  if (e.code === 'rechazado' || e.code === 'no_autorizado' || e.code === 'no_coincide'
+      || e.code === 'term_invalido' || e.code === 'body_invalido') return e.detalle;
+  return `No se pudo consultar el Stud Book (${e.status ?? '?'}). Pedile a ${TEL} que lo cargue.`;
+}
+
+async function buscarEnStudBookPortal() {
+  const term = (document.getElementById('minsc-buscar')?.value || '').trim();
+  const out = document.getElementById('minsc-sb');
+  if (term.length < MIN_CHARS_BUSQUEDA) {
+    out.innerHTML = '<div class="validation-msg validation-err" style="display:block;">Escribí al menos 3 letras del nombre.</div>';
+    return;
+  }
+  out.innerHTML = '<div class="loading-state"><div class="spinner"></div> Consultando el Stud Book…</div>';
+  const { data, error } = await sb.functions.invoke('studbook-buscar', { body: { term } });
+  if (error) {
+    const e = await parseFnErrorPortal(error);
+    console.error('[portal.buscarEnStudBook]', { term, status: e.status, code: e.code, detalle: e.detalle });
+    out.innerHTML = `<div class="validation-msg validation-err" style="display:block;">❌ ${esc(mensajeStudBookPortal(e))}</div>`;
+    return;
+  }
+  sbCandidatosPortal = [...(data?.exactos || []), ...(data?.parciales || [])];
+  renderCandidatosStudBookPortal(data);
+}
+
+function renderCandidatosStudBookPortal(data) {
+  const out = document.getElementById('minsc-sb');
+  const nEx = (data?.exactos || []).length;
+  if (!sbCandidatosPortal.length) {
+    out.innerHTML = `<div style="font-size:13px;color:var(--muted);line-height:1.7;padding:8px 0;">
+        Tampoco está en el Stud Book con ese nombre. Probá con menos letras, o avisale a ${TEL}.</div>`;
+    return;
+  }
+  // Si ya está en el padrón con ese nº de Stud Book, se anota directo (no se trae).
+  const enPadron = new Map((padronSpcs || []).filter(r => r.studbook_id).map(r => [String(r.studbook_id), r.id]));
+  out.innerHTML = `<div style="font-size:12px;color:var(--accent);margin:12px 0 4px;letter-spacing:.04em;text-transform:uppercase;">
+      Stud Book — ${nEx > 1 ? 'hay más de uno con ese nombre: elegí por fecha, sexo y padres' : 'elegí el caballo'}</div>`
+    + sbCandidatosPortal.map((c, i) => {
+      const idPadron = enPadron.get(String(c.sb_id));
+      const sexo = c.sexo || c.sexo_sb || '¿sexo?';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+        <div style="flex:1;min-width:150px;">
+          <div style="font-family:'Playfair Display',serif;color:var(--accent);font-size:15px;">${esc(c.nombre)}</div>
+          <div class="carrera-chips" style="margin-top:4px;">
+            <span class="chip">${esc(sexo)}</span>
+            ${c.fecha_nacimiento ? `<span class="chip">${esc(edadYNacimiento(c.fecha_nacimiento))}</span>` : '<span class="chip">sin fecha</span>'}
+            ${c.color ? `<span class="chip">${esc(c.color)}</span>` : ''}
+            <span class="chip">${esc(c.padrillo_nombre || '?')} × ${esc(c.madre_nombre || '?')}</span>
+            <span class="chip">SB ${esc(c.sb_id)}</span>
+          </div>
+        </div>
+        ${idPadron
+          ? `<button class="btn-sm btn-success" onclick="anotar('${esc(idPadron)}')">Ya está en el padrón — anotarlo</button>`
+          : `<button class="btn-sm btn-success" onclick="traerYAnotar(${i})">Es este — anotarlo</button>`}
+      </div>`;
+    }).join('')
+    + `<div style="font-size:12px;color:var(--muted);padding:8px 0;line-height:1.5;">
+        Al anotarlo, el caballo queda cargado con los datos del Stud Book y la secretaría lo revisa después.
+        La inscripción vale desde ya.</div>`;
+}
+
+async function traerYAnotar(idx) {
+  const c = sbCandidatosPortal[idx];
+  if (!c || !carreraSeleccionada) return;
+  // La monta se valida ANTES de traer: si falta la caballeriza no se crea nada.
+  if (!leerMontaAnotar()) return;
+  const vm = document.getElementById('validation-msg');
+  const out = document.getElementById('minsc-sb');
+  out.innerHTML = `<div class="loading-state"><div class="spinner"></div> Trayendo ${esc(c.nombre)} del Stud Book…</div>`;
+  const { data, error } = await sb.functions.invoke('studbook-buscar', {
+    body: { accion: 'traer', sb_id: String(c.sb_id), nombre: c.nombre, carrera_id: carreraSeleccionada.id },
+  });
+  if (error) {
+    const e = await parseFnErrorPortal(error);
+    console.error('[portal.traerYAnotar]', { sb_id: c.sb_id, status: e.status, code: e.code, detalle: e.detalle });
+    renderCandidatosStudBookPortal({ exactos: sbCandidatosPortal });
+    vm.textContent = '❌ ' + mensajeStudBookPortal(e);
+    vm.className = 'validation-msg validation-err';
+    vm.style.display = 'block';
+    return;
+  }
+  toast(data.ya_existia
+    ? `${data.nombre || c.nombre} ya estaba en el padrón.`
+    : `${data.nombre || c.nombre} quedó cargado desde el Stud Book. La secretaría lo va a revisar.`);
+  // El padrón cambió: se recarga para que el buscador lo encuentre de acá en más.
+  padronSpcs = null;
+  try { await cargarPadronSpcs(); } catch (err) { console.error('[padron spcs]', err); }
+  limpiarStudBookPortal();
+  await anotar(data.spc_id);
+  const q = document.getElementById('minsc-buscar')?.value || '';
+  if (carreraSeleccionada) onBuscarSpc(q);
 }
 
 /* ========== MIS INSCRIPCIONES ========== */
