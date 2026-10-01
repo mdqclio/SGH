@@ -1045,3 +1045,17 @@ el mismo caballo.
 - Ningún commit en `main`. La rama `reports` local está divergente de `origin/reports` (1155 adelante / 65 atrás): no se
   tocó; este informe se escribió en un worktree aparte sobre `origin/reports`.
 - No se probó el INSERT del portal a `spcs` (sería escritura en prod); la conclusión sale de la política.
+
+---
+
+## Verificación de push
+
+```
+$ git push -q origin HEAD:reports
+$ git ls-remote origin reports
+30fbc4c41a7a1606f191625ae659638e04a22763	refs/heads/reports
+$ git rev-parse HEAD
+30fbc4c41a7a1606f191625ae659638e04a22763
+```
+
+Coinciden: el informe (commit `30fbc4c`) está en `origin/reports`. Este bloque va en un commit posterior.
