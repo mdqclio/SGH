@@ -445,3 +445,18 @@ sgh
 template0
 template1
 ```
+
+---
+
+## Verificación de push
+
+```
+$ git push -q origin HEAD:reports
+$ git ls-remote origin reports
+07515bc442013db1a54b63ecad519ce4a1aad972	refs/heads/reports
+$ git rev-parse HEAD
+07515bc442013db1a54b63ecad519ce4a1aad972
+```
+
+Coinciden: el informe (commit `07515bc`) está en `origin/reports`. La rama de trabajo `feat/portal-alta-spc-studbook`
+(`a1414ef`) también está pusheada (PR #29). Este bloque va en un commit posterior.
