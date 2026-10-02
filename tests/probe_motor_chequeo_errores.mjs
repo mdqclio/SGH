@@ -21,6 +21,9 @@
  *   I2  falla el INSERT de un header nuevo → error "INCOMPLETA", no se insertan líneas de ese actor ni de los que siguen
  *   C1  falla el CONTEO del paso 4 → error, no se borra ningún header (ON DELETE CASCADE se llevaría la pagada)
  *   C2  falla el DELETE de un header vacío → error devuelto
+ *   T1  falla la LECTURA de los totales de un header → NO es error: devuelve `aviso` ("pueden estar desactualizados"), líneas intactas
+ *   T2  falla el UPDATE de los totales de un header → ídem
+ *   U1  los cuatro llamadores (Recalcular, oficializar, des-oficializar, cambio de monta) muestran `r.aviso` como warning
  */
 import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
@@ -91,14 +94,14 @@ const clavesDuplicadas = (motor, mem) => {
   return Object.values(n).filter(v => v > 1).length;
 };
 
-async function correr(SRC) {
+async function correr(SRC, LLAM = LLAMADORES_BASE) {
   const res = [];
   const ok = (t, c, n = '') => { res.push({ t, s: c ? '✅' : '❌', n }); return c; };
   // el motor hace console.error de las fallas inyectadas: ruido esperado, se silencia durante los casos
   const errOrig = console.error; console.error = () => {};
-  try { return await casos(SRC, res, ok); } finally { console.error = errOrig; }
+  try { return await casos(SRC, res, ok, LLAM); } finally { console.error = errOrig; }
 }
-async function casos(SRC, res, ok) {
+async function casos(SRC, res, ok, LLAMADORES) {
   let motor;
   try { motor = cargarMotor(SRC); } catch (e) { ok('X  el motor no carga', false, e.message); return res; }
   const run = (sb, esc, opts = {}) => motor.generarLiquidacionesReunion({ sb, clubId: CLUB, reunionId: esc.RID,
@@ -192,11 +195,38 @@ async function casos(SRC, res, ok) {
       const r = await run(fx.sb, esc);
       ok('C2 falla el DELETE de un header vacío → error devuelto', fx.disparo() === 1 && !!r.error && /INCOMPLETA/.test(r.error), JSON.stringify(r));
     }
+
+    // T1/T2: falla el recálculo de totales de un header → aviso, no error; las líneas quedan bien
+    for (const [id, que, regla] of [
+      ['T1', 'la lectura de los totales', (t, op, ch) => t === 'liquidacion_detalle' && op === 'select' && tiene(ch, 'select', a => a[0] === 'monto_bruto,monto_descuento')],
+      ['T2', 'el UPDATE de los totales', (t, op) => t === 'liquidaciones' && op === 'update'],
+    ]) {
+      const { esc, mem } = await preparar();
+      const antes = contenido(mem);
+      const fx = conFalla(mem, regla);
+      const r = await run(fx.sb, esc);
+      ok(`${id} falla ${que} → sin error, con aviso "pueden estar desactualizados", líneas intactas`,
+        fx.disparo() === 1 && !r.error && /desactualizados/.test(r.aviso || '') && /volvé a recalcular/.test(r.aviso || '') && contenido(mem) === antes,
+        JSON.stringify({ disparo: fx.disparo(), r }));
+    }
+
+    // U1: los llamadores muestran el aviso
+    {
+      const liq = LLAMADORES['liquidaciones.html'], res = LLAMADORES['resultados.html'];
+      const nLiq = liq.split("if (r.aviso) toast(r.aviso, 'warning'").length - 1;
+      const nRes = res.split("if (r.aviso) toast(r.aviso, 'warning')").length - 1;
+      ok('U1 los 4 llamadores muestran r.aviso como warning (1 en liquidaciones.html, 3 en resultados.html) y existe .toast-warning en liquidaciones.html',
+        nLiq === 1 && nRes === 3 && /\.toast-warning \{/.test(liq), JSON.stringify({ nLiq, nRes }));
+    }
   } catch (e) { ok('X  excepción en los casos (cuenta como fallo)', false, String(e?.stack || e).split('\n').slice(0, 2).join(' ')); }
   return res;
 }
 
 const BASE = readFileSync(ENGINE_JS, 'utf8');
+const LLAMADORES_BASE = {
+  'liquidaciones.html': readFileSync(process.env.LIQUIDACIONES_HTML || ROOT + 'liquidaciones.html', 'utf8'),
+  'resultados.html': readFileSync(process.env.RESULTADOS_HTML || ROOT + 'resultados.html', 'utf8'),
+};
 const base = await correr(BASE);
 for (const x of base) console.log(`${x.s} ${x.t}${x.s === '❌' && x.n ? '  → ' + x.n.slice(0, 400) : ''}`);
 const fails = base.filter(x => x.s === '❌').length;
@@ -216,6 +246,15 @@ const MUT = [
   ['MU11 INSERT de líneas sólo loguea', `return cortePersistiendo('no se pudieron insertar las líneas', detErr); }`, `}`],
   ['MU12 sin chequeo del conteo', `      if (cntErr) return cortePersistiendo('no se pudieron contar las líneas de una liquidación', cntErr);\n`, ``],
   ['MU13 sin chequeo del DELETE de header', `        if (hdelErr) return cortePersistiendo('no se pudo borrar una liquidación vacía', hdelErr);\n`, ``],
+  ['MU14 totales: la lectura fallida se ignora', `    if (linesErr) return linesErr;\n`, ``],
+  ['MU15 totales: el UPDATE fallido se ignora', `    return updErr || null;`, `    return null;`],
+  ['MU16 sin aviso de totales', `    if (totalesFallidos) {`, `    if (false) {`],
+  ['MU17 totales fallidos cortan como error', `return { created, headers, preserved,\n        aviso:`, `return { created, headers, preserved, error: 'totales',\n        aviso:`],
+];
+// mutantes de los llamadores: [nombre, archivo, de, a]
+const MUT_LLAM = [
+  ['MU18 Recalcular no muestra el aviso', 'liquidaciones.html', `  if (r.aviso) toast(r.aviso, 'warning', 9000);\n`, ``],
+  ['MU19 oficializar no muestra el aviso', 'resultados.html', `toast('✅ Resultado oficial · liquidación generada'); if (r.aviso) toast(r.aviso, 'warning'); }`, `toast('✅ Resultado oficial · liquidación generada'); }`],
 ];
 let vivos = 0;
 if (MUTANTES) {
@@ -227,6 +266,14 @@ if (MUTANTES) {
     if (!muertos.length) vivos++;
     console.log(`${muertos.length ? '✅ muere' : '❌ VIVE '} ${nombre}${muertos.length ? '  ← ' + [...new Set(muertos)].join(', ') : ''}`);
   }
-  console.log(`\nmutantes: ${MUT.length - vivos}/${MUT.length} muertos`);
+  for (const [nombre, arch, de, a] of MUT_LLAM) {
+    if (LLAMADORES_BASE[arch].split(de).length !== 2) { console.log(`⚠️  ${nombre}: ancla no única/ausente — mutante roto`); vivos++; continue; }
+    const r = await correr(BASE, { ...LLAMADORES_BASE, [arch]: LLAMADORES_BASE[arch].replace(de, a) });
+    const muertos = r.filter(x => x.s === '❌').map(x => x.t.split(' ')[0]);
+    if (!muertos.length) vivos++;
+    console.log(`${muertos.length ? '✅ muere' : '❌ VIVE '} ${nombre}${muertos.length ? '  ← ' + [...new Set(muertos)].join(', ') : ''}`);
+  }
+  const total = MUT.length + MUT_LLAM.length;
+  console.log(`\nmutantes: ${total - vivos}/${total} muertos`);
 }
 process.exit(fails || vivos ? 1 : 0);

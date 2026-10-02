@@ -71,17 +71,21 @@
   }
   // ═══ RESIDUO — FIN ═══
 
+  // Devuelve el error (o null). Los totales del header son sólo lo que se muestra: si no se pudieron
+  // recalcular, las líneas están bien y el motor avisa en vez de cortar (ISSUE-104).
   async function recomputeHeaderTotals(sb, liqId) {
-    const { data: lines } = await sb.from('liquidacion_detalle')
+    const { data: lines, error: linesErr } = await sb.from('liquidacion_detalle')
       .select('monto_bruto,monto_descuento').eq('liquidacion_id', liqId);
+    if (linesErr) return linesErr;
     let tb = 0, td = 0;
     for (const l of (lines || [])) {
       tb += parseFloat(l.monto_bruto) || 0;
       td += parseFloat(l.monto_descuento) || 0;
     }
-    await sb.from('liquidaciones')
+    const { error: updErr } = await sb.from('liquidaciones')
       .update({ total_bruto: Math.round(tb * 100) / 100, total_descuentos: Math.round(td * 100) / 100 })
       .eq('id', liqId);
+    return updErr || null;
   }
 
   /**
@@ -437,6 +441,7 @@
 
     // 4. Recomputar totales de todos los headers tocados/sobrevivientes; borrar los vacíos.
     let headers = 0;
+    let totalesFallidos = 0;
     for (const h of (existingLiqs || [])) survivingHeaderIds.add(h.id); // recompute todos los existentes
     for (const hid of survivingHeaderIds) {
       const { count, error: cntErr } = await sb.from('liquidacion_detalle')
@@ -448,11 +453,17 @@
         const { error: hdelErr } = await sb.from('liquidaciones').delete().eq('id', hid);
         if (hdelErr) return cortePersistiendo('no se pudo borrar una liquidación vacía', hdelErr);
       } else {
-        await recomputeHeaderTotals(sb, hid);
+        const totErr = await recomputeHeaderTotals(sb, hid);
+        if (totErr) { console.error('[engine] totales del header:', totErr); totalesFallidos++; }
         headers++;
       }
     }
 
+    // Aviso, no error: las líneas quedaron bien; lo viejo es sólo el total mostrado del header.
+    if (totalesFallidos) {
+      return { created, headers, preserved,
+        aviso: `Liquidación recalculada, pero los totales mostrados de ${totalesFallidos} liquidación(es) pueden estar desactualizados: volvé a recalcular la reunión.` };
+    }
     return { created, headers, preserved };
   }
 
