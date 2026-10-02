@@ -1835,3 +1835,24 @@ Dolores y no crea ningún club.
 **Relacionado**: GOTCHA #77 (restore por estado), ISSUE-095, `docs/diagnosticos/2026-09-27_issue093-aplicado.md` §6
 (reports).
 
+## 102. `CREATE OR REPLACE VIEW` sin `WITH (security_invoker = true)` le BORRA el invoker a la vista — y la RLS deja de aplicarse (2026-10-02)
+
+**Qué pasó.** `v_inscriptos_carrera` era `security_invoker=true` desde el 07/06 (`security_hardening_fase2_reversible`). El 27/08,
+`fn_edad_reglamentaria.sql` la recreó con `CREATE OR REPLACE VIEW … AS` para cambiar la edad, sin `WITH (…)`. Postgres
+**reemplaza** las opciones de la vista por las del comando: quedaron vacías, la vista volvió a correr como su dueño (`postgres`)
+y salteó la RLS de las 7 tablas que lee. Anon —sin login, con la publishable key que está en todos los HTML— leyó todas las
+inscripciones con nombres de propietarios, entrenadores y jockeys durante cinco semanas. Nadie lo vio porque ningún lector
+del sistema usa la vista: lo marcó el advisor (`security_definer_view`, ERROR) y se midió por la API el 02/10 (ISSUE-098).
+
+**Prueba** (sandbox, PG 16): `create view zz2 with (security_invoker=true) as select 1 a` → `{security_invoker=true}`;
+`create or replace view zz2 as select 1 a` → `reloptions` vacío.
+
+**Cómo se aplica.**
+- Toda `CREATE VIEW` / `CREATE OR REPLACE VIEW` lleva `WITH (security_invoker = true)`, también las de los bloques de rollback
+  (CLAUDE.md § Vistas). `tests/probe_v_inscriptos_cerrada.mjs` C4 lo chequea sobre `migrations/`; el único bloque exceptuado es el
+  histórico de `fn_edad_reglamentaria.sql`, marcado `HISTÓRICO-SIN-INVOKER` (se aplicó así y no se reescribe).
+- Después de tocar una vista: `select reloptions from pg_class where oid='public.<vista>'::regclass` y `get_advisors security`.
+- Lo mismo vale para cualquier opción de la vista (`security_barrier`, `check_option`): el `OR REPLACE` no las conserva.
+
+**Relacionado**: ISSUE-098, ISSUE-099 (las 31 funciones ejecutables por anon), `migrations/cerrar_v_inscriptos_carrera.sql`.
+

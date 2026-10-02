@@ -169,6 +169,11 @@ $function$;
 -- Ahora la referencia es la fecha de la reunión de la carrera. Los LEFT JOIN
 -- son deliberados: con INNER se perderían filas si faltara la carrera o la
 -- reunión, y el conteo de la vista cambiaría.
+--
+-- ⚠ HISTÓRICO-SIN-INVOKER (02/10, ISSUE-098): este bloque se aplicó así el 27/08 y, al no
+-- llevar WITH (security_invoker = true), le BORRÓ a la vista el security_invoker que tenía:
+-- quedó abierta a anon hasta cerrar_v_inscriptos_carrera.sql. Se deja como se aplicó; no
+-- copiarlo. Toda CREATE OR REPLACE VIEW lleva WITH (security_invoker = true) (GOTCHA #102).
 
 CREATE OR REPLACE VIEW public.v_inscriptos_carrera AS
  SELECT i.id AS inscripcion_id,
@@ -311,8 +316,10 @@ $function$;
 */
 
 -- ── ROLLBACK 2 / 2 — v_inscriptos_carrera, version previa (age() de un argumento) ──
+-- (02/10, ISSUE-098) con WITH (security_invoker = true): sin eso, correr este rollback
+-- vuelve a abrir la vista a anon (GOTCHA #102).
 /*
-CREATE OR REPLACE VIEW public.v_inscriptos_carrera AS
+CREATE OR REPLACE VIEW public.v_inscriptos_carrera WITH (security_invoker = true) AS
  SELECT i.id AS inscripcion_id,
     i.carrera_id,
     i.numero_partidor,
