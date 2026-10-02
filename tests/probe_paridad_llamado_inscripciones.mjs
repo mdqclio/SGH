@@ -29,6 +29,11 @@
  * renglones y es el caso que puede romper la tarjeta. Teardown en el `finally`.
  * NO toca R9 ni ninguna reunión real, y no escribe hora_cierre de nada.
  *
+ * DÓNDE ESCRIBE (2026-10-02): el fixture (reunión, carreras, hipódromo y categoría propios) va al SANDBOX local
+ * (tests/local/up.sh + tests/local/llamado_sandbox.sql; tests/lib/sandbox_rest.mjs), nunca a prod: antes se creaba en
+ * prod una reunión `publicada` de 2099 que por unos segundos se veía en el llamado del portal. Contra prod sólo se LEE
+ * (T2: que la 9992 no exista ahí). Sin sandbox el probe no corre (exit 2 con el motivo).
+ *
  *   set -a; . ./.env; set +a
  *   node tests/probe_paridad_llamado_inscripciones.mjs
  *   node tests/probe_paridad_llamado_inscripciones.mjs --mutantes=M1,M2,M3,M4,M5
@@ -43,6 +48,7 @@
 process.env.TZ = 'America/Argentina/Buenos_Aires';
 
 import { createClient } from '@supabase/supabase-js';
+import { clienteSandbox, verificarEmbedsLlamado } from './lib/sandbox_rest.mjs';
 import { readFileSync, writeFileSync, mkdtempSync, symlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -55,7 +61,9 @@ if (!KEY) { console.error('Falta SUPABASE_SECRET_KEY (set -a; . ./.env; set +a)'
 
 const CLUB_ID = '0649e9c5-9e87-4aad-842f-101458e6b33c';   // Hipódromo de Dolores
 
-const sb = createClient(SUPABASE_URL, KEY, { auth: { autoRefreshToken: false, persistSession: false } });
+const sb = createClient(SUPABASE_URL, KEY, { auth: { autoRefreshToken: false, persistSession: false } });   // prod: SÓLO LECTURA
+const SBX = await clienteSandbox({ verificar: verificarEmbedsLlamado });                                 // sandbox: fixture y pantallas
+if (!SBX.sb) { console.error(`Sin sandbox: ${SBX.motivo}`); process.exit(2); }
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PORTAL_PATH = process.env.PORTAL_HTML || join(HERE, '..', 'portal.html');
 const INSC_PATH   = process.env.INSC_HTML   || join(HERE, '..', 'inscripciones.html');
@@ -141,7 +149,7 @@ async function mkPortal({ dom, inscs = [] }) {
     return { esc, formatARS, fechaHora, textoEdad, textoCondicion, ventanaAbierta,
              bolsaChip, loadLlamado, _get: () => ({ turnosAbiertos }) };`;
   const make = new AsyncFunction('document', 'sb', 'toast', 'console', 'repartoDisplay', cuerpo);
-  return make(dom, sb, () => {}, console, repartoDisplay);
+  return make(dom, SBX.sb, () => {}, console, repartoDisplay);
 }
 
 /** inscripciones.html — el encabezado del turno. */
@@ -174,7 +182,7 @@ async function mkInsc({ dom, currentUser = { rol: 'secretario_carreras' } }) {
   const ActiveReunion = { get: () => null, set: (id) => setSpy.ids.push(id), resolve: () => null };
   const make = new AsyncFunction(
     'document', 'sb', 'CLUB_ID', 'ActiveReunion', 'currentUser', 'console', 'repartoDisplay', cuerpo);
-  const api = await make(dom, sb, CLUB_ID, ActiveReunion, currentUser, console, repartoDisplay);
+  const api = await make(dom, SBX.sb, CLUB_ID, ActiveReunion, currentUser, console, repartoDisplay);
   api._setSpy = setSpy;
   return api;
 }
@@ -398,10 +406,10 @@ if (argMut) {
 }
 
 // ══════════════════════════════ CORRIDA NORMAL ══════════════════════════════
-const fx = { reuniones: [], carreras: [] };
+const fx = { reuniones: [], carreras: [], hipodromos: [], categorias: [] };
 const die = (ctx, e) => { throw new Error(`[${ctx}] ${e?.message ?? JSON.stringify(e)}`); };
 async function ins(tabla, fila, bucket) {
-  const { data, error } = await sb.from(tabla).insert(fila).select('id').single();
+  const { data, error } = await SBX.sb.from(tabla).insert(fila).select('id').single();
   if (error) die(`insert ${tabla}`, error);
   if (bucket) fx[bucket].push(data.id);
   return data.id;
@@ -417,8 +425,9 @@ async function ins(tabla, fila, bucket) {
   }
 
   try {
-    const { data: hip } = await sb.from('hipodromos').select('id').eq('club_id', CLUB_ID).limit(1).single();
-    const { data: cat } = await sb.from('categorias_carrera').select('id,nombre').eq('club_id', CLUB_ID).limit(1).single();
+    const hip = { id: await ins('hipodromos', { club_id: CLUB_ID, nombre: 'PROBE paridad llamado', sigla: 'PPL', activo: true }, 'hipodromos') };
+    const cat = { id: await ins('categorias_carrera', { club_id: CLUB_ID, nombre: 'PROBE paridad', codigo: 'PPL',
+      es_oficial: false, es_computable: false, orden_display: 99, activo: true }, 'categorias'), nombre: 'PROBE paridad' };
 
     const reun = await ins('reuniones', {
       club_id: CLUB_ID, hipodromo_id: hip.id, numero: 9992,
@@ -463,7 +472,7 @@ async function ins(tabla, fila, bucket) {
 
     // El valor de hora_cierre no se toca: se verifica que lo que se lee de la
     // base sigue siendo el 09:00 AR que cargó Yesi.
-    const { data: carrDb } = await sb.from('carreras')
+    const { data: carrDb } = await SBX.sb.from('carreras')
       .select('cierre_inscripcion').eq('id', cLarga).single();
     ok('H5) el valor guardado sigue siendo 09:00 AR — sólo cambió el formato',
        new Date(carrDb.cierre_inscripcion).getHours() === 9
@@ -649,12 +658,17 @@ async function ins(tabla, fila, bucket) {
 
   } finally {
     // Teardown: carreras antes que reuniones (FK).
-    for (const id of fx.carreras) await sb.from('carreras').delete().eq('id', id);
-    for (const id of fx.reuniones) await sb.from('reuniones').delete().eq('id', id);
-    const { data: quedan } = await sb.from('reuniones')
+    for (const id of fx.carreras) await SBX.sb.from('carreras').delete().eq('id', id);
+    for (const id of fx.reuniones) await SBX.sb.from('reuniones').delete().eq('id', id);
+    for (const id of fx.categorias) await SBX.sb.from('categorias_carrera').delete().eq('id', id);
+    for (const id of fx.hipodromos) await SBX.sb.from('hipodromos').delete().eq('id', id);
+    const { data: quedan } = await SBX.sb.from('reuniones')
       .select('id').eq('club_id', CLUB_ID).eq('numero', 9992);
-    ok('T1) teardown: no quedó ninguna reunión 9992 en la base',
+    ok('T1) teardown en el sandbox: no quedó ninguna reunión 9992',
        (quedan || []).length === 0, `quedan=${(quedan || []).length}`);
+    const { data: enProd } = await sb.from('reuniones').select('id').eq('club_id', CLUB_ID).eq('numero', 9992);
+    ok('T2) prod: no existe ninguna reunión 9992 (el probe no escribe en prod)', (enProd || []).length === 0,
+       `en prod=${(enProd || []).length}`);
   }
 
   console.log('\n── Probe · paridad llamado abierto ↔ encabezado de inscripciones ──');
