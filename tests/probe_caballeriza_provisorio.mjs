@@ -49,7 +49,7 @@ const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
 const PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY
   || 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK';
 const CLUB = '0649e9c5-9e87-4aad-842f-101458e6b33c';
-const SPCS_BASELINE = 210;
+const SPCS_BASELINE = 238;
 
 const KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!KEY) { console.error('Falta SUPABASE_SECRET_KEY (set -a; . ./.env; set +a)'); process.exit(2); }

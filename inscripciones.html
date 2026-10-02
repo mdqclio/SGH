@@ -605,7 +605,7 @@ async function loadInscripciones() {
   // activos): un inscripto cuyo SPC se desactivó quedaría sin nombre y caería
   // al principio de la lista.
   const { data, error } = await sb.from('inscripciones')
-    .select('*, cargador:usuarios!inscripciones_inscripto_por_fkey(nombre_completo), spcs(nombre)')
+    .select('*, cargador:usuarios!inscripciones_inscripto_por_fkey(nombre_completo), spcs(nombre,revision_pendiente)')
     .eq('carrera_id', currentCarreraId);
   if (error) { toast(error.message,'error'); return; }
   // Alfabético por nombre del SPC, colación castellana — el mismo orden que el
@@ -671,9 +671,14 @@ function renderInscripciones() {
     // entrenador puede anotar cualquier SPC, y este dato ES el control que
     // reemplaza al filtro por tenencia: la comisión de carreras sanciona con él.
     // El nombre lo eligió el propio usuario del portal → escapeHtml.
+    // Ficha traída del Stud Book desde el portal y todavía sin revisar (spcs.revision_pendiente):
+    // se avisa acá porque es donde se mira cada turno antes de ratificar. Se revisa en spcs.html.
+    const fichaNueva = i.spcs?.revision_pendiente === true
+      ? `<br><span style="color:var(--oro,#c9a84c);" title="Caballo dado de alta desde el portal con datos del Stud Book. Revisalo en Stud Book (SPCs).">🆕 ficha nueva, por revisar</span>`
+      : '';
     const cargadaCell = i.canal === 'portal'
-      ? `<div style="font-size:12px;line-height:1.4;"><span style="color:var(--oro,#c9a84c);">Portal</span><br><span style="color:var(--muted);">${escapeHtml(i.cargador?.nombre_completo || '—')}</span></div>`
-      : `<span style="font-size:12px;color:var(--muted);">Secretaría</span>`;
+      ? `<div style="font-size:12px;line-height:1.4;"><span style="color:var(--oro,#c9a84c);">Portal</span><br><span style="color:var(--muted);">${escapeHtml(i.cargador?.nombre_completo || '—')}</span>${fichaNueva}</div>`
+      : `<span style="font-size:12px;color:var(--muted);">Secretaría</span>${fichaNueva ? `<div style="font-size:12px;line-height:1.4;">${fichaNueva.slice(4)}</div>` : ''}`;
     const gateraCell = (i.estado==='forfait'||i.estado==='mal_inscrito')
       ? `<span style="color:var(--muted)">—</span>`
       : `<input type="number" min="1" step="1" class="gatera-input" value="${i.numero_partidor??''}" data-prev="${i.numero_partidor??''}" onchange="guardarGatera('${i.id}', this)" style="width:60px;text-align:center" title="N° de gatera (sorteo)">`;

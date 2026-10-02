@@ -46,6 +46,10 @@
     .spc-name { font-weight: 600; color: var(--accent); font-family: 'Playfair Display', serif; }
     .spc-reg { font-size: 12px; color: var(--muted); }
     .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .badge-revision { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.4); }
+    .stat-chip.revision { border-color: rgba(201,168,76,0.6); cursor: pointer; }
+    .revision-box { margin: 16px 24px 0; padding: 12px 14px; border: 1px solid rgba(201,168,76,0.5); border-radius: 10px; background: rgba(201,168,76,0.08); font-size: 13px; line-height: 1.5; }
+    .revision-box ul { margin: 6px 0 0 18px; }
     .badge-activo { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
     .badge-retirado { background: rgba(180,180,180,0.1); color: var(--muted); border: 1px solid rgba(180,180,180,0.2); }
     .badge-suspendido { background: rgba(224,82,82,0.1); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
@@ -157,6 +161,8 @@
     <div class="stat-chip"><div class="stat-chip-val" id="cnt-machos">—</div><div class="stat-chip-lbl">Machos</div></div>
     <div class="stat-chip"><div class="stat-chip-val" id="cnt-hembras">—</div><div class="stat-chip-lbl">Hembras</div></div>
     <div class="stat-chip"><div class="stat-chip-val" id="cnt-castrados">—</div><div class="stat-chip-lbl">Castrados</div></div>
+    <!-- Fichas traídas del Stud Book desde el portal que la secretaría todavía no miró. Clic = filtra. -->
+    <div class="stat-chip revision" id="chip-revision" hidden onclick="filtrarRevision()" title="Dados de alta desde el portal — clic para verlos"><div class="stat-chip-val" id="cnt-revision">—</div><div class="stat-chip-lbl">Por revisar</div></div>
   </div>
 
   <div class="toolbar">
@@ -170,6 +176,7 @@
       <option value="suspendido">Suspendido</option>
       <option value="fallecido">Fallecido</option>
       <option value="vendido">Vendido</option>
+      <option value="revision">Por revisar (portal)</option>
     </select>
     <select class="filter-select" id="f-sexo" onchange="filterRender()">
       <option value="">Todo sexo</option>
@@ -193,6 +200,8 @@
       <h2 id="modal-title">Nuevo SPC</h2>
       <button class="btn-close" onclick="closeModal()">✕</button>
     </div>
+    <!-- Alta desde el portal: quién y cuándo, motivos y "Marcar revisado". Sólo en edición. -->
+    <div class="revision-box" id="revision-box" hidden></div>
     <div class="modal-tabs">
       <button class="tab-btn active" onclick="switchTab('datos')">Datos generales</button>
       <button class="tab-btn" onclick="switchTab('origen')">Origen & Pedigree</button>
@@ -334,7 +343,7 @@ let sb, CLUB_ID, currentUser;
 async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
 function logout(){sb.auth.signOut().then(()=>window.location.replace('login.html'));}
 
-let allData = [], caballerizas = [], entrenadores = [], jockeys = [], propietarios = [], propOwners = {};
+let allData = [], caballerizas = [], entrenadores = [], jockeys = [], propietarios = [], propOwners = {}, altaPorNombre = {};
 let editingId = null;
 
 // Escapa datos tipeados por el usuario antes de interpolarlos en innerHTML (anti-XSS).
@@ -378,6 +387,16 @@ async function load() {
   jockeys = jocksData || [];
   propietarios = props || [];
 
+  // Quién dio de alta las fichas del portal (alta_por → usuarios). Mapa aparte: el nombre lo eligió
+  // el usuario del portal y no entra a ningún atributo, sólo a texto escapado.
+  altaPorNombre = {};
+  const altaIds = [...new Set(allData.flatMap(r => [r.alta_por, r.revisado_por]).filter(Boolean))];
+  if (altaIds.length) {
+    const { data: us, error: uErr } = await sb.from('usuarios').select('id,nombre_completo').in('id', altaIds);
+    if (uErr) console.error('[spcs.altaPor]', uErr);
+    (us || []).forEach(u => { altaPorNombre[u.id] = u.nombre_completo; });
+  }
+
   // Load spc_propietarios
   if (allData.length) {
     const ids = allData.map(s=>s.id);
@@ -408,6 +427,9 @@ function updateStats() {
   document.getElementById('cnt-machos').textContent = allData.filter(r=>r.sexo==='macho').length;
   document.getElementById('cnt-hembras').textContent = allData.filter(r=>r.sexo==='hembra').length;
   document.getElementById('cnt-castrados').textContent = allData.filter(r=>r.sexo==='castrado').length;
+  const nRev = allData.filter(r => r.revision_pendiente === true).length;
+  document.getElementById('cnt-revision').textContent = nRev;
+  document.getElementById('chip-revision').hidden = nRev === 0;
 }
 
 function filterRender() {
@@ -417,11 +439,16 @@ function filterRender() {
   const cabId = document.querySelector('.toolbar #f-caballeriza')?.value || '';
   const data = allData.filter(r => {
     return (!q || r.nombre?.toLowerCase().includes(q) || r.registro_stud_book?.toLowerCase().includes(q))
-      && (!estado || r.estado === estado)
+      && (!estado || (estado === 'revision' ? r.revision_pendiente === true : r.estado === estado))
       && (!sexo || r.sexo === sexo)
       && (!cabId || r.caballeriza_id === cabId);
   });
   renderList(data);
+}
+
+function filtrarRevision() {
+  document.getElementById('f-estado').value = 'revision';
+  filterRender();
 }
 
 const estadoBadge = { activo:'badge-activo', retirado:'badge-retirado', suspendido:'badge-suspendido', fallecido:'badge-fallecido', vendido:'badge-vendido' };
@@ -442,7 +469,7 @@ function renderList(data) {
       return p ? `${p.nombre} (${o.porcentaje}%)` : '';
     }).filter(Boolean).join(' / ') || '—';
     return `<tr>
-      <td><div class="spc-name">${escapeHtml(r.nombre)}</div>${r.registro_stud_book?`<div class="spc-reg">${escapeHtml(r.registro_stud_book)}</div>`:''}</td>
+      <td><div class="spc-name">${escapeHtml(r.nombre)}</div>${r.registro_stud_book?`<div class="spc-reg">${escapeHtml(r.registro_stud_book)}</div>`:''}${r.revision_pendiente?`<span class="badge badge-revision" title="Traído del Stud Book desde el portal — falta que la secretaría lo revise">🆕 Portal — por revisar</span>`:''}</td>
       <td><span class="badge ${sexoBadge[r.sexo]||''}">${r.sexo||'—'}</span></td>
       <td>${calcEdad(r.fecha_nacimiento)}</td>
       <td><span class="badge ${estadoBadge[r.estado]||''}">${r.estado||'—'}</span></td>
@@ -450,7 +477,7 @@ function renderList(data) {
       <td>${escapeHtml(entrNombre)}</td>
       <td style="max-width:180px;font-size:12px;">${escapeHtml(ownerNames)}</td>
       <td class="actions-cell">
-        <button class="btn-sm btn-edit" onclick='openModal(${JSON.stringify(r)})'>✏️</button>
+        <button class="btn-sm btn-edit" onclick="openModalId('${r.id}')">✏️</button>
         <button class="btn-sm btn-delete" onclick="deleteRecord('${r.id}','${(r.nombre||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">🗑️</button>
       </td>
     </tr>`;
@@ -495,8 +522,56 @@ function updatePctTotal() {
   el.className = 'pct-total ' + (Math.abs(total-100)<0.01 ? 'ok' : 'bad');
 }
 
+// La fila pasa sólo el id: la ficha se busca en allData (ver renderList).
+function openModalId(id) {
+  const rec = allData.find(r => r.id === id);
+  if (!rec) { toast('No encontré esa ficha en el listado; recargá la página.', 'error'); return; }
+  openModal(rec);
+}
+
+function fechaHoraAR(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+// Caja de alta/revisión del modal. Sólo para fichas dadas de alta desde el portal.
+function renderRevisionBox(rec) {
+  const box = document.getElementById('revision-box');
+  if (!rec || rec.alta_origen !== 'portal') { box.hidden = true; box.innerHTML = ''; return; }
+  const quien = escapeHtml(altaPorNombre[rec.alta_por] || 'usuario del portal');
+  const motivos = (rec.revision_motivos || []).map(m => `<li>${escapeHtml(m)}</li>`).join('');
+  box.innerHTML = rec.revision_pendiente
+    ? `<strong>🆕 Traído del Stud Book desde el portal</strong> por ${quien} el ${escapeHtml(fechaHoraAR(rec.created_at))}.
+       Ya puede estar inscripto. Revisá los datos (sobre todo fecha y padres, por si eligió un homónimo) y
+       completá caballeriza, entrenador y propietarios si corresponde.
+       ${motivos ? `<div style="margin-top:6px;">Para mirar:</div><ul>${motivos}</ul>` : ''}
+       <div style="margin-top:10px;"><button type="button" class="btn-primary" id="btn-revisado" onclick="marcarRevisado('${rec.id}')">✔ Marcar revisado</button></div>`
+    : `Traído del Stud Book desde el portal por ${quien} el ${escapeHtml(fechaHoraAR(rec.created_at))}.
+       Revisado el ${escapeHtml(fechaHoraAR(rec.revisado_at))}${rec.revisado_por && altaPorNombre[rec.revisado_por] ? ` por ${escapeHtml(altaPorNombre[rec.revisado_por])}` : ''}.
+       ${motivos ? `<ul>${motivos}</ul>` : ''}`;
+  box.hidden = false;
+}
+
+// revisado_por / revisado_at los pone la base (trg_spcs_alta_revision): acá sólo se baja la marca.
+// 0 filas = error (RLS sin permiso devuelve 0 filas, no un error).
+async function marcarRevisado(id) {
+  const btn = document.getElementById('btn-revisado');
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando…'; }
+  const { data, error } = await sb.from('spcs').update({ revision_pendiente: false }).eq('id', id).select('id');
+  if (error || !data?.length) {
+    console.error('[spcs.marcarRevisado]', error || '0 filas');
+    toast(error ? error.message : 'No se pudo marcar como revisado (sin permiso o la ficha no existe).', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '✔ Marcar revisado'; }
+    return;
+  }
+  toast('Marcado como revisado');
+  closeModal();
+  load();
+}
+
 function openModal(rec=null) {
   editingId = rec?.id || null;
+  renderRevisionBox(rec);
   document.getElementById('modal-title').textContent = rec ? `Editar: ${rec.nombre}` : 'Nuevo SPC';
   document.getElementById('f-nombre').value = rec?.nombre || '';
   document.getElementById('f-registro').value = rec?.registro_stud_book || '';
@@ -648,7 +723,9 @@ function usarCandidato(idx) {
 // DUPLICADOS — rpc_spcs_duplicados antes del INSERT (sólo alta; los mismos 3 chequeos de las
 // tandas R9: studbook_id, nombre normalizado, fecha + padre + madre).
 //  - motivo studbook_id / fecha_padre_madre → BLOQUEA (es el mismo animal).
-//  - motivo nombre solo → "Guardar igual" (homónimos legítimos existen: Wave Rimout).
+//  - motivo nombre solo → "Guardar igual" (homónimos legítimos existen: BIEN COQUETA 2021 y 1998).
+//    OJO: Wave Rimout NO es un homónimo — es el mismo caballo cargado dos veces (Stud Book 397805,
+//    misma fecha y padres); se unifica en una tarea aparte (informe 2026-10-01 en reports).
 // ---------------------------------------------------------------------------
 const DUP_MOTIVO = { studbook_id: 'mismo nº Stud Book', nombre: 'mismo nombre', fecha_padre_madre: 'misma fecha y padres' };
 

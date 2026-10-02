@@ -1,5 +1,5 @@
 // ============================================================
-// studbook-buscar — consulta al Stud Book Argentino para el alta de SPC desde spcs.html
+// studbook-buscar — consulta al Stud Book Argentino para el alta de SPC (spcs.html y portal.html)
 // ============================================================
 //
 // FUENTE DE DATOS (2026-09): el buscador PÚBLICO del sitio del Stud Book, o sea el endpoint
@@ -15,20 +15,37 @@
 //
 // CUANDO EXISTA LA API DE DIEGO (Stud Book Argentino, ISSUE-030): se reemplaza SÓLO lo que está
 // entre los marcadores  «FUENTE — INICIO / FIN»  de abajo (`autocomplete()` y `aCandidato()`).
-// El contrato hacia spcs.html — `{ ok, term, exactos, parciales, fuente }` — NO cambia, y
-// spcs.html no se toca. Poner el nombre de la fuente nueva en `FUENTE`.
+// El contrato hacia las pantallas — buscar `{ ok, term, exactos, parciales, fuente }`, traer
+// `{ ok, spc_id, ya_existia, revision_motivos, nombre }` — NO cambia, y spcs.html / portal.html no se
+// tocan. Poner el nombre de la fuente nueva en `FUENTE`.
 //   ⚠ Si esa API exige allowlist de IP: una Edge Function NO puede salir con IP fija
 //   (docs/diagnosticos/2026-09-10_ips-fijas-consulta-studbook.md §3.1) y la consulta tiene que
 //   pasar por un proxy con IP propia (el VPS). En ese caso esta función llama al proxy.
 //
-// ESTA FUNCIÓN NO ESCRIBE EN LA BASE y NO GUARDA SECRETOS. Devuelve candidatos; el INSERT lo hace
-// spcs.html con el cliente del usuario (RLS, auditoría, índice único spcs_studbook_id_uniq) después
-// de pasar por rpc_spcs_duplicados. Los HOMÓNIMOS NO SE DESAMBIGUAN ACÁ: se devuelven todos con
-// fecha, sexo, pelaje y padres, y elige la persona en la pantalla
-// (docs/diagnosticos/2026-09-11_plan-studbook-buscar-edge-function.md §4).
+// DOS ACCIONES (body JSON):
 //
-// Auth: verify_jwt=true en el deploy + getUser(jwt) server-side + fn_is_staff() por RPC con el JWT
-// del caller (portal → 403). Patrón copiado de invite-user.
+//   { term }  — BUSCAR. Devuelve candidatos. No escribe. Staff (spcs.html) y, desde 2026-10, usuarios
+//               del portal (portal.html, cuando el caballo no está en el padrón). Los HOMÓNIMOS NO SE
+//               DESAMBIGUAN ACÁ: se devuelven todos con fecha, sexo, pelaje y padres, y elige la persona
+//               (docs/diagnosticos/2026-09-11_plan-studbook-buscar-edge-function.md §4).
+//               En spcs.html el INSERT lo sigue haciendo la pantalla con el cliente del usuario (RLS,
+//               rpc_spcs_duplicados, índice único spcs_studbook_id_uniq).
+//
+//   { accion: 'traer', sb_id, nombre, carrera_id }  — TRAER (sólo portal). El navegador manda SÓLO qué
+//               caballo eligió; los datos los vuelve a pedir ESTA función al Stud Book (`nombre` como
+//               término, y se queda con el hit cuyo id === sb_id). Con eso llama a la RPC
+//               rpc_spc_alta_studbook_portal con la key secreta (service_role): es la ÚNICA que la
+//               puede ejecutar. La RPC valida, reusa o crea la ficha (pendiente de revisión) y
+//               devuelve el id; la inscripción sigue en el portal por rpc_inscribir, sin cambios.
+//               Diseño y decisiones: docs/diagnosticos/2026-10-01_portal-alta-spc-studbook.md (reports),
+//               migrations/portal_alta_spc_studbook.sql.
+//
+// SECRETOS — NUNCA en el repo. La key secreta sólo para 'traer', resuelta como invite-user
+// (resolverDbKey: STUDBOOK_DB_KEY | INVITE_DB_KEY | SGH_SECRET_KEY | SB_SECRET_KEY |
+// SUPABASE_SERVICE_ROLE_KEY, descartando las legacy `eyJ…`, muertas desde 2026-06-07).
+//
+// Auth: verify_jwt=true en el deploy + getUser(jwt) server-side + rol por RPC con el JWT del caller
+// (fn_is_staff / fn_is_portal_user). Buscar: staff o portal; traer: sólo portal; el resto → 403.
 // ============================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -161,6 +178,69 @@ export function clasificar(term: string, hits: any[]): { exactos: Candidato[]; p
 }
 
 // ------------------------------------------------------------------
+// TRAER — helpers puros (los prueba tests/probe_studbook_buscar_fn.mjs sin Supabase)
+// ------------------------------------------------------------------
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Valida el body de 'traer'. Devuelve el mensaje de error o null.
+export function validarTraer(b: any): string | null {
+  const sb = String(b?.sb_id ?? '');
+  const nombre = String(b?.nombre ?? '').trim();
+  if (!/^[0-9]{1,9}$/.test(sb)) return 'sb_id: sólo dígitos, de 1 a 9.';
+  if (nombre.length < TERM_MIN || nombre.length > TERM_MAX || [...nombre].some((ch) => ch.charCodeAt(0) < 32)) {
+    return `nombre: entre ${TERM_MIN} y ${TERM_MAX} caracteres, sin caracteres de control.`;
+  }
+  if (!UUID_RE.test(String(b?.carrera_id ?? ''))) return 'carrera_id: UUID esperado.';
+  return null;
+}
+
+// De los hits crudos del Stud Book, el que el usuario eligió. Por id, nunca por nombre.
+export function elegirHit(hits: any[], sbId: string): any {
+  return (hits || []).find((h) => String(h?.id ?? '') === String(sbId)) ?? null;
+}
+
+// Parámetros de rpc_spc_alta_studbook_portal a partir del candidato que armó ESTA función.
+export function paramsAlta(c: any, authUserId: string, carreraId: string): Record<string, unknown> {
+  return {
+    p_auth_user_id: authUserId,
+    p_carrera_id: carreraId,
+    p_sb_id: c.sb_id,
+    p_nombre: c.nombre,
+    p_fecha_nacimiento: c.fecha_nacimiento,
+    p_sexo: c.sexo,
+    p_color: c.color,
+    p_padre: c.padrillo_nombre,
+    p_madre: c.madre_nombre,
+    p_abuelo_materno: c.abuelo_materno,
+    p_pais: c.pais_origen,
+    p_url_perfil: c.url_perfil,
+    p_leyenda: c.leyenda,
+    p_raza: c.raza,
+    p_alertas: c.alertas,
+  };
+}
+
+// Error de la RPC → status + código para la pantalla. Los mensajes de la RPC están escritos para
+// que los lea el usuario (rechazos de negocio = P0001 / 22023); los de permiso (42501) también.
+export function errorRpcAHttp(e: any): { status: number; error: string; detalle: string } {
+  const code = String(e?.code ?? '');
+  const msg = String(e?.message ?? 'Error desconocido.');
+  if (code === '42501') return { status: 403, error: 'no_autorizado', detalle: msg };
+  if (code === 'P0001' || code === '22023') return { status: 422, error: 'rechazado', detalle: msg };
+  return { status: 500, error: 'alta_fallida', detalle: 'No se pudo dar de alta el caballo.' };
+}
+
+// Key secreta para la RPC (patrón invite-user: las legacy `eyJ…` están desactivadas → se descartan).
+const CANDIDATAS_DB_KEY = ['STUDBOOK_DB_KEY', 'INVITE_DB_KEY', 'SGH_SECRET_KEY', 'SB_SECRET_KEY', 'SUPABASE_SERVICE_ROLE_KEY'];
+function resolverDbKey(): { key: string; fuente: string } | null {
+  for (const nombre of CANDIDATAS_DB_KEY) {
+    const v = (Deno.env.get(nombre) ?? '').trim();
+    if (v && !v.startsWith('eyJ')) return { key: v, fuente: nombre };
+  }
+  return null;
+}
+
+// ------------------------------------------------------------------
 Deno.serve(async (req: Request): Promise<Response> => {
   const origin = req.headers.get('origin');
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(origin) });
@@ -170,14 +250,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const jwt = authHeader && /^Bearer\s+/i.test(authHeader) ? authHeader.replace(/^Bearer\s+/i, '').trim() : null;
   if (!jwt) return fail(401, 'sin_token', 'Falta el header Authorization: Bearer <access_token>.', origin);
 
+  let body: any = null;
+  try { body = await req.json(); }
+  catch { return fail(400, 'body_invalido', 'Body JSON esperado: { "term": "NOMBRE" } o { "accion": "traer", … }.', origin); }
+  const traer = body?.accion === 'traer';
   let term = '';
-  try {
-    const body = await req.json();
+  if (traer) {
+    const err = validarTraer(body);
+    if (err) return fail(400, 'body_invalido', err, origin);
+  } else {
     term = String(body?.term ?? '').trim();
-  } catch { return fail(400, 'body_invalido', 'Body JSON esperado: { "term": "NOMBRE" }.', origin); }
-  // sin caracteres de control (ASCII 0-31)
-  if (term.length < TERM_MIN || term.length > TERM_MAX || [...term].some((ch) => ch.charCodeAt(0) < 32)) {
-    return fail(400, 'term_invalido', `term: entre ${TERM_MIN} y ${TERM_MAX} caracteres, sin caracteres de control.`, origin);
+    // sin caracteres de control (ASCII 0-31)
+    if (term.length < TERM_MIN || term.length > TERM_MAX || [...term].some((ch) => ch.charCodeAt(0) < 32)) {
+      return fail(400, 'term_invalido', `term: entre ${TERM_MIN} y ${TERM_MAX} caracteres, sin caracteres de control.`, origin);
+    }
   }
 
   try {
@@ -189,21 +275,55 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const { data: authData, error: authErr } = await asCaller.auth.getUser(jwt);
     if (authErr || !authData?.user?.id) return fail(401, 'token_invalido', 'Token inválido o expirado.', origin);
 
-    // Staff solamente. fn_is_staff() mira usuarios.auth_user_id = auth.uid() con rol super_admin /
-    // secretario_carreras / operador. Se llama con el JWT del caller (RLS del caller, no service role).
-    const { data: esStaff, error: staffErr } = await asCaller.rpc('fn_is_staff');
-    if (staffErr) { console.error('[studbook-buscar] fn_is_staff:', staffErr.message); return fail(500, 'staff_lookup_failed', 'No se pudo verificar el rol.', origin); }
-    if (esStaff !== true) return fail(403, 'solo_staff', 'Esta consulta es para la secretaría.', origin);
+    // Rol, con el JWT del caller (no service role). fn_is_staff(): super_admin / secretario_carreras /
+    // operador activo. fn_is_portal_user(): profesional / propietario activo.
+    const [staffR, portalR] = await Promise.all([asCaller.rpc('fn_is_staff'), asCaller.rpc('fn_is_portal_user')]);
+    if (staffR.error || portalR.error) {
+      console.error('[studbook-buscar] rol:', staffR.error?.message ?? portalR.error?.message);
+      return fail(500, 'staff_lookup_failed', 'No se pudo verificar el rol.', origin);
+    }
+    const esStaff = staffR.data === true, esPortal = portalR.data === true;
 
-    let hits: any[];
+    if (!traer) {
+      if (!esStaff && !esPortal) return fail(403, 'solo_staff', 'Esta consulta es para la secretaría y los usuarios del portal.', origin);
+      let hits: any[];
+      try {
+        hits = await autocomplete(term);
+      } catch (e) {
+        console.error('[studbook-buscar] fuente:', (e as Error).message);
+        return fail(502, 'studbook_no_disponible', `El Stud Book no respondió como se esperaba: ${(e as Error).message}`, origin);
+      }
+      const { exactos, parciales } = clasificar(term, hits);
+      return json({ ok: true, term, exactos, parciales, fuente: FUENTE }, 200, origin);
+    }
+
+    // ── TRAER ── sólo portal: la secretaría da de alta desde spcs.html, revisando antes de guardar.
+    if (!esPortal) return fail(403, 'solo_portal', 'Esta acción es para usuarios del portal.', origin);
+    const sbId = String(body.sb_id), nombre = String(body.nombre).trim(), carreraId = String(body.carrera_id);
+    let hitsT: any[];
     try {
-      hits = await autocomplete(term);
+      hitsT = await autocomplete(nombre);
     } catch (e) {
-      console.error('[studbook-buscar] fuente:', (e as Error).message);
+      console.error('[studbook-buscar] fuente (traer):', (e as Error).message);
       return fail(502, 'studbook_no_disponible', `El Stud Book no respondió como se esperaba: ${(e as Error).message}`, origin);
     }
-    const { exactos, parciales } = clasificar(term, hits);
-    return json({ ok: true, term, exactos, parciales, fuente: FUENTE }, 200, origin);
+    const hit = elegirHit(hitsT, sbId);
+    if (!hit) return fail(409, 'no_coincide', 'El Stud Book ya no devuelve ese caballo con ese nombre. Buscalo de nuevo.', origin);
+    const cand = aCandidato(hit);
+
+    const dbKey = resolverDbKey();
+    if (!dbKey) { console.error('[studbook-buscar] sin key secreta para traer'); return fail(500, 'server_misconfigured', 'Falta configuración del servidor.', origin); }
+    const admin = createClient(SUPABASE_URL, dbKey.key, { auth: { autoRefreshToken: false, persistSession: false } });
+    const { data: filas, error: rpcErr } = await admin.rpc('rpc_spc_alta_studbook_portal', paramsAlta(cand, String(authData?.user?.id), carreraId));
+    if (rpcErr) {
+      const m = errorRpcAHttp(rpcErr);
+      if (m.status === 500) console.error('[studbook-buscar] rpc_spc_alta_studbook_portal:', rpcErr.code, rpcErr.message, '(key:', dbKey.fuente + ')');
+      return fail(m.status, m.error, m.detalle, origin);
+    }
+    const fila = Array.isArray(filas) ? filas[0] : filas;
+    if (!fila?.spc_id) { console.error('[studbook-buscar] RPC sin fila'); return fail(500, 'alta_fallida', 'No se pudo dar de alta el caballo.', origin); }
+    return json({ ok: true, spc_id: fila.spc_id, ya_existia: fila.ya_existia === true,
+                  revision_motivos: fila.revision_motivos ?? null, nombre: cand.nombre }, 200, origin);
   } catch (err) {
     console.error('[studbook-buscar]', err);
     return fail(500, 'internal_error', 'Error interno.', origin);

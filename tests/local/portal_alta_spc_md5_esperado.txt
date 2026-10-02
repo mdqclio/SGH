@@ -1,0 +1,7 @@
+# md5(pg_get_functiondef) esperado de migrations/portal_alta_spc_studbook.sql, medido en el sandbox
+# (tests/probe_portal_alta_spc_studbook.mjs, base sgh_pa_run desde tests/local/portal_alta_spc_sandbox.sql,
+# Postgres 16) aplicando el archivo tal cual, 2026-10-01. Después del apply_migration en prod, comparar con:
+#   select p.proname, md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+#    where n.nspname='public' and p.proname in ('rpc_spc_alta_studbook_portal','fn_spcs_alta_revision') order by 1;
+fn_spcs_alta_revision          cd33a7683698ccf0704683e678bdc623
+rpc_spc_alta_studbook_portal   704f4762eb9ce373aecd4be9abdd0a78

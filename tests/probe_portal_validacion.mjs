@@ -30,13 +30,15 @@ import { readFileSync } from 'node:fs';
 
 // --- Código real, extraído de portal.html ---
 const html = readFileSync(new URL('../portal.html', import.meta.url), 'utf8');
-const desde = html.indexOf('async function anotar');
+// Desde leerMontaAnotar (2026-10): anotar() valida la monta con ella; también la usa traerYAnotar().
+const desde = html.indexOf('function leerMontaAnotar');
 const hasta = html.indexOf('/* ========== MIS INSCRIPCIONES ========== */');
 if (desde < 0 || hasta < 0) {
-  console.error('No se pudo extraer anotar() de portal.html');
+  console.error('No se pudo extraer leerMontaAnotar()/anotar() de portal.html');
   process.exit(1);
 }
 const codigo = html.slice(desde, hasta);
+const JR = new Function(readFileSync(new URL('../jockey-repetido.js', import.meta.url), 'utf8') + '\nreturn { conteoJockeysActivos };')();
 
 const GENERICO = 'Tu ejemplar no está habilitado para inscribirse. Consultá en secretaría.';
 
@@ -138,14 +140,18 @@ for (const c of CASOS) {
   const toasts = [];
   let refrescos = 0;
   const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+  // anotar() usa además el aviso de jockey repetido (jockey-repetido.js, real) y misInscripciones;
+  // faltaban acá desde que se agregó el aviso (el probe fallaba también en main al 2026-10-01).
   const correr = new AsyncFunction(
     'sb', 'document', 'toast', 'carreraSeleccionada',
     'cargarInscripcionesCrudas', 'renderListaCaballosModal', 'loadLlamado',
+    'conteoJockeysActivos', 'misInscripciones', 'avisoJockeyRepetidoPortal',
     `${codigo}
      await anotar('spc-de-prueba');`);
   await correr(
     sb, document, (m) => toasts.push(m), { id: 'carrera-de-prueba' },
     async () => { refrescos++; }, () => {}, () => {},
+    JR.conteoJockeysActivos, [], () => {},
   );
 
   const problemas = [];
