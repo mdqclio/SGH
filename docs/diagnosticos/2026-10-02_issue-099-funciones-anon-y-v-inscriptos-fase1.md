@@ -722,3 +722,17 @@ El advisor no cuenta las 5 invoker (`calcular_premio`, `fn_edad_reglamentaria`, 
 3. ¿`ALTER DEFAULT PRIVILEGES` (§2.1 C) entra en el mismo paquete? Lo recomiendo: es la causa de que el problema se repita.
 4. `calcular_premio` no tiene usos. ¿Revocar sólo, o DROP en otra tarea?
 5. `fn_club_de_*` para authenticated (oráculo de existencia): ¿se deja como está?
+
+---
+
+## Verificación de push
+
+Grep de datos personales (CLAUDE.md) sobre lo agregado respecto de `origin/reports`: **vacío** (rc=1).
+
+```
+$ git push -q origin reports && git ls-remote origin reports && git rev-parse HEAD
+9e608132cb7c7323569b3cddf430696e68b171c9	refs/heads/reports
+9e608132cb7c7323569b3cddf430696e68b171c9
+```
+
+Ese es el commit del informe. Esta sección va en un commit posterior: su SHA es el HEAD de `origin/reports` al leerla.
