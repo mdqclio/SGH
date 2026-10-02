@@ -66,3 +66,18 @@ Corrido con el regex nuevo sobre lo que se agrega a `reports` (resultado abajo, 
 
 Nota: la primera versión de este informe citaba el commit por su SHA corto de 7 caracteres, que por casualidad son 7 dígitos
 seguidos. **El chequeo lo frenó** y no se pusheó. Se reformuló con el prefijo largo (`29453422a036`), que tiene letras.
+
+---
+
+## Verificación de push
+
+Chequeo de datos personales (regex de `CLAUDE.md`) antes de cada push: vacío (rc=1).
+
+```
+$ git ls-remote origin reports
+fb4b74e4903c8eb46848829c09420c0cb71ec6bd	refs/heads/reports
+$ git rev-parse HEAD
+fb4b74e4903c8eb46848829c09420c0cb71ec6bd
+```
+
+Coinciden. Este bloque va en un commit posterior.
