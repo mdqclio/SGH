@@ -357,3 +357,13 @@ No hay. Storage no tiene ningún objeto de resoluciones y el código nunca subi�
 5. **Yesi**: N°16, N°18, N°27, N°28 y N°34 son suspensiones con nombres de archivo casi iguales (sufijos `1`, `-1`, `.docx`). ¿Son
    resoluciones distintas o el mismo PDF re-subido?
 6. Cargar `clubs.website` de Dolores (`https://hipodromodolores.com`): ¿lo hace Yesi desde Admin → Mi Hipódromo, o va en la migración?
+
+## Verificación de push
+
+```
+$ git ls-remote origin reports
+5f25f8175fcdf69eb9f07af33361d833871a36a1
+$ git rev-parse HEAD
+5f25f8175fcdf69eb9f07af33361d833871a36a1
+```
+Chequeo de datos personales sobre lo agregado: vacío.
