@@ -25,8 +25,9 @@ jockey quedó cargado en el caballo que no largó, como pasó en R8 T5 con Aguir
 - CHE CARABANERA: `ratificado`, `no_largo = true`, sin posición → **0 líneas** de ningún beneficiario.
 - OJO EXCELENTE: `ratificado`, **1°**. Arreguy se cargó como jockey el **20/09 18:17 UTC** (auditoría, informe del tramo D).
   Tiene 8 líneas: la de Arreguy es `premio` "Carrera 4 — 1° puesto", $95.000, `retenido`, sin recibo (retención anti-doping
-  de los ganadores). La otra de $95.000 `profesional` y las 3 `actuacion` (38.000 / 28.500 / 9.500) son del entrenador y sus
-  sub-roles (las líneas de Arreguy en C4 son una sola: ver A.1).
+  de los ganadores). La otra de $95.000 `profesional` y las 3 `actuacion` (38.000 / 28.500 / 9.500) **no son de Arreguy** (A.1: una sola
+  línea suya en C4). Por los montos, serían el 10 % del entrenador y el 4/3/1 % de peón, capataz y sereno sobre $950.000, pero
+  **no lo verifiqué por `beneficiario_id`**: es inferencia.
 - **Recibo N° 57** (Arreguy, efectivo, $70.000, emitido el 20/09 18:31 UTC, `emitido`): paga el `premio` de **C2** (LOGUACIOUS,
   4°, $10.000) + el `incentivo_jockey` de la reunión ($60.000). Nada de C4.
 - Otras líneas de Arreguy en R9: premio de C3 (FREE CRY, $90.000, retenido).
