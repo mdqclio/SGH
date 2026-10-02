@@ -255,6 +255,8 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="f-id">
+      <!-- Turno de la fila que se edita: saveRecord lo usa al editar, no currentCarreraId. -->
+      <input type="hidden" id="f-carrera-id">
       <div class="form-grid">
         <div class="form-group full">
           <label>Buscar SPC *</label>
@@ -784,6 +786,7 @@ document.getElementById('f-estado').addEventListener('change', () => {
 function openModal(rec=null) {
   document.getElementById('modal-title').textContent = rec ? 'Editar Inscripción' : 'Inscribir SPC';
   document.getElementById('f-id').value = rec?.id||'';
+  document.getElementById('f-carrera-id').value = rec?.carrera_id||'';
   if (rec) {
     const spc = getSpc(rec.spc_id);
     document.getElementById('spc-search-input').value = spc?.nombre||'';
@@ -827,14 +830,19 @@ function closeModal() { document.getElementById('modal').classList.remove('open'
 
 async function saveRecord() {
   const spcId = document.getElementById('f-spc-id').value;
-  if (!spcId || !currentCarreraId) { toast('Seleccionar un SPC','error'); return; }
+  const id=document.getElementById('f-id').value;
+  // Al editar, el turno es el de la fila (lo guardó openModal), no el del
+  // select: con la variable global, una edición hecha con otro turno elegido
+  // movía la inscripción a ese turno sin avisar. El alta sí va al turno elegido.
+  const carreraId = id ? document.getElementById('f-carrera-id').value : currentCarreraId;
+  if (!spcId) { toast('Seleccionar un SPC','error'); return; }
+  if (!carreraId) { toast('Seleccionar un turno','error'); return; }
   const cabId = document.getElementById('f-caballeriza').value || null;
   if (!cabId && !confirm('Esta inscripción no tiene caballeriza asignada.\nSin caballeriza no se podrá ratificar ni derivar el propietario.\n¿Continuar igual?')) return;
   const btn=document.getElementById('btn-save');
   btn.disabled=true; btn.textContent='Guardando…';
-  const id=document.getElementById('f-id').value;
   const payload = {
-    carrera_id: currentCarreraId,
+    carrera_id: carreraId,
     spc_id: spcId,
     caballeriza_id: cabId,
     entrenador_id: document.getElementById('f-entrenador').value || null,
