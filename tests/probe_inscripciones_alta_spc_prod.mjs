@@ -83,6 +83,7 @@ try {
     return new Response('', { headers: { 'Content-Type': 'application/javascript' } });
   });
   const vc = new VirtualConsole(); const errJs = []; vc.on('jsdomError', (e) => errJs.push(String(e.message || e)));
+  vc.on('error', (...a) => console.error('[página]', ...a.map((x) => (typeof x === 'string' ? x : JSON.stringify(x)))));
   const dom = new JSDOM(html, { url: 'https://sigh.com.ar/inscripciones.html', runScripts: 'dangerously', resources: { interceptors: [interceptor] }, virtualConsole: vc, pretendToBeVisual: true });
   await new Promise((r) => dom.window.addEventListener('load', r));
   const w = dom.window, d = w.document;
@@ -103,18 +104,18 @@ try {
   ok('S1) TROMPETERO no está en el padrón → "Sin resultados en el padrón" + "Buscar «TROMPETERO» en el Stud Book"',
     /Sin resultados en el padrón/.test(ddTxt) && !!optSB && /Buscar «TROMPETERO» en el Stud Book/.test(optSB.textContent), ddTxt.trim().slice(0, 200));
   optSB?.click();
-  const botones = await esperar(() => { const b = [...d.querySelectorAll('#spc-sb button')]; return b.length ? b : null; });
+  const botones = await esperar(() => { const b = [...d.querySelectorAll('#spc-sb button')]; return b.length ? b : null; }, 60000);   // el Stud Book tarda ~17 s (02/10)
   const txtSB = d.getElementById('spc-sb').textContent;
   ok('S2) studbook-buscar real (sesión staff) devuelve el candidato SB 128894 con "Es este — traerlo"',
     !!botones && txtSB.includes('SB 128894') && botones[0].textContent.trim() === 'Es este — traerlo', txtSB.trim().slice(0, 300));
   botones?.[0]?.click();
-  const ficha = await esperar(async () => (await admin.from('spcs').select('id,nombre,studbook_id,alta_origen,alta_por,revision_pendiente,revision_motivos,estado,notas').eq('studbook_id', SB_NUEVO).maybeSingle()).data);
+  const ficha = await esperar(async () => (await admin.from('spcs').select('id,nombre,studbook_id,alta_origen,alta_por,revision_pendiente,revision_motivos,estado,notas').eq('studbook_id', SB_NUEVO).maybeSingle()).data, 60000);
   if (ficha) fx.spcNuevo = ficha.id;
   ok('S3) ficha nueva: TROMPETERO, alta_origen secretaria, alta_por = operador, NO pendiente, activa',
     ficha?.nombre === 'TROMPETERO' && ficha?.alta_origen === 'secretaria' && ficha?.alta_por === fx.usuarioId && ficha?.revision_pendiente === false && ficha?.estado === 'activo', JSON.stringify(ficha));
   ok('S4) motivo "edad > 12" informativo en revision_motivos y notas "alta desde Inscripciones por Probe STAFF"',
     (ficha?.revision_motivos || []).some((m) => /^edad > 12/.test(m)) && /alta desde Inscripciones por Probe STAFF/.test(ficha?.notas || ''), JSON.stringify([ficha?.revision_motivos, ficha?.notas]));
-  await esperar(() => d.getElementById('f-spc-id').value || null, 5000);
+  await esperar(() => d.getElementById('f-spc-id').value || null, 15000);
   ok('S5) queda seleccionada en el modal (f-spc-id = ficha) y el aviso muestra el motivo',
     !!ficha && d.getElementById('f-spc-id').value === ficha.id && w.__toasts.some(([t, m]) => t === 'warning' && /edad > 12/.test(m)), JSON.stringify(w.__toasts));
   ok('S6) spcs +1 exacto', (await contarSpcs()) === spcsAntes + 1);

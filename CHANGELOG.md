@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-10-02] — Inscripciones: la secretaría trae el SPC del Stud Book desde el modal "Inscribir SPC" — migración **aplicada**, Edge Function **v3**
+
+> Pedido de Yesi: un caballo que no está en el padrón se cargaba dos veces (SPCs y después Inscripciones). Fase 1 con las 4
+> propuestas aprobadas: `docs/diagnosticos/2026-10-02_inscripciones-alta-spc-studbook-fase1.md` (reports).
+
+- `migrations/rpc_spc_alta_studbook_staff.sql` (`20261002213637`): `rpc_spc_alta_studbook_portal` v2, misma firma. El modo lo decide
+  la RPC por `usuarios.rol`: staff sin ventana ni cupo, turno de su club, ficha `secretaria` **no** pendiente con `alta_por` = staff
+  y los motivos (edad > 12, homónimo) como información. md5 `aa39e36a…` = sandbox. Rollback a la v1 exacta.
+- `studbook-buscar` v3: `traer` también para staff.
+- `inscripciones.html`: "🔎 Buscar «…» en el Stud Book" en el buscador del modal; "Es este — traerlo" deja el SPC seleccionado,
+  "Ya está en el padrón — usarlo" no llama al alta; los motivos se muestran como aviso. La inscripción se guarda como siempre.
+- Probes: `probe_portal_alta_spc_studbook` (sandbox, 33/33 mutantes), `probe_inscripciones_alta_studbook` (UI, 19/19, 11/11),
+  nuevo `probe_inscripciones_alta_spc_prod` (e2e de staff en prod, 13/13). `probe_portal_alta_spc_prod` 14/14 (regresión del portal).
+  Las esperas de la Edge Function en los e2e pasan a 60 s: el Stud Book tardó ~17 s por consulta el 02/10.
+
 ## [2026-10-02] — Inscripciones: listado continuo de todos los turnos (vista de arranque)
 
 > Pedido de Fede (29/09): ver los anotados de toda la reunión de corrido, turno 1, turno 2…, con scroll, sin abrir cada turno.

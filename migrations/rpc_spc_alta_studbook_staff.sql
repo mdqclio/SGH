@@ -2,7 +2,8 @@
 -- rpc_spc_alta_studbook_portal v2 — alta de SPC del Stud Book también desde la SECRETARÍA
 -- (modal "Inscribir SPC" de inscripciones.html), en el mismo paso que la inscripción.
 --
--- ESTADO EN PRODUCCIÓN: SIN APLICAR (se completa al aplicar: versión + md5 verificado).
+-- ESTADO EN PRODUCCIÓN: APLICADA 2026-10-02 (`20261002213637`), md5(pg_get_functiondef) = aa39e36a72f6a802700ef42acd1e2221
+-- = sandbox (verificado tras el apply). studbook-buscar v3 desplegada el mismo día (verify_jwt true).
 -- md5(pg_get_functiondef) esperado, medido en el sandbox aplicando ESTE archivo (GOTCHA #99):
 --   ver tests/local/portal_alta_spc_md5_esperado.txt (fila "v2")
 -- Paso obligatorio inmediatamente después del apply_migration:

@@ -121,11 +121,11 @@ try {
   const botSB = [...d.querySelectorAll('#minsc-lista button')].find((b) => /Stud Book/.test(b.textContent));
   ok('T1) TROMPETERO no está en el padrón → botón "Buscar «TROMPETERO» en el Stud Book"', !!botSB && /Buscar «TROMPETERO» en el Stud Book/.test(botSB.textContent), d.getElementById('minsc-lista').textContent.trim().slice(0, 200));
   botSB?.click();
-  const botones = await esperar(() => { const b = [...d.querySelectorAll('#minsc-sb button')]; return b.length ? b : null; });
+  const botones = await esperar(() => { const b = [...d.querySelectorAll('#minsc-sb button')]; return b.length ? b : null; }, 60000);   // el Stud Book tarda ~17 s (02/10)
   const txtSB = d.getElementById('minsc-sb').textContent;
   ok('T2) la función real devuelve el candidato (SB 128894) con "Es este — anotarlo"', !!botones && txtSB.includes('SB 128894') && botones[0].textContent.trim() === 'Es este — anotarlo', txtSB.trim().slice(0, 300));
   botones?.[0]?.click();
-  const fichaNueva = await esperar(async () => (await admin.from('spcs').select('id,nombre,studbook_id,alta_origen,alta_por,revision_pendiente,revision_motivos,estado,club_id,entrenador_id,notas').eq('studbook_id', SB_NUEVO).maybeSingle()).data);
+  const fichaNueva = await esperar(async () => (await admin.from('spcs').select('id,nombre,studbook_id,alta_origen,alta_por,revision_pendiente,revision_motivos,estado,club_id,entrenador_id,notas').eq('studbook_id', SB_NUEVO).maybeSingle()).data, 60000);
   if (fichaNueva) fx.spcNuevo = fichaNueva.id;
   ok('T3) ficha nueva: TROMPETERO, portal, alta_por = usuario, pendiente, activo, club/entrenador NULL',
     fichaNueva?.nombre === 'TROMPETERO' && fichaNueva?.alta_origen === 'portal' && fichaNueva?.alta_por === fx.usuarioId && fichaNueva?.revision_pendiente === true
