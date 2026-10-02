@@ -210,7 +210,9 @@ const idsPendientes = delClub.filter(l => l.estado_linea === 'impago' && !l.reci
 const nLineasVista = vistas.reduce((s, v) => s + v.b.reduce((t, b) => t + b.benefs.reduce((u, be) => u + be.lineas.length, 0), 0), 0);
 ok('1c) R9: cantidad de líneas pagables mostradas = líneas impagas de la base (ninguna dos veces, ninguna afuera)', nLineasVista === idsPendientes.length, `${nLineasVista} vs ${idsPendientes.length}`);
 
-// 2) DIESTRA BAUTISTA e IBARRA FERNANDO: incentivo en una sola carrera (la de número más bajo), nota en la otra
+// 2/2b/2p) caso de un jockey que largó en dos carreras: pasaron a SINTÉTICOS (§ 7, al final). Antes usaban un jockey real de
+// R9 cuyo incentivo estaba impago; el 02/10 se cobró por transferencia y el caso dejó de existir (mismo motivo que P2/P5 de
+// probe_reparto_100). Las reglas generales sobre R9 real (2c, 3b, 3c, 4) siguen acá abajo.
 function apariciones(jid) {
   const lin = [], notas = [];
   for (const v of vistas) for (const b of v.b) for (const be of b.benefs) {
@@ -220,18 +222,6 @@ function apariciones(jid) {
     }
   }
   return { lin, notas };
-}
-for (const [ap, nom] of [['DIESTRA', 'BAUTISTA'], ['IBARRA', 'FERNANDO']]) {
-  const jid = jockeyPorNombre(ap, nom);
-  const inc = delClub.find(l => l.concepto_tipo === 'incentivo_jockey' && l.beneficiario_id === jid);
-  const corrio = [...(largoEn[jid] || [])].sort((a, b) => a - b);
-  const a = apariciones(jid);
-  const pendiente = inc && inc.estado_linea === 'impago' && !inc.recibo_id;
-  ok(`2) ${ap} ${nom}: corrió en ${corrio.join(' y ')}; incentivo ${pendiente ? 'pagable' : 'YA NO pagable (' + inc?.estado_linea + ')'} en UNA sola carrera, la ${corrio[0]}`,
-     pendiente && a.lin.length === 1 && a.lin[0] === corrio[0], `con importe en: ${a.lin.join(',') || '—'}`);
-  const esperadas = corrio.slice(1).map(n => ({ nro: n, n: `Incentivo por reunión: figura en la carrera ${corrio[0]}` }));
-  ok(`2b) ${ap} ${nom}: nota "figura en la carrera ${corrio[0]}" en ${corrio.slice(1).join(',')} y en ninguna otra`,
-     corrio.length > 1 && JSON.stringify(a.notas) === JSON.stringify(esperadas), JSON.stringify(a.notas));
 }
 // 2c) regla general: todo incentivo pagable aparece con importe exactamente una vez, en min(carreras donde largó)
 const incPend = delClub.filter(l => l.concepto_tipo === 'incentivo_jockey' && l.estado_linea === 'impago' && !l.recibo_id);
@@ -334,6 +324,31 @@ const en = cid => api.cobArmarVistaCarrera([inc], [insc('Z', { jockey_titular_id
 const b3 = en('k3'), b2 = en('k2');
 ok('6b) en la dueña: importe; en la otra: nota sin importe y sin botón', b2[0].total === 60000 && b3[0].total === 0 && b3[0].roles[0].beneficiarios[0].notas[0] === 'Incentivo por reunión: figura en la carrera 2' && !b3[0].roles[0].beneficiarios[0].lineas.length,
    JSON.stringify(b3[0].roles));
+
+// ═════════ 7) jockey que largó en dos carreras, SINTÉTICO, por la vista entera (armar + HTML + parser) ═════════
+// Carreras 1 y 5; el incentivo es UNO por reunión. Impago: importe sólo en la 1 (la dueña), nota en la 5. Pagado: en ninguna
+// con importe, chip del recibo en la 1 y la nota sigue en la 5 (decisión del 24/09: la nota sigue la regla esté pagado o no).
+profesionales.jq = { id: 'jq', apellido: 'SINT', nombre: 'JQ' };
+const NQ = 'SINT, JQ';
+const carQ = [{ id: 'q5', numero_carrera_programa: 5, numero_turno: 7 }, { id: 'q1', numero_carrera_programa: 1, numero_turno: 1 }];
+const dQ = api.cobDuenosIncentivo(carQ, [{ carrera_id: 'q1', jockey_titular_id: 'jq', largo: true }, { carrera_id: 'q5', jockey_titular_id: 'jq', largo: true }]);
+const incQ = { id: 'iq', beneficiario_tipo: 'profesional', beneficiario_id: 'jq', concepto_tipo: 'incentivo_jockey', concepto: 'Incentivo jockey',
+  monto_neto: '60000', reunion_id: 'RX', inscripcion_id: null, carrera_id: null, estado_linea: 'impago', recibo_id: null, liquidaciones: { club_id: CLUB_ID } };
+const vistaQ = (cid, lineas) => parsear(api.cobHtmlVistaCarrera(api.cobArmarVistaCarrera(lineas, [insc(`Q${cid}`, { jockey_titular_id: 'jq' })], cid, dQ), {}));
+const delJQ = v => v.flatMap(b => b.benefs.filter(x => x.nombre === NQ));
+const imp1 = delJQ(vistaQ('q1', [incQ])), imp5 = delJQ(vistaQ('q5', [incQ]));
+ok('2) sintético: jockey que largó en las carreras 1 y 5, incentivo impago → con importe ("se paga una sola vez") SÓLO en la 1',
+   imp1.flatMap(x => x.lineas).filter(esIncentivo).length === 1 && imp5.flatMap(x => x.lineas).filter(esIncentivo).length === 0 && imp1[0]?.pagar?.[1] === 'jq',
+   JSON.stringify({ c1: imp1, c5: imp5 }));
+ok('2b) sintético: en la 5, nota "figura en la carrera 1" sin importe ni botón; en la 1, sin nota',
+   JSON.stringify(imp5.flatMap(x => x.notas)) === JSON.stringify(['Incentivo por reunión: figura en la carrera 1']) && !imp5.some(x => x.pagar)
+   && imp1.flatMap(x => x.notas).length === 0, JSON.stringify(imp5));
+const pagQ = api.cobMarcarPagadas([{ ...incQ, id: 'iq2', estado_linea: 'pagado', recibo_id: 'r974', recibos: REC(974, 'transferencia') }]);
+const pag1 = delJQ(vistaQ('q1', pagQ)), pag5 = delJQ(vistaQ('q5', pagQ));
+ok('2p) sintético: el mismo incentivo PAGADO por transferencia → con importe en ninguna; chip "✓ Transferido · Rec. #974" en la 1, sin botón; la nota sigue en la 5',
+   pag1.concat(pag5).flatMap(x => x.lineas).filter(esIncentivo).length === 0 && JSON.stringify(pag1.flatMap(x => x.chips)) === '["✓ Transferido · Rec. #974"]'
+   && !pag1.some(x => x.pagar) && JSON.stringify(pag5.flatMap(x => x.notas)) === JSON.stringify(['Incentivo por reunión: figura en la carrera 1']),
+   JSON.stringify({ c1: pag1, c5: pag5 }));
 
 for (const r of results) console.log(`${r.s} ${r.t}${r.n ? '  → ' + r.n : ''}`);
 const fail = results.filter(r => r.s === '❌').length;
