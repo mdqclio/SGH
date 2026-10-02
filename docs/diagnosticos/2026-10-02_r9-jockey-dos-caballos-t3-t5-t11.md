@@ -113,3 +113,16 @@ select json_build_object(
 1. Ninguna de las tres terminó en doble pago. El aviso de la pantalla sigue siendo correcto: que no bloquee es el diseño del 12/09.
 2. Sigue el paso 2 (los asserts R9/A/B a casos sintéticos o a la 9999, PR aparte). Estos datos confirman que el cambio en R9 es
    operativo (ratificación y día de carrera) y no un error: no hay nada que "arreglar" en R9.
+
+---
+
+## Verificación de push
+
+```
+$ git ls-remote origin reports
+13da8f40ce438c640e980a115096845197a5f340	refs/heads/reports
+$ git rev-parse HEAD
+13da8f40ce438c640e980a115096845197a5f340
+```
+
+Coinciden. Este bloque va en un commit posterior.
