@@ -17,15 +17,22 @@ pueden leer desde afuera, y lo que entra al historial **no se saca** sin reescri
 
 **Sí van** los ids (uuid). Para que alguien vea el dato, se deja la consulta que lo devuelve, no el dato.
 
-**Antes de cada push a `reports`**, grep de `@` y de números de 7 u 8 dígitos sobre **lo que se agrega**. Si hay **cualquier**
-coincidencia, **no se pushea**: se reescribe la línea hasta que el grep dé vacío. No hay excepciones, tampoco para los falsos
-positivos (`supabase-js@2`, un `@` en un patrón SQL): se reformulan. Lo único que el regex no cuenta como número son los dígitos
-**pegados a letras hexadecimales** (SHA de commit, uuid, md5): un DNI, un CUIT o un teléfono van separados por espacios o
-puntuación, y los SHA completos son obligatorios en la verificación de push.
+**Antes de cada push a `reports`**, grep sobre **lo que se agrega** buscando: `@`; corridas de 7 a 11 dígitos (DNI sin puntos,
+CUIT sin guiones, celular de 10 dígitos); un DNI con puntos (`NN.NNN.NNN`); un teléfono con espacio o guion (`NNNN-NNNN`,
+`NNNNNN-NNNN`). Si hay **cualquier** coincidencia, **no se pushea**: se reescribe la línea hasta que el grep dé vacío. No hay
+excepciones, tampoco para los falsos positivos (`supabase-js@2`, un `@` en un patrón SQL): se reformulan.
+
+- **Los montos van siempre con `$` pegado** (`$1.775.000`): un monto sin `$` con puntos de miles tiene la forma de un DNI con
+  puntos y cae en el chequeo.
+- Lo único que el regex no cuenta como número son los dígitos **pegados a letras hexadecimales** (SHA de commit, uuid, md5): los
+  SHA completos son obligatorios en la verificación de push. Las fechas (`2026-10-02`) y las versiones de migración (14 dígitos)
+  no caen.
+- El regex está probado contra casos que tienen que caer y casos que no: `node tests/probe_regex_datos_personales.mjs` (lee el
+  regex de este archivo).
 
 ```bash
 # con los commits ya hechos en reports y ANTES del push: lo que se agrega respecto de origin/reports
-git fetch -q origin && git diff -U0 origin/reports..HEAD | grep '^+' | grep -v '^+++' | grep -nE '@|(^|[^0-9a-fA-F])[0-9]{7,8}([^0-9a-fA-F]|$)'
+git fetch -q origin && git diff -U0 origin/reports..HEAD | grep '^+' | grep -v '^+++' | grep -nE '@|(^|[^0-9a-fA-F])[0-9]{7,11}([^0-9a-fA-F]|$)|(^|[^$0-9.])[0-9]{1,2}\.[0-9]{3}\.[0-9]{3}|[0-9]{4,6}[ -][0-9]{4}([^0-9]|$)'
 # tiene que salir VACÍO; si sale algo, no se pushea
 ```
 
