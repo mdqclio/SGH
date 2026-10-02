@@ -4,6 +4,37 @@ Software SaaS para la operación de hipódromos argentinos. Digitaliza la secret
 
 ---
 
+## Datos personales: el repo es PÚBLICO
+
+Todo lo que se commitea —en cualquier rama, `reports` incluida—, los mensajes de commit, los nombres de rama y los PR se
+pueden leer desde afuera, y lo que entra al historial **no se saca** sin reescribirlo.
+
+**No van nunca** en informes, commits, ramas ni PR:
+
+- emails, **ni siquiera la parte local** (lo de antes del `@`: con el dominio alcanza para reconstruir la dirección);
+- DNI, CUIT, CBU ni teléfonos;
+- nombres de usuarios del portal (lo que la persona cargó al registrarse o en su solicitud: nombre, apellido, caballeriza).
+
+**Sí van** los ids (uuid). Para que alguien vea el dato, se deja la consulta que lo devuelve, no el dato.
+
+**Antes de cada push a `reports`**, grep de `@` y de números de 7 u 8 dígitos sobre **lo que se agrega**. Si hay **cualquier**
+coincidencia, **no se pushea**: se reescribe la línea hasta que el grep dé vacío. No hay excepciones, tampoco para los falsos
+positivos (`supabase-js@2`, un `@` en un patrón SQL): se reformulan. Lo único que el regex no cuenta como número son los dígitos
+**pegados a letras hexadecimales** (SHA de commit, uuid, md5): un DNI, un CUIT o un teléfono van separados por espacios o
+puntuación, y los SHA completos son obligatorios en la verificación de push.
+
+```bash
+# con los commits ya hechos en reports y ANTES del push: lo que se agrega respecto de origin/reports
+git fetch -q origin && git diff -U0 origin/reports..HEAD | grep '^+' | grep -v '^+++' | grep -nE '@|(^|[^0-9a-fA-F])[0-9]{7,8}([^0-9a-fA-F]|$)'
+# tiene que salir VACÍO; si sale algo, no se pushea
+```
+
+Pasó el 2026-10-02: un informe sobre una cuenta del portal llevaba el email enmascarado, pero en el anexo quedó el patrón del
+`git grep`, que era la parte local. Se corrigió en el informe, pero quedó en el historial público de `reports` (decisión: no
+reescribirlo; se reporta a GitHub). Informe: `docs/diagnosticos/2026-10-02_cuenta-auth-sin-usuario-0024.md`.
+
+---
+
 ## Stack
 
 | Capa | Tecnología |
