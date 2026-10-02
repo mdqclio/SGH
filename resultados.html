@@ -499,11 +499,44 @@ function toast(msg, type='success') {
 }
 
 /* ═══════════════════════════════════════════════
+   BLOQUEOS: reunión con la liquidación cerrada / carrera oficial (ISSUE-102 paso 3)
+═══════════════════════════════════════════════ */
+// ═══ BLOQUEOS — INICIO (el probe extrae este bloque por estas anclas) ═══
+// La base ya lo impide (trigger P0092 en resultados/posiciones/apuestas; aplicar_resultado v2 rechaza
+// oficial → provisional con P0089). Acá la pantalla lo dice antes y con palabras de la operación:
+// en reunión cerrada los botones quedan DESHABILITADOS con el motivo (no se esconden), F10 no
+// manda nada en la vista oficial, y si igual llega un error de la base se traduce por su código.
+const MSG_CERRADA = 'La liquidación de esta reunión está cerrada: el resultado no se puede cambiar.';
+const MSG_OFICIAL = 'La carrera está oficial: para corregirla, des-oficializala primero.';
+function reunionCerrada() {
+  const rid = document.getElementById('sel-reunion')?.value;
+  return !!reuniones.find(r => r.id === rid)?.liquidacion_cerrada_at;
+}
+function mensajeBloqueo(err) {
+  if (err?.code === 'P0092') return MSG_CERRADA;
+  if (err?.code === 'P0089') return MSG_OFICIAL;
+  return null;
+}
+// Atributos para un botón que cambia el resultado: deshabilitado y con el motivo en el tooltip.
+function attrsCerrada() { return reunionCerrada() ? ` disabled title="${MSG_CERRADA}"` : ''; }
+function bannerCerrada() {
+  return reunionCerrada() ? `<div class="warning-box no-print" id="banner-cerrada" style="margin-bottom:12px;">🔒 ${MSG_CERRADA}</div>` : '';
+}
+// F10 = Aplicar del formulario. En la vista oficial no hay formulario: no se manda nada.
+function onF10() {
+  if (!currentCarreraId) return;
+  if (resultados[currentCarreraId]?.estado === 'oficial') { toast(MSG_OFICIAL, 'error'); return; }
+  if (reunionCerrada()) { toast(MSG_CERRADA, 'error'); return; }
+  aplicar(currentCarreraId, 'provisional');
+}
+// ═══ BLOQUEOS — FIN ═══
+
+/* ═══════════════════════════════════════════════
    CARGA DE DATOS
 ═══════════════════════════════════════════════ */
 async function init() {
   const [{ data: reuns }, { data: profs }, { data: spcs }] = await Promise.all([
-    sb.from('reuniones').select('id,numero,fecha,estado,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
+    sb.from('reuniones').select('id,numero,fecha,estado,liquidacion_cerrada_at,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
     sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID),
     sb.from('spcs').select('id,nombre').order('nombre'),
   ]);
@@ -899,6 +932,7 @@ function renderFormulario(carrera, res, pos, apus, insc) {
           <div id="div-view-container"></div>
 
           <!-- Acciones -->
+          ${bannerCerrada()}
           <div class="actions-bar no-print">
             <div class="actions-grp">
               <button class="btn-outline" onclick="f8Dividendos()">Recargar dividendos <kbd>F8</kbd></button>
@@ -906,13 +940,13 @@ function renderFormulario(carrera, res, pos, apus, insc) {
               <button class="btn-outline" onclick="openMontas()">🏇 Montas</button>
             </div>
             <div class="actions-grp">
-              <button class="btn-primary" onclick="aplicar('${carrera.id}','provisional')">Aplicar <kbd>F10</kbd></button>
+              <button class="btn-primary" id="btn-aplicar" onclick="aplicar('${carrera.id}','provisional')"${attrsCerrada()}>Aplicar <kbd>F10</kbd></button>
               <button class="btn-outline" onclick="cancelar('${carrera.id}')">Cancelar <kbd>F9</kbd></button>
             </div>
           </div>
           <div class="actions-bar no-print" style="border-top:none;padding-top:0;">
             <div class="actions-grp">
-              <button class="btn-success" onclick="oficializar('${carrera.id}')">✅ Hacer oficial</button>
+              <button class="btn-success" id="btn-oficializar" onclick="oficializar('${carrera.id}')"${attrsCerrada()}>✅ Hacer oficial</button>
             </div>
             <div class="warning-box" style="font-size:11px;flex:1;">
               Hacer oficial marca el resultado y genera su liquidación. Es reversible: se puede des-oficializar mientras la carrera no tenga pagos emitidos.
@@ -1583,7 +1617,10 @@ async function aplicar(carreraId, estado) {
   });
 
   if (rpcErr) {
-    if (rpcErr.message?.includes('CONCURRENT_MODIFICATION')) {
+    const bloqueo = mensajeBloqueo(rpcErr);
+    if (bloqueo) {
+      toast(bloqueo, 'error');
+    } else if (rpcErr.message?.includes('CONCURRENT_MODIFICATION')) {
       toast('Otro operador modificó este resultado. Recargá antes de guardar.', 'error');
     } else {
       toast('Error al guardar: ' + rpcErr.message, 'error');
@@ -1621,6 +1658,7 @@ async function cancelar(carreraId) {
 // del cliente, NO transacción única: si la generación falla tras marcar oficial, la carrera
 // queda oficial sin liquidar → se arregla con "Recalcular reunión" en liquidaciones.html.
 async function oficializar(carreraId) {
+  if (reunionCerrada()) { toast(MSG_CERRADA, 'error'); return; }
   // ═══ GATE MONTAS — INICIO (el probe extrae este bloque por estas anclas) ═══
   // Sin jockey no se oficializa. El motor descarta la línea en SILENCIO
   // (liquidaciones-engine.js, addActor: `if (!id) return;`): oficializar con el campo vacío no
@@ -1700,7 +1738,7 @@ async function desoficializar(resId, carreraId) {
   // que ya no es oficial y el recálculo no corre. select('*'): la columna puede no existir todavía.
   const ridCierre = (carreras.find(c=>c.id===carreraId)?.reunion_id) || document.getElementById('sel-reunion').value;
   const { data: reuCierre } = await sb.from('reuniones').select('*').eq('id', ridCierre).single();
-  if (reuCierre?.liquidacion_cerrada_at) { toast('La liquidación de esta reunión está cerrada (saldada): no se puede des-oficializar.', 'error', 9000); return; }
+  if (reuCierre?.liquidacion_cerrada_at) { toast(MSG_CERRADA, 'error', 9000); return; }
   const { data: insX } = await sb.from('inscripciones').select('id').eq('carrera_id', carreraId);
   const inscIds = (insX||[]).map(i=>i.id);
   const scope = inscIds.length ? `carrera_id.eq.${carreraId},inscripcion_id.in.(${inscIds.join(',')})` : `carrera_id.eq.${carreraId}`;
@@ -1713,7 +1751,7 @@ async function desoficializar(resId, carreraId) {
 
   // RPC atómica: guard de pagos (RAISE) + estado->provisional + limpieza oficializado_*. Keya por carrera_id.
   const { error } = await sb.rpc('desoficializar_carrera', { p_carrera_id: carreraId });
-  if (error) { toast(error.message,'error'); return; }   // incluye el RAISE del guard ('carrera con pagos emitidos...') → no recalcula
+  if (error) { toast(mensajeBloqueo(error) || error.message,'error'); return; }   // P0092 traducido; el RAISE del guard ('carrera con pagos emitidos...') va tal cual → no recalcula
   await sb.from('performances').delete().eq('carrera_id', carreraId);
   resultados[carreraId] = {...resultados[carreraId], estado:'provisional'};
   const rid = (carreras.find(c=>c.id===carreraId)?.reunion_id) || document.getElementById('sel-reunion').value;
@@ -1759,6 +1797,7 @@ function renderOficial(carrera, res, pos, apus, insc) {
   const _divHtml = renderDivHTML(apus, _habMap, _chapaAt, true, false);
 
   document.getElementById('main-container').innerHTML = `
+    ${bannerCerrada()}
     <div class="res-panel">
       <div class="res-panel-header">
         <div>
@@ -1771,7 +1810,7 @@ function renderOficial(carrera, res, pos, apus, insc) {
           <span style="font-size:13px;color:var(--muted);min-width:60px;text-align:center;">Carrera ${_cIdx+1} / ${carreras.length}</span>
           <button class="btn-outline no-print" onclick="navCarrera(1)"  ${_isLast?'disabled':''}>Siguiente →</button>
           <button class="btn-outline no-print" onclick="window.print()">🖨️ Imprimir</button>
-          <button class="btn-danger  no-print" onclick="desoficializar('${res.id}','${carrera.id}')">↩️ Des-oficializar</button>
+          <button class="btn-danger  no-print" id="btn-desoficializar" onclick="desoficializar('${res.id}','${carrera.id}')"${attrsCerrada()}>↩️ Des-oficializar</button>
           <button class="btn-outline no-print" onclick="navigateToLista()">← Carreras</button>
         </div>
       </div>
@@ -1833,7 +1872,7 @@ function setStatus(msg) {
 document.addEventListener('keydown', e => {
   if (e.key==='F8')       { e.preventDefault(); if (currentCarreraId) f8Dividendos(); }
   if (e.key==='F9')       { e.preventDefault(); if (currentCarreraId) cancelar(currentCarreraId); }
-  if (e.key==='F10')      { e.preventDefault(); if (currentCarreraId) aplicar(currentCarreraId,'provisional'); }
+  if (e.key==='F10')      { e.preventDefault(); onF10(); }   // no manda nada en la vista oficial ni en reunión cerrada
   if (e.key==='PageDown') { e.preventDefault(); navCarrera(1); }
   if (e.key==='PageUp')   { e.preventDefault(); navCarrera(-1); }
 });

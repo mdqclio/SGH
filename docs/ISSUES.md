@@ -315,7 +315,7 @@ Módulo: `active-reunion.js`. Estado: ⏳ Abierto — mismo malentendido `anulad
 
 ### ISSUE-046: `resultados_legacy.html` mantiene una lista de cuerpos paralela
 Descripción: la pantalla legacy no usa el catálogo de `chapas.js` — arma su propio `CUERPOS_OPCIONES` para el datalist de márgenes (`resultados_legacy.html:448`). Toda entrada nueva del catálogo (ej. el `4½ cpos` de ISSUE-040) hay que agregarla dos veces, o queda desalineada.
-Módulo: `resultados_legacy.html`. Estado: ⏳ Abierto — unificar contra `chapas.js` o dar de baja la pantalla legacy. Prioridad: Baja.
+Módulo: `resultados_legacy.html`. Estado: ✅ **CERRADO (2026-10-02)** — la pantalla legacy se dio de baja (archivo borrado; Pages responde 404) en la fase 2 del front de ISSUE-102. Prioridad: Baja.
 
 ### ISSUE-047: Barrido de cuentas huérfanas de `auth.users` (auto-registro)
 Descripción: en el flujo de auto-registro, el `signUp` crea la cuenta en `auth.users` **antes** de que `rpc_solicitar_acceso` registre la solicitud. Si la RPC falla en el medio —o si la persona confirma el email y nunca vuelve a completar los datos— queda una cuenta en `auth.users` sin fila en `usuarios` ni en `solicitudes_acceso`. Una RPC no puede borrar de `auth.users` (necesita Admin API).
@@ -2872,8 +2872,9 @@ migración versionada y verificación por estado. (3) Probe del par oficializar/
 
 ### ISSUE-102: el resultado de una reunión con la liquidación cerrada se podía cambiar (sólo la pantalla frenaba des-oficializar)
 **Estado**: 🟢 **BASE APLICADA el 2026-10-02** (`20261002020753` backfill ISSUE-101 · `20261002020829` guard · `20261002020924`
-aplicar_resultado v2 · `20261002020946` desoficializar_carrera v2; md5 = sandbox; probe sandbox 30/30, 11/11 mutantes). Falta el
-**front** (paso 3: F10/Aplicar cortan en vista oficial y reunión cerrada, mensaje P0092, **baja de `resultados_legacy.html`**) y la
+aplicar_resultado v2 · `20261002020946` desoficializar_carrera v2; md5 = sandbox; probe sandbox 30/30, 11/11 mutantes). **Front (paso 3)
+hecho el 2026-10-02**: F10 no manda nada en la vista oficial ni en reunión cerrada; Aplicar/Hacer oficial/Des-oficializar deshabilitados
+con el motivo; P0092/P0089 traducidos por código; `resultados_legacy.html` borrada (probe `tests/probe_resultados_front_cerrada.mjs`). Falta la
 **corrección con resolución** (paso 4: `rpc_corregir_resultado` + `resultado_correcciones` + pantalla; **espera a Fede**, igual que qué
 estados de `resoluciones` habilitan una corrección).
 **Qué se hizo**: trigger `trg_resultado_cerrado` (P0092) en `resultados`, `resultado_posiciones` y `resultado_apuestas` — pasan sólo
