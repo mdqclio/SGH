@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-10-02] — SEGURIDAD ISSUE-099: las 31 funciones de `public` que anon podía ejecutar + default privileges — migración **aplicada**
+
+- `migrations/revoke_anon_funciones_publicas.sql` (GENERADA por `tests/local/gen_revoke_anon_funciones.py` desde las firmas y el
+  `proacl` medidos en prod): **25** → REVOKE de PUBLIC y anon, GRANT explícito a authenticated + service_role; **6** (los 5 de
+  trigger y `fn_solicitudes_guard_staff`) → sólo service_role; `ALTER DEFAULT PRIVILEGES` de postgres: sin anon en `public`
+  (C1) y sin PUBLIC global (C2), para que las funciones nuevas no nazcan abiertas. No cambia ningún `pg_get_functiondef`.
+- `rollback_revoke_anon_funciones_publicas.sql`: vuelve al `proacl` medido (como conjunto) y a los defaults anteriores.
+- Probe `tests/probe_revoke_anon_funciones.mjs`: sandbox (base `sgh_anon_run`, copia de `sgh` + `tests/local/revoke_anon_sandbox.sql`)
+  16/16, 8/8 mutantes — incluye que los triggers siguen disparando sin EXECUTE; `--prod` (sólo lectura, como anon): las 26
+  llamables por la API → 401/42501.
+
 ## [2026-10-02] — Ratificación: aviso al ratificar un SPC pendiente de revisión
 
 - `ratificacion.html`: un SPC dado de alta desde el portal que la secretaría todavía no revisó (`spcs.revision_pendiente`)
