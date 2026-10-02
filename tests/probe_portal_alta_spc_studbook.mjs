@@ -37,6 +37,12 @@
  *       marcar revisado con revisado_por/alta_por falsos → revisado_por = staff, alta_por y motivos intactos;
  *       editar otro campo no toca la revisión; la edición queda auditada con el usuario
  *   P7  la migración no cambia NINGUNA política ni GRANT de tabla (md5 antes/después)
+ *   B0  SIN la previa, la migración falla con 0A000 (el error de prod del 01/10: _bak_merge_duplicados_spc.fila
+ *       era del tipo fila de spcs)
+ *   B1  previa (cerrar_tablas_bak_publicas.sql): fila → jsonb con los 2 ids, RLS prendido en las 3 tablas,
+ *       anon y authenticated sin ningún privilegio, conteos 2/67/148
+ *   B2  anon no puede leer ninguna de las 3 (permission denied)
+ *   B3  rollback_merge_duplicados_spc.sql (jsonb_populate_record) reinserta las 2 fichas, ya con las columnas nuevas
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -45,6 +51,9 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MIG = readFileSync(join(HERE, '..', 'migrations', 'portal_alta_spc_studbook.sql'), 'utf8');
+// Previa obligatoria (2026-10-02): sin ella la migración falla en prod con 0A000 (ver B0).
+const PREVIA = readFileSync(join(HERE, '..', 'migrations', 'cerrar_tablas_bak_publicas.sql'), 'utf8');
+const ROLLBACK_MERGE = readFileSync(join(HERE, '..', 'migrations', 'rollback_merge_duplicados_spc.sql'), 'utf8');
 const FIXTURE = readFileSync(join(HERE, 'local', 'portal_alta_spc_sandbox.sql'), 'utf8');
 const PSQL = (process.env.PSQL_BASE || 'docker exec -i sgh-local-pg psql -v ON_ERROR_STOP=1 -U postgres -q -tA').split(' ');
 const TPL = 'sgh_pa_tpl', RUN = 'sgh_pa_run';
@@ -252,6 +261,27 @@ async function correrCasos(db, pre) {
     && j?.s?.alta_por === USU1 && j?.s?.alta_origen === 'portal' && (j?.s?.revision_motivos || []).length === 1, JSON.stringify(j?.s));
   ok('P6 las dos ediciones del staff quedan auditadas con su usuario', JSON.stringify(j?.aud) === JSON.stringify([USU_STAFF, USU_STAFF]), JSON.stringify(j?.aud));
 
+  // B1 / B2 / B3 — la previa
+  r = psql(db, `select json_build_object(
+    'tipo', (select format_type(atttypid, atttypmod) from pg_attribute where attrelid = 'public._bak_merge_duplicados_spc'::regclass and attname = 'fila'),
+    'ids', (select string_agg(fila->>'id', ',' order by fila->>'id') from _bak_merge_duplicados_spc),
+    'rls', (select json_object_agg(relname, relrowsecurity) from pg_class where relname in ('_bak_merge_duplicados_spc','bak_r8_propietario','_gate41_backfill_tenencia')),
+    'priv', (select count(*) from information_schema.role_table_grants where table_name in ('_bak_merge_duplicados_spc','bak_r8_propietario','_gate41_backfill_tenencia') and grantee in ('anon','authenticated')),
+    'n', (select array[(select count(*) from _bak_merge_duplicados_spc), (select count(*) from bak_r8_propietario), (select count(*) from _gate41_backfill_tenencia)]));`);
+  j = json(r);
+  ok('B1 previa: fila jsonb con los 2 ids, RLS en las 3, 0 privilegios de anon/authenticated, conteos 2/67/148', j?.tipo === 'jsonb'
+    && j?.ids === '0dc2f58f-0e2f-4915-be79-a7515fdd6ee4,da839b11-00a3-4eb8-b09f-03790d425ed9'
+    && Object.values(j?.rls || {}).length === 3 && Object.values(j.rls).every((x) => x === true) && j?.priv === 0
+    && JSON.stringify(j?.n) === '[2,67,148]', JSON.stringify(j));
+  for (const t of ['_bak_merge_duplicados_spc', 'bak_r8_propietario', '_gate41_backfill_tenencia']) {
+    r = enTx(`set local role anon;\nselect count(*) from public.${t};`);
+    ok(`B2 anon no puede leer ${t}`, rechaza(r, 'permission denied'), r.err || r.out);
+  }
+  r = enTx(`${ROLLBACK_MERGE.replace(/^\s*BEGIN;\s*$/m, '').replace(/^\s*COMMIT;\s*$/m, '')}\nselect json_agg(json_build_object('n', nombre, 'o', alta_origen, 'p', revision_pendiente) order by nombre) from spcs where id in ('0dc2f58f-0e2f-4915-be79-a7515fdd6ee4','da839b11-00a3-4eb8-b09f-03790d425ed9');`);
+  j = json(r);
+  ok('B3 rollback de la unificación (jsonb_populate_record) reinserta las 2 fichas, con las columnas nuevas completas', r.ok
+    && JSON.stringify(j) === JSON.stringify([{ n: 'Fist Queen', o: 'secretaria', p: false }, { n: 'Malenuchi', o: 'secretaria', p: false }]), r.ok ? JSON.stringify(j) : r.err);
+
   // P7
   const post = foto(db);
   ok('P7 la migración no cambia ninguna política (md5 de pg_policies)', post.pol === pre.pol, `${pre.pol} → ${post.pol}`);
@@ -273,14 +303,20 @@ function prepararTemplate() {
   r = psql(TPL, FIXTURE);
   if (!r.ok) throw new Error('fixture: ' + r.err);
 }
-async function corrida(migSql) {
+async function corrida(migSql, previaSql = PREVIA) {
   let r = psql('postgres', `drop database if exists ${RUN};\ncreate database ${RUN} template ${TPL};\n`);
   if (!r.ok) throw new Error('createdb: ' + r.err);
+  // B0: sin la previa la migración tiene que fallar como en prod (0A000) y no dejar nada.
+  const b0 = psql(RUN, migSql);
+  const b0ok = !b0.ok && b0.err.includes('uses its row type') && psql(RUN, `select count(*) from pg_proc where proname = 'rpc_spc_alta_studbook_portal';`).out === '0';
+  r = psql(RUN, previaSql);
+  if (!r.ok) return { aplica: false, err: 'previa: ' + r.err, res: [] };
   const pre = foto(RUN);
   r = psql(RUN, migSql);
   if (!r.ok) return { aplica: false, err: r.err, res: [] };
   const md5 = psql(RUN, `select json_object_agg(p.proname, md5(pg_get_functiondef(p.oid))) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname in ('rpc_spc_alta_studbook_portal', 'fn_spcs_alta_revision');`);
   const res = await correrCasos(RUN, pre);
+  res.unshift({ t: 'B0 sin la previa la migración falla con 0A000 ("uses its row type") y no deja nada', s: b0ok ? '✅' : '❌', n: b0.err || b0.out });
   return { aplica: true, md5: json(md5), res };
 }
 
@@ -306,6 +342,9 @@ const MUT = [
   ['M19 trigger UPDATE no impone revisado_por', `      NEW.revisado_por := v_usuario;\n      NEW.revisado_at  := now();`, ``],
   ['M20 trigger UPDATE deja cambiar alta_por', `  NEW.alta_por         := OLD.alta_por;\n`, ``],
   ['M21 sin auditoría de spcs', `CREATE TRIGGER trg_audit_spcs AFTER INSERT OR DELETE OR UPDATE ON public.spcs\n  FOR EACH ROW EXECUTE FUNCTION public.fn_auditoria_log();`, ``],
+  // mutantes de la PREVIA (4º elemento = 'previa')
+  ['M22 previa sin REVOKE de bak_r8_propietario', `REVOKE ALL ON public.bak_r8_propietario        FROM anon, authenticated;`, ``, 'previa'],
+  ['M23 previa sin RLS en _gate41_backfill_tenencia', `ALTER TABLE public._gate41_backfill_tenencia ENABLE ROW LEVEL SECURITY;`, ``, 'previa'],
 ];
 
 prepararTemplate();
@@ -319,9 +358,10 @@ console.log(`md5(pg_get_functiondef) en el sandbox: ${JSON.stringify(base.md5)}`
 let vivos = 0;
 if (MUTANTES) {
   console.log('\n── mutantes ──');
-  for (const [nombre, de, a] of MUT) {
-    if (MIG.split(de).length !== 2) { console.log(`⚠️  ${nombre}: el ancla no aparece UNA vez en la migración — mutante roto`); vivos++; continue; }
-    const m = await corrida(MIG.replace(de, a));
+  for (const [nombre, de, a, cual] of MUT) {
+    const src = cual === 'previa' ? PREVIA : MIG;
+    if (src.split(de).length !== 2) { console.log(`⚠️  ${nombre}: el ancla no aparece UNA vez — mutante roto`); vivos++; continue; }
+    const m = cual === 'previa' ? await corrida(MIG, PREVIA.replace(de, a)) : await corrida(MIG.replace(de, a));
     const muertos = m.aplica ? m.res.filter((x) => x.s === '❌').map((x) => x.t.split(' ')[0]) : ['(no aplica)'];
     const vive = m.aplica && muertos.length === 0;
     if (vive) vivos++;

@@ -578,3 +578,28 @@ INSERT INTO spcs (id, nombre, fecha_nacimiento, sexo, padrillo_nombre, madre_nom
   ('5c000000-0000-0000-0000-000000000002', 'Ficha Vieja Probe', '2019-10-10', 'hembra', 'PADRE D2', 'MADRE D2', NULL, '2026-06-01'),
   -- D4: homónimo (otra fecha, otros padres)
   ('5c000000-0000-0000-0000-000000000003', 'BIEN COQUETA', '2021-10-15', 'hembra', 'Padre Coqueta 2021', 'Madre Coqueta 2021', '429819', '2026-09-11');
+
+-- ── Tablas de respaldo como en prod (2026-10-02) ─────────────────────────────────────────────
+-- Están porque en prod `_bak_merge_duplicados_spc.fila` era del TIPO FILA de spcs y eso hizo fallar
+-- portal_alta_spc_studbook.sql (0A000) — el sandbox no las tenía y el probe no lo vio. Mismas columnas,
+-- sin RLS y con GRANT completo (como estaban), y los conteos que espera cerrar_tablas_bak_publicas.sql:
+-- 2 / 67 / 148. Las 2 fichas del respaldo usan los ids reales de Fist Queen y Malenuchi.
+INSERT INTO spcs (id, nombre, fecha_nacimiento, sexo, padrillo_nombre, madre_nombre) VALUES
+  ('0dc2f58f-0e2f-4915-be79-a7515fdd6ee4', 'Fist Queen', '2019-09-01', 'hembra', 'P FQ', 'M FQ'),
+  ('da839b11-00a3-4eb8-b09f-03790d425ed9', 'Malenuchi',  '2019-10-01', 'hembra', 'P MA', 'M MA');
+CREATE TABLE public._bak_merge_duplicados_spc (
+  fila          spcs        NOT NULL,
+  sobreviviente uuid        NOT NULL,
+  borrado_at    timestamptz NOT NULL DEFAULT now()
+);
+INSERT INTO public._bak_merge_duplicados_spc (fila, sobreviviente)
+  SELECT s, s.id FROM spcs s WHERE s.id IN ('0dc2f58f-0e2f-4915-be79-a7515fdd6ee4', 'da839b11-00a3-4eb8-b09f-03790d425ed9');
+DELETE FROM spcs WHERE id IN ('0dc2f58f-0e2f-4915-be79-a7515fdd6ee4', 'da839b11-00a3-4eb8-b09f-03790d425ed9');
+
+CREATE TABLE public.bak_r8_propietario (inscripcion_id uuid, carrera_id uuid, spc_id uuid, caballeriza_id uuid, propietario_id uuid, snapshot_at timestamptz);
+INSERT INTO public.bak_r8_propietario (inscripcion_id, snapshot_at) SELECT gen_random_uuid(), now() FROM generate_series(1, 67);
+
+CREATE TABLE public._gate41_backfill_tenencia (spc_id uuid REFERENCES spcs(id), entrenador_id_previo uuid, caballeriza_id_previo uuid, entrenador_id_nuevo uuid, caballeriza_id_nuevo uuid, evidencia_reunion integer, evidencia_fecha date, aplicado_at timestamptz);
+INSERT INTO public._gate41_backfill_tenencia (spc_id, aplicado_at) SELECT '5c000000-0000-0000-0000-000000000002', now() FROM generate_series(1, 148);
+
+GRANT ALL ON public._bak_merge_duplicados_spc, public.bak_r8_propietario, public._gate41_backfill_tenencia TO anon, authenticated, service_role;
