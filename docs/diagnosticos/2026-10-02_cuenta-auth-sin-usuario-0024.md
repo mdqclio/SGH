@@ -7,21 +7,21 @@
 - **Merge pedido:** PR #34 → **`c39beda9969319c1eabc97b0731f172141209285`**. Sólo `migrations/`, `tests/`, `docs/`, CHANGELOG y
   CLAUDE.md: ningún archivo servido por Pages cambia, así que no hace falta verificar el deploy.
 
-> **Datos personales:** el repo es público. En este informe el email va **enmascarado** y no van el nombre, el DNI ni el teléfono
+> **Datos personales:** el repo es público. En este informe el email **no va** (ni parte de él) y no van el nombre, el DNI ni el teléfono
 > que la persona cargó en su solicitud. El dato completo está en la base: la consulta A.1 lo devuelve.
 
 ## Respuesta
 
 | Dato | Valor |
 |---|---|
-| Email | `lo*********@gmail.com` (completo en la base, A.1) |
+| Email | `[email]` (en la base, consulta A.1) |
 | `auth.users.id` | `4c13e789-aa2c-4e76-9802-284e555988d1` |
 | `created_at` | **2026-10-02 00:23:20 UTC** (21:23 del 01/10, Argentina) |
 | Email confirmado | 2026-10-02 00:24:20 UTC (un minuto después) |
 | Último login (`last_sign_in_at`) | **2026-10-02 00:24:20 UTC**, el que entra al confirmar |
 | Proveedor | **`email`** (contraseña), una sola identidad; no anónima, no invitada (`invited_at` NULL), sin ban |
 | Fila en `usuarios` | **ninguna**, ni por `auth_user_id` ni por email |
-| ¿La creó un probe? | **No.** El email no aparece en `tests/`, en `main`, en `reports` ni en ninguna rama remota (A.2). Los probes usan `@sgh.test` / `@sgh-probe.invalid` y la borran en el teardown |
+| ¿La creó un probe? | **No.** El email no aparece en `tests/`, en `main`, en `reports` ni en ninguna rama remota (A.2). Los probes usan los dominios `sgh.test` / `sgh-probe.invalid` y la borran en el teardown |
 | Qué es | Una persona que se registró por **`solicitar-acceso.html`**: dejó una **solicitud de acceso `pendiente`** como **propietario** de Dolores, creada a las 00:24:57 UTC, 37 s después de confirmar (`solicitudes_acceso.id = cb7cc84a-62f1-4127-8407-ed808ffff62c`). **Es el circuito normal**: no tiene fila en `usuarios` porque nadie aprobó todavía la solicitud |
 
 Es el mismo patrón que el 30/09 con GARCIA SERGIO (`2026-09-30_garcia-sergio-mail-portal.md`): cuenta de Auth, mail confirmado y
@@ -29,7 +29,7 @@ solicitud esperando a la secretaría. Esta vez el mail sí llegó.
 
 ## Cuántas cuentas de Auth no tienen fila en `usuarios`
 
-**19 de 50.** Ninguna con pinta de probe (`%probe%`, `@sgh.test`, `.invalid`):
+**19 de 50.** Ninguna con pinta de probe (los dominios de prueba de los probes: `sgh.test`, `sgh-probe.invalid`, o "probe" en el email):
 
 | | Cantidad |
 |---|---|
@@ -64,7 +64,7 @@ Salida, **con datos personales enmascarados** (`[…]`: email, nombre, apellido,
 `raw_user_meta_data`). Todo lo demás va tal cual:
 
 ```json
-{"cuenta":{"id":"4c13e789-aa2c-4e76-9802-284e555988d1","email":"lo[…]@gmail.com","created_at":"2026-10-02T00:23:20.302309+00:00","last_sign_in_at":"2026-10-02T00:24:20.124057+00:00","email_confirmed_at":"2026-10-02T00:24:20.081985+00:00","confirmation_sent_at":"2026-10-02T00:23:20.324519+00:00","invited_at":null,"provider":"email","providers":["email"],"user_meta":{"sub":"4c13e789-aa2c-4e76-9802-284e555988d1","email":"lo[…]@gmail.com","email_verified":true,"phone_verified":false},"role":"authenticated","is_anonymous":false,"banned_until":null,"deleted_at":null,"identities":[{"provider":"email","created_at":"2026-10-02T00:23:20.321594+00:00","last_sign_in_at":"2026-10-02T00:23:20.321536+00:00"}],"en_usuarios_por_auth":0,"en_usuarios_por_email":0,"solicitudes":[{"id":"cb7cc84a-62f1-4127-8407-ed808ffff62c","auth_user_id":"4c13e789-aa2c-4e76-9802-284e555988d1","email":"lo[…]@gmail.com","nombre":"[…]","apellido":"[…]","documento_tipo":"DNI","documento_nro":"[…]","telefono":"[…]","rol_pedido":"propietario","club_id":"0649e9c5-9e87-4aad-842f-101458e6b33c","estado":"pendiente","motivo_rechazo":null,"resuelta_por":null,"resuelta_at":null,"created_at":"2026-10-02T00:24:57.015488+00:00","origen_hipodromo":"Dolores","origen_patente_nro":null,"origen_caballeriza":"[…]"}]}}
+{"cuenta":{"id":"4c13e789-aa2c-4e76-9802-284e555988d1","email":"[email]","created_at":"2026-10-02T00:23:20.302309+00:00","last_sign_in_at":"2026-10-02T00:24:20.124057+00:00","email_confirmed_at":"2026-10-02T00:24:20.081985+00:00","confirmation_sent_at":"2026-10-02T00:23:20.324519+00:00","invited_at":null,"provider":"email","providers":["email"],"user_meta":{"sub":"4c13e789-aa2c-4e76-9802-284e555988d1","email":"[email]","email_verified":true,"phone_verified":false},"role":"authenticated","is_anonymous":false,"banned_until":null,"deleted_at":null,"identities":[{"provider":"email","created_at":"2026-10-02T00:23:20.321594+00:00","last_sign_in_at":"2026-10-02T00:23:20.321536+00:00"}],"en_usuarios_por_auth":0,"en_usuarios_por_email":0,"solicitudes":[{"id":"cb7cc84a-62f1-4127-8407-ed808ffff62c","auth_user_id":"4c13e789-aa2c-4e76-9802-284e555988d1","email":"[email]","nombre":"[…]","apellido":"[…]","documento_tipo":"DNI","documento_nro":"[…]","telefono":"[…]","rol_pedido":"propietario","club_id":"0649e9c5-9e87-4aad-842f-101458e6b33c","estado":"pendiente","motivo_rechazo":null,"resuelta_por":null,"resuelta_at":null,"created_at":"2026-10-02T00:24:57.015488+00:00","origen_hipodromo":"Dolores","origen_patente_nro":null,"origen_caballeriza":"[…]"}]}}
 ```
 
 (También enmascaré `origen_caballeriza`: es el nombre que dio la persona, no un dato del sistema.)
@@ -92,7 +92,7 @@ alcanza para reconstruir la dirección. Para repetir la búsqueda, tomá el emai
 with sin as (
   select u.id, u.email, u.created_at, u.email_confirmed_at, u.last_sign_in_at,
          (select s.estado from solicitudes_acceso s where s.auth_user_id = u.id or lower(s.email)=lower(u.email) order by s.created_at desc limit 1) as solicitud,
-         (u.email ilike '%probe%' or u.email ilike '%@sgh.test' or u.email ilike '%.invalid') as pinta_probe
+         (u.email ilike '%probe%' or u.email ilike '%sgh.test' or u.email ilike '%.invalid') as pinta_probe
     from auth.users u
    where not exists (select 1 from usuarios x where x.auth_user_id = u.id)
 )
@@ -108,6 +108,9 @@ select json_build_object(
  'mas_vieja', (select min(created_at) from sin where not pinta_probe), 'mas_nueva', (select max(created_at) from sin where not pinta_probe)
 ) r;
 ```
+
+(En la consulta que se corrió, el patrón de `sgh.test` llevaba la arroba antes del dominio; acá se sacó por la regla de datos
+personales de `CLAUDE.md`, que no deja ninguna arroba en `reports`. No cambia el resultado: ninguna cuenta coincide.)
 
 ```json
 {"auth_total":50,"sin_fila_en_usuarios":19,"pinta_probe":0,"por_solicitud":{"(sin solicitud)":12,"descartada":1,"pendiente":4,"rechazada":2},"confirmadas":10,"sin_confirmar":9,"nunca_iniciaron_sesion":9,"por_mes_creacion":{"2026-04":2,"2026-08":1,"2026-09":11,"2026-10":5},"mas_vieja":"2026-04-22T03:13:31.60625+00:00","mas_nueva":"2026-10-02T00:23:20.302309+00:00"}
@@ -137,7 +140,7 @@ Coinciden. Este bloque va en un commit posterior.
 ## ⚠ Exposición de datos personales en el historial de `reports` (error mío, decisión pendiente)
 
 La primera versión de este informe, en el anexo A.2, mostraba el **patrón de búsqueda, que era la parte local del email**. Junto
-con el dominio enmascarado (`@gmail.com`), eso alcanza para reconstruir la dirección. Ya está corregido en la versión actual, pero
+con el dominio, eso alcanza para reconstruir la dirección. Ya está corregido en la versión actual, pero
 **quedó en el historial público de la rama `reports`**, en estos commits ya pusheados:
 
 ```
