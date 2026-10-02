@@ -37,7 +37,7 @@ const ok = (t, c, n = '') => { results.push({ t, s: c ? '✅' : '❌', n }); ret
 const creados = [];
 
 async function sesion(rol, extra = {}) {
-  const email = `probe.sbb.${rol}.${RUN}@sgh.test`;
+  const email = `probe.sbb.${rol}${extra.entidad_tipo ? '-ent' : ''}.${RUN}@sgh.test`;
   const { data: au, error: eAu } = await sb.auth.admin.createUser({ email, password: `Px-${RUN}-${Math.random().toString(36).slice(2)}`, email_confirm: true });
   if (eAu) throw new Error('createUser: ' + eAu.message);
   creados.push({ email, authId: au.user.id });

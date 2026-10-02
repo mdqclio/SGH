@@ -1,7 +1,9 @@
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
 -- SEGURIDAD + destrabe — tres tablas de respaldo en `public` sin RLS, con GRANT completo a anon
 --
--- ESTADO EN PRODUCCIÓN: ver CHANGELOG / informe del día (se aplica ANTES de portal_alta_spc_studbook.sql).
+-- ESTADO EN PRODUCCIÓN: **APLICADA 2026-10-02** (`20261002001531 cerrar_tablas_bak_publicas`), antes de
+-- portal_alta_spc_studbook.sql. Verificado: fila jsonb con los 2 ids, RLS en las 3, 0 privilegios de
+-- anon/authenticated, conteos 2/67/148; get_advisors: los 3 `rls_disabled_in_public` (ERROR) desaparecieron.
 --
 -- Por qué (informe docs/diagnosticos/2026-10-01_portal-alta-spc-aplicacion-bloqueada.md, reports):
 --   1. `portal_alta_spc_studbook.sql` falló en prod con

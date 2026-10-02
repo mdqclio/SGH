@@ -1,8 +1,10 @@
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
 -- Portal — alta de un SPC traído del Stud Book, para inscribirlo de corrido
 --
--- ESTADO EN PRODUCCIÓN: **NO APLICADA.** Probada en el sandbox (tests/local, base
--- sgh_portal_alta) con tests/probe_portal_alta_spc_studbook.mjs. Se aplica con OK explícito.
+-- ESTADO EN PRODUCCIÓN: **APLICADA 2026-10-02** (`20261002001639 portal_alta_spc_studbook`), DESPUÉS de
+-- migrations/cerrar_tablas_bak_publicas.sql (`20261002001531`). El primer intento (2026-10-01 23:5x UTC) falló
+-- con 0A000 por _bak_merge_duplicados_spc.fila (tipo fila de spcs) y no aplicó nada. md5 verificado en prod =
+-- sandbox (abajo). Probada en el sandbox (tests/local) con tests/probe_portal_alta_spc_studbook.mjs.
 -- md5(pg_get_functiondef) esperado, medido en el sandbox aplicando ESTE archivo (GOTCHA #99):
 --   ver tests/local/portal_alta_spc_md5_esperado.txt
 -- Paso obligatorio inmediatamente después del apply_migration:

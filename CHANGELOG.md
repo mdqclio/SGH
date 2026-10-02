@@ -1,6 +1,6 @@
 # Changelog
 
-## [2026-10-01] — Portal: traer del Stud Book un caballo que no está en el padrón e inscribirlo de corrido (rama `feat/portal-alta-spc-studbook`; migración **NO aplicada**)
+## [2026-10-02] — Portal: traer del Stud Book un caballo que no está en el padrón e inscribirlo de corrido (PR #29; migraciones **aplicadas** `20261002001531` / `20261002001639`; studbook-buscar **v2**)
 
 > Pedido de Yesi (audio 01/10 14:10): un entrenador registrado en el portal no pudo anotar porque el caballo no
 > estaba en el padrón, y ella lo tuvo que cargar a mano (28 altas entre el 30/09 y el 01/10). Camino liviano, sin
@@ -31,6 +31,15 @@
 - **Orden de deploy**: migración → Edge Function → HTML. `inscripciones.html` pide `spcs(revision_pendiente)`: sin la
   migración, la pantalla falla (lo mostró `probe_orden_inscriptos` contra prod).
 - Baseline del guard de `spcs`: 210 → **238**.
+- **Aplicación (02/10):** el primer intento de la migración falló en prod (`0A000: cannot alter table "spcs" because column
+  "_bak_merge_duplicados_spc.fila" uses its row type`) sin aplicar nada. Migración previa
+  `migrations/cerrar_tablas_bak_publicas.sql`: el respaldo de la unificación del 23/08 pasa a `jsonb`
+  (`rollback_merge_duplicados_spc.sql` usa `jsonb_populate_record`) y se cierran **tres tablas de respaldo que `anon` podía
+  leer y vaciar** (`_bak_merge_duplicados_spc`, `bak_r8_propietario`, `_gate41_backfill_tenencia`: RLS sin políticas +
+  REVOKE de anon/authenticated; los 3 ERROR de `get_advisors` desaparecieron). El sandbox ahora reproduce el 0A000 (B0):
+  probe 55/55, 23/23 mutantes. md5 en prod = sandbox. studbook-buscar v2: búsqueda de staff idéntica a la v1 en 7 términos;
+  e2e 13/13. Quedan como tareas aparte: `v_inscriptos_carrera` (security definer view) y las 26 funciones SECURITY DEFINER
+  ejecutables por anon.
 
 ## [2026-09-27] — ISSUE-097: autor y auditoría en resoluciones y sanciones; borrar sólo super_admin (PR #26; migraciones **aplicadas** `20260927223658` / `…223701` / `…223704`)
 
