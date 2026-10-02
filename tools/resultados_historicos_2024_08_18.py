@@ -8,10 +8,10 @@ no están en el padrón de ese momento.
 
 No escribe en la base. No abre .env. No guarda claves ni el id del club.
 
-No correr hasta que Julián pase la respuesta de Leo sobre la ventana
-horaria del robots.txt. La pausa de 60 segundos entre pedidos al sitio
-ya está en el código. Las planillas de Google no son el sitio: no llevan
-esa pausa.
+Los pedidos a hipodromodolores.com solo salen entre las 03:00 y las 12:00 UTC.
+Si se llama fuera de esa ventana, espera hasta las 03:00 UTC. Entre un pedido
+y el siguiente al sitio espera 60 segundos. Las planillas de Google no son
+el sitio: no llevan ni la ventana ni esa pausa.
 
 Uso, con las credenciales de lectura que pase Julián:
 
@@ -31,6 +31,7 @@ import re
 import sys
 import time
 import unicodedata
+from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
@@ -39,6 +40,8 @@ PAGINA = "https://hipodromodolores.com/resultados-18-agosto-2024/"
 FECHA = "2024-08-18"
 CLUB_NOMBRE = "Hipódromo de Dolores"
 PAUSA_SITIO_S = 60
+VENTANA_DESDE_H = 3
+VENTANA_HASTA_H = 12
 UMBRAL_PARECIDO = 0.85
 PAGINA_PADRON = 1000
 SALIDA = "resultados-2024-08-18.json"
@@ -54,13 +57,31 @@ def es_sitio(url):
     return host == "hipodromodolores.com" or host.endswith(".hipodromodolores.com")
 
 
+def esperar_ventana_utc():
+    """Si ahora no está en [03:00, 12:00) UTC, duerme hasta las 03:00 UTC."""
+    ahora = datetime.now(timezone.utc)
+    if VENTANA_DESDE_H <= ahora.hour < VENTANA_HASTA_H:
+        return
+    if ahora.hour < VENTANA_DESDE_H:
+        destino = ahora
+    else:
+        destino = ahora + timedelta(days=1)
+    destino = destino.replace(hour=VENTANA_DESDE_H, minute=0, second=0, microsecond=0)
+    falta = (destino - ahora).total_seconds()
+    print(f"fuera de ventana UTC, sigue a las {destino.strftime('%Y-%m-%d %H:%M')} UTC")
+    if falta > 0:
+        time.sleep(falta)
+
+
 def pedir(url):
-    """GET. Entre dos pedidos al sitio espera 60 segundos."""
+    """GET. Al sitio: solo entre 03:00 y 12:00 UTC, y 60 s entre pedidos."""
     global _ultimo_pedido_sitio
-    if es_sitio(url) and _ultimo_pedido_sitio is not None:
-        falta = PAUSA_SITIO_S - (time.monotonic() - _ultimo_pedido_sitio)
-        if falta > 0:
-            time.sleep(falta)
+    if es_sitio(url):
+        esperar_ventana_utc()
+        if _ultimo_pedido_sitio is not None:
+            falta = PAUSA_SITIO_S - (time.monotonic() - _ultimo_pedido_sitio)
+            if falta > 0:
+                time.sleep(falta)
     req = Request(url, headers={"User-Agent": "SGH-resultados-historicos/1.0"})
     try:
         with urlopen(req, timeout=60) as resp:
