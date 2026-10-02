@@ -1,8 +1,8 @@
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
 -- ISSUE-102 — el resultado de una reunión con la liquidación cerrada no se cambia (en la base)
 --
--- ESTADO EN PRODUCCIÓN: ver CHANGELOG / informe del día. Paso 2 de 4 (después del backfill de
--- ISSUE-101; antes de aplicar_resultado_v2.sql y desoficializar_carrera_v2.sql).
+-- ESTADO EN PRODUCCIÓN: **APLICADA 2026-10-02** (`20261002020829`), paso 2 de 4. md5 de la función y de las 6 políticas =
+-- sandbox; en vivo: UPDATE sin cambios de R8 C3 con la key secreta → P0092, fila intacta.
 -- md5(pg_get_functiondef) esperado, medido en el sandbox aplicando ESTE archivo: ver
 -- tests/local/resultados_cerrada_md5_esperado.txt (función + las 6 políticas).
 --

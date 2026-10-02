@@ -2,7 +2,8 @@
 -- desoficializar_carrera v2 — ISSUE-102: no se des-oficializa una carrera de reunión con liquidación
 -- cerrada (antes lo frenaba sólo la pantalla)
 --
--- ESTADO EN PRODUCCIÓN: ver CHANGELOG / informe del día. Paso 4 de 4.
+-- ESTADO EN PRODUCCIÓN: **APLICADA 2026-10-02** (`20261002020946`), paso 4 de 4. md5 en prod = fc77286021e6ec54102f7463fd66b9bf
+-- (= sandbox); en vivo: R8 C3 → P0092 antes que "pagos emitidos"; probe_guard_staff_rpcs --fn desoficializar_carrera 12/12.
 -- md5(pg_get_functiondef) esperado: tests/local/resultados_cerrada_md5_esperado.txt.
 -- Cambio contra v1 (md5 c3247d72656833cd534e4c601900f25a): después de los guards 0 y de club, si la
 -- reunión está cerrada → RAISE P0092 'desoficializar_carrera: …' (antes que el chequeo de pagos, para

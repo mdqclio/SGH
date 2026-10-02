@@ -2,8 +2,8 @@
 -- aplicar_resultado v2 — ISSUE-102 (reunión cerrada), ISSUE-089 (oficial → provisional) e ISSUE-101
 -- (oficializado_at / oficializado_por)
 --
--- ESTADO EN PRODUCCIÓN: ver CHANGELOG / informe del día. Paso 3 de 4 (después de
--- resultados_guard_cerrada.sql).
+-- ESTADO EN PRODUCCIÓN: **APLICADA 2026-10-02** (`20261002020924`), paso 3 de 4. md5 en prod = 6594e5070ce82d1c90e9fed60ddd0566
+-- (= sandbox); en vivo: R8 C3 con service_role → P0092; probe_guard_staff_rpcs --fn aplicar_resultado 12/12 sobre la 9999.
 -- md5(pg_get_functiondef) esperado: tests/local/resultados_cerrada_md5_esperado.txt (medido en el sandbox
 -- aplicando ESTE archivo). Paso obligatorio después del apply_migration: compararlo (GOTCHA #99).
 --

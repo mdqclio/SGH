@@ -2855,3 +2855,35 @@ líneas de liquidación), además de corregir `aplicar_resultado` para adelante.
 migración versionada y verificación por estado. (3) Probe del par oficializar/des-oficializar sobre la 9999.
 **Cómo se verifica hoy**:
 `select count(*) filter (where estado='oficial') oficiales, count(*) filter (where estado='oficial' and oficializado_at is null) sin_at from resultados;` → 23 / 23.
+
+### ISSUE-102: el resultado de una reunión con la liquidación cerrada se podía cambiar (sólo la pantalla frenaba des-oficializar)
+**Estado**: 🟢 **BASE APLICADA el 2026-10-02** (`20261002020753` backfill ISSUE-101 · `20261002020829` guard · `20261002020924`
+aplicar_resultado v2 · `20261002020946` desoficializar_carrera v2; md5 = sandbox; probe sandbox 30/30, 11/11 mutantes). Falta el
+**front** (paso 3: F10/Aplicar cortan en vista oficial y reunión cerrada, mensaje P0092, **baja de `resultados_legacy.html`**) y la
+**corrección con resolución** (paso 4: `rpc_corregir_resultado` + `resultado_correcciones` + pantalla; **espera a Fede**, igual que qué
+estados de `resoluciones` habilitan una corrección).
+**Qué se hizo**: trigger `trg_resultado_cerrado` (P0092) en `resultados`, `resultado_posiciones` y `resultado_apuestas` — pasan sólo
+migraciones (sesión directa) y la marca `sgh.correccion_resultado` (la pondrá la RPC del paso 4); **service_role sujeto** (decisión
+del 02/10). Auditoría nueva de posiciones y apuestas. `aplicar_resultado` v2: corte de reunión cerrada, no degrada oficial →
+provisional (ISSUE-089, P0089), escribe `oficializado_at`/`por` (ISSUE-101). `desoficializar_carrera` v2: corte de reunión cerrada.
+Políticas de escritura de `resultados` y `resultado_posiciones` con `fn_is_staff()` (patrón ISSUE-093).
+**Relevamiento y aplicación**: `docs/diagnosticos/2026-10-02_resultados-reunion-cerrada-fase1.md` y
+`docs/diagnosticos/2026-10-02_resultados-reunion-cerrada-aplicado.md` (reports). Probe: `tests/probe_resultados_cerrada.mjs`.
+
+### ISSUE-103: `performances` está vacía — `oficializar()` nunca la pudo escribir; la pantalla del programa dice "Sin historial" y el impreso usa otro dato
+**Estado**: abierto (registrado 2026-10-02).
+**Qué pasa**: la tabla `performances` tiene **0 filas** en toda la base. `oficializar()` (`resultados.html:1681-1682`) hace
+`delete()` + `insert(perfInserts)` sobre `performances` **sin mirar el error**, pero las políticas de INSERT/UPDATE/DELETE de
+`performances` exigen `fn_is_super_admin()`: con el usuario de staff que oficializa, fallan en silencio. Lo mismo en
+`desoficializar()` (`:1717`) y en `resultados_legacy.html` (`:656-657`).
+**De dónde sale hoy "4 ULT. PERF."**:
+- **Impreso** (`programa-oficial.html:477`, `programa-oficial-color.html:706`): `${i.performance || spc.ult_performances || ''}`,
+  es decir **`inscripciones.performance`** (texto que se carga a mano en `inscripciones.html`, campo "performance", en mayúsculas:
+  ej. `4P 0L 3L 1D`) y, si está vacío, `spcs.ult_performances` (campo de la ficha en `spcs.html`). Medido 2026-10-02:
+  `inscripciones.performance` cargado en **R8 67/67** y **R9 74/74** ratificados, **R6 0/81**; `spcs.ult_performances` **0/238**.
+- **Pantalla** (`programa.html:266-271`, `renderPerfs` `:302`): lee la tabla **`performances`** (últimas 5 por SPC) → como está vacía,
+  **siempre** muestra "Sin historial". La pantalla y el impreso no muestran lo mismo.
+**Decidir**: (a) que la pantalla use la misma fuente que el impreso (`inscripciones.performance` / `spcs.ult_performances`), o
+(b) arreglar la escritura de `performances` (que la haga una RPC o el motor con permisos, y con error visible) y que el impreso la
+use. Mientras tanto, sacar o arreglar el `delete/insert` silencioso de `oficializar()`.
+**Cómo se verifica**: `select count(*) from performances;` → hoy 0.

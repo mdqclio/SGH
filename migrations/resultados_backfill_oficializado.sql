@@ -1,8 +1,8 @@
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
 -- ISSUE-101 (1/2) — backfill de resultados.oficializado_at / oficializado_por desde la auditoría
 --
--- ESTADO EN PRODUCCIÓN: ver CHANGELOG / informe del día. Paso 1 de 4 (luego resultados_guard_cerrada.sql,
--- aplicar_resultado_v2.sql, desoficializar_carrera_v2.sql).
+-- ESTADO EN PRODUCCIÓN: **APLICADA 2026-10-02** (`20261002020753`), paso 1 de 4: 23/23 oficiales con fecha, 20 con usuario
+-- (R6 7, R8 8, R9 5; la 9999 sin usuario). Luego resultados_guard_cerrada.sql, aplicar_resultado_v2.sql, desoficializar_carrera_v2.sql.
 --
 -- Al 2026-10-02 los 23 resultados oficiales tenían las dos columnas en NULL: aplicar_resultado nunca las
 -- escribió. Cada uno tiene en `auditoria` el UPDATE/INSERT que lo pasó a 'oficial'; se toma la ÚLTIMA
