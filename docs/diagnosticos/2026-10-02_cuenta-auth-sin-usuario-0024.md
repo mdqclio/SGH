@@ -73,18 +73,18 @@ Salida, **con datos personales enmascarados** (`[…]`: email, nombre, apellido,
 
 ```
 $ git fetch -q origin
-$ git grep -n -i "loremorua" origin/main | wc -l
+$ git grep -n -i "<parte local del email>" origin/main | wc -l
 0
-$ git grep -n -i "loremorua" origin/reports | wc -l
+$ git grep -n -i "<parte local del email>" origin/reports | wc -l
 0
-$ for b in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin); do n=$(git grep -i -c "loremorua" $b 2>/dev/null | wc -l); [ "$n" != "0" ] && echo "$b $n"; done; echo "fin"
+$ for b in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin); do n=$(git grep -i -c "<parte local del email>" $b 2>/dev/null | wc -l); [ "$n" != "0" ] && echo "$b $n"; done; echo "fin"
 fin
-$ grep -rli "loremorua" tests/ | wc -l
+$ grep -rli "<parte local del email>" tests/ | wc -l
 0
 ```
 
-(El patrón de búsqueda es la parte local del email: sirve para buscar y no alcanza para identificar a nadie. Va completo a
-propósito, para que la búsqueda se pueda repetir.)
+(El patrón real fue la parte local del email; acá va reemplazado por `<parte local del email>` porque, junto con el dominio,
+alcanza para reconstruir la dirección. Para repetir la búsqueda, tomá el email de la consulta A.1.)
 
 ### A.3 Todas las cuentas de Auth sin fila en `usuarios`
 
