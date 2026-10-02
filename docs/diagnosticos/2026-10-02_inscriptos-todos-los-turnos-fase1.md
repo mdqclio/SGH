@@ -437,3 +437,17 @@ tests/probe_paridad_llamado_inscripciones.mjs:157:    extractFn(INSC, 'function 
 tests/probe_paridad_llamado_inscripciones.mjs:158:    extractFn(INSC, 'function renderCarreraChips() {'),
 tests/probe_paridad_llamado_inscripciones.mjs:159:    extractFn(INSC, 'function limpiarCarreraHeader() {'),
 ```
+
+## Anexo C — verificación de push
+
+Chequeo de datos personales sobre lo agregado respecto de `origin/reports` (el regex de CLAUDE.md): la primera pasada dio
+1 coincidencia (el signo arroba entre "main" y el SHA en el encabezado); se reescribió la línea y la segunda pasada salió vacía
+(`rc=1`). Push del informe:
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+bbaced9a825dc5fbc3e5c0cd54c4f6b97181c9fc	refs/heads/reports
+bbaced9a825dc5fbc3e5c0cd54c4f6b97181c9fc
+```
+
+El commit de este anexo es posterior; su SHA está en el `git log` de `origin/reports`.
