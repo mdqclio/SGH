@@ -13,7 +13,6 @@ probe_pagos_carrera_busqueda        drift de extracción: ReferenceError subRolD
 probe_pagos_vista_carrera           drift de extracción: ReferenceError subRolDeLinea (arreglado en PR #40)
 probe_pagos_vista_incentivo_pagados drift de extracción: ReferenceError subRolDeLinea (arreglado en PR #40)
 probe_portal_carta                  drift: no encuentra loadCarta en portal.html (hoy se llama loadLlamado)
-probe_reparto_100                   P2/P5 esperan las 69 sub-líneas de R9, que ya nacieron el 25/09 (arreglado en PR #39)
 probe_spcs_r9_tanda_1               evidencia histórica: asserta count(spcs) = 205 (hoy 239)
 probe_studbook_buscar_fn            fuente externa: el Stud Book responde HTTP 403 a las búsquedas desde este servidor
 probe_tapa_flyer                    drift de extracción: ReferenceError edadSPC
