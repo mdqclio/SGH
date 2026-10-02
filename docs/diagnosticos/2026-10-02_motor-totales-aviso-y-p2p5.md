@@ -177,3 +177,15 @@ ReferenceError: subRolDeLinea is not defined
 ```
 
 Otros de regresión con la rama del PR #38: `probe_fmtinput_onblur` 20 pass / 0 fail · `probe_recibo_una_hoja` 19/19.
+
+## Verificación de push
+
+Grep de datos personales sobre lo agregado: vacío. Push:
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+0d3435b066abf44a7ddea0f761e27e7ecad7ad0c	refs/heads/reports
+0d3435b066abf44a7ddea0f761e27e7ecad7ad0c
+```
+
+Este anexo va en un commit posterior; su SHA es el tip de `origin/reports`.
