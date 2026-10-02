@@ -10,6 +10,54 @@
 - Probe `tests/probe_ratificacion_aviso_revision.mjs` (jsdom + sb stub, datos sintéticos, sin red ni base): 9/9, 7/7 mutantes;
   contra `main` previo 3/9. Entra a `correr_todos.sh`.
 
+## [2026-10-02] — Inscripciones: la secretaría trae el SPC del Stud Book desde el modal "Inscribir SPC" — migración **aplicada**, Edge Function **v3**
+
+> Pedido de Yesi: un caballo que no está en el padrón se cargaba dos veces (SPCs y después Inscripciones). Fase 1 con las 4
+> propuestas aprobadas: `docs/diagnosticos/2026-10-02_inscripciones-alta-spc-studbook-fase1.md` (reports).
+
+- `migrations/rpc_spc_alta_studbook_staff.sql` (`20261002213637`): `rpc_spc_alta_studbook_portal` v2, misma firma. El modo lo decide
+  la RPC por `usuarios.rol`: staff sin ventana ni cupo, turno de su club, ficha `secretaria` **no** pendiente con `alta_por` = staff
+  y los motivos (edad > 12, homónimo) como información. md5 `aa39e36a…` = sandbox. Rollback a la v1 exacta.
+- `studbook-buscar` v3: `traer` también para staff.
+- `inscripciones.html`: "🔎 Buscar «…» en el Stud Book" en el buscador del modal; "Es este — traerlo" deja el SPC seleccionado,
+  "Ya está en el padrón — usarlo" no llama al alta; los motivos se muestran como aviso. La inscripción se guarda como siempre.
+- Probes: `probe_portal_alta_spc_studbook` (sandbox, 33/33 mutantes), `probe_inscripciones_alta_studbook` (UI, 19/19, 11/11),
+  nuevo `probe_inscripciones_alta_spc_prod` (e2e de staff en prod, 13/13). `probe_portal_alta_spc_prod` 14/14 (regresión del portal).
+  Las esperas de la Edge Function en los e2e pasan a 60 s: el Stud Book tardó ~17 s por consulta el 02/10.
+
+## [2026-10-02] — Probes de Pagos y del recibo: datos sintéticos (dejan de romperse con cada cobro)
+
+- `probe_pagos_carrera_busqueda`, `probe_pagos_vista_carrera`, `probe_pagos_vista_incentivo_pagados` y `probe_recibo_una_hoja`
+  daban rojo en `main` sin que el código cambiara: armaban sus casos con lo que era **impago en R9** (el 02/10 se cobró casi todo:
+  quedaron 5 tarjetas y 0 incentivos de jockey impagos) y el recibo de referencia ("el de más líneas") pasó a ser una
+  transferencia, que no lleva firma.
+- `tests/lib/sb_fixture.mjs` (nuevo): cliente de Supabase en memoria, sólo lectura (embeds de un nivel, eq/neq/is/in/not/or,
+  order/limit/single, count head), para correr el código real de las pantallas contra datos inventados.
+- `tests/lib/pagos_sintetico.mjs` (nuevo): reunión sintética con todos los casos fijos (caballo con los tres roles, misma persona
+  en dos roles, incentivos con importe/nota/NL/pagado, chips de efectivo/transferencia/regularizado, ruido de otro club y de una
+  reunión sandbox) + `reciboSintetico` (efectivo o transferencia).
+- Los probes de la vista corren **dos veces**: `[S]` sintético estricto y `[R9]` real con "si hay, está bien" en lo que necesita algo
+  impago. La búsqueda B11–B13 pasa a la sintética (la Parte A sigue sobre R9/R6 reales: carreras y estados no cambian con los cobros).
+  El recibo se mide sintético (efectivo, + variante transferencia nueva 2c'); `render_recibo_pdf.mjs --fixture=…` para Chromium.
+- Asserts 2c y 4 de la vista: sólo miran beneficiarios con botón Pagar (un beneficiario ya pagado muestra el chip y no tiene id).
+- Mutantes: 8/8, 7/7, 17/17, 8/8 — los de la vista mueren todos en la parte sintética.
+
+## [2026-10-02] — Inscripciones: listado continuo de todos los turnos (vista de arranque)
+
+> Pedido de Fede (29/09): ver los anotados de toda la reunión de corrido, turno 1, turno 2…, con scroll, sin abrir cada turno.
+> Fase 1: `docs/diagnosticos/2026-10-02_inscriptos-todos-los-turnos-fase1.md` (reports).
+
+- `inscripciones.html` arranca en **"— Todos los turnos —"**: una sección por turno, en orden, con el **mismo encabezado** que la vista
+  por turno (número, nombre, chips, condición; queda fijo arriba mientras se scrollea ese turno), el conteo, el **estado del turno**, **"+ Inscribir"**
+  y **"Ver sólo este turno"**. Dentro de cada turno, la misma tabla (alfabético castellano).
+- **Jockey repetido contado por turno** (en el listado, un jockey en el turno 1 y en el 3 no es repetido); el aviso al guardar, también.
+- **"+ Inscribir"**, editar y borrar desde el listado **vuelven a la sección del turno**. Editar sigue guardando el turno de la fila (#36).
+- La **vista por turno** sigue: elegir el turno en el selector, "Ver sólo este turno", o el deep link `?carrera_id=`.
+- Sólo staff: el portal no cambia.
+- Probe nuevo `tests/probe_inscripciones_listado.mjs` (13/13, 13/13 mutantes; sumado a `correr_todos.sh`). Adaptados por el refactor
+  (`htmlEncabezadoCarrera`, `filasInscripciones`/`tablaInscripciones`, `avisarJockeyRepetido(jockeyId, carreraId)`, `recargarInscripciones`):
+  `probe_aviso_jockey_repetido`, `probe_bolsa_efectiva`, `probe_paridad_llamado_inscripciones`.
+
 ## [2026-10-02] — SEGURIDAD: `v_inscriptos_carrera` cerrada para anon (ISSUE-098) — migración **aplicada**
 
 - `migrations/cerrar_v_inscriptos_carrera.sql` (`20261002193945`): `security_invoker=true` + `REVOKE SELECT … FROM anon`;

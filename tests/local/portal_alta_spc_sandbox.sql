@@ -568,6 +568,23 @@ INSERT INTO carreras (id, reunion_id, numero_turno, nombre, categoria_id, distan
   ('b1000000-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-000000000001', 2, 'T2 cerrada', gen_random_uuid(), 1000, now() - interval '3 days', now() - interval '1 hour', 'abierta'),
   ('b1000000-0000-0000-0000-000000000003', 'b0000000-0000-0000-0000-000000000001', 3, 'T3 anulada', gen_random_uuid(), 1000, now() - interval '1 day', now() + interval '1 day', 'anulada');
 
+-- Staff (02/10, alta desde el modal "Inscribir SPC" — rpc_spc_alta_studbook_staff.sql): otro club con su
+-- reunión abierta, una reunión cancelada de Dolores, staff de otro club, super_admin de otro club, operador
+-- activo e inactivo de Dolores.
+INSERT INTO clubs (id, nombre, sigla) VALUES
+  ('0c000000-0000-0000-0000-000000000002', 'Otro club (sandbox)', 'OTR');
+INSERT INTO usuarios (id, club_id, email, password_hash, nombre_completo, rol, entidad_tipo, entidad_id, activo, auth_user_id) VALUES
+  ('e0000000-0000-0000-0000-000000000007', '0c000000-0000-0000-0000-000000000002', 'staff2@probe',  '', 'Staff Otro',  'secretario_carreras', NULL, NULL, true,  'a0000000-0000-0000-0000-000000000007'),
+  ('e0000000-0000-0000-0000-000000000008', '0c000000-0000-0000-0000-000000000002', 'admin@probe',   '', 'Super Admin', 'super_admin',         NULL, NULL, true,  'a0000000-0000-0000-0000-000000000008'),
+  ('e0000000-0000-0000-0000-000000000009', '0649e9c5-9e87-4aad-842f-101458e6b33c', 'oper@probe',    '', 'Operador',    'operador',            NULL, NULL, true,  'a0000000-0000-0000-0000-000000000009'),
+  ('e0000000-0000-0000-0000-000000000010', '0649e9c5-9e87-4aad-842f-101458e6b33c', 'operx@probe',   '', 'Operador Baja','operador',           NULL, NULL, false, 'a0000000-0000-0000-0000-000000000010');
+INSERT INTO reuniones (id, club_id, hipodromo_id, numero, fecha, estado) VALUES
+  ('b0000000-0000-0000-0000-000000000002', '0649e9c5-9e87-4aad-842f-101458e6b33c', '0649e9c5-9e87-4aad-842f-101458e6b33c', 9998, current_date + 10, 'cancelada'),
+  ('b0000000-0000-0000-0000-000000000003', '0c000000-0000-0000-0000-000000000002', '0c000000-0000-0000-0000-000000000002', 9997, current_date + 10, 'publicada');
+INSERT INTO carreras (id, reunion_id, numero_turno, nombre, categoria_id, distancia_metros, apertura_inscripcion, cierre_inscripcion, estado) VALUES
+  ('b1000000-0000-0000-0000-000000000005', 'b0000000-0000-0000-0000-000000000002', 1, 'T5 reunión cancelada', gen_random_uuid(), 1000, now() - interval '1 day', now() + interval '1 day', 'abierta'),
+  ('b1000000-0000-0000-0000-000000000006', 'b0000000-0000-0000-0000-000000000003', 1, 'T6 otro club', gen_random_uuid(), 1000, now() - interval '1 day', now() + interval '1 day', 'abierta');
+
 INSERT INTO spcs (id, nombre, fecha_nacimiento, sexo, padrillo_nombre, madre_nombre, studbook_id, created_at) VALUES
   -- Wave Rimout ×2 como en prod (f277af1c más vieja, 5ebc5e48 más nueva), sin studbook_id
   ('f277af1c-a4ac-4a98-87d7-b41871718c8d', 'Wave Rimout',  '2017-08-08', 'macho',  'Remote (GB)', 'Holiday Wave', NULL,     '2026-05-07'),
