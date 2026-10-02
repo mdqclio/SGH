@@ -197,7 +197,7 @@ las que quedaron `mal_inscrito` o `forfait`.
 
 ## Verificación de push
 
-El grep de datos personales sobre lo agregado dio una coincidencia en el primer intento: un `@` usado como separador entre
+El grep de datos personales sobre lo agregado dio una coincidencia en el primer intento: el carácter arroba usado como separador entre
 la rama y el SHA en el encabezado. **No se pusheó**: se reescribió la línea y el grep dio vacío.
 
 ```
