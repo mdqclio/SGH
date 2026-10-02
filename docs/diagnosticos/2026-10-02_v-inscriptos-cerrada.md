@@ -1,7 +1,7 @@
 # `v_inscriptos_carrera` cerrada para anon (ISSUE-098) + qué había en `info_adicional`
 
 - **Fecha**: 2026-10-02, 16:35 a 16:50 ART
-- **Rama**: `fix/v-inscriptos-security-invoker` @ `fbe9d08d25550231ceebef2b4524fa535bec6e58`, PR #47 (desde `main` =
+- **Rama**: `fix/v-inscriptos-security-invoker`, commit `fbe9d08d25550231ceebef2b4524fa535bec6e58`, PR #47 (desde `main` =
   `c28d8bee35c4304109ac7e6b763129f1b0a2c574`)
 - **Migración aplicada en prod**: `20261002193945 cerrar_v_inscriptos_carrera`
 - **Guards** (antes del apply): pwd `/home/clio/dev/SGH`; ref `unlhcuanfrtpatoipwve` (en `supabase.js`);
