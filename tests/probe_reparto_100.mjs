@@ -192,6 +192,35 @@ async function suiteS(motor, ok) {
     ok('S9) caballo sin entrenador: ni 10 % ni subs (lo cubre el GATE ENTRENADORES de oficializar)',
       !ls.some(d => d.concepto_tipo === 'actuacion') && !ls.some(d => rolDe(d) === 'Entrenador'), JSON.stringify(ls.map(rolDe)));
   }
+  // S10/S11: recálculo de una reunión liquidada ANTES de las sub-líneas (lo que fue R9 el 25/09, antes P2/P5 contra
+  // prod: R9 ya está recalculada y esas 69 líneas ya existen, así que contra prod no podían volver a nacer).
+  // Estado de partida en memoria: corrida completa, se sacan las sub-líneas (como las dejaba el motor viejo) y el
+  // entrenador de dos caballos ya cobró (recibo). Al recalcular nacen sólo las 3 sub-líneas por caballo premiado.
+  {
+    const esc = escenario({ bolsa: 1083333.33, poses: [1, 2, 3, 4, 5].map(pos => ({ pos })) });
+    const { mem } = await correr(motor, esc);
+    mem.tablas.liquidacion_detalle = mem.tablas.liquidacion_detalle.filter(d => d.concepto_tipo !== 'actuacion');
+    for (const i of [0, 2]) {
+      const e = lineasDe(mem, esc.insc[i].id).find(d => rolDe(d) === 'Entrenador');
+      Object.assign(e, { estado_linea: 'pagado', recibo_id: `recibo-entr-${i}` });
+    }
+    const K = motor.lineKey, prevKeys = new Set(mem.tablas.liquidacion_detalle.map(K));
+    await correr(motor, esc, { mem });
+    const nuevas = mem.tablas.liquidacion_detalle.filter(d => !prevKeys.has(K(d)));
+    const premiados = esc.insc.length;
+    ok(`S10) reunión liquidada sin sub-líneas: al recalcular nacen exactamente ${premiados * 3} líneas, todas peón/capataz/sereno (3 por caballo premiado)`,
+      nuevas.length === premiados * 3 && nuevas.every(d => d.concepto_tipo === 'actuacion')
+        && esc.insc.every(x => nuevas.filter(d => d.inscripcion_id === x.id).map(d => d.concepto).sort().join() === 'Capataz,Peón,Sereno'),
+      `nuevas=${nuevas.length} tipos=${[...new Set(nuevas.map(d => d.concepto_tipo + '/' + d.concepto))]}`);
+    let sumaEsperada = 0;
+    esc.insc.forEach((x, i) => {
+      const P0 = premioOraculo(1083333.33, DIST_R9, i + 1);
+      sumaEsperada += c2(montoPg(P0 * .18)) - c2(lineasDe(mem, x.id).find(d => rolDe(d) === 'Entrenador').monto_bruto);
+    });
+    const sumaNuevas = nuevas.reduce((a, d) => a + c2(d.monto_bruto), 0);
+    ok('S11) la suma de las nuevas = Σ (18 % − 10 % del entrenador) por caballo, al centavo (con entrenadores ya cobrados)',
+      sumaNuevas === sumaEsperada, `nuevas ${sumaNuevas / 100} · esperado ${sumaEsperada / 100}`);
+  }
 }
 
 // ═══ U — pantallas ═══════════════════════════════════════════════════════════════════════════
@@ -246,7 +275,6 @@ async function suiteP(motor, ok) {
   const r = await motor.generarLiquidacionesReunion({ sb, clubId: CLUB, reunionId: R9 });
   const inserts = captured.filter(c => c.table === 'liquidacion_detalle' && c.op === 'insert').flatMap(c => c.payload).map(d => ({ ...d, monto_bruto: montoPg(d.monto_bruto) }));
   const K = motor.lineKey, prevBy = new Map(prev.map(d => [K(d), d]));
-  const nuevas = inserts.filter(d => !prevBy.has(K(d)));
   const distintas = inserts.filter(d => { const p = prevBy.get(K(d)); return p && (c2(p.monto_bruto) !== c2(d.monto_bruto) || p.estado_linea !== d.estado_linea || String(p.fecha_liberacion ?? '') !== String(d.fecha_liberacion ?? '')); });
   const noComprometidas = prev.filter(d => d.recibo_id == null && d.estado_linea !== 'pagado');
   const insKeys = new Set(inserts.map(K));
@@ -255,9 +283,8 @@ async function suiteP(motor, ok) {
   ok('P1) R9: el motor nuevo no da error y no toca líneas comprometidas (el DELETE filtra recibo NULL y ≠ pagado)',
     !r.error && captured.filter(c => c.table === 'liquidacion_detalle' && c.op === 'delete').every(c => JSON.stringify(c.filters).includes('"recibo_id",null') && JSON.stringify(c.filters).includes('"estado_linea","pagado"')),
     JSON.stringify(r));
-  ok(`P2) R9: nacen exactamente ${premiados.size * 3} líneas, todas peón/capataz/sereno (3 por caballo premiado)`,
-    nuevas.length === premiados.size * 3 && nuevas.every(d => d.concepto_tipo === 'actuacion') && premiados.size > 0,
-    `nuevas=${nuevas.length} premiados=${premiados.size} tipos=${[...new Set(nuevas.map(d => d.concepto_tipo + '/' + d.concepto))]}`);
+  // P2/P5 (nacen las 69 sub-líneas de R9 y su suma) pasaron a S10/S11, sintéticos: R9 se recalculó el 25/09 y
+  // contra prod ya no nace nada. P1/P3/P4/P6/P7 siguen contra prod.
   ok('P3) R9: ninguna línea existente cambia de monto, estado o fecha (retenidas incluidas) y ninguna desaparece',
     !distintas.length && !desaparecen.length, `distintas=${distintas.length} desaparecen=${desaparecen.length}`);
   // 100 % / 18 % por caballo con el oráculo de la bolsa.
@@ -266,7 +293,7 @@ async function suiteP(motor, ok) {
   const { data: res } = await real.from('resultados').select('id,carrera_id').in('carrera_id', cars.map(c => c.id)).eq('estado', 'oficial');
   const { data: pos } = await real.from('resultado_posiciones').select('inscripcion_id,posicion,empate').in('resultado_id', res.map(x => x.id)).in('inscripcion_id', [...premiados]);
   const finales = [...prev.filter(d => d.recibo_id != null || d.estado_linea === 'pagado'), ...inserts];
-  let malos = [], sumaNuevas = 0, sumaEsperada = 0;
+  let malos = [];
   for (const iid of premiados) {
     const p = pos.find(x => x.inscripcion_id === iid), car = cars.find(c => c.id === ins.find(x => x.id === iid).carrera_id);
     if (p.empate) { malos.push({ iid, motivo: 'empate: el oráculo no lo cubre' }); continue; }
@@ -275,12 +302,8 @@ async function suiteP(motor, ok) {
     const suma = ls.reduce((a, d) => a + c2(d.monto_bruto), 0);
     const e18 = ls.filter(d => d.concepto_tipo === 'actuacion' || rolDe(d) === 'Entrenador').reduce((a, d) => a + c2(d.monto_bruto), 0);
     if (suma !== c2(montoPg(P0)) || e18 !== c2(montoPg(P0 * .18))) malos.push({ iid, pos: p.posicion, P: montoPg(P0), suma: suma / 100, e18: e18 / 100 });
-    sumaEsperada += c2(montoPg(P0 * .18)) - c2(ls.find(d => rolDe(d) === 'Entrenador').monto_bruto);
   }
-  sumaNuevas = nuevas.reduce((a, d) => a + c2(d.monto_bruto), 0);
   ok(`P4) R9: los ${premiados.size} premiados reparten el 100 % exacto y el entrenador + personal = 18 % exacto`, !malos.length, JSON.stringify(malos));
-  ok('P5) R9: la suma de las nuevas = Σ (18 % − 10 % del entrenador) por caballo, al centavo', sumaNuevas === sumaEsperada,
-    `nuevas ${sumaNuevas / 100} · esperado ${sumaEsperada / 100}`);
 
   // R6 / R8 (saldadas): con la columna, el motor corta sin escribir nada. Si la migración todavía no
   // está aplicada, la marca se simula EN MEMORIA y se avisa.
