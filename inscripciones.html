@@ -120,6 +120,14 @@
     .spc-option { padding: 9px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
     .spc-option:last-child { border-bottom: none; }
     .spc-option:hover { background: rgba(201,168,76,0.1); color: var(--accent); }
+    .spc-option.sb-buscar { color: var(--accent); justify-content: flex-start; }
+    /* Candidatos del Stud Book (alta desde el modal, 02/10) */
+    .sb-cand { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+    .sb-cand-datos { flex: 1; min-width: 180px; font-size: 13px; }
+    .sb-cand-nombre { color: var(--accent); font-weight: 600; }
+    .sb-cand-meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .sb-msg { font-size: 12px; color: var(--muted); padding: 8px 0; line-height: 1.5; }
+    .sb-err { color: var(--danger); }
     .checkbox-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; }
     .checkbox-row input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); }
     .checkbox-row label { font-size: 13px; color: var(--text); cursor: pointer; }
@@ -271,6 +279,8 @@
             <input type="hidden" id="f-spc-id">
             <div class="spc-dropdown" id="spc-dropdown"></div>
           </div>
+          <!-- Candidatos del Stud Book: caballo que no está en el padrón (studbook-buscar). Se limpia al tipear. -->
+          <div id="spc-sb"></div>
         </div>
         <div class="form-group full" id="cert-info-row" style="display:none">
           <div style="background:rgba(201,168,76,0.07);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--muted);" id="cert-info-text"></div>
@@ -848,6 +858,7 @@ function calcSpcEdad(fecha) {
 
 async function searchSpc() {
   clearTimeout(spcSearchTimer);
+  limpiarStudBookStaff();
   const q = document.getElementById('spc-search-input').value.trim();
   const dd = document.getElementById('spc-dropdown');
   if (q.length < 2) {
@@ -864,7 +875,8 @@ async function searchSpc() {
       .ilike('nombre', `%${q}%`)
       .order('nombre')
       .limit(10);
-    if (error || !data?.length) { dd.innerHTML='<div class="spc-option" style="color:var(--muted);cursor:default;">Sin resultados</div>'; return; }
+    if (error) console.error('[inscripciones.searchSpc]', error);
+    if (error || !data?.length) { dd.innerHTML='<div class="spc-option" style="color:var(--muted);cursor:default;">Sin resultados en el padrón</div>' + opcionStudBook(q); return; }
     spcSearchResults = data;
     // Agregar al cache local para getSpc()
     data.forEach(s => { if (!spcs.find(x=>x.id===s.id)) spcs.push(s); });
@@ -874,10 +886,142 @@ async function searchSpc() {
         <span>${partes.join(' — ')}</span>
         <span style="font-size:11px;color:${s.certificado_correr?'var(--success)':'var(--danger)'}">${s.certificado_correr?'✅':'❌'}</span>
       </div>`;
-    }).join('');
+    }).join('') + opcionStudBook(q);
     dd.style.display = 'block';
   }, 300);
 }
+
+// ═══ ALTA DESDE EL STUD BOOK (staff) — INICIO ═══════════════════════════════════════════════════
+// Pedido de Yesi (02/10): un caballo que no está en el padrón se cargaba dos veces (primero en
+// SPCs, después acá). Ahora se busca en el Stud Book desde el modal y se trae en el mismo paso.
+// Misma Edge Function y misma RPC que el portal (studbook-buscar 'traer' → rpc_spc_alta_studbook_portal
+// v2): el navegador manda SÓLO qué caballo eligió; los datos los vuelve a pedir la función al Stud
+// Book. Para la secretaría la RPC no exige ventana ni cupo y la ficha nace 'secretaria', sin
+// revisión pendiente; D1/D2 (ya está en el padrón) devuelven la existente, D3 y edad < 2 rechazan.
+// Acá NO se inscribe: el caballo queda seleccionado y la inscripción se guarda como siempre.
+// Fase 1: docs/diagnosticos/2026-10-02_inscripciones-alta-spc-studbook-fase1.md (reports).
+let sbCandidatosStaff = [];
+
+function opcionStudBook(q) {
+  if ((q || '').trim().length < 3) return '';
+  return `<div class="spc-option sb-buscar" onclick="buscarEnStudBookStaff()">🔎 Buscar «${escapeHtml(q.trim())}» en el Stud Book</div>`;
+}
+
+function limpiarStudBookStaff() {
+  sbCandidatosStaff = [];
+  const el = document.getElementById('spc-sb');
+  if (el) el.innerHTML = '';
+}
+
+// Turno del modal: al editar, el de la fila; en el alta, el elegido (igual que saveRecord).
+function carreraDelModal() {
+  return document.getElementById('f-id').value ? document.getElementById('f-carrera-id').value : currentCarreraId;
+}
+
+// supabase-js no parsea el body cuando la función responde != 2xx (lo deja en error.context).
+async function parseFnErrorStaff(error) {
+  const status = error?.context?.status ?? null;
+  let body = null;
+  try { body = await error?.context?.json?.(); } catch (_) { /* body no-JSON */ }
+  return { status, code: body?.error || null, detalle: body?.detalle || error?.message || 'Error desconocido.' };
+}
+
+function mensajeStudBookStaff(e) {
+  if (e.code === 'studbook_no_disponible') return 'El Stud Book no responde ahora. Cargalo a mano en Stud Book (SPCs).';
+  if (['rechazado', 'no_autorizado', 'no_coincide', 'term_invalido', 'body_invalido', 'solo_staff'].includes(e.code)) return e.detalle;
+  return `No se pudo consultar el Stud Book (${e.status ?? '?'}). Cargalo a mano en Stud Book (SPCs).`;
+}
+
+async function buscarEnStudBookStaff() {
+  const term = document.getElementById('spc-search-input').value.trim();
+  document.getElementById('spc-dropdown').style.display = 'none';
+  const out = document.getElementById('spc-sb');
+  if (term.length < 3) { out.innerHTML = '<div class="sb-msg sb-err">Escribí al menos 3 letras del nombre.</div>'; return; }
+  out.innerHTML = '<div class="sb-msg">Consultando el Stud Book…</div>';
+  const { data, error } = await sb.functions.invoke('studbook-buscar', { body: { term } });
+  if (error) {
+    const e = await parseFnErrorStaff(error);
+    console.error('[inscripciones.buscarEnStudBook]', { term, status: e.status, code: e.code, detalle: e.detalle });
+    out.innerHTML = `<div class="sb-msg sb-err">❌ ${escapeHtml(mensajeStudBookStaff(e))}</div>`;
+    return;
+  }
+  sbCandidatosStaff = [...(data?.exactos || []), ...(data?.parciales || [])];
+  // ¿Cuáles ya están en el padrón (por nº de Stud Book)? Esos se usan directo, sin traer.
+  const ids = sbCandidatosStaff.map(c => String(c.sb_id));
+  if (ids.length) {
+    const { data: ya, error: e2 } = await sb.from('spcs')
+      .select('id, nombre, studbook_id, estado, entrenador_id, caballeriza_id, certificado_correr')
+      .in('studbook_id', ids);
+    if (e2) {
+      console.error('[inscripciones.padronPorStudBook]', e2);
+      out.innerHTML = `<div class="sb-msg sb-err">❌ ${escapeHtml(e2.message)}</div>`;
+      return;
+    }
+    const porSb = new Map((ya || []).map(s => [String(s.studbook_id), s]));
+    sbCandidatosStaff.forEach(c => { c._padron = porSb.get(String(c.sb_id)) || null; });
+  }
+  renderCandidatosStudBookStaff(data);
+}
+
+function renderCandidatosStudBookStaff(data, aviso = '') {
+  const out = document.getElementById('spc-sb');
+  const nEx = (data?.exactos || []).length;
+  const avisoHtml = aviso ? `<div class="sb-msg sb-err">❌ ${escapeHtml(aviso)}</div>` : '';
+  if (!sbCandidatosStaff.length) {
+    out.innerHTML = avisoHtml + '<div class="sb-msg">Tampoco está en el Stud Book con ese nombre. Probá con menos letras, o cargalo a mano en Stud Book (SPCs).</div>';
+    return;
+  }
+  out.innerHTML = avisoHtml
+    + `<div class="sb-msg" style="color:var(--accent);text-transform:uppercase;letter-spacing:.04em;">Stud Book — ${nEx > 1 ? 'hay más de uno con ese nombre: elegí por fecha, sexo y padres' : 'elegí el caballo'}</div>`
+    + sbCandidatosStaff.map((c, i) => {
+      const meta = [c.sexo || c.sexo_sb || '¿sexo?', c.fecha_nacimiento ? `nac. ${c.fecha_nacimiento.split('-').reverse().join('/')}` : 'sin fecha',
+        c.color, `${c.padrillo_nombre || '?'} × ${c.madre_nombre || '?'}`, `SB ${c.sb_id}`].filter(Boolean).map(escapeHtml).join(' · ');
+      const boton = c._padron
+        ? `<button type="button" class="btn-sm btn-edit" onclick="usarDelPadronStaff(${i})">Ya está en el padrón — usarlo</button>`
+        : `<button type="button" class="btn-sm btn-edit" onclick="traerYUsarStaff(${i})">Es este — traerlo</button>`;
+      return `<div class="sb-cand"><div class="sb-cand-datos"><div class="sb-cand-nombre">${escapeHtml(c.nombre)}</div><div class="sb-cand-meta">${meta}</div></div>${boton}</div>`;
+    }).join('')
+    + '<div class="sb-msg">Al traerlo queda cargado en Stud Book (SPCs) con los datos del Stud Book. Después completá caballeriza y jockey y guardá la inscripción.</div>';
+}
+
+function usarDelPadronStaff(idx) {
+  const s = sbCandidatosStaff[idx]?._padron;
+  if (!s) return;
+  if (s.estado !== 'activo') { toast(`${s.nombre} está en el padrón pero no activo (${s.estado}): revisalo en Stud Book (SPCs).`, 'error'); return; }
+  if (!spcs.find(x => x.id === s.id)) spcs.push(s);
+  limpiarStudBookStaff();
+  selectSpc(s.id, s.nombre, s.entrenador_id || '', '', s.caballeriza_id || '', !!s.certificado_correr);
+}
+
+async function traerYUsarStaff(idx) {
+  const c = sbCandidatosStaff[idx];
+  if (!c) return;
+  const carreraId = carreraDelModal();
+  if (!carreraId) { toast('Seleccionar un turno', 'error'); return; }
+  const out = document.getElementById('spc-sb');
+  out.innerHTML = `<div class="sb-msg">Trayendo ${escapeHtml(c.nombre)} del Stud Book…</div>`;
+  const { data, error } = await sb.functions.invoke('studbook-buscar', {
+    body: { accion: 'traer', sb_id: String(c.sb_id), nombre: c.nombre, carrera_id: carreraId },
+  });
+  if (error) {
+    const e = await parseFnErrorStaff(error);
+    console.error('[inscripciones.traerYUsar]', { sb_id: c.sb_id, status: e.status, code: e.code, detalle: e.detalle });
+    renderCandidatosStudBookStaff({ exactos: sbCandidatosStaff }, mensajeStudBookStaff(e));
+    return;
+  }
+  const nombre = data.nombre || c.nombre;
+  if (!spcs.find(x => x.id === data.spc_id)) spcs.push({ id: data.spc_id, nombre, estado: 'activo' });
+  limpiarStudBookStaff();
+  selectSpc(data.spc_id, nombre, '', '', '', false);
+  const base = data.ya_existia
+    ? `${nombre} ya estaba en el padrón: quedó seleccionado.`
+    : `${nombre} quedó cargado desde el Stud Book. Completá caballeriza y jockey y guardá.`;
+  // Aviso DESPUÉS de crear (decisión del 02/10): homónimo, edad > 12 o alertas del Stud Book.
+  const motivos = data.revision_motivos || [];
+  if (motivos.length) toast(`${base} ⚠ Revisá la ficha en Stud Book (SPCs): ${motivos.join(' · ')}`, 'warning');
+  else toast(base);
+}
+// ═══ ALTA DESDE EL STUD BOOK (staff) — FIN ══════════════════════════════════════════════════════
 
 function selectSpcIdx(idx) {
   const s = spcSearchResults[idx];
@@ -913,6 +1057,7 @@ document.getElementById('f-estado').addEventListener('change', () => {
 });
 
 function openModal(rec=null) {
+  limpiarStudBookStaff();
   document.getElementById('modal-title').textContent = rec ? 'Editar Inscripción' : 'Inscribir SPC';
   document.getElementById('f-id').value = rec?.id||'';
   document.getElementById('f-carrera-id').value = rec?.carrera_id||'';

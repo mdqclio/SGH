@@ -438,7 +438,9 @@ const MUT = [
   // mutantes de la rama de la secretaría (v2)
   ['MS1 sin el guard de club del staff', `    IF v_usuario.rol <> 'super_admin' AND v_carrera.reunion_club IS DISTINCT FROM v_usuario.club_id THEN`, `    IF false THEN`],
   ['MS2 staff con ventana (como el portal)', `  IF v_staff THEN\n    -- Staff: sin ventana`, `  IF false THEN\n    -- Staff: sin ventana`],
-  ['MS3 cupo también para el staff', `  IF NOT v_staff THEN\n    SELECT count(*) INTO v_altas`, `  IF true THEN\n    SELECT count(*) INTO v_altas`],
+  // (cupo con IF true y el filtro alta_origen='portal' intacto es EQUIVALENTE: las altas del staff nacen
+  // 'secretaria' y nunca cuentan. El que rompe algo es el cupo aplicado al staff contando todas sus altas.)
+  ['MS3 cupo también para el staff (contando todas sus altas)', `  IF NOT v_staff THEN\n    SELECT count(*) INTO v_altas\n      FROM spcs s\n     WHERE s.alta_por = v_usuario.id AND s.alta_origen = 'portal'`, `  IF true THEN\n    SELECT count(*) INTO v_altas\n      FROM spcs s\n     WHERE s.alta_por = v_usuario.id`],
   ['MS4 staff nace pendiente', `v_usuario.id, NOT v_staff, CASE`, `v_usuario.id, true, CASE`],
   ['MS5 staff nace como portal', `CASE WHEN v_staff THEN 'secretaria' ELSE 'portal' END, v_usuario.id`, `'portal', v_usuario.id`],
   ['MS6 staff acepta turno anulado / reunión cancelada', `    IF v_carrera.estado IS NOT DISTINCT FROM 'anulada' OR v_carrera.reunion_estado IN ('cancelada', 'suspendida') THEN`, `    IF false THEN`],
