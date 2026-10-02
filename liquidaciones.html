@@ -215,6 +215,7 @@
     .toast { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 320px; animation: slideIn 0.3s ease; }
     .toast-success { background: #1a4a30; border: 1px solid var(--success); color: var(--text); }
     .toast-error { background: #4a1a1a; border: 1px solid var(--danger); color: var(--text); }
+    .toast-warning { background: #4a3a10; border: 1px solid #f59e0b; color: var(--text); }
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .form-group.full { grid-column: 1; } }
     #auth-overlay { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center; }
@@ -2464,6 +2465,7 @@ async function generarLiquidaciones() {
   if (r.cerrada) { toast('La liquidación de esta reunión está cerrada (saldada): no se recalculó nada.', 'error', 9000); liqPintarCierre(rid); return; }
   if (r.error) { toast(r.error, 'error'); return; }
   toast(`Reunión recalculada — ${r.headers} liquidación(es)` + (r.preserved ? ` · ${r.preserved} línea(s) pagada(s) preservada(s)` : ''));
+  if (r.aviso) toast(r.aviso, 'warning', 9000);
   loadLiquidaciones();
 }
 

@@ -1685,7 +1685,7 @@ async function oficializar(carreraId) {
   const r = await generarLiquidacionesReunion({ sb, clubId: CLUB_ID, reunionId: rid });
   if (r.cerrada) toast('✅ Resultado oficial. La liquidación de esta reunión está CERRADA (saldada): no se generó ni se tocó ninguna línea.', 'warning', 9000);
   else if (r.error) toast(`Resultado oficial, pero la liquidación no se generó (${r.error}). Usá "Recalcular reunión".`, 'error');
-  else toast('✅ Resultado oficial · liquidación generada');
+  else { toast('✅ Resultado oficial · liquidación generada'); if (r.aviso) toast(r.aviso, 'warning'); }
   abrirResultado(carreraId);
 }
 
@@ -1719,7 +1719,7 @@ async function desoficializar(resId, carreraId) {
   const rid = (carreras.find(c=>c.id===carreraId)?.reunion_id) || document.getElementById('sel-reunion').value;
   const r = await generarLiquidacionesReunion({ sb, clubId: CLUB_ID, reunionId: rid });
   if (r.error) toast(`Des-oficializado, pero el recálculo falló (${r.error}). Usá "Recalcular reunión".`, 'error');
-  else toast('↩️ Resultado des-oficializado');
+  else { toast('↩️ Resultado des-oficializado'); if (r.aviso) toast(r.aviso, 'warning'); }
   abrirResultado(carreraId);
 }
 
@@ -2153,7 +2153,7 @@ async function saveMontas() {
     const r = await generarLiquidacionesReunion({ sb, clubId: CLUB_ID, reunionId: rid });
     if (r.cerrada) toast('Monta guardada. La liquidación de esta reunión está CERRADA (saldada): no se recalculó.', 'warning', 9000);
     else if (r.error) toast(`Monta guardada, pero la liquidación no se recalculó (${r.error}). Usá "Recalcular reunión" en Liquidaciones.`, 'error');
-    else toast('Liquidación de la reunión recalculada con la monta nueva', 'success');
+    else { toast('Liquidación de la reunión recalculada con la monta nueva', 'success'); if (r.aviso) toast(r.aviso, 'warning'); }
   }
   if (errors.length) return;   // el modal queda abierto con las filas rechazadas en su valor real
   // Aviso, no bloqueo: se guardó igual. Si un jockey quedó en 2+ caballos que

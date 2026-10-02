@@ -71,17 +71,21 @@
   }
   // ═══ RESIDUO — FIN ═══
 
+  // Devuelve el error (o null). Los totales del header son sólo lo que se muestra: si no se pudieron
+  // recalcular, las líneas están bien y el motor avisa en vez de cortar (ISSUE-104).
   async function recomputeHeaderTotals(sb, liqId) {
-    const { data: lines } = await sb.from('liquidacion_detalle')
+    const { data: lines, error: linesErr } = await sb.from('liquidacion_detalle')
       .select('monto_bruto,monto_descuento').eq('liquidacion_id', liqId);
+    if (linesErr) return linesErr;
     let tb = 0, td = 0;
     for (const l of (lines || [])) {
       tb += parseFloat(l.monto_bruto) || 0;
       td += parseFloat(l.monto_descuento) || 0;
     }
-    await sb.from('liquidaciones')
+    const { error: updErr } = await sb.from('liquidaciones')
       .update({ total_bruto: Math.round(tb * 100) / 100, total_descuentos: Math.round(td * 100) / 100 })
       .eq('id', liqId);
+    return updErr || null;
   }
 
   /**
@@ -111,35 +115,52 @@
     }
     // ═══ CIERRE — FIN ═══
 
+    // ISSUE-104: toda lectura y escritura se chequea y, si falla, el motor CORTA y devuelve el
+    // error (los llamadores lo muestran en un toast). Seguir con datos a medias es lo que
+    // duplica plata: una lectura de líneas fallida deja paidKeys vacío y regenera lo ya cobrado
+    // como impago; un DELETE fallido deja las líneas viejas y el INSERT las duplica. Antes de
+    // borrar nada → "no se cambió nada"; después → "quedó incompleta, volvé a recalcular"
+    // (lo que falte reaparece al recalcular: faltan líneas, nunca sobran).
+    const corte = (paso, err) => ({ created: 0, headers: 0, preserved: 0,
+      error: `${paso} (${err?.message || err}): no se cambió nada` });
+    const cortePersistiendo = (paso, err) => ({ created: 0, headers: 0, preserved: 0,
+      error: `${paso} (${err?.message || err}): la liquidación quedó INCOMPLETA — volvé a recalcular la reunión` });
+
     // Config de reparto (la pasa la página; si no, la carga el motor).
     let liqConfig = opts.liqConfig;
     if (!liqConfig) {
-      const { data } = await sb.from('liquidacion_config')
+      const { data, error: cfgErr } = await sb.from('liquidacion_config')
         .select('*').eq('club_id', clubId).eq('activo', true).maybeSingle();
+      if (cfgErr) return corte('no se pudo leer liquidacion_config', cfgErr);
       liqConfig = data;
     }
     if (!liqConfig) return { created: 0, headers: 0, preserved: 0, error: 'sin liquidacion_config' };
 
     // ── Cargar datos de la reunión ───────────────────────────────────────
-    const [{ data: cars }, comCfgRes] = await Promise.all([
+    const [{ data: cars, error: carsErr }, comCfgRes] = await Promise.all([
       sb.from('carreras').select('id,numero_turno,numero_carrera_programa,bolsa_total,distribucion_premios').eq('reunion_id', rid),
       opts.comCfg ? Promise.resolve({ data: opts.comCfg })
                   : sb.from('comision_config').select('*').eq('club_id', clubId).eq('activo', true),
     ]);
+    if (carsErr) return corte('no se pudieron leer las carreras', carsErr);
+    if (comCfgRes.error) return corte('no se pudo leer comision_config', comCfgRes.error);
     const comCfg = comCfgRes.data || [];
     const carIds = (cars || []).map(c => c.id);
     if (!carIds.length) return { created: 0, headers: 0, preserved: 0, error: 'la reunión no tiene carreras' };
 
-    const [{ data: results }, { data: inscs }] = await Promise.all([
+    const [{ data: results, error: resErr }, { data: inscs, error: inscErr }] = await Promise.all([
       sb.from('resultados').select('id,carrera_id').in('carrera_id', carIds).eq('estado', 'oficial'),
       sb.from('inscripciones').select('*').in('carrera_id', carIds).neq('estado', 'forfait'),
     ]);
+    if (resErr) return corte('no se pudieron leer los resultados', resErr);
+    if (inscErr) return corte('no se pudieron leer las inscripciones', inscErr);
     const resIds = (results || []).map(r => r.id);
 
-    const { data: poss } = resIds.length
+    const { data: poss, error: possErr } = resIds.length
       ? await sb.from('resultado_posiciones').select('*')
           .in('resultado_id', resIds).not('posicion', 'is', null).eq('descalificado', false)
       : { data: [] };
+    if (possErr) return corte('no se pudieron leer las posiciones', possErr);
 
     // ── Fechas / pcts / incentivos (idéntico a generarLiquidaciones) ─────
     const diasAntidoping = parseInt(liqConfig.dias_antidoping) || 30;
@@ -278,10 +299,11 @@
     // INCENTIVOS (Bloque C) — idéntico a generarLiquidaciones (jockey per-reunión dedup,
     // entrenador per-caballo). Las líneas de incentivo no llevan carrera_id (per-reunión).
     if (incJockey > 0 || incEntr > 0) {
-      const { data: largaron } = resIds.length
+      const { data: largaron, error: largErr } = resIds.length
         ? await sb.from('resultado_posiciones').select('inscripcion_id')
             .in('resultado_id', resIds).eq('no_largo', false)
         : { data: [] };
+      if (largErr) return corte('no se pudo leer quién largó', largErr);
       const jockeysSet = new Set();
       for (const lp of (largaron || [])) {
         const insc = (inscs || []).find(i => i.id === lp.inscripcion_id);
@@ -308,11 +330,13 @@
 
     // ── PERSISTENCIA PAID-SAFE ───────────────────────────────────────────
     // 1. Cargar headers + líneas existentes de la reunión (preservar pagado, reusar headers).
-    const { data: existingLiqs } = await sb.from('liquidaciones')
+    const { data: existingLiqs, error: existErr } = await sb.from('liquidaciones')
       .select('id, profesional_id, propietario_id, estado, ' +
               'liquidacion_detalle(id,estado_linea,recibo_id,beneficiario_tipo,beneficiario_id,' +
               'concepto,concepto_tipo,inscripcion_id,posicion)')
       .eq('reunion_id', rid).eq('club_id', clubId);
+    // Sin esta lectura el motor cree que no hay nada pagado y vuelve a generar lo cobrado.
+    if (existErr) return corte('no se pudieron leer las liquidaciones existentes', existErr);
 
     const headerByActor = {};   // actorId -> header row
     const paidKeys = new Set(); // claves de líneas comprometidas (no regenerar)
@@ -335,10 +359,12 @@
     //    Lo pagado se preserva; retenido sin recibo se recalcula.
     const allHeaderIds = (existingLiqs || []).map(h => h.id);
     if (allHeaderIds.length) {
-      await sb.from('liquidacion_detalle').delete()
+      const { error: delErr } = await sb.from('liquidacion_detalle').delete()
         .in('liquidacion_id', allHeaderIds)
         .is('recibo_id', null)
         .neq('estado_linea', 'pagado');
+      // Si el borrado falla, insertar duplicaría todo lo no pagado: se corta acá.
+      if (delErr) return corte('no se pudieron borrar las líneas no pagadas', delErr);
     }
 
     // 3. Construir líneas nuevas por actor (idéntico cálculo de detalleRows), saltear las
@@ -398,7 +424,7 @@
         if (actorData.tipo === 'propietario') liqPayload.propietario_id = actorId;
         else if (actorData.tipo !== 'club')   liqPayload.profesional_id = actorId;
         const { data: liqData, error } = await sb.from('liquidaciones').insert(liqPayload).select().single();
-        if (error) { console.error('[engine] crear liquidación:', error); continue; }
+        if (error) { console.error('[engine] crear liquidación:', error); return cortePersistiendo('no se pudo crear una liquidación', error); }
         header = liqData;
         headerByActor[actorId] = liqData;
         paidCountByHeader[header.id] = 0;
@@ -409,24 +435,35 @@
         const offset = paidCountByHeader[header.id] || 0;
         const dRows = freshRows.map((d, i) => ({ ...d, liquidacion_id: header.id, orden_display: offset + i + 1 }));
         const { error: detErr } = await sb.from('liquidacion_detalle').insert(dRows);
-        if (detErr) console.error('[engine] insertar detalle:', detErr);
+        if (detErr) { console.error('[engine] insertar detalle:', detErr); return cortePersistiendo('no se pudieron insertar las líneas', detErr); }
       }
     }
 
     // 4. Recomputar totales de todos los headers tocados/sobrevivientes; borrar los vacíos.
     let headers = 0;
+    let totalesFallidos = 0;
     for (const h of (existingLiqs || [])) survivingHeaderIds.add(h.id); // recompute todos los existentes
     for (const hid of survivingHeaderIds) {
-      const { count } = await sb.from('liquidacion_detalle')
+      const { count, error: cntErr } = await sb.from('liquidacion_detalle')
         .select('id', { count: 'exact', head: true }).eq('liquidacion_id', hid);
+      // Un conteo fallido NO es "header vacío": borrarlo arrastraría sus líneas (ON DELETE
+      // CASCADE), las pagadas incluidas.
+      if (cntErr) return cortePersistiendo('no se pudieron contar las líneas de una liquidación', cntErr);
       if (!count) {
-        await sb.from('liquidaciones').delete().eq('id', hid);
+        const { error: hdelErr } = await sb.from('liquidaciones').delete().eq('id', hid);
+        if (hdelErr) return cortePersistiendo('no se pudo borrar una liquidación vacía', hdelErr);
       } else {
-        await recomputeHeaderTotals(sb, hid);
+        const totErr = await recomputeHeaderTotals(sb, hid);
+        if (totErr) { console.error('[engine] totales del header:', totErr); totalesFallidos++; }
         headers++;
       }
     }
 
+    // Aviso, no error: las líneas quedaron bien; lo viejo es sólo el total mostrado del header.
+    if (totalesFallidos) {
+      return { created, headers, preserved,
+        aviso: `Liquidación recalculada, pero los totales mostrados de ${totalesFallidos} liquidación(es) pueden estar desactualizados: volvé a recalcular la reunión.` };
+    }
     return { created, headers, preserved };
   }
 
