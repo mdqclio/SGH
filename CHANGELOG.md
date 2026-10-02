@@ -1,5 +1,22 @@
 # Changelog
 
+## [2026-10-02] — Probes de Pagos y del recibo: datos sintéticos (dejan de romperse con cada cobro)
+
+- `probe_pagos_carrera_busqueda`, `probe_pagos_vista_carrera`, `probe_pagos_vista_incentivo_pagados` y `probe_recibo_una_hoja`
+  daban rojo en `main` sin que el código cambiara: armaban sus casos con lo que era **impago en R9** (el 02/10 se cobró casi todo:
+  quedaron 5 tarjetas y 0 incentivos de jockey impagos) y el recibo de referencia ("el de más líneas") pasó a ser una
+  transferencia, que no lleva firma.
+- `tests/lib/sb_fixture.mjs` (nuevo): cliente de Supabase en memoria, sólo lectura (embeds de un nivel, eq/neq/is/in/not/or,
+  order/limit/single, count head), para correr el código real de las pantallas contra datos inventados.
+- `tests/lib/pagos_sintetico.mjs` (nuevo): reunión sintética con todos los casos fijos (caballo con los tres roles, misma persona
+  en dos roles, incentivos con importe/nota/NL/pagado, chips de efectivo/transferencia/regularizado, ruido de otro club y de una
+  reunión sandbox) + `reciboSintetico` (efectivo o transferencia).
+- Los probes de la vista corren **dos veces**: `[S]` sintético estricto y `[R9]` real con "si hay, está bien" en lo que necesita algo
+  impago. La búsqueda B11–B13 pasa a la sintética (la Parte A sigue sobre R9/R6 reales: carreras y estados no cambian con los cobros).
+  El recibo se mide sintético (efectivo, + variante transferencia nueva 2c'); `render_recibo_pdf.mjs --fixture=…` para Chromium.
+- Asserts 2c y 4 de la vista: sólo miran beneficiarios con botón Pagar (un beneficiario ya pagado muestra el chip y no tiene id).
+- Mutantes: 8/8, 7/7, 17/17, 8/8 — los de la vista mueren todos en la parte sintética.
+
 ## [2026-10-02] — Inscripciones: listado continuo de todos los turnos (vista de arranque)
 
 > Pedido de Fede (29/09): ver los anotados de toda la reunión de corrido, turno 1, turno 2…, con scroll, sin abrir cada turno.
