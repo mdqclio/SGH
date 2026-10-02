@@ -2827,3 +2827,31 @@ del portal rechaza ese caso (regla D3 de `rpc_spc_alta_studbook_portal`).
 cómo repuntar sin tocar la liquidación congelada. Propuesta del 01/10: sobrevive `5ebc5e48` (la de R8) y recibe
 `studbook_id` 397805; se borra `f277af1c` (R6 forfait). Así R8 no se repunta. A verificar qué tiene atado la forfait de R6,
 porque R6 también está cerrada. El respaldo de la unificación ahora es `jsonb` (`cerrar_tablas_bak_publicas.sql`).
+
+### ISSUE-101: ningún resultado oficial tiene `oficializado_at` ni `oficializado_por` — `aplicar_resultado` no los escribe
+**Estado**: abierto (registrado 2026-10-02; sólo anotado, **no se corrigió nada**).
+**Cómo apareció**: R9 C4 (turno 5) está `oficial` con `oficializado_at = NULL` (relevamiento de R9 T3/T5/T11, informe
+`docs/diagnosticos/2026-10-02_r9-jockey-dos-caballos-t3-t5-t11.md`, reports).
+**Alcance (medido 2026-10-02, sólo lectura)**: no es R9 C4: son **todos**. De 24 resultados, 23 están `oficial` y los **23**
+tienen `oficializado_at` y `oficializado_por` en NULL (0 con fecha). Por reunión: R6 7/7, R8 8/8, R9 5/5, 9999 3/3. Ningún
+resultado no oficial tiene fecha cargada.
+**Causa**: `aplicar_resultado` (md5 `94d46dc0…`) no menciona `oficializado_at` ni `oficializado_por`: pasa el estado a
+`oficial` sin registrar cuándo ni quién. La única función que toca esas columnas es `desoficializar_carrera`, y lo hace para
+ponerlas en NULL. Ni el front ni ninguna migración del repo las escriben (`git grep oficializado_at main`).
+**Qué se pierde**: cualquier pantalla, informe o guard que use `oficializado_at` (p.ej. "montas cambiadas después de
+oficializar", ISSUE-084) no tiene el dato y tiene que ir a la auditoría.
+**Se puede reconstruir**: los 20 oficiales reales tienen en `auditoria` el UPDATE `provisional → oficial` con `usuario_id` (R6 7,
+R8 8, R9 5). Los 3 de la 9999 tienen la fila pero sin usuario (probes con service_role). Ejemplo R9 C4: INSERT provisional
+2026-09-20 18:10:29 UTC y UPDATE a oficial 18:17:24 UTC, mismo usuario. ⚠ La auditoría se purga a los 12 meses
+(`clubs.auditoria_retencion_meses`): la de R6 (22/07) vence en **julio de 2027**. Si se decide backfillear, hay que hacerlo antes.
+**Relación con el bloqueo en reunión cerrada**: en R6 y R8 la liquidación está cerrada (ISSUE-091) y `resultados.html`
+**no deja des-oficializar** (`desoficializar()`, `:1699-1703`: "La liquidación de esta reunión está cerrada"). Como el marcador
+sólo existe en la vista provisional (la oficial no tiene marcador, ver ISSUE-089), **en una reunión cerrada no hay camino
+por pantalla para volver a oficializar** una carrera y que quede la fecha. El arreglo de las 15 de R6/R8 no puede ser
+"re-oficializar": tiene que ser un backfill desde la auditoría (UPDATE de las dos columnas en `resultados`, que no toca
+líneas de liquidación), además de corregir `aplicar_resultado` para adelante.
+**Propuesta (no aplicada)**: (1) `aplicar_resultado`: al pasar a `oficial`, `oficializado_at = now()` y
+`oficializado_por` = usuario de la sesión; al quedar en provisional, NULL. (2) Backfill de los 20 desde `auditoria`, con
+migración versionada y verificación por estado. (3) Probe del par oficializar/des-oficializar sobre la 9999.
+**Cómo se verifica hoy**:
+`select count(*) filter (where estado='oficial') oficiales, count(*) filter (where estado='oficial' and oficializado_at is null) sin_at from resultados;` → 23 / 23.
