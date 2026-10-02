@@ -52,6 +52,7 @@ probe_fmtinput_onblur|
 probe_forfait_anulada|
 probe_ganadas_carta_llamados|
 probe_inscripcion_editar_carrera|
+probe_inscripciones_listado|
 probe_mandil_colores|
 probe_montas_reales|
 probe_motor_chequeo_errores|

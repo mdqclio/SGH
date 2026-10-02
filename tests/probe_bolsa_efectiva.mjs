@@ -160,6 +160,7 @@ async function mkInsc({ dom, currentUser = { rol: 'secretario_carreras' } }) {
     extractFn(INSC, 'async function onReunionChange() {'),
     extractFn(INSC, 'async function onCarreraChange() {'),
     extractFn(INSC, 'function renderCarreraHeader() {'),
+    extractFn(INSC, 'function htmlEncabezadoCarrera(c) {'),   // desde el listado continuo (02/10) el encabezado sale de acá
     extractFn(INSC, 'function renderCarreraChips() {'),
     extractFn(INSC, 'function limpiarCarreraHeader() {'),
   ].join('\n\n');
@@ -168,6 +169,8 @@ async function mkInsc({ dom, currentUser = { rol: 'secretario_carreras' } }) {
     const toasts = [];
     function toast(msg, tipo) { toasts.push({ msg, tipo }); }
     async function loadInscripciones() {}
+    // listado continuo (02/10): onCarreraChange delega en mostrarTodos() con la opción de todos los turnos
+    const TODOS = '__todos__'; let modoTodos = false, volverATurno = null; async function mostrarTodos() {}
     ${piezas}
     return { formatMonto, onReunionChange, onCarreraChange, renderCarreraChips,
              _get: () => ({ carreras, currentCarrera, toasts }) };`;
