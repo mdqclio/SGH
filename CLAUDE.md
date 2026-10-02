@@ -392,6 +392,18 @@ por más que esté escrito en imperativo.
 - Push frecuente — la sesión SSH al VPS Hetzner se puede cortar. Relevo por `.md` (el asesor lee de raw.githubusercontent.com); ver `docs/SERVER.md`
 
 ### Probes de regresión
+
+**Antes de cada merge a `main`: `tests/correr_todos.sh`, y su resumen va en el informe.** Corre todos los probes que no escriben
+en prod ni necesitan el sandbox (lista explícita adentro del script, con el porqué de cada exclusión) y da verde/rojo por probe.
+Correrlo **en el checkout principal** (`/home/clio/dev/SGH`, con la rama a mergear) — no en un worktree: hay probes que leen
+`tmp/` (gitignored). Para otro checkout: `REPO=<checkout> tests/correr_todos.sh`.
+- Los **rojos preexistentes** están en `tests/correr_todos.rojos_conocidos` (probe + motivo): se listan en el informe y **no
+  bloquean**.
+- Un rojo que **no** está en esa lista es **nuevo** y **bloquea el merge** (el script sale con 1). No se lo agrega a la lista para
+  destrabar: se arregla, o se explica en el informe por qué es ajeno al cambio y se pide OK.
+- Si un conocido pasa a verde, el script lo avisa: sacarlo de la lista en el mismo PR.
+- Probes nuevos que no escriben en prod: sumarlos a la lista del script en el mismo PR.
+
 Después de fixear un bug, agregar o extender un probe en `tests/` que verifique el fix contra prod:
 
 ```bash
@@ -420,7 +432,7 @@ node tests/probe_pagos_carrera_busqueda.mjs        # Pagos — select de carrera
 node tests/probe_pagos_vista_carrera.mjs           # Pagos Parte C — vista por carrera (caballo → propietario/entrenador/jockey), incentivos de jockey por J (largaron), q por bloque, modo tarjetas intacto; cobrosBuscar real sobre R9 C5/C4/C7; --mutantes 7/7; solo lectura; LIQUIDACIONES_HTML acepta URL
 node tests/probe_pagos_vista_incentivo_pagados.mjs  # Pagos vista por carrera (24/09) — incentivo de jockey con importe sólo en la carrera dueña (nº más bajo donde largó) + nota en las otras; chips de pagado (transferencia/efectivo/regularizado, anulado no cuenta); suma R9 = pendiente de la base; sintéticos + R9 real; --mutantes 17/17; solo lectura; LIQUIDACIONES_HTML acepta URL
 node tests/probe_montas_post_oficial.mjs            # ISSUE-084 — rpc_cambiar_monta + trigger + saveMontas real: A1–A12 (impago/retenido/pagado con y sin recibo/incentivo con y sin otra monta/provisional/recálculo fallido/update directo/payload entero/set_config) + P1–P4 (anon sin EXECUTE, club ajeno 42501, sesión sin fila en usuarios 42501, y portal con id INEXISTENTE → 42501 del guard y no "la inscripción no existe": el guard 0 corre antes del lookup), 9/9 mutantes (--mutantes; los de SQL con PSQL_CMD en el sandbox tests/local/); ESCRIBE en la 9999 y la restaura entera (ids incluidos); necesita la migración aplicada (corta antes de tocar nada si no está)
-node tests/probe_reparto_100.mjs [--mutantes]      # reparto al 100 % (peón/capataz/sereno siempre, entrenador 18 %) + reunión cerrada: S sintético en memoria (100 %/18 % exactos, empate, renombre pagada no duplica, cerrada = 0 escrituras) · U pantallas/gate · P prod SOLO LECTURA (motor en seco sobre R9: 69 nuevas; R6/R8 cortan; md5 sin cambios) · D triggers en el sandbox tests/local (PSQL_CMD + LOCAL_JWT_SECRET); 41/41, 5/5 mutantes
+node tests/probe_reparto_100.mjs [--mutantes]      # reparto al 100 % (peón/capataz/sereno siempre, entrenador 18 %) + reunión cerrada: S sintético en memoria (100 %/18 % exactos, empate, renombre pagada no duplica, cerrada = 0 escrituras; S10/S11: reunión liquidada sin sub-líneas → nacen 3 por premiado y suman 18 % − 10 %, ex P2/P5) · U pantallas/gate · P prod SOLO LECTURA (motor en seco sobre R9: nada cambia ni desaparece; R6/R8 cortan; md5 sin cambios) · D triggers en el sandbox tests/local (PSQL_CMD + LOCAL_JWT_SECRET); 34/34 sin sandbox (02/10), 4/4 mutantes de motor + M5 de sandbox
 node tests/probe_sanciones_alta.mjs [--mutantes] [--prod]   # sanciones: alta por el saveRecord real (club_id, creado_por, alcance), edición, portal / otro club rechazados, super_admin OK; 13 checks, 7/7 mutantes (3 de sanciones.html + 4 de políticas en el sandbox con tests/local/sanciones_sandbox.sql); en prod sólo con --prod y DESPUÉS de aplicar la migración (ESCRIBE usuarios y sanciones de prueba y los borra)
 node tests/probe_politicas_escritura_staff.mjs [--mutantes] [--prod] [--tabla=t]   # ISSUE-093 — 14 tablas × INSERT/UPDATE/DELETE × 7 perfiles con sesión real: portal/propietario/inactivo/otro club rechazados, secretario/operador/super_admin OK; 281 celdas; sandbox (tests/local/politicas_escritura_sandbox.sql) 281/281 + 14/14 mutantes con PSQL_CMD; prod sólo con --prod (ESCRIBE usuarios y fixtures marcados PROBE-093, los borra — auditoría de sus usuarios ANTES que los usuarios —; clubs = UPDATE no-op sobre Dolores, mueve updated_at)
 node tests/recalculo_r9_subroles.mjs               # PLAN en seco del recálculo de R9 (default, sólo lectura); --ejecutar --ventana-confirmada ESCRIBE (guards de orden de deploy, copia en tests/local/out/, verificación V1–V4 por md5); --rollback <copia.json>; SANDBOX=1 + SUPABASE_URL local lo prueba de punta a punta sobre la 9999
