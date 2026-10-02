@@ -2796,3 +2796,34 @@ Informe: la respuesta del 27/09 en el chat y el informe del mismo día sobre R8 
 mano con lo que diga la secretaría, por migración y con nota.
 **Relacionado**: ISSUE-019 (auditoría extendida), ISSUE-094 (`club_secuencias` sin auditoría), PR #19 (sanciones).
 
+
+### ISSUE-098: `v_inscriptos_carrera` es una vista SECURITY DEFINER
+**Estado**: abierto (registrado 2026-10-02; tarea aparte por decisión del 02/10).
+**Qué pasa**: `get_advisors security` → `security_definer_view` (ERROR): la vista corre con los permisos de su dueño y no
+con los de quien consulta, así que salta la RLS de las tablas que lee. Es el único ERROR que quedó en los advisors
+después de `cerrar_tablas_bak_publicas.sql` (02/10).
+**Antes de tocar**: relevar quién la lee (`git grep v_inscriptos_carrera main`, `pg_depend`) y qué columnas expone; pasarla a
+`security_invoker = true` cambia lo que ve cada rol. Hay una dependencia conocida: "hay una vista que depende del ENUM
+`estado_inscripcion`" (CLAUDE.md, gotcha 4).
+**Relacionado**: `docs/diagnosticos/2026-10-01_portal-alta-spc-aplicacion-bloqueada.md` §5 (reports).
+
+### ISSUE-099: 26 funciones SECURITY DEFINER ejecutables por `anon`
+**Estado**: abierto (registrado 2026-10-02; tarea aparte por decisión del 02/10).
+**Qué pasa**: `get_advisors security` → `anon_security_definer_function_executable` (WARN) en 26 funciones, entre ellas
+`rpc_inscribir`, `rpc_padron_spcs`, `validar_inscripcion`, `fn_mis_spc_ids` y `fn_mis_spc_visibles`. Hoy ninguna es un
+agujero conocido (tienen guard interno o devuelven vacío sin `auth.uid()`), pero es el mismo patrón que obligó a
+`revoke_anon_anular_recibo.sql` (22/09).
+**Antes de revocar**: diagnosticar quién las llama hoy como `anon` (logs de PostgREST/API y pantallas sin sesión:
+`login.html`, `solicitar-acceso.html`, `reset-password.html`) — pedido del 01/10. **`authenticated` tiene que conservar**
+EXECUTE sobre `fn_is_staff` y `fn_is_portal_user`: las usa el gate de `studbook-buscar` (v2) con el JWT del usuario.
+**Relacionado**: decisión del 01/10 (REVOKE antes de abrir el portal a esto), informe Fase 1 §2 (reports).
+
+### ISSUE-100: Wave Rimout duplicado en `spcs` (mismo caballo, dos fichas)
+**Estado**: abierto (registrado 2026-10-02; tarea aparte, después del portal, decisión del 01/10).
+**Qué pasa**: `5ebc5e48…` (R8 T10 ratificado, liquidación congelada) y `f277af1c…` (R6 T11 forfait) son el mismo
+caballo (Stud Book 397805: misma fecha y padres). **Ninguna de las dos tiene `studbook_id`**. Mientras tanto, el alta
+del portal rechaza ese caso (regla D3 de `rpc_spc_alta_studbook_portal`).
+**Plan** (fase 1, sólo lectura, siguiendo `docs/PLAN_DUPLICADOS_SPC.md`): todas las FK que apuntan a la que se borra y
+cómo repuntar sin tocar la liquidación congelada. Propuesta del 01/10: sobrevive `5ebc5e48` (la de R8) y recibe
+`studbook_id` 397805; se borra `f277af1c` (R6 forfait). Así R8 no se repunta. A verificar qué tiene atado la forfait de R6,
+porque R6 también está cerrada. El respaldo de la unificación ahora es `jsonb` (`cerrar_tablas_bak_publicas.sql`).
