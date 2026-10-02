@@ -194,3 +194,13 @@ select version, name from supabase_migrations.schema_migrations order by version
 -- 20261002213637 rpc_spc_alta_studbook_staff
 -- 20261002193945 cerrar_v_inscriptos_carrera
 ```
+
+## Verificación de push
+
+```
+$ git ls-remote origin reports
+8c2e86529cf88b6d07a3fe6693008e13c7bf94c6
+$ git rev-parse HEAD
+8c2e86529cf88b6d07a3fe6693008e13c7bf94c6
+```
+Chequeo de datos personales sobre lo agregado: vacío.
