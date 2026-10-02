@@ -1,0 +1,19 @@
+# Rojos preexistentes de tests/correr_todos.sh: no bloquean un merge. Uno que NO esté acá es NUEVO y bloquea.
+# Formato: <probe>  <motivo>. Medido el 2026-10-02 sobre main 054d70b945d0982a3dd57c659cf00efc472ed449, en el checkout principal.
+# Cuando uno pase a verde el script lo avisa: sacarlo de acá en el mismo PR.
+probe_activacion_pendiente          drift del probe: su stub de sb no tiene .select() después de update().eq() (TypeError)
+probe_alineado_programa             drift: "color conserva su @page 10mm 8mm" — el CSS de impresión cambió desde que se escribió
+probe_apuestas_especiales           drift: 9 checks de tarjetas (cantidad, número, nombre, rango) no coinciden con la pantalla actual
+probe_cuerpos_oficial               drift de datos: espera 8 carreras oficiales en R6 y hay 7 (C3 está provisional desde el 14/08)
+probe_edad_display                  drift: no encuentra el ancla de fin del bloque de edad en el HTML
+probe_edad_reglamentaria            2/32: el Stud Book no devuelve dato para los ejemplares de R9 (fuente externa; ver studbook_buscar_fn)
+probe_forfait_anulada               drift de extracción: ReferenceError renumerarChapas
+probe_orden_carreras                drift de datos: 2/18 asumen R9 con 0 anuladas y sin sortear (R9 ya tiene anuladas y sorteo)
+probe_pagos_carrera_busqueda        drift de extracción: ReferenceError subRolDeLinea (arreglado en PR #40)
+probe_pagos_vista_carrera           drift de extracción: ReferenceError subRolDeLinea (arreglado en PR #40)
+probe_pagos_vista_incentivo_pagados drift de extracción: ReferenceError subRolDeLinea (arreglado en PR #40)
+probe_portal_carta                  drift: no encuentra loadCarta en portal.html (hoy se llama loadLlamado)
+probe_reparto_100                   P2/P5 esperan las 69 sub-líneas de R9, que ya nacieron el 25/09 (arreglado en PR #39)
+probe_spcs_r9_tanda_1               evidencia histórica: asserta count(spcs) = 205 (hoy 239)
+probe_studbook_buscar_fn            fuente externa: el Stud Book responde HTTP 403 a las búsquedas desde este servidor
+probe_tapa_flyer                    drift de extracción: ReferenceError edadSPC
