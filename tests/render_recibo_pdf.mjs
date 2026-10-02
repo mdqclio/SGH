@@ -18,6 +18,8 @@
  *
  *   --lineas=N   repite las filas de la tabla hasta N (caso sintético largo, p.ej. 20)
  *   --css="…"    CSS extra inyectado en media print para probar variantes sin tocar el archivo
+ *   --fixture=ruta.json  recibo SINTÉTICO en vez de uno de la base: { tablas, recibo, lineaIds, cobBenef } (lo arma
+ *                tests/lib/pagos_sintetico.mjs reciboSintetico; lo usa probe_recibo_una_hoja). No necesita la secret key.
  *   --anonimizar reemplaza beneficiario, quien retira, su documento y el comprobante por datos ficticios
  *                ANTES de correr imprimirReciboCobro (mismo largo de texto aprox.: no cambia el layout), para
  *                publicar PDF/PNG/salida en `reports` (repo público) sin datos personales
@@ -30,18 +32,21 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { chromium } from 'playwright';
+import { sbFixture } from './lib/sb_fixture.mjs';
+import { REL_PAGOS } from './lib/pagos_sintetico.mjs';
 
 const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
 const CLUB_ID = '0649e9c5-9e87-4aad-842f-101458e6b33c';
 const KEY = process.env.SUPABASE_SECRET_KEY;
-if (!KEY) { console.error('Falta SUPABASE_SECRET_KEY (set -a; . ./.env; set +a)'); process.exit(2); }
 const [ref, outDir, ...flags] = process.argv.slice(2);
 if (!ref || !outDir) { console.error('uso: render_recibo_pdf.mjs <numero_recibo|recibo_id> <out_dir> [--lineas=N] [--css=…] [--html=…]'); process.exit(2); }
 const flag = n => flags.find(f => f.startsWith(`--${n}=`))?.slice(n.length + 3);
 const LINEAS = +(flag('lineas') || 0), EXTRA_CSS = flag('css') || '', HTML_SRC = flag('html') || '';
 const ANON = flags.includes('--anonimizar');
+const FIXTURE = flag('fixture') ? JSON.parse(readFileSync(flag('fixture'), 'utf8')) : null;
+if (!KEY && !FIXTURE) { console.error('Falta SUPABASE_SECRET_KEY (set -a; . ./.env; set +a)'); process.exit(2); }
 const HERE = dirname(fileURLToPath(import.meta.url));
-const sb = createClient(SUPABASE_URL, KEY, { auth: { autoRefreshToken: false, persistSession: false } });
+const sb = FIXTURE ? sbFixture(FIXTURE.tablas, REL_PAGOS) : createClient(SUPABASE_URL, KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 
 let SRC;
 if (/^https?:/.test(HTML_SRC)) SRC = await (await fetch(`${HTML_SRC}?v=${Date.now()}`)).text();
@@ -65,16 +70,21 @@ function headlessShell() {
   return join(cache, dirs[dirs.length - 1], 'chrome-headless-shell-linux64', 'chrome-headless-shell');
 }
 
-// ── 1) recibo real ─────────────────────────────────────────────────────────────
-const esUuid = /^[0-9a-f-]{36}$/i.test(ref);
-const { data: recibo, error: eR } = await sb.from('recibos').select('*').eq(esUuid ? 'id' : 'numero_recibo', esUuid ? ref : +ref).eq('club_id', CLUB_ID).maybeSingle();
-if (eR || !recibo) throw new Error('recibo no encontrado: ' + (eR?.message || ref));
-const benefId = recibo.propietario_id || recibo.profesional_id;
-const benefTipo = recibo.propietario_id ? 'propietario' : 'profesional';
-const { data: benef } = benefTipo === 'propietario'
-  ? await sb.from('propietarios').select('nombre').eq('id', benefId).single()
-  : await sb.from('profesionales').select('nombre,apellido').eq('id', benefId).single();
-const cobBenef = { tipo: benefTipo, id: benefId, nombre: benefTipo === 'propietario' ? benef.nombre : `${benef.apellido}, ${benef.nombre}` };
+// ── 1) recibo real (o el sintético de --fixture) ────────────────────────────────
+let recibo, cobBenef;
+if (FIXTURE) ({ recibo, cobBenef } = FIXTURE);
+else {
+  const esUuid = /^[0-9a-f-]{36}$/i.test(ref);
+  const { data, error: eR } = await sb.from('recibos').select('*').eq(esUuid ? 'id' : 'numero_recibo', esUuid ? ref : +ref).eq('club_id', CLUB_ID).maybeSingle();
+  if (eR || !data) throw new Error('recibo no encontrado: ' + (eR?.message || ref));
+  recibo = data;
+  const benefId = recibo.propietario_id || recibo.profesional_id;
+  const benefTipo = recibo.propietario_id ? 'propietario' : 'profesional';
+  const { data: benef } = benefTipo === 'propietario'
+    ? await sb.from('propietarios').select('nombre').eq('id', benefId).single()
+    : await sb.from('profesionales').select('nombre,apellido').eq('id', benefId).single();
+  cobBenef = { tipo: benefTipo, id: benefId, nombre: benefTipo === 'propietario' ? benef.nombre : `${benef.apellido}, ${benef.nombre}` };
+}
 if (ANON) {
   const eraTitular = !!recibo.cobrador_nombre && recibo.cobrador_nombre.trim().toLowerCase() === cobBenef.nombre.trim().toLowerCase();
   cobBenef.nombre = 'APELLIDO, NOMBRE';
@@ -82,8 +92,8 @@ if (ANON) {
   if (recibo.cobrador_documento) recibo.cobrador_documento = '0'.repeat(String(recibo.cobrador_documento).length);
   if (recibo.comprobante_url) recibo.comprobante_url = 'comprobante-anonimizado';
 }
-const { data: lineas } = await sb.from('liquidacion_detalle').select('id').eq('recibo_id', recibo.id);
-const lineaIds = (lineas || []).map(l => l.id);
+const lineaIds = FIXTURE ? FIXTURE.lineaIds
+  : ((await sb.from('liquidacion_detalle').select('id').eq('recibo_id', recibo.id)).data || []).map(l => l.id);
 
 // ── 2) HTML con la función REAL ─────────────────────────────────────────────────
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;

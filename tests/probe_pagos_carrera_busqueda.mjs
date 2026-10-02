@@ -9,8 +9,11 @@
  *      "CAROSUENO" → CAROSUEÑO, "ACUÑA MATIAS" → MATIAS EZEQUIEL ACUÑA, "P y P" → PyP
  *      (diagnósticos …_pagos-acuna-matias-r9.md y …_pagos-busqueda-caballeriza-r9.md).
  *
- * Código REAL: los bloques se extraen de liquidaciones.html por ancla y se corren con el cliente
- * de Supabase real (SUPABASE_SECRET_KEY). SOLO LECTURA — no escribe nada.
+ * Código REAL: los bloques se extraen de liquidaciones.html por ancla. La Parte A corre con el cliente
+ * de Supabase real (SUPABASE_SECRET_KEY) contra R9/R6 (carreras y estados: no cambian con los cobros).
+ * B11–B13 (cobrosBuscar entero) corren contra la reunión SINTÉTICA de tests/lib/pagos_sintetico.mjs con un
+ * cliente en memoria (tests/lib/sb_fixture.mjs): hasta el 02/10 armaban los casos con lo que era pagable en R9
+ * y cada cobro los rompía (el 02/10 quedaron 5 tarjetas). SOLO LECTURA — no escribe nada.
  *
  * MUTANTES: `--mutante=<nombre>` reemplaza una pieza del código extraído por la versión rota y el
  * probe tiene que FALLAR. `--mutantes` los corre todos en subprocesos y reporta cuáles matan.
@@ -25,7 +28,7 @@
  *
  * Uso:
  *   set -a; . ./.env; set +a
- *   node tests/probe_pagos_carrera_busqueda.mjs                 # ~40 asserts (los casos B11 se arman del universo pagable actual)
+ *   node tests/probe_pagos_carrera_busqueda.mjs                 # ~40 asserts (los casos B11 salen de la reunión sintética)
  *   node tests/probe_pagos_carrera_busqueda.mjs --mutantes      # 8 mutantes, todos tienen que morir
  *   LIQUIDACIONES_HTML=https://sigh.com.ar/liquidaciones.html node tests/…   # contra el HTML servido
  */
@@ -34,6 +37,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { sbFixture } from './lib/sb_fixture.mjs';
+import { reunionPagosSintetica, REL_PAGOS, RS } from './lib/pagos_sintetico.mjs';
 
 const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
 const CLUB_ID = '0649e9c5-9e87-4aad-842f-101458e6b33c';
@@ -176,11 +181,12 @@ ok('B9) cobMatch: q vacío matchea todo', cobMatch('', 'x') && cobMatch('   ', '
 ok('B10) cobrosBuscar usa cobMatch en el beneficiario y en la caballeriza',
    SRC.includes('cobMatch(q, benefSearch(g.tipo,g.id))') && SRC.includes('cobMatch(q, c.nombre)'));
 
-// 11) cobrosBuscar REAL contra R9 — las tarjetas que salen para cada q
+// 11) cobrosBuscar REAL contra la reunión SINTÉTICA — las tarjetas que salen para cada q
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+const sbS = sbFixture(reunionPagosSintetica(CLUB_ID), REL_PAGOS);
 const [{ data: profs }, { data: props }] = await Promise.all([
-  sb.from('profesionales').select('id,nombre,apellido,tipo,documento_nro').eq('club_id', CLUB_ID),
-  sb.from('propietarios').select('id,nombre,nombre_stud,documento_nro').eq('activo', true),
+  sbS.from('profesionales').select('id,nombre,apellido,tipo,documento_nro').eq('club_id', CLUB_ID),
+  sbS.from('propietarios').select('id,nombre,nombre_stud,documento_nro').eq('activo', true),
 ]);
 const profesionales = {}, propietariosMap = {};
 profs.forEach(p => { profesionales[p.id] = p; }); props.forEach(p => { propietariosMap[p.id] = p; });
@@ -199,27 +205,29 @@ const srcBuscar = [
   extractFn(SRC, 'async function cobCargarReunPrueba()'), extractFn(SRC, 'function cobVisible(l, rid)'),
   extractFn(SRC, 'function cobDelClub(l)'), extractFn(SRC, 'async function cobrosBuscar()'),
 ].join('\n\n');
+const avisos = [];
 async function buscar(q, carreraId = '') {
-  const document = mkDocument({ 'cob-q': q, 'cob-reunion': R9, 'cob-carrera': carreraId });
+  const document = mkDocument({ 'cob-q': q, 'cob-reunion': RS, 'cob-carrera': carreraId });
   const api = await new AsyncFunction('sb', 'CLUB_ID', 'document', 'toast', 'fmt', 'propietariosMap', 'profesionales',
     `let cobCaballerizas = [], cobInscCarrera = {}, cobNroCarrera = {}, cobMapsScope = null, cobReunPrueba = null;
      ${srcBuscar}
-     return { cobrosBuscar };`)(sb, CLUB_ID, document, () => {}, n => String(n), propietariosMap, profesionales);
-  await api.cobrosBuscar();
+     return { cobrosBuscar };`)(sbS, CLUB_ID, document, () => {}, n => String(n), propietariosMap, profesionales);
+  const warnReal = console.warn; console.warn = (...a) => avisos.push(a.join(' '));
+  try { await api.cobrosBuscar(); } finally { console.warn = warnReal; }
   const html = document._n['cob-beneficiarios'].innerHTML;
   return [...html.matchAll(/class="liq-prof">([^<]*)</g)].map(m => m[1]);
 }
-// Los casos se ARMAN desde lo que hoy es pagable en R9: el universo cambia con cada cobro (el
-// 21/09 se saldaron ACUÑA y SILQUITI y los casos fijos con ellos dejaron de valer). Cada caso
-// toma un beneficiario real y le tipea lo que Valeria tipearía: apellido + primer nombre en los
-// dos órdenes, sin tildes/Ñ, el DNI, la caballeriza con y sin espacios/acentos.
+// Los casos se ARMAN desde lo pagable de la reunión sintética (antes: de R9, y cada cobro los rompía —
+// el 21/09 se saldaron dos beneficiarios de los casos fijos; el 02/10 quedaron 5 tarjetas). Cada caso
+// toma un beneficiario y le tipea lo que Valeria tipearía: apellido + primer nombre en los dos
+// órdenes, sin tildes/Ñ, el documento, la caballeriza con y sin espacios/acentos.
 const sinDiacriticos = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '');
 const universo = await buscar('');
-ok('B11a) hay universo pagable en R9 para armar los casos (≥ 10 tarjetas)', universo.length >= 10, `${universo.length}`);
+ok('B11a) hay universo pagable en la reunión sintética para armar los casos (≥ 10 tarjetas)', universo.length >= 10, `${universo.length}`);
 const cardName = (tipo, id) => tipo === 'propietario' ? propietariosMap[id]?.nombre : `${profesionales[id].apellido}, ${profesionales[id].nombre}`;
 // beneficiarios pagables reales (mismo criterio que cobrosBuscar) para elegir los casos
-const { data: pagR9 } = await sb.from('liquidacion_detalle').select('beneficiario_tipo,beneficiario_id')
-  .eq('reunion_id', R9).eq('estado_linea', 'impago').is('recibo_id', null).neq('beneficiario_tipo', 'club');
+const { data: pagR9 } = await sbS.from('liquidacion_detalle').select('beneficiario_tipo,beneficiario_id')
+  .eq('reunion_id', RS).eq('estado_linea', 'impago').is('recibo_id', null).neq('beneficiario_tipo', 'club');
 const idsPag = new Set((pagR9 || []).map(l => `${l.beneficiario_tipo}|${l.beneficiario_id}`));
 const profPag = Object.values(profesionales).filter(p => idsPag.has(`profesional|${p.id}`));
 const propPag = Object.values(propietariosMap).filter(p => idsPag.has(`propietario|${p.id}`));
@@ -237,7 +245,7 @@ if (prof2) {
 const profN = profPag.find(p => /[ÁÉÍÓÚÑáéíóúñ]/.test(`${p.apellido} ${p.nombre}`));
 if (profN) casos.push([sinDiacriticos(profN.apellido), cardName('profesional', profN.id), 'apellido con Ñ/tilde, tipeado sin']);
 // (3) propietarios con caballeriza vinculada: nombre exacto, sin acentos, sin espacios, un pedazo
-const { data: vinc } = await sb.from('caballeriza_responsables').select('propietario_id, caballerizas(nombre)')
+const { data: vinc } = await sbS.from('caballeriza_responsables').select('propietario_id, caballerizas(nombre)')
   .eq('rol', 'propietario').eq('activo', true).not('propietario_id', 'is', null);
 const cabDe = id => (vinc || []).filter(v => v.propietario_id === id).map(v => v.caballerizas?.nombre).filter(Boolean);
 let conCab = 0;
@@ -269,8 +277,12 @@ if (prof2) {
   ok(`B12) q=${JSON.stringify(prof2.apellido)} trae al pagable y no a los ${homonimos.length} homónimo(s) sin plata`,
      got.includes(cardName('profesional', prof2.id)) && homonimos.every(h => !got.includes(cardName('profesional', h.id))), got.join(' | '));
 }
+avisos.length = 0;
 const gotSinCarrera = await buscar('');
-ok('B13) sin q: el universo de R9 se lista entero (≥ 10 tarjetas)', gotSinCarrera.length >= 10, `${gotSinCarrera.length}`);
+ok('B13b) la línea de OTRO club colgada de una carrera de la reunión se descarta con el aviso de ISSUE-060',
+   avisos.length === 1 && /1 línea\(s\) de otro club descartadas \(ISSUE-060\)/.test(avisos[0]), avisos.join(' | '));
+const esperadas = new Set([...idsPag].filter(k => !k.startsWith('club|'))).size;
+ok(`B13) sin q: el universo de la reunión se lista entero (${esperadas} tarjetas = beneficiarios con deuda pagable, ≥ 10)`, gotSinCarrera.length === esperadas && esperadas >= 10, `${gotSinCarrera.length}`);
 ok('B14) el matcheo no rompe la búsqueda por caballeriza previa (probe_cobros_caballeriza: benefSearch sigue en crudo)',
    extractFn(SRC, 'function benefSearch(tipo, id)').includes(".join(' ').toLowerCase()"));
 
