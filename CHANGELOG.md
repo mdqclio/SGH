@@ -1,5 +1,25 @@
 # Changelog
 
+## [2026-10-02] — Resultado de reunión con liquidación cerrada bloqueado en la base (ISSUE-102), oficializado_* (ISSUE-101), oficial→provisional sólo por des-oficializar (ISSUE-089) — migraciones **aplicadas**
+
+> Fase 1: `docs/diagnosticos/2026-10-02_resultados-reunion-cerrada-fase1.md` (reports). Hasta hoy el cierre (ISSUE-091) protegía la
+> liquidación, no el resultado: F10 en la vista oficial, la API, `resultados_legacy.html` o `aplicar_resultado` cambiaban
+> posiciones de R6/R8 sin registro.
+
+- `migrations/resultados_backfill_oficializado.sql` (`20261002020753`): `oficializado_at`/`por` desde la última transición a oficial
+  auditada — 23/23 con fecha, 20 con usuario.
+- `migrations/resultados_guard_cerrada.sql` (`20261002020829`): trigger P0092 en resultados/posiciones/apuestas (pasan migraciones y
+  la marca de corrección; service_role sujeto), auditoría de posiciones y apuestas, `fn_is_staff()` en las políticas de escritura de
+  `resultados` y `resultado_posiciones`.
+- `migrations/aplicar_resultado_v2.sql` (`20261002020924`): corte de reunión cerrada, oficial → provisional rechazado (P0089),
+  escribe `oficializado_at`/`por`.
+- `migrations/desoficializar_carrera_v2.sql` (`20261002020946`): corte de reunión cerrada.
+- md5 en prod = sandbox (`tests/local/resultados_cerrada_md5_esperado.txt`). Probe `tests/probe_resultados_cerrada.mjs` (sandbox)
+  30/30, 11/11 mutantes; rollbacks probados. En vivo: R8 C3 con service_role → P0092 por trigger, por `aplicar_resultado` y por
+  `desoficializar_carrera`, sin cambios en la fila. `probe_guard_staff_rpcs --fn` 12/12 en las dos.
+- Pendiente: front (paso 3, con baja de `resultados_legacy.html`) y corrección con resolución (paso 4, espera a Fede). ISSUE-103
+  (`performances` vacía) anotado.
+
 ## [2026-10-02] — Portal: traer del Stud Book un caballo que no está en el padrón e inscribirlo de corrido (PR #29; migraciones **aplicadas** `20261002001531` / `20261002001639`; studbook-buscar **v2**)
 
 > Pedido de Yesi (audio 01/10 14:10): un entrenador registrado en el portal no pudo anotar porque el caballo no
