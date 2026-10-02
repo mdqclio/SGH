@@ -15,11 +15,13 @@
 # Qué entra: sólo lectura contra prod, base en memoria, jsdom con stubs, Chromium headless. Se eligió
 # leyendo cada probe (no por grep del encabezado: hay probes que dicen "solo lectura" y crean fixtures).
 # Qué NO entra (no se corren solos, a demanda y con su protocolo):
-#   - ESCRIBEN en prod (fixtures en la 9999 o reuniones propias, usuarios, recibos): bolsa_efectiva,
-#     paridad_llamado_inscripciones, carta_hora_local, caballeriza_provisorio, modificar_inscripcion_portal,
+#   - ESCRIBEN en prod (fixtures en la 9999 o reuniones propias, usuarios, recibos): carta_hora_local,
+#     caballeriza_provisorio, modificar_inscripcion_portal,
 #     xss_portal_nombres, pagos_rol_carrera, montas_post_oficial, guard_staff_rpcs, smoke_*, y el resto
 #     de los que llaman insert/update/delete/createUser/generateLink sobre el cliente real;
-#   - SÓLO SANDBOX (tests/local/): portal_alta_spc_studbook, resultados_cerrada, usuarios_pantalla, …;
+#   - SÓLO SANDBOX (tests/local/): portal_alta_spc_studbook, resultados_cerrada, usuarios_pantalla,
+#     paridad_llamado_inscripciones (fixture en el sandbox desde el 02/10), …;
+# bolsa_efectiva SÍ está: escribe sólo en el sandbox (fixture) y lee prod; sin sandbox saltea esa parte con ⏸.
 #   - MANDAN MAILS: solicitar_cuenta_existente, autoregistro_e2e, invite_user, …;
 #   - NECESITAN LOGIN REAL (SGH_EMAIL / SGH_PASSWORD de un usuario de prod): alineado_browser, badge_overlap_browser;
 #   - scripts que no son probes (render_*, recalculo_r9_subroles, diag_*, dryrun_*).
@@ -37,6 +39,7 @@ probe_alineado_programa|
 probe_apuestas_especiales|
 probe_aviso_jockey_repetido|
 probe_badge_overlap|
+probe_bolsa_efectiva|
 probe_carta_numero_turno|
 probe_carta_selector_reunion|
 probe_chapa_4medio|

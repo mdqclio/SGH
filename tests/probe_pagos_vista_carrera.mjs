@@ -230,13 +230,29 @@ ok('3b) C5: cada incentivo está bajo el rol Jockey del caballo que ese jockey m
 ok('3c) C5: ningún incentivo bajo un jockey que no largó acá', incLineas.every(x => e5.J.has(x.benefId)));
 ok('3d) C5: el incentivo con importe lleva "Incentivo por reunión — se paga una sola vez"; la nota, "figura en la carrera N" (N = dueña)', incLineas.length > 0 && incLineas.every(x => x.nota ? x.texto === `Incentivo por reunión: figura en la carrera ${duenoNro[x.benefId]}` : /Incentivo por reunión — se paga una sola vez/.test(x.texto)), incLineas.map(x => x.texto).join(' | '));
 
-// 3e) la nota de C5 apunta a una carrera donde el incentivo SÍ está, con importe y rótulo
-const conNota = incLineas.find(x => x.nota);
-if (conNota) {
-  const cd = carrera(duenoNro[conNota.benefId]);
-  const bd = parsear(await buscar('', cd.id));
-  const alla = bd.flatMap(b => b.roles.flatMap(r => r.benefs.filter(be => be.nombre === conNota.benef).flatMap(be => be.lineas.filter(l => /incentivo jockey/i.test(l.texto)))));
-  ok(`3e) ${conNota.benef}: en la carrera ${duenoNro[conNota.benefId]} (dueña) el incentivo está con importe y "se paga una sola vez"`, alla.length === 1 && /Incentivo por reunión — se paga una sola vez/.test(alla[0].texto), alla.map(l => l.texto + ' ' + l.monto).join(' | '));
+// 3e) "la nota de C5 apunta a una carrera donde el incentivo SÍ está, con importe y rótulo": SINTÉTICO. Antes seguía la nota de
+// un jockey real de C5 hasta su carrera dueña; el 02/10 ese incentivo se cobró y la dueña ya no lo muestra con importe (está
+// pagado: es lo correcto). Ahora: un jockey sintético que largó en 1 y 5, con las funciones reales de la vista.
+{
+  const v = await new AsyncFunction('sb', 'CLUB_ID', 'document', 'toast', 'fmt', 'escapeHtml', 'propietariosMap', 'profesionales',
+    `let cobCaballerizas = [], cobInscCarrera = {}, cobNroCarrera = {}, cobMapsScope = null, cobReunPrueba = null;
+     ${src}
+     return { cobArmarVistaCarrera, cobHtmlVistaCarrera, cobDuenosIncentivo };`)(sb, CLUB_ID, mkDocument({}), () => {}, n => '$' + Number(n).toFixed(2), escapeHtml, propietariosMap, profesionales);
+  profesionales.jsint = { id: 'jsint', apellido: 'SINT', nombre: 'JOCKEY' };
+  const dS = v.cobDuenosIncentivo([{ id: 's1', numero_carrera_programa: 1, numero_turno: 1 }, { id: 's5', numero_carrera_programa: 5, numero_turno: 7 }],
+    [{ carrera_id: 's1', jockey_titular_id: 'jsint', largo: true }, { carrera_id: 's5', jockey_titular_id: 'jsint', largo: true }]);
+  const incS = { id: 'isint', beneficiario_tipo: 'profesional', beneficiario_id: 'jsint', concepto_tipo: 'incentivo_jockey', concepto: 'Incentivo jockey',
+    monto_neto: '60000', reunion_id: 'RX', inscripcion_id: null, carrera_id: null, liquidaciones: { club_id: CLUB_ID } };
+  const ins = cid => [{ id: `I${cid}`, numero_partidor: 1, posicion: 1, no_largo: false, largo: true, caballo: `CAB ${cid}`, propietario_id: null, entrenador_id: null, jockey_titular_id: 'jsint' }];
+  const de = cid => parsear(v.cobHtmlVistaCarrera(v.cobArmarVistaCarrera([incS], ins(cid), cid, dS), {}))
+    .flatMap(b => b.roles.flatMap(r => r.benefs.filter(be => be.nombre === 'SINT, JOCKEY')));
+  const en5 = de('s5'), en1 = de('s1');
+  const nota = en5.flatMap(be => be.notas)[0] || '';
+  const nroNota = parseInt((/figura en la carrera (\d+)/.exec(nota) || [])[1], 10);
+  const alla = (nroNota === 1 ? en1 : []).flatMap(be => be.lineas.filter(l => /incentivo jockey/i.test(l.texto)));
+  ok('3e) sintético: la nota de la carrera 5 ("figura en la carrera 1") apunta a una carrera donde el incentivo SÍ está, con importe y "se paga una sola vez"',
+     nroNota === 1 && alla.length === 1 && /Incentivo por reunión — se paga una sola vez/.test(alla[0].texto) && alla[0].monto.includes('60000'),
+     JSON.stringify({ nota, en1 }));
 }
 
 // 4) misma persona en dos roles → dos sub-bloques, dos Pagar distintos (propietario / profesional)
