@@ -750,3 +750,16 @@ Las líneas citadas son de `cc594e4`.
 ### Intentos fallidos (sin efecto, sólo lectura)
 
 Ninguno en este relevamiento. Los dos errores de consulta de antes (agregadas y regex) están en el informe de ISSUE-101 del mismo día.
+
+---
+
+## Verificación de push
+
+```
+$ git ls-remote origin reports
+ac8c7ca1531514b1b3ea366e2c47fce3e0c8e154	refs/heads/reports
+$ git rev-parse HEAD
+ac8c7ca1531514b1b3ea366e2c47fce3e0c8e154
+```
+
+Coinciden. Este bloque va en un commit posterior.
