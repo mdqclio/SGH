@@ -9,9 +9,6 @@ probe_edad_display                  drift: no encuentra el ancla de fin del bloq
 probe_edad_reglamentaria            2/32: el Stud Book no devuelve dato para los ejemplares de R9 (fuente externa; ver studbook_buscar_fn)
 probe_forfait_anulada               drift de extracción: ReferenceError renumerarChapas
 probe_orden_carreras                drift de datos: 2/18 asumen R9 con 0 anuladas y sin sortear (R9 ya tiene anuladas y sorteo)
-probe_pagos_carrera_busqueda        drift de extracción: ReferenceError subRolDeLinea (arreglado en PR #40)
-probe_pagos_vista_carrera           drift de extracción: ReferenceError subRolDeLinea (arreglado en PR #40)
-probe_pagos_vista_incentivo_pagados drift de extracción: ReferenceError subRolDeLinea (arreglado en PR #40)
 probe_portal_carta                  drift: no encuentra loadCarta en portal.html (hoy se llama loadLlamado)
 probe_spcs_r9_tanda_1               evidencia histórica: asserta count(spcs) = 205 (hoy 239)
 probe_studbook_buscar_fn            fuente externa: el Stud Book responde HTTP 403 a las búsquedas desde este servidor
