@@ -1,0 +1,16 @@
+# md5 esperados de ISSUE-102/101/089 (resultados en reunión cerrada), medidos en el sandbox
+# (tests/probe_resultados_cerrada.mjs, base desde tests/local/resultados_cerrada_sandbox.sql + v1 exacta de las RPC,
+# Postgres 16) aplicando los archivos tal cual, 2026-10-02.
+# Funciones: md5(pg_get_functiondef(oid)).
+#   select proname, md5(pg_get_functiondef(oid)) from pg_proc where proname in ('aplicar_resultado','desoficializar_carrera','fn_resultado_cerrado_guard') order by 1;
+aplicar_resultado            6594e5070ce82d1c90e9fed60ddd0566   (v1 = 94d46dc0ed70e78329169bb3926f64c2)
+desoficializar_carrera       fc77286021e6ec54102f7463fd66b9bf   (v1 = c3247d72656833cd534e4c601900f25a)
+fn_resultado_cerrado_guard   24b68443d9e200e26739fb0be6806721
+# Políticas: md5(coalesce(qual,'') || '|' || coalesce(with_check,'')).
+#   select policyname, md5(coalesce(qual,'') || '|' || coalesce(with_check,'')) from pg_policies where tablename in ('resultados','resultado_posiciones') and cmd in ('INSERT','UPDATE','DELETE') order by 1;
+resultado_posiciones_delete  9a16503239381f0b7be6c46062530c91
+resultado_posiciones_insert  fdb4fc104891c324f0a08da33a951cb7
+resultado_posiciones_update  0f264c9d96edf6e8c5169816628fc2ef
+resultados_delete            35f84de1e92484a47f39b109ab053c7f
+resultados_insert            1f501a4cd6d89115909b2d82853e0351
+resultados_update            5232e588f24bf123514396a183a531d9
