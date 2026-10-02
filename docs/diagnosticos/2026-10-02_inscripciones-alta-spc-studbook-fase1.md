@@ -19,7 +19,7 @@
 - Si no hay coincidencias muestra "Sin resultados" y no ofrece otra salida.
 - Al guardar, `saveRecord()` hace un `INSERT` directo en `inscripciones` con el cliente del usuario (RLS de staff).
 
-**Portal** (`portal.html:1130-1250`):
+**Portal** (`portal.html`, desde la línea 1130 hasta la 1250):
 
 - `buscarEnStudBookPortal()` llama a `studbook-buscar { term }` y muestra los candidatos.
 - Si un candidato ya está en el padrón (mismo `studbook_id`), el botón dice "Ya está en el padrón — anotarlo".
@@ -143,3 +143,13 @@ El pedido es explícito: reusar la RPC del portal.
 3. **`revision_motivos`** en altas del staff: ¿guardarlos (informativo, sin "Por revisar") o dejarlos vacíos? Propongo
    guardarlos.
 4. ¿Renombrar la marca `sgh.alta_portal` → `sgh.alta_studbook` en la misma migración? Propongo no tocarla.
+
+---
+
+## Verificación de push y un desvío del protocolo
+
+El primer push de este informe (`b7b34b662bebac66278e836978361a46c19681f5`) salió **con una coincidencia del grep de datos
+personales**: un rango de números de línea del portal escrito con guion, que tiene la forma de un teléfono. No es un dato
+personal, pero la regla dice que no se pushea con cualquier coincidencia. El push salió porque el comando encadenaba el
+grep y el push con `;` en vez de cortar. La línea se reescribió en este commit. De acá en más, el push va condicionado a
+que el grep salga vacío (`grep … && exit 1`).
