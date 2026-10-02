@@ -142,3 +142,13 @@ select date_trunc('hour', created_at) hora, count(*) recibos from recibos where 
 2026-10-02 19:00 UTC | 23
 2026-10-02 20:00 UTC |  1
 ```
+
+## Verificación de push
+
+```
+$ git ls-remote origin reports
+b13aea564100f78bb1c28aaf0e3d8837b938a8d1
+$ git rev-parse HEAD
+b13aea564100f78bb1c28aaf0e3d8837b938a8d1
+```
+Chequeo de datos personales sobre lo agregado: vacío.
