@@ -118,6 +118,10 @@ function sbSinInsert(real, log) {
 const setForm = (doc, vals) => { for (const [k, v] of Object.entries(vals)) doc.getElementById(k).value = v; };
 const FORM_VACIO = { 'f-nombre': '', 'f-registro': '', 'f-studbook-id': '', 'f-nacimiento': '', 'f-sexo-form': 'macho', 'f-color': '', 'f-marcas': '', 'f-caballeriza-form': '', 'f-entrenador': '', 'f-jockey': '', 'f-estado-spc': 'activo', 'f-notas': '', 'f-padrillo': '', 'f-madre': '', 'f-ult-perf': '', 'f-abuela': '', 'f-pais': 'Argentina' };
 
+// spcs antes de la corrida: el teardown tiene que dejar el mismo número (antes era un baseline fijo
+// de CLAUDE.md, que se mueve solo con las altas del portal).
+const { count: spcsAntes } = await admin.from('spcs').select('id', { count: 'exact', head: true });
+
 try {
   const staff = await sesion('operador');
   const inserts = [];
@@ -196,7 +200,7 @@ try {
   const { data: restSpc } = await admin.from('spcs').select('id').like('nombre', 'PROBE SBALTA %');
   ok('T) teardown: 0 spcs de prueba', (restSpc || []).length === 0, JSON.stringify(restSpc));
   const { count } = await admin.from('spcs').select('id', { count: 'exact', head: true });
-  ok('T) count spcs = 205 (baseline CLAUDE.md)', count === 205, String(count));
+  ok('T) count spcs igual antes y después de la corrida', count === spcsAntes, `${spcsAntes} → ${count}`);
   const { data: rest } = await admin.from('usuarios').select('email').like('email', `probe.sbalta.%.${RUN}@sgh.test`);
   ok('T) teardown: 0 usuarios de prueba', (rest || []).length === 0, JSON.stringify(rest));
   const { data: au } = await admin.auth.admin.listUsers({ perPage: 200 });

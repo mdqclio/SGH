@@ -53,8 +53,6 @@ const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
 const PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY
   || 'sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK';
 const CLUB = '0649e9c5-9e87-4aad-842f-101458e6b33c';
-// Baseline de CLAUDE.md (guard de sesión). Se actualiza cuando hay altas/bajas.
-const SPCS_BASELINE = 238;
 
 const KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!KEY) { console.error('Falta SUPABASE_SECRET_KEY (set -a; . ./.env; set +a)'); process.exit(2); }
@@ -693,8 +691,10 @@ function linea(src, ancla) {
     ok('R1) restore: cero filas del run en reuniones/spcs/caballerizas/profesionales/usuarios/propietarios/responsables; spcs antes = después',
        Object.values(restos).every(n => n === 0) && spcsAntes === spcsDespues,
        `${JSON.stringify(restos)} spcs ${spcsAntes}→${spcsDespues}`);
-    ok(`R2) count(*) FROM spcs = ${SPCS_BASELINE} (baseline de CLAUDE.md; si cambió, hubo altas/bajas y hay que actualizarlo)`,
-       spcsDespues === SPCS_BASELINE, `spcs=${spcsDespues}`);
+    // R2: guard de proyecto de CLAUDE.md (uuid fijo de Dolores). Antes era count(*) FROM spcs = baseline
+    // exacto, que se mueve solo con las altas del portal; el antes = después de R1 es lo que verifica el teardown.
+    const { data: clubGuard } = await admin.from('clubs').select('nombre').eq('id', CLUB);
+    ok('R2) guard de proyecto: clubs tiene a Dolores por su uuid (CLAUDE.md)', clubGuard?.length === 1 && /Dolores/.test(clubGuard[0].nombre), JSON.stringify(clubGuard));
   }
 
   console.log('\n── Probe · Modificar inscripción desde el portal ──');

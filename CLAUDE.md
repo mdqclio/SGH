@@ -315,30 +315,24 @@ Antes de cualquier operación de escritura sobre producción, verificar los tres
 
 ```
 pwd                          → /home/clio/dev/SGH
-SELECT count(*) FROM spcs    → 238        (baseline al 2026-10-01, altas de Yesi por spcs.html del 30/09 y 01/10 para R10)
-ref del proyecto             → unlhcuanfrtpatoipwve
+ref del proyecto             → unlhcuanfrtpatoipwve   (get_project_url del MCP / SUPABASE_URL)
+SELECT nombre FROM clubs WHERE id = '0649e9c5-9e87-4aad-842f-101458e6b33c'
+                             → 'Hipódromo de Dolores'  (exactamente 1 fila)
 ```
 
-⚠️ El 238 **incluye caballos de prueba**: `spcs` es global sin `club_id` (GOTCHA #13) y los
-ejemplares de test de "Mi Club Hípico" (`Pampa Libre`, `Don Facundo`) suman al conteo. Sirve para lo
-que se usa —detectar proyecto equivocado— pero **no es el padrón real de Dolores**. GOTCHA #75,
-ISSUE-061.
+El tercero confirma que la base es la de prod con un dato que **no se mueve**: el uuid de Dolores es el
+`CLUB_ID` de todo el sistema y un club no se puede borrar (ISSUE-095). Otro proyecto, una branch vacía o el
+sandbox `tests/local/` sin la copia dan 0 filas.
 
-El baseline de `spcs` **cambia cada vez que se dan de alta o de baja ejemplares** — actualizarlo acá
-cuando pase. Historial: 179 → 183 (tanda 5) → **181** (2026-08-23, se unificaron los dos pares de
-duplicados: se borraron `Fist Queen` y `Malenuchi`, ver `docs/PLAN_DUPLICADOS_SPC.md`) → **199**
-(2026-09-11, R9 tanda 1: 18 altas de la planilla de anotaciones, `migrations/spcs_r9_tanda_1.sql`) → **201**
-(2026-09-11 noche, R9 tanda 2: QUE BELLA DOÑA e INDIANA MARO, `migrations/spcs_r9_tanda_2.sql`) → **203**
-(2026-09-11 noche, R9 tanda 3: BIEN COQUETA y EL MAS SABIO, `migrations/spcs_r9_tanda_3.sql`) → **205**
-(2026-09-12, Yesi dio de alta DAHUA y SOUTH GOTICO desde `spcs.html` con el buscador del Stud Book — primeras
-altas por UI, sin migración; ambos inscriptos en R9 T3 y T4) → **210** (2026-09-14, Yesi dio de alta LEONADA CHAT,
-OJO EXCELENTE, GRAN RAUL, CANDIDATA PIRANERA y ARTHURUS desde `spcs.html`; todos inscriptos en R9) → **238**
-(2026-09-30 y 2026-10-01, Yesi dio de alta 28 ejemplares desde `spcs.html` con el buscador del Stud Book, todos con
-`studbook_id` — los caballos de R10 que el portal no podía traer; recontado el 2026-10-01, informe
-`docs/diagnosticos/2026-10-01_portal-alta-spc-studbook.md` en reports).
+**Hasta el 2026-10-02 el guard era `SELECT count(*) FROM spcs` contra un número exacto** (el último fue 238).
+Se reemplazó porque ese número se mueve solo: desde el alta de SPC por el portal (02/10) un entrenador suma
+fichas sin migración ni aviso, y el guard daba rojo en la base correcta (239 el mismo 02/10). Además incluía
+caballos de prueba de otro club (GOTCHA #75, ISSUE-061). El historial de baselines queda en git
+(`git log -p -S'FROM spcs' -- CLAUDE.md`). Los probes que restauran comparan `spcs` **antes y después** de
+su propia corrida, no contra un número fijo.
 
-Los guards que aparecen dentro de los planes y bitácoras de `docs/` son **fotos de su fecha**, no el
-baseline vigente: no se reescriben.
+Los guards que aparecen dentro de los planes y bitácoras de `docs/` (con su `count(*) FROM spcs`) son
+**fotos de su fecha**, no el guard vigente: no se reescriben.
 
 ---
 
@@ -414,11 +408,11 @@ node tests/probe_spcs_r9_tanda_1.mjs               # R9 tandas 1+2+3 — 22 alta
 node tests/probe_rpc_spcs_duplicados.mjs           # rpc_spcs_duplicados — 3 motivos, staff ok / portal 42501; ESCRIBE usuarios de prueba, teardown verificado
 node tests/probe_studbook_buscar_fn.mjs            # studbook-buscar — lógica extraída del index.ts contra el Stud Book real; sin Supabase
 node tests/probe_studbook_buscar_e2e.mjs           # studbook-buscar deployada — 200 staff / 403 portal / 401 sin token / preflight; ESCRIBE usuarios, teardown verificado
-node tests/probe_spcs_studbook_alta.mjs            # spcs.html — buscar, Usar, prellenado, panel de duplicados (bloquea / Guardar igual), INSERT real; ESCRIBE 1 spc + 1 usuario, teardown verificado, count 205
+node tests/probe_spcs_studbook_alta.mjs            # spcs.html — buscar, Usar, prellenado, panel de duplicados (bloquea / Guardar igual), INSERT real; ESCRIBE 1 spc + 1 usuario, teardown verificado, spcs antes = después
 node tests/probe_orden_inscriptos.mjs             # inscripciones.html — pantalla y PDF en alfabético 'es' (= ratificacion); R9 T4 NIÑO OCEANICO < NISTEL WIN; solo lectura
 node tests/probe_aviso_jockey_repetido.mjs [--mutantes]   # jockey repetido en el turno — aviso en 4 pantallas, sólo activos; turnos SINTÉTICOS (×3, ×2, limpio, forfait, mal_inscrito; desde 02/10 reemplazan a R9, que drifteó) + R8 histórico + R8 T5 backfill no bloqueado (saveMontas → rpc_cambiar_monta); 53/53, 4/4 mutantes; solo lectura
-node tests/probe_caballeriza_provisorio.mjs        # caballerizas.html titular opcional + rpc_caballeriza_provisorio (UI con stubs + RPC con sesiones reales); ESCRIBE fixture (reunión 9985), teardown verificado, count 238; CABALLERIZAS_HTML acepta URL
-node tests/probe_modificar_inscripcion_portal.mjs   # Modificar desde el portal — rpc_modificar_inscripcion (guards = baja, cadena del propietario, GATE-1=B) + UI; ESCRIBE fixture 9987/9986, teardown verificado, count 238; PORTAL_HTML=https://sigh.com.ar/portal.html corre contra el HTML servido
+node tests/probe_caballeriza_provisorio.mjs        # caballerizas.html titular opcional + rpc_caballeriza_provisorio (UI con stubs + RPC con sesiones reales); ESCRIBE fixture (reunión 9985), teardown verificado, spcs antes = después; CABALLERIZAS_HTML acepta URL
+node tests/probe_modificar_inscripcion_portal.mjs   # Modificar desde el portal — rpc_modificar_inscripcion (guards = baja, cadena del propietario, GATE-1=B) + UI; ESCRIBE fixture 9987/9986, teardown verificado, spcs antes = después; PORTAL_HTML=https://sigh.com.ar/portal.html corre contra el HTML servido
 node tests/probe_carta_numero_turno.mjs [out_dir]   # carta-llamados PDF — `TURNO N — condición` con numero_turno (R9 T3=7 discrimina) + ancho con Chromium: nadie desborda, T5–T8 a 2 líneas, chip de distancia intacto; PNG; solo lectura; necesita ~/chromium-libs + fonts-liberation
 node tests/probe_mandil_colores.mjs                # partidor-colors.js vs nomenclador oficial de mandiles (Fede 18/09) — fondo por HSL, número exacto, fallback >16; sin Supabase; PARTIDOR_JS acepta URL
 node tests/probe_fmtinput_onblur.mjs               # liquidaciones.html — inputs de monto formatean por onblur, no por tecla (bug 19/09: tipear 60000 quedaba en $6,00 → base 6); saveReparto con sb stub; mutante = main pre-fix 7/20; sin Supabase; LIQUIDACIONES_HTML acepta URL
@@ -441,6 +435,7 @@ node tests/probe_xss_portal_nombres.mjs [--mutantes]  # ISSUE-018 tramo portal �
 node tests/probe_portal_alta_spc_studbook.mjs [--mutantes]   # alta de SPC desde el portal — previa cerrar_tablas_bak_publicas + rpc_spc_alta_studbook_portal + trg_spcs_alta_revision + auditoría de spcs: SÓLO SANDBOX (base aparte sgh_pa_* en el contenedor sgh-local-pg, desde tests/local/portal_alta_spc_sandbox.sql con las funciones reales de prod y las tablas bak como en prod; no toca la base `sgh`); 55/55, 23/23 mutantes; concurrencia real con dos conexiones; no crea ejemplares en prod
 node tests/probe_portal_alta_spc_prod.mjs                # alta de SPC desde el portal EN PROD con el portal.html que SIRVE sigh.com.ar (jsdom + sesión real de portal): inscripción normal (BIEN COQUETA, del padrón) + nueva (TROMPETERO, SB 128894, del Stud Book → ficha pendiente + inscripción); fixture reunión 9984 (2099) y teardown por estado; la ficha nueva es fixture y se borra; spcs antes = después; 14/14 el 02/10; PORTAL_HTML acepta archivo
 node tests/probe_portal_alta_spc_ui.mjs [--mutantes]          # pantallas del alta desde el portal (portal.html buscar/traer/anotar, spcs.html Por revisar + ✏️ por id, inscripciones.html ficha nueva): jsdom + sb stub, sin red ni base; 18/18, 8/8 mutantes
+node tests/probe_inscripcion_editar_carrera.mjs [--mutantes]   # inscripciones.html — editar guarda el turno de la FILA (hidden f-carrera-id), no el del select; alta sin turno no escribe; jsdom + sb stub, sin red ni base; 4/4, 4/4 mutantes (contra main pre-fix: 1/4); INSCRIPCIONES_HTML acepta ruta
 node tests/probe_resultados_cerrada.mjs [--mutantes]   # ISSUE-102/101/089 — resultado en reunión con liquidación cerrada (trigger P0092 por cada camino: RPC, API directa, service_role, migración, marca de corrección), oficializado_* en aplicar_resultado v2, oficial→provisional rechazado, auditoría de posiciones/apuestas, políticas con fn_is_staff, backfill: SÓLO SANDBOX (bases sgh_rc_* desde tests/local/resultados_cerrada_sandbox.sql + v1 exacta de las RPC); 30/30, 11/11 mutantes
 node tests/render_programa_pdf.mjs <reunion_id> color <out_dir> [https://sigh.com.ar]   # programa oficial a PDF + PNG con Chromium headless (LD_LIBRARY_PATH, ver docs/SERVER.md); reporta grilla y celdas que envuelven; ESCRIBE 1 usuario, teardown verificado. Es la verificación VISUAL — mirar las imágenes
 ```
