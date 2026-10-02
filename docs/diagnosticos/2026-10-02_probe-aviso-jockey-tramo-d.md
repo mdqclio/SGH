@@ -215,3 +215,16 @@ Las fechas: carga de montas de la ratificación (16–17/09) y cambios del día 
 ¿Cómo querés los asserts R9/A/B? (a) contra una foto fija (sacar la R9 del 12/09 a un JSON del repo), (b) re-basear a la R9
 actual (vuelve a romperse si alguien edita montas de R9), o (c) moverlos a la 9999 o a casos sintéticos, como H. Mi
 recomendación es (c): no depende de que nadie toque R9.
+
+## Verificación de push
+
+```
+$ git ls-remote origin reports
+6b509ea554d0c8fbbdf8f5b7c48f3db3ae99ff82	refs/heads/reports
+$ git rev-parse HEAD
+6b509ea554d0c8fbbdf8f5b7c48f3db3ae99ff82
+$ git ls-remote origin fix/probe-aviso-jockey-savemontas
+93b6d3094bffc0bec07af2f5762171e510a70bfe	refs/heads/fix/probe-aviso-jockey-savemontas
+```
+
+Coinciden. Este bloque va en un commit posterior.
