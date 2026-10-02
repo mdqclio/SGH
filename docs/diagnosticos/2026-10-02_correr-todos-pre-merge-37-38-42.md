@@ -166,3 +166,15 @@ where d.reunion_id='cafa37d6-89f4-45cb-a0d9-835bc27407e9' and d.concepto_tipo='i
 inc_jockey <J07> | 79ad9dec-dae1-41a4-8d82-e424e5a96de4 | pagado | recibo b9d30a41-4698-4a72-b782-3c8ffca79be1 | 2026-10-02 13:07 ART | $60.000,00
 lineas_r9        | 216 líneas | $9.051.208,34
 ```
+
+## Verificación de push
+
+Chequeo de datos personales sobre lo agregado: **0**. Búsqueda de nombres de personas en lo agregado: **0**.
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+173654b9adda5fd9f45bc50a98d730ca78417b4f	refs/heads/reports
+173654b9adda5fd9f45bc50a98d730ca78417b4f
+```
+
+Este anexo va en un commit posterior; su SHA es el tip de `origin/reports`.
