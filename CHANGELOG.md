@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-10-02] — Resultados: la pantalla respeta la reunión cerrada y la carrera oficial (ISSUE-102 paso 3); baja de `resultados_legacy.html`
+
+- **F10** sólo actúa en el formulario: en la vista oficial avisa "La carrera está oficial: para corregirla, des-oficializala primero." y no
+  manda nada; en una reunión con la liquidación cerrada, tampoco.
+- **Reunión cerrada** (`reuniones.liquidacion_cerrada_at`, ahora traído con la lista de reuniones): banner arriba y **Aplicar**, **Hacer
+  oficial** y **Des-oficializar** deshabilitados con el motivo en el tooltip (no se esconden). `oficializar()` corta antes de los gates.
+- **Errores de la base traducidos por código**: P0092 → "La liquidación de esta reunión está cerrada: el resultado no se puede cambiar."
+  (sin mencionar super_admin ni resolución: esa vía todavía no existe); P0089 → "La carrera está oficial…". El resto, como antes.
+- **`resultados_legacy.html` borrada** (404): no la enlazaba ninguna pantalla y escribía directo en `resultados` / `resultado_posiciones` /
+  `performances`, sin las RPC (des-oficializaba sin el chequeo de pagos emitidos). Cierra ISSUE-046.
+- Probe `tests/probe_resultados_front_cerrada.mjs`: 16/16, 13/13 mutantes; contra `main` previo 4/16. Entra a `correr_todos.sh`.
+
 ## [2026-10-02] — Resultado de reunión con liquidación cerrada bloqueado en la base (ISSUE-102), oficializado_* (ISSUE-101), oficial→provisional sólo por des-oficializar (ISSUE-089) — migraciones **aplicadas**
 
 > Fase 1: `docs/diagnosticos/2026-10-02_resultados-reunion-cerrada-fase1.md` (reports). Hasta hoy el cierre (ISSUE-091) protegía la

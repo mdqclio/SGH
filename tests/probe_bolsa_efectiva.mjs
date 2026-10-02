@@ -33,6 +33,11 @@
  *   set -a; . ./.env; set +a
  *   node tests/probe_bolsa_efectiva.mjs
  *   node tests/probe_bolsa_efectiva.mjs --mutantes
+ *
+ * DÓNDE ESCRIBE (2026-10-02): el fixture (reunión 9990 con sus once carreras, más un hipódromo y una categoría propios)
+ * va al SANDBOX local (tests/local/up.sh; tests/lib/sandbox_rest.mjs), nunca a prod: antes se creaba en prod una reunión
+ * `publicada` de 2099 que por unos segundos se veía en el llamado del portal. Contra prod sólo se LEE (E: las bolsas de R9).
+ * Sin sandbox, B–D y T se saltean con ⏸ y el resto corre.
  */
 
 process.env.TZ = 'America/Argentina/Buenos_Aires';
@@ -43,6 +48,7 @@ import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
+import { clienteSandbox, verificarEmbedsLlamado } from './lib/sandbox_rest.mjs';
 
 const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
 const KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -50,7 +56,8 @@ if (!KEY) { console.error('Falta SUPABASE_SECRET_KEY (set -a; . ./.env; set +a)'
 
 const CLUB_ID = '0649e9c5-9e87-4aad-842f-101458e6b33c';
 
-const sb = createClient(SUPABASE_URL, KEY, { auth: { autoRefreshToken: false, persistSession: false } });
+const sb = createClient(SUPABASE_URL, KEY, { auth: { autoRefreshToken: false, persistSession: false } });   // prod: SÓLO LECTURA
+const SBX = await clienteSandbox({ verificar: verificarEmbedsLlamado });                                                                   // sandbox: fixtures y pantallas
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PORTAL_PATH = process.env.PORTAL_HTML || join(HERE, '..', 'portal.html');
 const INSC_PATH   = process.env.INSC_HTML   || join(HERE, '..', 'inscripciones.html');
@@ -135,7 +142,7 @@ async function mkPortal({ dom, inscs = [] }) {
     ${piezas}
     return { esc, formatARS, bolsaChip, loadLlamado };`;
   return new AsyncFunction('document', 'sb', 'toast', 'console', 'repartoDisplay', cuerpo)(
-    dom, sb, () => {}, console, repartoDisplay);
+    dom, SBX.sb, () => {}, console, repartoDisplay);
 }
 
 /** inscripciones.html — el camino REAL: onReunionChange (que hace el select) →
@@ -167,7 +174,7 @@ async function mkInsc({ dom, currentUser = { rol: 'secretario_carreras' } }) {
   const ActiveReunion = { get: () => null, set: () => {}, resolve: () => null };
   return new AsyncFunction('document', 'sb', 'CLUB_ID', 'ActiveReunion', 'currentUser',
                            'console', 'repartoDisplay', cuerpo)(
-    dom, sb, CLUB_ID, ActiveReunion, currentUser, console, repartoDisplay);
+    dom, SBX.sb, CLUB_ID, ActiveReunion, currentUser, console, repartoDisplay);
 }
 
 // ── lectura del HTML renderizado ────────────────────────────────────────────
@@ -283,10 +290,11 @@ if (argMut) {
 }
 
 // ══════════════════════════════ CORRIDA NORMAL ══════════════════════════════
-const fx = { reuniones: [], carreras: [] };
+const fx = { reuniones: [], carreras: [], hipodromos: [], categorias: [] };
 const die = (ctx, e) => { throw new Error(`[${ctx}] ${e?.message ?? JSON.stringify(e)}`); };
 async function ins(tabla, fila, bucket) {
-  const { data, error } = await sb.from(tabla).insert(fila).select('id').single();
+  if (!SBX.sb) die(`insert ${tabla}`, 'sin sandbox');
+  const { data, error } = await SBX.sb.from(tabla).insert(fila).select('id').single();
   if (error) die(`insert ${tabla}`, error);
   if (bucket) fx[bucket].push(data.id);
   return data.id;
@@ -334,9 +342,13 @@ async function ins(tabla, fila, bucket) {
        === repartoDisplay(1054166.67, distDe(false)).total,
        `con bono_ganador=${repartoDisplay(1054166.67, distDe(true)).total} · sin=${repartoDisplay(1054166.67, distDe(false)).total}`);
 
-    // ── B) FIXTURE con las once bolsas reales de R9 ─────────────────────────
-    const { data: hip } = await sb.from('hipodromos').select('id').eq('club_id', CLUB_ID).limit(1).single();
-    const { data: cat } = await sb.from('categorias_carrera').select('id').eq('club_id', CLUB_ID).limit(1).single();
+    // ── B) FIXTURE con las once bolsas reales de R9 — EN EL SANDBOX ─────────
+    if (!SBX.sb) {
+      console.log(`⏸ B–D) sin sandbox: el fixture y las pantallas no se prueban (${SBX.motivo})`);
+    } else {
+    const hip = { id: await ins('hipodromos', { club_id: CLUB_ID, nombre: 'PROBE bolsa efectiva', sigla: 'PBE', activo: true }, 'hipodromos') };
+    const cat = { id: await ins('categorias_carrera', { club_id: CLUB_ID, nombre: 'PROBE bolsa efectiva', codigo: 'PBE',
+      es_oficial: false, es_computable: false, orden_display: 99, activo: true }, 'categorias') };
     const reun = await ins('reuniones', {
       club_id: CLUB_ID, hipodromo_id: hip.id, numero: 9990,
       fecha: '2099-06-06', estado: 'publicada',
@@ -427,7 +439,9 @@ async function ins(tabla, fila, bucket) {
        chipBolsa(domI._get('carrera-header').innerHTML) === '$1.159.292,00',
        `chip="${chipBolsa(domI._get('carrera-header').innerHTML)}"`);
 
-    // ── E) EL FIXTURE NO SE DESPEGÓ DE R9 ───────────────────────────────────
+    }   // fin del bloque con sandbox
+
+    // ── E) EL FIXTURE NO SE DESPEGÓ DE R9 (prod, sólo lectura) ─────────────
     // Los números de arriba valen mientras las bolsas de R9 sean éstas.
     const { data: r9 } = await sb.from('carreras')
       .select('numero_turno,bolsa_total,distribucion_premios,reuniones!inner(numero,club_id)')
@@ -460,12 +474,20 @@ async function ins(tabla, fila, bucket) {
        crudoEnVivo.length ? `todavía crudo en: ${crudoEnVivo.join(', ')}` : 'portal e inscripciones limpios');
 
   } finally {
-    for (const id of fx.carreras) await sb.from('carreras').delete().eq('id', id);
-    for (const id of fx.reuniones) await sb.from('reuniones').delete().eq('id', id);
-    const { data: quedan } = await sb.from('reuniones')
-      .select('id').eq('club_id', CLUB_ID).eq('numero', 9990);
-    ok('T1) teardown: no quedó ninguna reunión 9990', (quedan || []).length === 0,
-       `quedan=${(quedan || []).length}`);
+    if (SBX.sb) {
+      for (const id of fx.carreras) await SBX.sb.from('carreras').delete().eq('id', id);
+      for (const id of fx.reuniones) await SBX.sb.from('reuniones').delete().eq('id', id);
+      for (const id of fx.categorias) await SBX.sb.from('categorias_carrera').delete().eq('id', id);
+      for (const id of fx.hipodromos) await SBX.sb.from('hipodromos').delete().eq('id', id);
+      const { data: quedan } = await SBX.sb.from('reuniones')
+        .select('id').eq('club_id', CLUB_ID).eq('numero', 9990);
+      ok('T1) teardown en el sandbox: no quedó ninguna reunión 9990', (quedan || []).length === 0,
+         `quedan=${(quedan || []).length}`);
+    }
+    // Y en prod no se creó nada: la 9990 no existe ahí.
+    const { data: enProd } = await sb.from('reuniones').select('id').eq('club_id', CLUB_ID).eq('numero', 9990);
+    ok('T2) prod: no existe ninguna reunión 9990 (el probe no escribe en prod)', (enProd || []).length === 0,
+       `en prod=${(enProd || []).length}`);
   }
 
   console.log('\n── Probe · la bolsa mostrada es la EFECTIVA, con piso ──');

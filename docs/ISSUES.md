@@ -46,6 +46,9 @@ Estado: ✅ RESUELTO COMPLETAMENTE (14/05/2026) — RLS implementada en 26 tabla
 
 ## ALTOS
 
+### ISSUE-104 (ver detalle al final): el motor de liquidación puede duplicar líneas (plata) — DELETE y lecturas sin chequeo de error, recálculos concurrentes sin lock, sin UNIQUE
+Estado: 🔴 ABIERTO, prioridad ALTA (2026-10-02). Decisión: sólo chequeos de error (2a, PR #38); sin UNIQUE ni RPC con lock. Detalle al final del archivo.
+
 ### ISSUE-003: PDF inscriptos no similar al modelo Palermo
 Descripción: Falta columnas orden partidor + alfabético/gatera, bolsa por carrera, indicadores H y punto negro
 Módulo: inscripciones.html
@@ -312,7 +315,7 @@ Módulo: `active-reunion.js`. Estado: ⏳ Abierto — mismo malentendido `anulad
 
 ### ISSUE-046: `resultados_legacy.html` mantiene una lista de cuerpos paralela
 Descripción: la pantalla legacy no usa el catálogo de `chapas.js` — arma su propio `CUERPOS_OPCIONES` para el datalist de márgenes (`resultados_legacy.html:448`). Toda entrada nueva del catálogo (ej. el `4½ cpos` de ISSUE-040) hay que agregarla dos veces, o queda desalineada.
-Módulo: `resultados_legacy.html`. Estado: ⏳ Abierto — unificar contra `chapas.js` o dar de baja la pantalla legacy. Prioridad: Baja.
+Módulo: `resultados_legacy.html`. Estado: ✅ **CERRADO (2026-10-02)** — la pantalla legacy se dio de baja (archivo borrado; Pages responde 404) en la fase 2 del front de ISSUE-102. Prioridad: Baja.
 
 ### ISSUE-047: Barrido de cuentas huérfanas de `auth.users` (auto-registro)
 Descripción: en el flujo de auto-registro, el `signUp` crea la cuenta en `auth.users` **antes** de que `rpc_solicitar_acceso` registre la solicitud. Si la RPC falla en el medio —o si la persona confirma el email y nunca vuelve a completar los datos— queda una cuenta en `auth.users` sin fila en `usuarios` ni en `solicitudes_acceso`. Una RPC no puede borrar de `auth.users` (necesita Admin API).
@@ -2354,6 +2357,17 @@ marca de recibo manual, y cobrarles por Pagos)** — medido el 21/09:
   reclama, Yesi carga el jockey en la inscripción primero.
 - Tope: 9 jockeys más (2 + 7), no 11 como decía el plan del 20/09 (contaba inscripciones).
 
+**⚠ Al crear la línea a mano (2026-10-02, ver ISSUE-104): `concepto` tiene que ser EXACTAMENTE `Incentivo jockey`**
+(mayúscula sólo la I, sin espacios ni texto extra; lo que haga falta aclarar va en `descripcion`), y `concepto_tipo =
+'incentivo_jockey'`, `inscripcion_id` y `posicion` NULL. El motor reconoce lo ya pagado por la clave
+`beneficiario|concepto_tipo|inscripcion|posicion|concepto` (`liquidaciones-engine.js:40`, `lineKey`): con otro `concepto`
+(p. ej. "Incentivo Jockey" o "Incentivo jockey R9"), si el jockey además largó, el próximo recálculo genera **otra** línea
+impaga del mismo incentivo → doble pago. Las tres de hoy están bien (medido 2026-10-02: 0 de 64 con otro `concepto`).
+Control: `select id, concepto from liquidacion_detalle where concepto_tipo='incentivo_jockey' and concepto is distinct from 'Incentivo jockey';` → 0 filas.
+**Ojo también**: una línea creada a mano **impaga** (como dice el pendiente de abajo) la **borra el próximo recálculo** de la
+reunión (el motor borra todo lo no comprometido y no la regenera, porque ese jockey no largó). Crearla y cobrarla en la misma
+sentada, o no recalcular R9 entre medio.
+
 **No se generan ahora** (decisión del 21/09): plata que se muestra como pagable a quien tal vez no
 venga es un vector de doble pago; se crea cuando la persona está en la ventanilla.
 
@@ -2858,8 +2872,9 @@ migración versionada y verificación por estado. (3) Probe del par oficializar/
 
 ### ISSUE-102: el resultado de una reunión con la liquidación cerrada se podía cambiar (sólo la pantalla frenaba des-oficializar)
 **Estado**: 🟢 **BASE APLICADA el 2026-10-02** (`20261002020753` backfill ISSUE-101 · `20261002020829` guard · `20261002020924`
-aplicar_resultado v2 · `20261002020946` desoficializar_carrera v2; md5 = sandbox; probe sandbox 30/30, 11/11 mutantes). Falta el
-**front** (paso 3: F10/Aplicar cortan en vista oficial y reunión cerrada, mensaje P0092, **baja de `resultados_legacy.html`**) y la
+aplicar_resultado v2 · `20261002020946` desoficializar_carrera v2; md5 = sandbox; probe sandbox 30/30, 11/11 mutantes). **Front (paso 3)
+hecho el 2026-10-02**: F10 no manda nada en la vista oficial ni en reunión cerrada; Aplicar/Hacer oficial/Des-oficializar deshabilitados
+con el motivo; P0092/P0089 traducidos por código; `resultados_legacy.html` borrada (probe `tests/probe_resultados_front_cerrada.mjs`). Falta la
 **corrección con resolución** (paso 4: `rpc_corregir_resultado` + `resultado_correcciones` + pantalla; **espera a Fede**, igual que qué
 estados de `resoluciones` habilitan una corrección).
 **Qué se hizo**: trigger `trg_resultado_cerrado` (P0092) en `resultados`, `resultado_posiciones` y `resultado_apuestas` — pasan sólo
@@ -2887,3 +2902,46 @@ Políticas de escritura de `resultados` y `resultado_posiciones` con `fn_is_staf
 (b) arreglar la escritura de `performances` (que la haga una RPC o el motor con permisos, y con error visible) y que el impreso la
 use. Mientras tanto, sacar o arreglar el `delete/insert` silencioso de `oficializar()`.
 **Cómo se verifica**: `select count(*) from performances;` → hoy 0.
+
+### ISSUE-104: el motor de liquidación puede duplicar líneas — errores sin chequear, recálculos concurrentes sin lock, sin UNIQUE en la base
+**Estado**: 🔴 **ABIERTO — prioridad ALTA (es plata)** (registrado 2026-10-02). **Hoy no hay ningún duplicado** (medido 2026-10-02: 0 pares
+reunión-jockey repetidos en 64 incentivos; 0 claves `lineKey` repetidas en 709 líneas; 0 headers repetidos por actor). Es un riesgo,
+no un daño.
+**Dónde**: `liquidaciones-engine.js`, `generarLiquidacionesReunion` — lo llaman Recalcular reunión (`liquidaciones.html:2463`),
+oficializar / desoficializar (`resultados.html:1685`, `:1720`) y el cambio de monta (`resultados.html:2153`, después de `rpc_cambiar_monta`).
+La persistencia son **varios pedidos sueltos por PostgREST, sin transacción**: (1) leer headers + líneas de la reunión, (2) borrar las
+líneas no comprometidas, (3) insertar headers y líneas nuevas salteando las ya pagadas por `lineKey`, (4) recalcular totales.
+**Los caminos a un duplicado real**:
+1. **Errores sin chequear.** El DELETE del paso 2 (`:338`) no mira `error`: si falla (red, timeout), el paso 3 inserta igual y todas las
+   líneas no pagadas de la reunión quedan **dobles**. Peor, la lectura del paso 1 (`:311`) tampoco mira `error`: si falla, el motor cree
+   que no hay nada pagado → no borra nada y regenera **también lo ya pagado como impago** (doble pago directo). Los INSERT de header
+   (`:400`) y de líneas (`:411`) sólo hacen `console.error` y el motor devuelve éxito: la pantalla dice "recalculado" con líneas borradas
+   y no repuestas.
+2. **Recálculos concurrentes sin lock.** Dos corridas sobre la misma reunión (Recalcular en una pestaña + oficializar en otra, o dos
+   usuarios) leen, borran e insertan intercaladas → líneas dobles y hasta dos headers por actor (las dos ven "no hay header" y crean uno).
+   Un lock no se puede tomar desde el cliente a través de varios pedidos PostgREST.
+3. **Recibo emitido en medio de un recálculo.** Si `emitir_recibo` marca una línea como pagada entre la lectura (paso 1) y el
+   DELETE (paso 2), el DELETE ya no la borra (el filtro se reevalúa sobre la fila actualizada) pero el motor no la tiene entre las
+   pagadas → la vuelve a insertar impaga → **doble pago**. Es el mismo hueco que el 2 (sin lock), con Pagos de un lado y el motor del otro.
+4. **Sin UNIQUE en la base.** `liquidacion_detalle` sólo tiene la PK y tres índices no únicos; `liquidaciones`, la PK y
+   `(reunion_id, club_id)`. Nada ataja una segunda línea del mismo concepto ni un segundo header del mismo actor.
+**Relacionado**: ISSUE-085 (incentivo creado a mano con otro `concepto` → el recálculo no lo reconoce como pagado y genera otro).
+**Origen del hallazgo**: informe del 2026-09-24 sobre el incentivo de jockey en R9, publicado anonimizado el 2026-10-02:
+`docs/diagnosticos/2026-09-24_incentivo-jockey-r9-duplicado-anonimizado.md` (reports), § 5.
+**Cómo se verifica que sigue sin duplicados** (tiene que dar 0 las tres):
+```sql
+select (select count(*) from (select reunion_id, beneficiario_id from liquidacion_detalle where concepto_tipo='incentivo_jockey' group by 1,2 having count(*)>1) x) inc_dup,
+       (select count(*) from (select reunion_id, beneficiario_tipo, beneficiario_id, concepto_tipo, coalesce(inscripcion_id::text,''), coalesce(posicion::text,''), coalesce(concepto,'') from liquidacion_detalle group by 1,2,3,4,5,6,7 having count(*)>1) y) linekey_dup,
+       (select count(*) from (select reunion_id, club_id, coalesce(profesional_id,propietario_id) from liquidaciones group by 1,2,3 having count(*)>1) z) header_dup;
+```
+**Plan**: fase 1 de lectura del arreglo en `docs/diagnosticos/2026-10-02_motor-liquidacion-duplicados-fase1.md` (reports).
+**Decisión (2026-10-02, Leo)**:
+- **2a — se hace**: sólo los chequeos de error. El motor corta y devuelve el error si falla una lectura, el DELETE o un INSERT
+  (antes de escribir: "no se cambió nada"; después: "quedó INCOMPLETA — volvé a recalcular"). PR #38, probe
+  `tests/probe_motor_chequeo_errores.mjs`. Sin apuro de fecha.
+- **Índices UNIQUE: no por ahora.**
+- **2b (persistencia en una RPC con transacción y advisory lock; `emitir_recibo` con el mismo lock) — NO se hace.** Motivo: el motor
+  es paid-safe por diseño desde junio (borra sólo lo no comprometido y no regenera lo pagado, por `lineKey`) y no hubo ningún
+  duplicado (0 en 64 incentivos y en 709 líneas al 2026-10-02). Los caminos 2 (recálculos concurrentes) y 3 (recibo en medio de un
+  recálculo) quedan **abiertos y aceptados**; si alguna vez aparece un duplicado, la query de arriba lo muestra y se reabre.
+- **Barrido de la query de control antes de cada jornada de pagos: no por ahora.**
