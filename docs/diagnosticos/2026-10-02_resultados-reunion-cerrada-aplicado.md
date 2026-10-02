@@ -127,7 +127,19 @@ comprometida, así que caería en "pagos emitidos". Ninguna de las dos podía es
 ### 3.5 Regresión en la reunión abierta (9999): `node tests/probe_guard_staff_rpcs.mjs --fn <f>`
 
 ```
-== --fn aplicar_resultado
+== node tests/probe_guard_staff_rpcs.mjs --fn aplicar_resultado
+✅ P0) fixture de la 9999: dos líneas impagas, una retenida, carrera sin plata comprometida e inscripción ratificada
+   → retenida=06ca0431 impaga=115b1609 paraRecibo=1d1cbd51 carreraLibre=c0000000 insc=a1000000
+✅ P0b) recibo fresco emitido para probar anular_recibo dentro de la ventana de 5 días
+   → N° 72
+
+── aplicar_resultado ──
+✅ G-aplicar_resultado-service_role) service_role pasa y el efecto se produce
+   → efecto=true
+✅ G-aplicar_resultado-superadmin) superadmin pasa y el efecto se produce
+   → efecto=true
+✅ G-aplicar_resultado-secretario) secretario pasa y el efecto se produce
+   → efecto=true
 ✅ G-aplicar_resultado-operador) operador pasa y el efecto se produce
    → efecto=true
 ✅ G-aplicar_resultado-otroclub) otroclub → 42501 del guard de aplicar_resultado, y nada cambia
@@ -144,7 +156,20 @@ comprometida, así que caería en "pagos emitidos". Ninguna de las dos podía es
    → usuarios=0 recibos=0
 
 12/12 OK
-== --fn desoficializar_carrera
+exit 0
+== node tests/probe_guard_staff_rpcs.mjs --fn desoficializar_carrera
+✅ P0) fixture de la 9999: dos líneas impagas, una retenida, carrera sin plata comprometida e inscripción ratificada
+   → retenida=06ca0431 impaga=115b1609 paraRecibo=1d1cbd51 carreraLibre=c0000000 insc=a1000000
+✅ P0b) recibo fresco emitido para probar anular_recibo dentro de la ventana de 5 días
+   → N° 72
+
+── desoficializar_carrera ──
+✅ G-desoficializar_carrera-service_role) service_role pasa y el efecto se produce
+   → efecto=true
+✅ G-desoficializar_carrera-superadmin) superadmin pasa y el efecto se produce
+   → efecto=true
+✅ G-desoficializar_carrera-secretario) secretario pasa y el efecto se produce
+   → efecto=true
 ✅ G-desoficializar_carrera-operador) operador pasa y el efecto se produce
    → efecto=true
 ✅ G-desoficializar_carrera-otroclub) otroclub → 42501 del guard de desoficializar_carrera, y nada cambia
@@ -161,10 +186,11 @@ comprometida, así que caería en "pagos emitidos". Ninguna de las dos podía es
    → usuarios=0 recibos=0
 
 12/12 OK
+exit 0
 ```
 
-(Sale el final de cada corrida, con `tail -n 16`. Las primeras líneas de cada una, P0 de fixture y super_admin/secretario, están
-contadas en el 12/12 de cada función.)
+Salida completa de una **segunda corrida** (02:14 UTC). La primera, que es la que figura en el resto del informe, también dio
+12/12 + 12/12, pero la pegué recortada con `tail`. Esta la reemplaza entera. Las dos restauran la 9999 por estado (R1/R2).
 
 ### 3.6 `get_advisors security` (leído completo)
 
@@ -196,14 +222,14 @@ origin/main:programa-oficial-color.html:706:        <td>${i.performance || spc.u
 origin/main:programa-oficial-color.html:739:        <col style="width:64px"><!-- 4 ÚLT.: 4 performances (máx 58px); 5 envuelven -->
 origin/main:programa-oficial.html:246:    sb.from('spcs').select('id,nombre,sexo,color,fecha_nacimiento,padrillo_nombre,madre_nombre,ult_performances').in('id', spcIds.length ? spcIds : EMPTY),
 origin/main:programa-oficial.html:477:        <td>${i.performance || spc.ult_performances || ''}</td>
-origin/main:programa-oficial.html:507:        <th>CABALLERIZA</th><th>4 ULT. PERF.</th><th>N°</th>…
+origin/main:programa-oficial.html:507:        <th>CABALLERIZA</th><th>4 ULT. PERF.</th><th>N°</th><th>S.P.C.</th><th class="col-jockey">JOCKEY</th><th>K E S P</th><th class="col-pedigree">PADRE — MADRE</th><th class="col-entrenador">ENTRENADOR</th>
 origin/main:programa.html:266:  // Load performances for SPCs
 origin/main:programa.html:269:    const { data: perfs } = await sb.from('performances').select('*').in('spc_id', spcIds).order('fecha_carrera', {ascending:false});
 origin/main:programa.html:271:    (perfs||[]).forEach(p => { if (!performances[p.spc_id]) performances[p.spc_id]=[]; if (performances[p.spc_id].length<5) performances[p.spc_id].push(p); });
 origin/main:programa.html:303:  const perfs = performances[spcId]||[];
 ```
 
-(La línea 507 se recortó en el `cut` de la terminal; el resto de la fila es la cabecera de la tabla.)
+(La línea 507 va entera, sacada con `git show origin/main:programa-oficial.html | sed -n 507p`; en el grep original salía cortada por el `cut`.)
 
 ```json
 {"spcs_ult_perf":{"total":238,"con_ult_performances":0},"insc_performance":[{"numero":6,"ratificadas":81,"con_performance":0},{"numero":8,"ratificadas":67,"con_performance":67},{"numero":9,"ratificadas":74,"con_performance":74},{"numero":10,"ratificadas":0,"con_performance":0},{"numero":9999,"ratificadas":17,"con_performance":0}],"ejemplos_insc":["0L","4P 0L 3L 1D","7L3L0L5D","3D 7S 7S 0S","0S0L7T8L"],"ejemplos_spcs":null,"performances_total":0,"performances_cols":"id, spc_id, carrera_id, fecha_carrera, hipodromo_sigla, hipodromo_nombre, numero_carrera, categoria_codigo, categoria_simbolo, distancia_metros, tipo_pista, posicion, tiempo_ganador, diferencia, peso_llevado, jockey_id, jockey_nombre, observaciones, descalificado, fuente, created_at"}
