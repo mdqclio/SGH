@@ -69,6 +69,7 @@ probe_programa_r8_imprenta|
 probe_recibo_rol|
 probe_recibo_una_hoja|
 probe_regex_datos_personales|
+probe_resultados_front_cerrada|
 probe_reparto_100|SOLO=S,U,P
 probe_rls_no_permissive|
 probe_spcs_r9_tanda_1|
