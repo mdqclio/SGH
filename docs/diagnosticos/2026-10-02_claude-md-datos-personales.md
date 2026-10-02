@@ -45,3 +45,18 @@ $ grep -nE '<arroba>|(^|[^0-9a-fA-F])[0-9]{7,8}([^0-9a-fA-F]|$)' docs/diagnostic
    que pide el harness, no un dato personal, pero es un email literal en cada commit. ¿Se deja como excepción? Hoy no está en la regla.
 2. Los informes **anteriores** a hoy en `reports` no se revisaron con este chequeo. ¿Querés un barrido de sólo lectura (cuántos
    archivos y líneas tienen arrobas o números de 7–8 dígitos), sin reescribir nada?
+
+---
+
+## Verificación de push
+
+Chequeo de datos personales antes del push: vacío (rc=1).
+
+```
+$ git ls-remote origin reports
+34e47c5f86525e33ac0e5c52864efb3707cb8801	refs/heads/reports
+$ git rev-parse HEAD
+34e47c5f86525e33ac0e5c52864efb3707cb8801
+```
+
+Coinciden. Este bloque va en un commit posterior.
