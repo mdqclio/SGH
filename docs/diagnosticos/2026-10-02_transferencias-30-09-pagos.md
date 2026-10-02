@@ -136,3 +136,15 @@ from recibos group by 1 order by 1 desc limit 15;
 $ grep -n "estado_linea','impago'" liquidaciones.html     (main en 2e98974…)
 1465:    .eq('estado_linea','impago').neq('beneficiario_tipo','club').is('recibo_id', null);
 ```
+
+## Verificación de push
+
+Chequeo de datos personales sobre lo agregado: **0** coincidencias. Búsqueda del nombre de la operadora en lo agregado: **0**.
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+3466586607ba3126b30cee843ea0a0910a8e149e	refs/heads/reports
+3466586607ba3126b30cee843ea0a0910a8e149e
+```
+
+Este anexo va en un commit posterior; su SHA es el tip de `origin/reports`.
