@@ -490,3 +490,13 @@ Rojos conocidos (no bloquean):
   - probe_tapa_flyer                    drift de extracción: ReferenceError edadSPC
 Salida completa de cada probe: <tmp><probe>.txt
 ```
+
+## Verificación de push
+
+```
+$ git ls-remote origin reports
+8404b1f92caebdff104472cf94fab3d0cd35f61d
+$ git rev-parse HEAD
+8404b1f92caebdff104472cf94fab3d0cd35f61d
+```
+Chequeo de datos personales sobre lo agregado: vacío.
