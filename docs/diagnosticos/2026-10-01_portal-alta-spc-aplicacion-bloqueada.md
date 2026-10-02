@@ -349,3 +349,17 @@ así que también la "inscripción normal" de prueba quedaría en un turno real,
 inscripción normal con un usuario de prueba en R10 y retirarla en el mismo minuto (o abrir una ventana temporal en un turno
 de la 9999), y la nueva sólo hasta el rechazo/reuso sin escritura (`probe_studbook_buscar_e2e` 7a–7e) más un caballo que
 ya esté en el padrón (D1, reusa). Si querés un alta real, que sea un caballo que Yesi igual tenga que cargar.
+
+---
+
+## Verificación de push
+
+```
+$ git push -q origin HEAD:reports
+$ git ls-remote origin reports
+ac6b39d4f5a92e86a9216d44e3366a1cfc23e1cd	refs/heads/reports
+$ git rev-parse HEAD
+ac6b39d4f5a92e86a9216d44e3366a1cfc23e1cd
+```
+
+Coinciden (commit `ac6b39d`). Este bloque va en un commit posterior.
