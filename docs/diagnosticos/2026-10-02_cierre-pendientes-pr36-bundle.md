@@ -185,3 +185,16 @@ $ git worktree list   # después
 
 Grep de datos personales sobre lo agregado respecto de `origin/reports`: tiene que dar vacío antes de pushear; el resultado
 y el SHA quedan en el commit siguiente (`git log origin/reports`).
+
+```
+$ git diff -U0 origin/reports..HEAD | grep '^+' | grep -v '^+++' | grep -cE '<regex de datos personales de CLAUDE.md>'
+0
+$ git diff -U0 origin/reports..HEAD | grep -ciE '<los 20 apellidos y los 5 caballos del original>'
+0
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+cfb4c3960d9c516f2c090eeb5a82dfa7c4b5c4c7	refs/heads/reports
+cfb4c3960d9c516f2c090eeb5a82dfa7c4b5c4c7
+```
+
+Este anexo va en un commit posterior; su SHA es el tip de `origin/reports`. La rama local `reports` (nueva) queda atrás de
+ese tip hasta el próximo `git pull` (se publicó desde un worktree).
