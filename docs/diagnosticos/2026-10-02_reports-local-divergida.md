@@ -313,3 +313,78 @@ Para la lista sin redactar, en esta máquina: `LC_ALL=C comm -23 <(git ls-tree -
 211  docs/diagnosticos/scripts/2026-09-23_auditoria-pii/scan.py
 212  docs/diagnosticos/scripts/2026-09-23_auditoria-pii/tabla.py
 ```
+
+---
+
+## Anexo — puntos 1 y 2 del pedido: PR #36
+
+- PR: <https://github.com/mdqclio/SGH/pull/36> · rama `fix/inscripcion-editar-carrera-de-la-fila` · `abc49f14d92d1c60b7e15e403f77d1d61be216b0` (pusheada:
+  `git ls-remote` = HEAD). **No mergeado.**
+- **1.** `inscripciones.html`: hidden `f-carrera-id`; `openModal(rec)` guarda `rec.carrera_id`; `saveRecord` usa
+  `id ? f-carrera-id : currentCarreraId` y, sin turno, avisa "Seleccionar un turno" y no escribe. Probe nuevo
+  `tests/probe_inscripcion_editar_carrera.mjs` (jsdom + `sb` stub, sin red ni base). El modo "todos los turnos" no se tocó.
+- **2.** CLAUDE.md § Guard de sesión: sale `SELECT count(*) FROM spcs → 238`; entra
+  `SELECT nombre FROM clubs WHERE id = '0649e9c5-9e87-4aad-842f-101458e6b33c'` → `Hipódromo de Dolores` (1 fila). Los tres
+  probes que comparaban contra el número fijo pasan a "antes = después" (`probe_spcs_studbook_alta`) o al guard de `clubs`
+  (R2 de `probe_caballeriza_provisorio` y `probe_modificar_inscripcion_portal`). **Esos tres no se corrieron** (escriben
+  fixtures en prod): sólo `node --check`.
+- Fuera de alcance, sin tocar: `probe_spcs_r9_tanda_1` sigue asertando `count = 205` (evidencia histórica de R9; rojo desde el 14/09).
+
+```
+$ git diff --stat main..fix/inscripcion-editar-carrera-de-la-fila
+ CLAUDE.md                                    |  45 ++++----
+ inscripciones.html                           |  14 ++-
+ tests/probe_caballeriza_provisorio.mjs       |   6 +-
+ tests/probe_inscripcion_editar_carrera.mjs   | 149 +++++++++++++++++++++++++++
+ tests/probe_modificar_inscripcion_portal.mjs |   8 +-
+ tests/probe_spcs_studbook_alta.mjs           |   6 +-
+ 6 files changed, 193 insertions(+), 35 deletions(-)
+
+$ node tests/probe_inscripcion_editar_carrera.mjs --mutantes
+✅ E1 editar fila de T3 con T1 elegido → UPDATE de esa fila con carrera_id T3
+✅ E2 editar fila de T3 sin turno elegido → UPDATE igual, carrera_id T3
+✅ E3 alta después de una edición, con T1 elegido → INSERT con carrera_id T1
+✅ E4 alta sin turno elegido → no escribe y avisa "Seleccionar un turno"
+
+4/4 asserts OK  (/home/clio/dev/SGH/inscripciones.html)
+
+── mutantes ──
+✅ muere MU1 saveRecord vuelve a usar currentCarreraId al editar  ← E1, E2
+✅ muere MU2 openModal no guarda el turno de la fila  ← E1, E2
+✅ muere MU3 el payload ignora carreraId  ← E1, E2
+✅ muere MU4 alta sin chequeo de turno  ← E4
+
+mutantes: 4/4 muertos
+exit=0
+
+$ INSCRIPCIONES_HTML=<scratchpad>/insc_main.html node tests/probe_inscripcion_editar_carrera.mjs   # insc_main.html = git show main:inscripciones.html
+❌ E1 editar fila de T3 con T1 elegido → UPDATE de esa fila con carrera_id T3  → [{"op":"update","carrera_id":"<uuid de T1>","eq":["id","<uuid de la fila>"]}]
+❌ E2 editar fila de T3 sin turno elegido → UPDATE igual, carrera_id T3  → []
+✅ E3 alta después de una edición, con T1 elegido → INSERT con carrera_id T1
+❌ E4 alta sin turno elegido → no escribe y avisa "Seleccionar un turno"  → {"e4":[],"toasts":[["Seleccionar un SPC","error"]]}
+
+1/4 asserts OK  (<scratchpad>/insc_main.html)
+exit=1
+$ node tests/probe_portal_alta_spc_ui.mjs | tail -1
+18/18 asserts OK
+$ node tests/probe_aviso_jockey_repetido.mjs | tail -1
+53/53 asserts OK
+$ node tests/probe_orden_inscriptos.mjs | tail -1
+52/52 asserts OK
+$ node tests/probe_paridad_llamado_inscripciones.mjs | tail -1
+50/50 OK
+$ node tests/probe_bolsa_efectiva.mjs | tail -1
+19/19 OK
+```
+
+## Verificación de push de este informe
+
+Grep de datos personales sobre lo agregado respecto de `origin/reports`: vacío (`rc=1`) antes de cada push.
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD   # primer push
+fe71664694376537fe7aef54310569156cf528d1	refs/heads/reports
+fe71664694376537fe7aef54310569156cf528d1
+```
+
+En la salida del probe contra main, los uuid sintéticos del caso E1 van como `<uuid de T1>` y `<uuid de la fila>`: sus ceros caen en el regex de teléfonos. El commit de este anexo es posterior; su SHA es el tip de `origin/reports`.
