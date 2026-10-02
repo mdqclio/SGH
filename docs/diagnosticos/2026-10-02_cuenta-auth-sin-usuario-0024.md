@@ -131,3 +131,24 @@ $ git rev-parse HEAD
 ```
 
 Coinciden. Este bloque va en un commit posterior.
+
+---
+
+## ⚠ Exposición de datos personales en el historial de `reports` (error mío, decisión pendiente)
+
+La primera versión de este informe, en el anexo A.2, mostraba el **patrón de búsqueda, que era la parte local del email**. Junto
+con el dominio enmascarado (`@gmail.com`), eso alcanza para reconstruir la dirección. Ya está corregido en la versión actual, pero
+**quedó en el historial público de la rama `reports`**, en estos commits ya pusheados:
+
+```
+    c464259 02:23 report: sacar la parte local del email del anexo (repo público)
+    48540aa 02:23 report: cuenta de Auth sin usuario (00:24 UTC 02/10) — no es probe, solicitud pendiente; 19/50 sin fila en usuarios; merge PR #34 (c39beda)
+```
+
+(Es el único dato expuesto: el nombre, el DNI y el teléfono nunca se escribieron en ningún commit.)
+
+Sacarlo del historial exige **reescribir `reports` y hacer force-push**, que es irreversible y cambia los SHA de los commits
+posteriores, incluidos los que figuran en informes anteriores. **No lo hago sin tu OK.** Opciones:
+(a) reescribir sólo esos commits con `git filter-repo --replace-text` y force-push de `reports`;
+(b) dejarlo: es la parte local de un email, sin nombre ni documento asociado en el repo.
+Además, GitHub puede mantener el contenido cacheado por un tiempo aunque se reescriba.
