@@ -34,8 +34,13 @@
  *      sobre R8 T5 con noLargoMandiles armado como lo hace la pantalla:
  *      NOCHE EN VELA no largó → sin aviso; y el backfill (cargar Aguirre en
  *      LA LAGUNERA J con Aguirre todavía en NOCHE EN VELA) NO queda
- *      bloqueado: saveMontas emite el UPDATE (contra un sb falso que sólo
- *      registra; la base no se toca).
+ *      bloqueado: saveMontas emite el cambio (contra un sb falso que sólo
+ *      registra; la base no se toca). Desde ISSUE-084 (22/09) saveMontas no hace
+ *      UPDATE directo: llama sb.rpc('rpc_cambiar_monta'); D4 exige ese nombre.
+ *
+ * MUTANTES (--mutantes): M1 saveMontas vuelve a from('inscripciones').update()
+ * → D4 tiene que fallar. Se corre este mismo probe como subproceso con
+ * SRC_RESULTADOS_HTML apuntando a un resultados.html mutado.
  *
  * PATRÓN (tests/README.md § "Browser NO disponible")
  * ---------------------------------------------------------------------------
@@ -44,11 +49,13 @@
  * (lectura), un mini-DOM y stubs. Nada se reimplementa.
  *
  *   set -a; . ./.env; set +a
- *   node tests/probe_aviso_jockey_repetido.mjs
+ *   node tests/probe_aviso_jockey_repetido.mjs [--mutantes]
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -242,9 +249,13 @@ for (const [r, m, t, jockey] of SIN_COLISION) {
     extractFn(RESU, 'function moJockeysRepetidos() {'),
     extractFn(RESU, 'async function saveMontas() {'),
   ].join('\n\n');
-  // sb FALSO: registra los UPDATE y no escribe nada.
+  // sb FALSO: registra y no escribe nada. saveMontas llama rpc_cambiar_monta (ISSUE-084);
+  // from().update() queda para que el mutante M1 (UPDATE directo, como antes) registre SIN nombre y D4 falle.
   const updates = [];
-  const sbFalso = { from: () => ({ update: (payload) => ({ eq: async (col, val) => { updates.push({ ...payload, id: val }); return { error: null }; } }) }) };
+  const sbFalso = {
+    rpc: async (nombre, args) => { updates.push({ nombre, id: args.p_inscripcion_id, jockey_titular_id: args.p_jockey_id }); return { data: { recalcular: false }, error: null }; },
+    from: () => ({ update: (payload) => ({ eq: async (col, val) => { updates.push({ ...payload, id: val }); return { error: null }; } }) }),
+  };
   const toasts = [];
   const make = (valores, moOriginal) => {
     const dom = mkDom();
@@ -262,7 +273,7 @@ for (const [r, m, t, jockey] of SIN_COLISION) {
   const antes = { ...actual, [lagunera.id]: null };
   const r2 = await make(actual, antes);
   await r2.save();
-  ok('D4) backfill R8 T5: saveMontas emite el UPDATE de LA LAGUNERA J (no bloqueado)', updates.length === 1 && updates[0].id === lagunera.id && updates[0].jockey_titular_id === lagunera.jockey_titular_id, JSON.stringify(updates));
+  ok('D4) backfill R8 T5: saveMontas emite el cambio de LA LAGUNERA J por rpc_cambiar_monta (no bloqueado)', updates.length === 1 && updates[0].nombre === 'rpc_cambiar_monta' && updates[0].id === lagunera.id && updates[0].jockey_titular_id === lagunera.jockey_titular_id, JSON.stringify(updates));
   ok('D5) backfill R8 T5: toast de guardado y NINGÚN aviso de repetido (el otro no largó)', toasts.some(t => /monta\(s\) guardada/.test(t[0])) && !toasts.some(t => t[1] === 'warning'), JSON.stringify(toasts));
   // (iii) mismo jockey en dos que SÍ largaron → aviso warning, pero se guarda igual
   updates.length = 0; toasts.length = 0;
@@ -282,4 +293,29 @@ for (const [r, m, t, jockey] of SIN_COLISION) {
 for (const r of results) console.log(`${r.s} ${r.t}${r.n ? `  — ${r.n}` : ''}`);
 const fails = results.filter(r => r.s === '❌').length;
 console.log(`\n${results.length - fails}/${results.length} asserts OK${fails ? ` — ${fails} FALLARON` : ''}`);
-process.exit(fails ? 1 : 0);
+
+// ═══════════════════════════════ mutantes ═══════════════════════════════════
+let vivos = 0;
+if (process.argv.includes('--mutantes')) {
+  const MUT = [
+    { id: 'M1', desc: 'saveMontas vuelve a from(\'inscripciones\').update() (UPDATE directo, pre ISSUE-084)', mata: 'D4',
+      from: "const { data, error } = await sb.rpc('rpc_cambiar_monta', { p_inscripcion_id: u.id, p_jockey_id: u.jockey_titular_id });",
+      to: "const { data, error } = await sb.from('inscripciones').update({ jockey_titular_id: u.jockey_titular_id }).eq('id', u.id);" },
+  ];
+  console.log('\n── mutantes ──');
+  const dir = mkdtempSync(join(tmpdir(), 'mut-jockey-'));
+  for (const m of MUT) {
+    if (RESU.split(m.from).length !== 2) { console.log(`⚠️  ${m.id} ancla no única/ausente en resultados.html — mutante roto`); vivos++; continue; }
+    const p = join(dir, `${m.id}.html`);
+    writeFileSync(p, RESU.replace(m.from, m.to));
+    let out = '';
+    try { out = execFileSync(process.execPath, [fileURLToPath(import.meta.url)], { env: { ...process.env, SRC_RESULTADOS_HTML: p }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }); }
+    catch (e) { out = (e.stdout || '') + (e.stderr || ''); }
+    if (!/asserts OK/.test(out)) { console.log(`⚠️  ${m.id} ERROR DE ARNÉS — no llegó a los asserts: ${(out.split('\n').find(l => /Error/.test(l)) || '').trim().slice(0, 200)}`); vivos++; continue; }
+    const muere = out.includes(`❌ ${m.mata})`);
+    if (!muere) vivos++;
+    console.log(`${muere ? '✅ muere' : '❌ VIVE '} ${m.id} — ${m.desc}  [esperaba matar ${m.mata}]`);
+  }
+  console.log(`\nmutantes: ${MUT.length - vivos}/${MUT.length} muertos`);
+}
+process.exit(fails || vivos ? 1 : 0);
