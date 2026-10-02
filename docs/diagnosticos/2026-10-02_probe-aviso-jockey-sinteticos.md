@@ -298,3 +298,18 @@ index c50d9f2..3aa6f96 100644
    console.log(`\nmutantes: ${MUT.length - vivos}/${MUT.length} muertos`);
  }
 ```
+
+---
+
+## Verificación de push
+
+```
+$ git ls-remote origin reports
+b03122710133ac64d82305b1babdceeea841e190	refs/heads/reports
+$ git rev-parse HEAD
+b03122710133ac64d82305b1babdceeea841e190
+$ git ls-remote origin fix/probe-aviso-jockey-sinteticos
+796eea81047dd016c20a9bd9b5369ca79c620f06	refs/heads/fix/probe-aviso-jockey-sinteticos
+```
+
+Coinciden. Este bloque va en un commit posterior.
