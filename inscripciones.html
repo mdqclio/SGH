@@ -57,6 +57,12 @@
     .carrera-header .carrera-num { flex-shrink: 0; line-height: 1; }
     .carrera-header-body { flex: 1; min-width: 0; }
     .carrera-cond { font-size: 12px; line-height: 1.45; color: var(--muted); margin-top: 6px; overflow-wrap: anywhere; }
+    /* Listado continuo (todos los turnos): una sección por turno, encabezado fijo arriba mientras se scrollea ese turno. */
+    .turno-sec { margin-bottom: 22px; }
+    .turno-sec .carrera-header { position: sticky; top: 0; z-index: 5; margin: 0 0 8px; flex-wrap: wrap; }
+    .turno-sec-acciones { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+    .turno-sec-count { font-size: 13px; color: #e8d5a3; font-weight: 500; }
+    .turno-vacio { padding: 14px 18px; font-size: 13px; color: var(--muted); }
     .stats-row { display: flex; gap: 12px; padding: 16px 24px; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
     .stat-chip { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 18px; text-align: center; min-width: 100px; }
     .stat-chip-val { font-size: 20px; font-weight: 700; color: var(--accent); }
@@ -219,7 +225,7 @@
 
 <div class="selector-bar">
   <label>Reunión:</label>
-  <select id="sel-reunion" onchange="onReunionChange()">
+  <select id="sel-reunion" onchange="cambiarReunion()">
     <option value="">Cargando…</option>
   </select>
   <label>Turno:</label>
@@ -448,13 +454,10 @@ async function loadAll() {
     if (rid) {
       selR.value = rid;
       try { history.replaceState(null, '', `?reunion_id=${rid}`); } catch(_) {}
+      // Vista de arranque: el listado continuo de todos los turnos (pedido de Fede). La vista por turno sigue en el
+      // selector y en el deep link ?carrera_id=.
       await onReunionChange();
-      const firstCarrera = document.getElementById('sel-carrera').options[1];
-      if (firstCarrera) {
-        document.getElementById('sel-carrera').value = firstCarrera.value;
-        currentCarreraId = firstCarrera.value;
-        await onCarreraChange();
-      }
+      await mostrarTodos();
     }
   }
 }
@@ -474,7 +477,7 @@ async function onReunionChange() {
     .eq('reunion_id', rid).order('numero_turno');
   if (eCars) { console.error('[carreras onReunionChange]', eCars); toast(eCars.message, 'error'); throw eCars; }
   carreras = cars||[];
-  selC.innerHTML = '<option value="">— Seleccionar turno —</option>' +
+  selC.innerHTML = `<option value="${TODOS}">— Todos los turnos —</option>` +
     carreras.map(c => {
       let label = `Turno ${c.numero_turno}`;
       if (c.nombre) label += ` — ${c.nombre}`;
@@ -495,6 +498,9 @@ async function onReunionChange() {
 
 async function onCarreraChange() {
   const cid = document.getElementById('sel-carrera').value;
+  if (cid === TODOS) return mostrarTodos();
+  modoTodos = false;
+  volverATurno = null;
   currentCarreraId = cid || null;
   if (!cid) {
     document.getElementById('sel-estado-car-wrap').style.display='none';
@@ -552,11 +558,9 @@ function renderCarreraHeader() {
 // texto de la condición. La categoría va como chip propio (pedido de Yesi,
 // 07/09/2026): se agrega, no reemplaza al número de turno.
 // Todo el texto que viene de la DB pasa por esc() — es innerHTML (ISSUE-018).
-function renderCarreraChips() {
-  const cont = document.getElementById('carrera-header');
-  const c = currentCarrera;
-  if (!c) { cont.style.display = 'none'; cont.innerHTML = ''; return; }
-
+// HTML del encabezado de UN turno (número, nombre, chips, condición). Lo usan el encabezado de la vista por turno
+// (renderCarreraChips) y cada sección del listado continuo (renderTodos): el mismo encabezado en las dos vistas.
+function htmlEncabezadoCarrera(c) {
   const cond = textoCondicion(c);
   const cat = c.categorias_carrera?.nombre || '';
   const chips = [
@@ -581,13 +585,20 @@ function renderCarreraChips() {
     c.cierre_inscripcion ? `⏳ cierra ${fechaHora(c.cierre_inscripcion)}` : '',
   ].filter(Boolean).map(t => `<span class="chip">${esc(t)}</span>`).join('');
 
-  cont.innerHTML = `
+  return `
     <div class="carrera-num">${esc(c.numero_turno ?? '—')}</div>
     <div class="carrera-header-body">
       <div class="carrera-name">${esc(c.nombre || 'Turno ' + (c.numero_turno ?? ''))}</div>
       <div class="carrera-chips">${chips}</div>
       ${cond ? `<div class="carrera-cond">${esc(cond)}</div>` : ''}
     </div>`;
+}
+
+function renderCarreraChips() {
+  const cont = document.getElementById('carrera-header');
+  const c = currentCarrera;
+  if (!c) { cont.style.display = 'none'; cont.innerHTML = ''; return; }
+  cont.innerHTML = htmlEncabezadoCarrera(c);
   cont.style.display = 'flex';
 }
 
@@ -596,6 +607,117 @@ function limpiarCarreraHeader() {
   cont.style.display = 'none';
   cont.innerHTML = '';
 }
+
+// ═══ LISTADO CONTINUO — INICIO (todos los turnos de la reunión, uno debajo del otro) ═══
+const TODOS = '__todos__';
+let modoTodos = false;
+let volverATurno = null;   // sección a la que se vuelve después de inscribir, editar o borrar en el listado
+
+async function cambiarReunion() {
+  await onReunionChange();
+  if (document.getElementById('sel-reunion').value) await mostrarTodos();
+}
+
+async function mostrarTodos() {
+  modoTodos = true;
+  currentCarreraId = null;
+  currentCarrera = null;
+  const selC = document.getElementById('sel-carrera');
+  if (selC.querySelector(`option[value="${TODOS}"]`)) selC.value = TODOS;
+  document.getElementById('sel-estado-car-wrap').style.display = 'none';
+  document.getElementById('btn-nueva').style.display = 'none';      // se inscribe desde cada turno
+  document.getElementById('tabla-label').style.display = 'none';
+  limpiarCarreraHeader();
+  await loadTodos();
+}
+
+async function loadTodos() {
+  const cont = document.getElementById('list-container');
+  cont.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando inscriptos…</div>';
+  const ids = carreras.map(c => c.id);
+  if (!ids.length) { inscripciones = []; renderTodos(); return; }
+  // Mismo SELECT que loadInscripciones, para todos los turnos de la reunión en una sola consulta.
+  const { data, error } = await sb.from('inscripciones')
+    .select('*, cargador:usuarios!inscripciones_inscripto_por_fkey(nombre_completo), spcs(nombre,revision_pendiente)')
+    .in('carrera_id', ids);
+  if (error) { console.error('[inscripciones loadTodos]', error); toast(error.message, 'error'); cont.innerHTML = ''; return; }
+  // Dentro de cada turno, alfabético castellano, igual que la vista por turno y el PDF.
+  inscripciones = (data || []).sort((a, b) =>
+    (a.spcs?.nombre || '').localeCompare(b.spcs?.nombre || '', 'es'));
+  renderTodos();
+}
+
+function renderTodos() {
+  const cont = document.getElementById('list-container');
+  const puedeEditar = ['secretario_carreras','super_admin'].includes(currentUser?.rol);
+  if (!carreras.length) {
+    cont.innerHTML = `<div class="empty-state"><div class="icon">📋</div><h3>Sin turnos</h3><p>Esta reunión no tiene turnos cargados.</p></div>`;
+    document.getElementById('inscriptos-count').style.display = 'none';
+    return;
+  }
+  cont.innerHTML = carreras.map(c => {
+    const lista = inscripciones.filter(i => i.carrera_id === c.id);
+    const est = c.estado;
+    const badge = (est === 'reabierta' || est === 'anulada' || est === 'confirmada')
+      ? `<span class="badge badge-${est}">${est.toUpperCase()}</span>` : '';
+    const sel = puedeEditar
+      ? `<select class="sel-estado-car" onchange="onEstadoCarreraSeccion('${c.id}', this.value)" title="Estado del turno">
+           <option value="">Normal</option>
+           <option value="reabierta"${est==='reabierta'?' selected':''}>Reabierta</option>
+           <option value="anulada"${est==='anulada'?' selected':''}>Anulada</option>
+           <option value="confirmada"${est==='confirmada'?' selected':''}>Confirmada</option>
+         </select>` : '';
+    return `<section class="turno-sec" id="turno-sec-${c.id}">
+      <div class="carrera-header">${htmlEncabezadoCarrera(c)}
+        <div class="turno-sec-acciones">
+          <span class="turno-sec-count">${lista.length} inscripto${lista.length !== 1 ? 's' : ''}</span>
+          ${badge}${sel}
+          <button class="btn-primary btn-inscribir-turno" onclick="inscribirEnTurno('${c.id}')">+ Inscribir</button>
+          <button class="btn-outline" onclick="verTurno('${c.id}')">Ver sólo este turno</button>
+        </div>
+      </div>
+      ${lista.length ? tablaInscripciones(lista) : '<div class="turno-vacio">Sin inscriptos en este turno.</div>'}
+    </section>`;
+  }).join('');
+  const n = inscripciones.length;
+  const cEl = document.getElementById('inscriptos-count');
+  cEl.textContent = `${n} inscripto${n !== 1 ? 's' : ''} en ${carreras.length} turno${carreras.length !== 1 ? 's' : ''}`;
+  cEl.style.display = '';
+  if (volverATurno) {
+    const el = document.getElementById(`turno-sec-${volverATurno}`);
+    if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' });
+    volverATurno = null;
+  }
+}
+
+// "+ Inscribir" de una sección: el alta va a ESE turno y, al guardar, se vuelve a esa sección.
+function inscribirEnTurno(carreraId) {
+  currentCarreraId = carreraId;
+  volverATurno = carreraId;
+  openModal();
+}
+
+function verTurno(carreraId) {
+  document.getElementById('sel-carrera').value = carreraId;
+  return onCarreraChange();
+}
+
+async function onEstadoCarreraSeccion(carreraId, valor) {
+  const nuevoEstado = valor || null;
+  const { error } = await sb.from('carreras').update({ estado: nuevoEstado }).eq('id', carreraId);
+  if (error) { toast(error.message, 'error'); return; }
+  const c = carreras.find(x => x.id === carreraId);
+  if (c) c.estado = nuevoEstado;
+  toast('Estado actualizado');
+  volverATurno = carreraId;
+  renderTodos();
+}
+
+// Después de guardar o borrar: recarga la vista que está abierta.
+function recargarInscripciones() {
+  return modoTodos ? loadTodos() : loadInscripciones();
+}
+// ═══ LISTADO CONTINUO — FIN ═══
 
 async function loadInscripciones() {
   if (!currentCarreraId) return;
@@ -656,10 +778,15 @@ function renderInscripciones() {
     const cEl=document.getElementById('inscriptos-count'); cEl.textContent='0 inscriptos'; cEl.style.display='';
     return;
   }
-  // Aviso de jockey repetido en el turno (jockey-repetido.js): sólo cuenta
-  // inscripto + ratificado; no bloquea nada.
-  const jockeyCount = conteoJockeysActivos(inscripciones);
-  const rows = inscripciones.map(i => {
+  document.getElementById('list-container').innerHTML = tablaInscripciones(inscripciones);
+  const n=inscripciones.length; const cEl=document.getElementById('inscriptos-count'); cEl.textContent=`${n} inscripto${n!==1?'s':''}`; cEl.style.display='';
+}
+
+// Filas de UN turno. El aviso de jockey repetido se cuenta sobre `lista` (un turno): en el listado continuo un
+// jockey que monta en el turno 1 y en el 3 NO es repetido. jockey-repetido.js: sólo inscripto + ratificado; no bloquea.
+function filasInscripciones(lista) {
+  const jockeyCount = conteoJockeysActivos(lista);
+  return lista.map(i => {
     const spc = getSpc(i.spc_id);
     const jockeyDup = ESTADOS_ACTIVOS_MONTA.includes(i.estado) && !!i.jockey_titular_id && jockeyCount[i.jockey_titular_id] >= 2;
     const cab = getCab(i.caballeriza_id);
@@ -701,11 +828,13 @@ function renderInscripciones() {
       </td>
     </tr>`;
   }).join('');
-  document.getElementById('list-container').innerHTML = `<div class="table-wrap"><table>
+}
+
+function tablaInscripciones(lista) {
+  return `<div class="table-wrap"><table>
     <thead><tr><th>SPC</th><th>Gatera</th><th>Cert.</th><th>Caballeriza</th><th>Entrenador</th><th>Jockey</th><th>Jockey suplente</th><th>Personal</th><th>Cargada por</th><th>Estado</th><th>Acciones</th></tr></thead>
-    <tbody>${rows}</tbody>
+    <tbody>${filasInscripciones(lista)}</tbody>
   </table></div>`;
-  const n=inscripciones.length; const cEl=document.getElementById('inscriptos-count'); cEl.textContent=`${n} inscripto${n!==1?'s':''}`; cEl.style.display='';
 }
 
 let spcSearchTimer;
@@ -866,16 +995,19 @@ async function saveRecord() {
   if (error) { toast(error.message,'error'); return; }
   toast(id ? 'Inscripción actualizada' : 'SPC inscripto');
   closeModal();
-  await loadInscripciones();
-  avisarJockeyRepetido(payload.jockey_titular_id);
+  volverATurno = carreraId;   // en el listado continuo, vuelve a la sección de este turno
+  await recargarInscripciones();
+  avisarJockeyRepetido(payload.jockey_titular_id, carreraId);
 }
 
 // Aviso (no bloqueo) al guardar: el jockey elegido ya está en otro caballo
 // activo de este turno. La tabla ya lo marca con ⚠ dup.; el toast es para que
 // no pase inadvertido si la fila quedó fuera de la vista.
-function avisarJockeyRepetido(jockeyId) {
+function avisarJockeyRepetido(jockeyId, carreraId = null) {
   if (!jockeyId) return;
-  const n = conteoJockeysActivos(inscripciones)[jockeyId] || 0;
+  // En el listado continuo `inscripciones` trae todos los turnos: se cuenta sólo el de esta inscripción.
+  const lista = carreraId ? inscripciones.filter(i => i.carrera_id === carreraId) : inscripciones;
+  const n = conteoJockeysActivos(lista)[jockeyId] || 0;
   if (n < 2) return;
   const j = getProf(jockeyId);
   const nombre = j ? `${j.apellido}, ${j.nombre}` : 'Este jockey';
@@ -884,10 +1016,12 @@ function avisarJockeyRepetido(jockeyId) {
 
 async function deleteRecord(id) {
   if (!confirm('¿Eliminar esta inscripción?')) return;
+  const turno = inscripciones.find(x => x.id === id)?.carrera_id || null;
   const { error } = await sb.from('inscripciones').delete().eq('id',id);
   if (error) { toast(error.message,'error'); return; }
   toast('Inscripción eliminada');
-  await loadInscripciones();
+  volverATurno = turno;
+  await recargarInscripciones();
 }
 
 async function printInscriptos() {

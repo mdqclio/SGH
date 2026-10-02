@@ -17,6 +17,22 @@
 - Asserts 2c y 4 de la vista: sólo miran beneficiarios con botón Pagar (un beneficiario ya pagado muestra el chip y no tiene id).
 - Mutantes: 8/8, 7/7, 17/17, 8/8 — los de la vista mueren todos en la parte sintética.
 
+## [2026-10-02] — Inscripciones: listado continuo de todos los turnos (vista de arranque)
+
+> Pedido de Fede (29/09): ver los anotados de toda la reunión de corrido, turno 1, turno 2…, con scroll, sin abrir cada turno.
+> Fase 1: `docs/diagnosticos/2026-10-02_inscriptos-todos-los-turnos-fase1.md` (reports).
+
+- `inscripciones.html` arranca en **"— Todos los turnos —"**: una sección por turno, en orden, con el **mismo encabezado** que la vista
+  por turno (número, nombre, chips, condición; queda fijo arriba mientras se scrollea ese turno), el conteo, el **estado del turno**, **"+ Inscribir"**
+  y **"Ver sólo este turno"**. Dentro de cada turno, la misma tabla (alfabético castellano).
+- **Jockey repetido contado por turno** (en el listado, un jockey en el turno 1 y en el 3 no es repetido); el aviso al guardar, también.
+- **"+ Inscribir"**, editar y borrar desde el listado **vuelven a la sección del turno**. Editar sigue guardando el turno de la fila (#36).
+- La **vista por turno** sigue: elegir el turno en el selector, "Ver sólo este turno", o el deep link `?carrera_id=`.
+- Sólo staff: el portal no cambia.
+- Probe nuevo `tests/probe_inscripciones_listado.mjs` (13/13, 13/13 mutantes; sumado a `correr_todos.sh`). Adaptados por el refactor
+  (`htmlEncabezadoCarrera`, `filasInscripciones`/`tablaInscripciones`, `avisarJockeyRepetido(jockeyId, carreraId)`, `recargarInscripciones`):
+  `probe_aviso_jockey_repetido`, `probe_bolsa_efectiva`, `probe_paridad_llamado_inscripciones`.
+
 ## [2026-10-02] — SEGURIDAD: `v_inscriptos_carrera` cerrada para anon (ISSUE-098) — migración **aplicada**
 
 - `migrations/cerrar_v_inscriptos_carrera.sql` (`20261002193945`): `security_invoker=true` + `REVOKE SELECT … FROM anon`;
