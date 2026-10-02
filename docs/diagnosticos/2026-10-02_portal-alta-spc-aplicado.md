@@ -652,3 +652,17 @@ exit 0
   en una respuesta OK, así que no está medido cuál de las candidatas fue (`STUDBOOK_DB_KEY` | `INVITE_DB_KEY` | …).
 - Pendientes anotados (PR #30): ISSUE-098 `v_inscriptos_carrera`, ISSUE-099 las 26 SECURITY DEFINER de anon (con diagnóstico
   de quién las llama antes de revocar), ISSUE-100 Wave Rimout. Y el aviso al ratificar, que lo ves con Yesi.
+
+---
+
+## Verificación de push
+
+```
+$ git push -q origin HEAD:reports
+$ git ls-remote origin reports
+d5ece471ede99479b3ae5099bee22e180e4fbf1a	refs/heads/reports
+$ git rev-parse HEAD
+d5ece471ede99479b3ae5099bee22e180e4fbf1a
+```
+
+Coinciden (commit `d5ece47`). Este bloque va en un commit posterior.
