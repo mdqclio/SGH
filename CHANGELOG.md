@@ -16,6 +16,17 @@
   (`htmlEncabezadoCarrera`, `filasInscripciones`/`tablaInscripciones`, `avisarJockeyRepetido(jockeyId, carreraId)`, `recargarInscripciones`):
   `probe_aviso_jockey_repetido`, `probe_bolsa_efectiva`, `probe_paridad_llamado_inscripciones`.
 
+## [2026-10-02] — SEGURIDAD: `v_inscriptos_carrera` cerrada para anon (ISSUE-098) — migración **aplicada**
+
+- `migrations/cerrar_v_inscriptos_carrera.sql` (`20261002193945`): `security_invoker=true` + `REVOKE SELECT … FROM anon`;
+  `rollback_cerrar_v_inscriptos_carrera.sql` (la reabre). Desde el 27/08 anon leía todas las inscripciones con nombres: el
+  `CREATE OR REPLACE VIEW` de `fn_edad_reglamentaria.sql` le había borrado el `security_invoker` (GOTCHA #102). Sin lectores en el
+  código: no cambia ninguna pantalla.
+- `fn_edad_reglamentaria.sql`: el bloque aplicado queda como está, marcado `HISTÓRICO-SIN-INVOKER`; el ROLLBACK 2/2 ahora lleva
+  `WITH (security_invoker = true)`.
+- CLAUDE.md § Vistas: toda `CREATE [OR REPLACE] VIEW` lleva `WITH (security_invoker = true)`.
+- Probe `tests/probe_v_inscriptos_cerrada.mjs` (solo lectura): 6/6, 7/7 mutantes; antes del apply C1 rojo. Entra a `correr_todos.sh`.
+
 ## [2026-10-02] — Resultados: la pantalla respeta la reunión cerrada y la carrera oficial (ISSUE-102 paso 3); baja de `resultados_legacy.html`
 
 - **F10** sólo actúa en el formulario: en la vista oficial avisa "La carrera está oficial: para corregirla, des-oficializala primero." y no
