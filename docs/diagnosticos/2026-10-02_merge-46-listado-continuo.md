@@ -138,3 +138,13 @@ select tabla, accion, count(*), min(created_at), max(created_at) from auditoria
  where usuario_id='a1c490f5-81ee-4d9f-acb7-d2123e99e7d3' and created_at > '2026-10-02 21:30' group by 1,2;
 -- usuarios | INSERT | 1 | 21:38:09 UTC  (registro 3916d94a-7faa-4d0b-859a-c23af77250d6, rol profesional)
 ```
+
+## Verificación de push
+
+```
+$ git ls-remote origin reports
+a631a5e2ed006d9b9f6a2ebbac7f29f9231e1dd2
+$ git rev-parse HEAD
+a631a5e2ed006d9b9f6a2ebbac7f29f9231e1dd2
+```
+Chequeo de datos personales sobre lo agregado: vacío.
