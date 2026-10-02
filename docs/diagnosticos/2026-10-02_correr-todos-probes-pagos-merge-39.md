@@ -229,3 +229,16 @@ $ git pull --ff-only origin main && git log -1 --format='%H %s'
 $ gh pr view 39 --json state,mergedAt --jq '.state+" "+.mergedAt'
 MERGED 2026-10-02T15:28:33Z
 ```
+
+## Verificación de push
+
+Chequeo de datos personales sobre lo agregado: 1 coincidencia en la primera pasada (el id de la 9999 en la salida de la query del
+incidente), reescrita; segunda pasada **0**.
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+3f6f84b371e03829a04bc12341e0b2e5a2f9ed06	refs/heads/reports
+3f6f84b371e03829a04bc12341e0b2e5a2f9ed06
+```
+
+Este anexo va en un commit posterior; su SHA es el tip de `origin/reports`.
