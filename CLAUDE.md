@@ -392,6 +392,18 @@ por más que esté escrito en imperativo.
 - Push frecuente — la sesión SSH al VPS Hetzner se puede cortar. Relevo por `.md` (el asesor lee de raw.githubusercontent.com); ver `docs/SERVER.md`
 
 ### Probes de regresión
+
+**Antes de cada merge a `main`: `tests/correr_todos.sh`, y su resumen va en el informe.** Corre todos los probes que no escriben
+en prod ni necesitan el sandbox (lista explícita adentro del script, con el porqué de cada exclusión) y da verde/rojo por probe.
+Correrlo **en el checkout principal** (`/home/clio/dev/SGH`, con la rama a mergear) — no en un worktree: hay probes que leen
+`tmp/` (gitignored). Para otro checkout: `REPO=<checkout> tests/correr_todos.sh`.
+- Los **rojos preexistentes** están en `tests/correr_todos.rojos_conocidos` (probe + motivo): se listan en el informe y **no
+  bloquean**.
+- Un rojo que **no** está en esa lista es **nuevo** y **bloquea el merge** (el script sale con 1). No se lo agrega a la lista para
+  destrabar: se arregla, o se explica en el informe por qué es ajeno al cambio y se pide OK.
+- Si un conocido pasa a verde, el script lo avisa: sacarlo de la lista en el mismo PR.
+- Probes nuevos que no escriben en prod: sumarlos a la lista del script en el mismo PR.
+
 Después de fixear un bug, agregar o extender un probe en `tests/` que verifique el fix contra prod:
 
 ```bash
