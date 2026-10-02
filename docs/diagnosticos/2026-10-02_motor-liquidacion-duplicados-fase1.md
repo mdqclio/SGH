@@ -252,3 +252,17 @@ $ sed -n 119,127p migrations/guard_staff_emitir_recibo.sql
      AND d.recibo_id IS NULL
      AND d.estado_linea = 'impago'
 ```
+
+## Verificación de push
+
+Chequeo de datos personales sobre lo agregado respecto de `origin/reports`: 2 coincidencias en la primera pasada (el uuid de todos
+ceros escrito literal en el SQL propuesto), reescritas como `:uuid_nulo`; segunda pasada: **0**. Push de los dos informes de hoy
+(este y su par):
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+5e86ea7dda3576d9433d1e606343cdd7acb3b102	refs/heads/reports
+5e86ea7dda3576d9433d1e606343cdd7acb3b102
+```
+
+Este anexo va en un commit posterior; su SHA es el tip de `origin/reports`.
