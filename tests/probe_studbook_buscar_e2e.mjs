@@ -8,7 +8,9 @@
  *   3) operador, term "ab" (corto)   → 400 term_invalido
  *   4) profesional (portal) BUSCA    → 200 (desde 2026-10 el portal busca; antes era 403 solo_staff)
  *   7) acción TRAER (2026-10) — sólo casos que NO crean ejemplares (en prod no se crean, GOTCHA #101):
- *      7a operador traer                          → 403 solo_portal (la secretaría da de alta desde spcs.html)
+ *      7a operador traer, carrera de la 9999       → 422 "Ese turno está anulado o la reunión está cancelada.": desde
+ *                                                    la v3 (02/10) la secretaría TAMBIÉN trae; llega a la RPC v2 y corta en
+ *                                                    su V1 de staff (la 9999 está cancelada) — no crea nada
  *      7b portal traer, sb_id que no es del nombre  → 409 no_coincide (no llega a la RPC)
  *      7c portal SIN entidad, traer                → 403 no_autorizado: es el G1 de la RPC → prueba que la función
  *                                                    llega a rpc_spc_alta_studbook_portal con la key secreta
@@ -79,7 +81,7 @@ try {
   const { data: ent } = await sb.from('profesionales').select('id').eq('club_id', CLUB).eq('activo', true).in('tipo', ['entrenador', 'ambos']).limit(1).single();
   const traer = (sb_id, nombre = 'WAVE RIMOUT') => ({ accion: 'traer', sb_id, nombre, carrera_id: c9999.id });
   r = await invocar(staff, traer('397805'));
-  ok('7a operador traer → 403 solo_portal', r.status === 403 && r.body?.error === 'solo_portal', `${r.status} ${JSON.stringify(r.body)}`);
+  ok('7a operador traer (9999 cancelada) → 422 V1 de staff de la RPC v2 (la secretaría ya no recibe 403)', r.status === 422 && r.body?.error === 'rechazado' && r.body?.detalle === 'Ese turno está anulado o la reunión está cancelada.', `${r.status} ${JSON.stringify(r.body)}`);
   r = await invocar(portal, traer('1'));
   ok('7b portal traer con sb_id que no es de ese nombre → 409 no_coincide', r.status === 409 && r.body?.error === 'no_coincide', `${r.status} ${JSON.stringify(r.body)}`);
   r = await invocar(portal, traer('397805'));
