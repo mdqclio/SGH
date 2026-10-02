@@ -124,7 +124,8 @@ const srcVista = bloque('// ═══ VISTA POR CARRERA — INICIO', '// ══�
 const srcMatch = bloque('// ═══ MATCHEO DEL BUSCADOR — ANCLAS DEL PROBE', '// ═══ MATCHEO DEL BUSCADOR — FIN ═══');
 const src = [
   SRC.slice(SRC.indexOf('const ROL_POR_BENEFICIARIO'), SRC.indexOf('\n', SRC.indexOf('const ROL_POR_BENEFICIARIO'))),
-  extractFn(SRC, 'function rolDeLinea(l)'), extractFn(SRC, 'function nombreBenef(tipo, id)'),
+  extractFn(SRC, 'function rolDeLinea(l)'), extractFn(SRC, 'function subRolDeLinea(l)'), extractFn(SRC, 'function conceptoDeLinea(l)'),   // rolDeLinea y la vista las usan para 'actuacion' (25/09)
+  extractFn(SRC, 'function nombreBenef(tipo, id)'),
   srcMatch, extractFn(SRC, 'function benefSearch(tipo, id)'),
   extractFn(SRC, 'function etiquetaRoles(g)'), extractFn(SRC, 'function etiquetaCarreras(g)'),
   extractFn(SRC, 'async function cobCargarReunPrueba()'), extractFn(SRC, 'function cobVisible(l, rid)'),
