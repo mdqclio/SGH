@@ -97,3 +97,17 @@ aplicar_resultado_v2.sql:72      … 'aplicar_resultado: la liquidación de esta
 aplicar_resultado_v2.sql:94      … 'aplicar_resultado: la carrera % está oficial; para corregirla, des-oficializala primero (botón Des-oficializar). ISSUE-089' USING ERRCODE = 'P0089'
 desoficializar_carrera_v2.sql:55 … 'desoficializar_carrera: la liquidación de esta reunión está cerrada (saldada): la carrera % no se puede des-oficializar. …' USING ERRCODE = 'P0092'
 ```
+
+## Verificación de push
+
+Chequeo de datos personales sobre lo agregado (los cinco informes de los pasos 1 a 5): 1 coincidencia en la primera pasada (un rango de
+números de línea del paso 5 escrito con guion, reescrito con "a"); segunda pasada **0**. Nombres de personas en lo agregado: **0**. La
+contraseña del rol en lo agregado: **0**.
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+64b6fee87cdaa025b7b7fe965e75df3b0a20abc4	refs/heads/reports
+64b6fee87cdaa025b7b7fe965e75df3b0a20abc4
+```
+
+Este anexo va en un commit posterior; su SHA es el tip de `origin/reports`.

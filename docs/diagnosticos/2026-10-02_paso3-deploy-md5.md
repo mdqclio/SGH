@@ -12,3 +12,17 @@ liquidaciones-engine.js    main=b025a7838b07488003ac9b7832687c67 servido=b025a78
 liquidaciones.html         main=d3d58e1f0cb2a4d66f4e75bed148a834 servido=d3d58e1f0cb2a4d66f4e75bed148a834
 resultados.html            main=7060a8068f9cc605ed2a41c05e17fc16 servido=7060a8068f9cc605ed2a41c05e17fc16
 ```
+
+## Verificación de push
+
+Chequeo de datos personales sobre lo agregado (los cinco informes de los pasos 1 a 5): 1 coincidencia en la primera pasada (un rango de
+números de línea del paso 5 escrito con guion, reescrito con "a"); segunda pasada **0**. Nombres de personas en lo agregado: **0**. La
+contraseña del rol en lo agregado: **0**.
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+64b6fee87cdaa025b7b7fe965e75df3b0a20abc4	refs/heads/reports
+64b6fee87cdaa025b7b7fe965e75df3b0a20abc4
+```
+
+Este anexo va en un commit posterior; su SHA es el tip de `origin/reports`.

@@ -156,3 +156,17 @@ ERROR:  permission denied for function emitir_recibo
 
 (Contraseña: entregada por la terminal; en la base, sólo el verificador SCRAM. El sandbox se usó antes para probar la migración y se dejó
 como estaba con el rollback.)
+
+## Verificación de push
+
+Chequeo de datos personales sobre lo agregado (los cinco informes de los pasos 1 a 5): 1 coincidencia en la primera pasada (un rango de
+números de línea del paso 5 escrito con guion, reescrito con "a"); segunda pasada **0**. Nombres de personas en lo agregado: **0**. La
+contraseña del rol en lo agregado: **0**.
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+64b6fee87cdaa025b7b7fe965e75df3b0a20abc4	refs/heads/reports
+64b6fee87cdaa025b7b7fe965e75df3b0a20abc4
+```
+
+Este anexo va en un commit posterior; su SHA es el tip de `origin/reports`.
