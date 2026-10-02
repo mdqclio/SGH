@@ -2944,3 +2944,24 @@ select (select count(*) from (select reunion_id, beneficiario_id from liquidacio
   duplicado (0 en 64 incentivos y en 709 líneas al 2026-10-02). Los caminos 2 (recálculos concurrentes) y 3 (recibo en medio de un
   recálculo) quedan **abiertos y aceptados**; si alguna vez aparece un duplicado, la query de arriba lo muestra y se reabre.
 - **Barrido de la query de control antes de cada jornada de pagos: no por ahora.**
+
+### ISSUE-105: `usuarios.password_hash` es un vestigio pre-Supabase-Auth — 2 filas con un placeholder, 31 vacías, nadie lo lee
+**Estado**: 🟡 ABIERTO, prioridad baja (registrado 2026-10-02; relevado sólo lectura, no se tocó nada).
+**Qué hay** (medido 2026-10-02 sobre las 33 filas de `usuarios`):
+- **2 filas con valor** — los dos usuarios originales de producción, creados el **2026-04-22** (`3a685a1a-3ff7-45dc-8af3-88f5c5f29377`,
+  super_admin; `9ac2d140-faec-424c-9437-0cedeb8b8b82`, secretario_carreras). El valor es **exactamente** el texto `managed_by_supabase_auth`
+  (24 caracteres): un placeholder del alta inicial, **no un hash ni una contraseña**. Ya lo había visto `docs/PORTAL_V2_PLAN.md` (D-H8).
+- **31 filas vacías** (`''`).
+- Columna `text NOT NULL` **sin default**: por eso todo alta tiene que mandar `password_hash: ''` (ISSUE-039).
+**Quién la toca** (código en `main` y funciones de la base):
+- La **escriben** con `''`: `supabase/functions/invite-user/index.ts:485`, `rpc_aprobar_solicitud` (`migrations/sec_autoregistro_gate2.sql:283`) y
+  los probes que crean usuarios de prueba.
+- `fn_auditoria_log` la **saca** de `datos_antes`/`datos_despues` antes de auditar (0 de 1357 filas de auditoría de `usuarios` la traen).
+- **Nadie la lee para nada**: ninguna pantalla, función ni vista la usa. La autenticación es Supabase Auth (GoTrue). Viaja de yapa en los
+  `select('*')` de `usuarios.html:237` (y donde se pida `*`): hoy no expone nada porque no hay ningún secreto.
+- Permisos: `anon`/`authenticated` tienen privilegio de tabla sobre la columna (la RLS filtra por fila). El rol `sgh_lectura` no tiene SELECT en
+  `usuarios` (se lo excluyó por esta columna el 02/10).
+**Propuesta** (no hecha): (1) `ALTER COLUMN password_hash SET DEFAULT ''` y dejar de mandarla en las altas; (2) después, `DROP COLUMN` con todos
+los lugares de arriba ajustados (Edge Function `invite-user`, `rpc_aprobar_solicitud`, `fn_auditoria_log`, probes, DDL de los sandbox de
+`tests/local/`); (3) con la columna fuera, decidir si `sgh_lectura` lee `usuarios` (tiene emails y teléfonos: datos personales).
+**Cómo se verifica**: `select count(*) filter (where coalesce(password_hash,'')<>'') from usuarios;` → hoy 2 (las dos con el placeholder).
