@@ -94,3 +94,15 @@ $ git log --all --reverse --format='%H %ad %s' --date=short -S"password_hash" | 
 3f9b6ba6d562fa954d309a70720bbe96e2fa33d8 2026-05-10 docs: project handoff documentation [2026-05-10]
 32feb54f0ae6f9c864c4d299af401be9300d3a86 2026-07-22 docs(security): flujo real de alta de usuarios (read-only)
 ```
+
+## Verificación de push
+
+Chequeo de datos personales sobre lo agregado (este informe y su par del mismo push): **0**. Nombres de personas o emails: **0**.
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+e52d23696b0febe1717e5ca27f08532f5e3b30ab	refs/heads/reports
+e52d23696b0febe1717e5ca27f08532f5e3b30ab
+```
+
+Este anexo va en un commit posterior; su SHA es el tip de `origin/reports`.

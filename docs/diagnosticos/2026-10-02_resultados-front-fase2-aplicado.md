@@ -307,3 +307,15 @@ index 5043ae1..0dea17e 100644
    if (e.key==='PageUp')   { e.preventDefault(); navCarrera(-1); }
  });
 ```
+
+## Verificación de push
+
+Chequeo de datos personales sobre lo agregado (este informe y su par del mismo push): **0**. Nombres de personas o emails: **0**.
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+e52d23696b0febe1717e5ca27f08532f5e3b30ab	refs/heads/reports
+e52d23696b0febe1717e5ca27f08532f5e3b30ab
+```
+
+Este anexo va en un commit posterior; su SHA es el tip de `origin/reports`.
