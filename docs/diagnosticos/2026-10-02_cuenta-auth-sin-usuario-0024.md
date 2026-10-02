@@ -118,3 +118,16 @@ select json_build_object(
 1. ¿Querés el listado de las 19, con email enmascarado, fecha y estado? Sirve para que la secretaría contacte a las 12 sin solicitud.
    No lo puse porque no lo pediste y son datos personales.
 2. Las 4 solicitudes `pendiente` (ésta incluida) esperan a que alguien las apruebe en `admin.html`.
+
+---
+
+## Verificación de push
+
+```
+$ git ls-remote origin reports
+48540aa782f058db1e52077a36d0232018b2490a	refs/heads/reports
+$ git rev-parse HEAD
+48540aa782f058db1e52077a36d0232018b2490a
+```
+
+Coinciden. Este bloque va en un commit posterior.
