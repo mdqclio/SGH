@@ -105,3 +105,18 @@ cuenta desde el 22/07.
 
 1. ¿Corregir `aplicar_resultado` para adelante y backfillear los 20 desde la auditoría? (propuesta en el ISSUE; no se hizo nada).
 2. ¿Mergeo el PR #33 (sólo `docs/ISSUES.md`)?
+
+---
+
+## Verificación de push
+
+```
+$ git ls-remote origin reports
+de2926c8e73a601e30146aa11fa13bad689b49e0	refs/heads/reports
+$ git rev-parse HEAD
+de2926c8e73a601e30146aa11fa13bad689b49e0
+$ git ls-remote origin chore/issue-101-oficializado-at
+2fa427d05609fb7985416ba180861998dbf729bb	refs/heads/chore/issue-101-oficializado-at
+```
+
+Coinciden. Este bloque va en un commit posterior.
