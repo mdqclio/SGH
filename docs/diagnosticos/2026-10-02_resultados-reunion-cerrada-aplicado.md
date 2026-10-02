@@ -300,3 +300,18 @@ CON LAS 4:
 TRAS LOS 4 ROLLBACKS:
 {"fn" : { "aplicar_resultado" : "94d46dc0ed70e78329169bb3926f64c2", "desoficializar_carrera" : "c3247d72656833cd534e4c601900f25a" }, "pol" : "e1b0ec5fbe3224a19339fcfece2b10a0", "trg" : ["resultados_set_updated_at", "trg_audit_resultados"], "ofi_con_at" : 0}
 ```
+
+---
+
+## Verificación de push
+
+```
+$ git ls-remote origin reports
+902e6eb85455e7a256d4446562d604021650da69	refs/heads/reports
+$ git rev-parse HEAD
+902e6eb85455e7a256d4446562d604021650da69
+$ git ls-remote origin feat/resultados-reunion-cerrada
+b3811d78e06b8855c81093c4c27220887fd1d6e0	refs/heads/feat/resultados-reunion-cerrada
+```
+
+Coinciden. Este bloque va en un commit posterior.
