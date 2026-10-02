@@ -11,9 +11,14 @@
  * probe_pagos_vista_incentivo_pagados.mjs, que prueba esa regla y los chips de pagado).
  * Plan: docs/diagnosticos/2026-09-21_plan-pagos-vista-por-carrera.md (reports).
  *
- * Código REAL extraído de liquidaciones.html por anclas + cobrosBuscar real contra R9 con la
- * secret key. SOLO LECTURA. Los casos se arman de lo que hoy es pagable en R9 (el universo
- * cambia con cada cobro), sobre la Carrera 5 (turno 7) y la Carrera 4 (turno 5).
+ * Código REAL extraído de liquidaciones.html por anclas + cobrosBuscar real. SOLO LECTURA. Los casos
+ * corren DOS veces sobre la Carrera 5, la 4 y la 7:
+ *   [S]  reunión SINTÉTICA (tests/lib/pagos_sintetico.mjs, cliente en memoria tests/lib/sb_fixture.mjs):
+ *        todos los asserts, estrictos — el caballo con los tres roles, la misma persona en dos roles,
+ *        incentivos con importe y con nota, el NL con incentivo, ≥ 10 tarjetas existen siempre;
+ *   [R9] R9 real con la secret key: las mismas reglas, pero los asserts que necesitan que HAYA algo
+ *        impago (un incentivo pagable, un caballo con los tres roles pagables, ≥ 10 tarjetas) pasan a
+ *        "si hay, está bien" — el 02/10 se cobró casi todo R9 y esos casos dejaron de existir.
  *
  * MUTANTES (`--mutante=<nombre>` / `--mutantes`):
  *   C1 j_sin_largo     J incluye jockeys que NO largaron (no_largo)         → incentivo bajo un NL
@@ -35,13 +40,15 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { sbFixture } from './lib/sb_fixture.mjs';
+import { reunionPagosSintetica, REL_PAGOS, RS } from './lib/pagos_sintetico.mjs';
 
 const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
 const CLUB_ID = '0649e9c5-9e87-4aad-842f-101458e6b33c';
-const R9 = 'cafa37d6-89f4-45cb-a0d9-835bc27407e9';
+const R9_REAL = 'cafa37d6-89f4-45cb-a0d9-835bc27407e9';
 const KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!KEY) { console.error('Falta SUPABASE_SECRET_KEY (set -a; . ./.env; set +a)'); process.exit(2); }
-const sb = createClient(SUPABASE_URL, KEY, { auth: { autoRefreshToken: false, persistSession: false } });
+const sbReal = createClient(SUPABASE_URL, KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SELF = fileURLToPath(import.meta.url);
 
@@ -87,7 +94,8 @@ if (mutArg) {
 }
 
 const results = [];
-const ok = (t, c, n = '') => { results.push({ t, s: c ? '✅' : '❌', n }); return c; };
+let ETQ = '';
+const ok = (t, c, n = '') => { results.push({ t: `[${ETQ}] ${t}`, s: c ? '✅' : '❌', n }); return c; };
 function extractFn(src, firma) {
   const i = src.indexOf(firma);
   if (i < 0) throw new Error(`no encontré: ${firma}`);
@@ -105,12 +113,20 @@ const bloque = (ini, fin) => {
 };
 
 // ── arnés: cobrosBuscar real + la vista, con DOM stub ─────────────────────────
-const [{ data: profs }, { data: props }] = await Promise.all([
-  sb.from('profesionales').select('id,nombre,apellido,tipo,documento_nro').eq('club_id', CLUB_ID),
-  sb.from('propietarios').select('id,nombre,nombre_stud,documento_nro').eq('activo', true),
-]);
-const profesionales = {}, propietariosMap = {};
-profs.forEach(p => { profesionales[p.id] = p; }); props.forEach(p => { propietariosMap[p.id] = p; });
+// sb / R9 / profesionales / propietariosMap son los de la corrida en curso ([S] sintética o [R9] real): las
+// funciones de abajo los leen al llamarse, así que la misma sección corre contra las dos fuentes.
+let sb, R9, ESTRICTO, profesionales = {}, propietariosMap = {};
+async function usar(cliente, reunion, estricto, etq) {
+  sb = cliente; R9 = reunion; ESTRICTO = estricto; ETQ = etq;
+  const [{ data: profs }, { data: props }] = await Promise.all([
+    sb.from('profesionales').select('id,nombre,apellido,tipo,documento_nro').eq('club_id', CLUB_ID),
+    sb.from('propietarios').select('id,nombre,nombre_stud,documento_nro').eq('activo', true),
+  ]);
+  profesionales = {}; propietariosMap = {};
+  profs.forEach(p => { profesionales[p.id] = p; }); props.forEach(p => { propietariosMap[p.id] = p; });
+}
+// "si hay, está bien": en [R9] un caso que hoy no existe (todo cobrado) no es un rojo; en [S] tiene que existir
+const hay = n => !ESTRICTO || n > 0;
 const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const unescape = s => String(s).replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
 function mkDocument(campos) {
@@ -131,7 +147,7 @@ const src = [
   extractFn(SRC, 'async function cobCargarReunPrueba()'), extractFn(SRC, 'function cobVisible(l, rid)'),
   extractFn(SRC, 'function cobDelClub(l)'), srcVista, extractFn(SRC, 'async function cobrosBuscar()'),
 ].join('\n\n');
-async function buscar(q, carreraId, rid = R9) {
+async function buscar(q, carreraId, rid = R9) {   // rid por defecto: la reunión de la corrida
   const document = mkDocument({ 'cob-q': q, 'cob-reunion': rid, 'cob-carrera': carreraId });
   const api = await new AsyncFunction('sb', 'CLUB_ID', 'document', 'toast', 'fmt', 'escapeHtml', 'propietariosMap', 'profesionales',
     `let cobCaballerizas = [], cobInscCarrera = {}, cobNroCarrera = {}, cobMapsScope = null, cobReunPrueba = null;
@@ -160,6 +176,7 @@ function parsear(html) {
   });
 }
 
+async function seccion() {
 // ── datos esperados desde la base (misma fuente que el motor) ──────────────────
 const { data: carrs } = await sb.from('carreras').select('id,numero_turno,numero_carrera_programa,estado').eq('reunion_id', R9);
 const carrera = n => carrs.find(c => c.numero_carrera_programa === n);
@@ -209,10 +226,11 @@ ok('2) C5: en todos los bloques los roles van Propietario → Entrenador → Joc
   return idx.every(i => i >= 0) && idx.every((v, i) => i === 0 || v > idx[i - 1]);
 }), b5.map(b => b.roles.map(r => r.rol[0]).join('')).join(' '));
 const conTres = b5.find(b => b.roles.length === 3);
-ok('2b) C5: hay al menos un bloque con los tres roles', !!conTres, conTres ? `${conTres.titulo}: ${conTres.roles.map(r => r.rol + '=' + r.benefs.map(x => x.nombre).join('+')).join(' → ')}` : '');
-ok('2c) C5: cada rol de ese bloque lleva el beneficiario correcto según la inscripción', !!conTres && (() => {
+ok('2b) C5: hay al menos un bloque con los tres roles', hay(+!!conTres), conTres ? `${conTres.titulo}: ${conTres.roles.map(r => r.rol + '=' + r.benefs.map(x => x.nombre).join('+')).join(' → ')}` : '');
+// sólo los beneficiarios con botón Pagar (los ya pagados muestran el chip y no tienen id en el HTML)
+ok('2c) C5: cada rol de ese bloque lleva el beneficiario correcto según la inscripción', !conTres ? hay(0) : (() => {
   const row = e5.rows.find(r => r.caballo === conTres.titulo.split(' · ')[1]);
-  const byRol = Object.fromEntries(conTres.roles.map(r => [r.rol, r.benefs.map(b => b.pagar?.[1])]));
+  const byRol = Object.fromEntries(conTres.roles.map(r => [r.rol, r.benefs.filter(b => b.pagar).map(b => b.pagar[1])]).filter(([, ids]) => ids.length));
   return (!byRol.Propietario || byRol.Propietario.includes(row.propietario_id))
       && (!byRol.Entrenador || byRol.Entrenador.includes(row.entrenador_id))
       && (!byRol.Jockey || byRol.Jockey.includes(row.jockey_titular_id));
@@ -224,12 +242,13 @@ const incLineas = b5.flatMap(b => b.roles.flatMap(r => r.benefs.flatMap(be => [
   ...be.notas.map(n => ({ bloque: b.titulo.split(' · ')[1], rol: r.rol, benef: be.nombre, benefId: be.pagar?.[1] || Object.keys(profesionales).find(k => nombreProf(k) === be.nombre), texto: n, nota: true })),
 ])));
 ok(`3) C5: los ${e5.incJ.length} incentivo(s) de jockey pagable(s) de quienes largaron acá aparecen (sin inscripcion_id ni carrera_id) — con importe si C5 es su carrera dueña, como nota si no`,
-   e5.incJ.length > 0 && e5.incJ.every(l => incLineas.some(x => x.benefId === l.beneficiario_id && x.nota === (duenoNro[l.beneficiario_id] !== 5))),
-   e5.incJ.map(l => nombreProf(l.beneficiario_id)).join(', ') + ' → ' + incLineas.map(x => `${x.benef}@${x.bloque}`).join(', '));
+   hay(e5.incJ.length) && e5.incJ.every(l => incLineas.some(x => x.benefId === l.beneficiario_id && x.nota === (duenoNro[l.beneficiario_id] !== 5))),
+   e5.incJ.map(l => nombreProf(l.beneficiario_id)).join(', ') + ' → ' + incLineas.map(x => `${x.benef} en ${x.bloque}`).join(', '));
 ok('3b) C5: cada incentivo está bajo el rol Jockey del caballo que ese jockey montó', incLineas.every(x => x.rol === 'Jockey' && e5.rows.some(r => r.caballo === x.bloque && r.jockey_titular_id === x.benefId && r.largo)));
 ok('3c) C5: ningún incentivo bajo un jockey que no largó acá', incLineas.every(x => e5.J.has(x.benefId)));
-ok('3d) C5: el incentivo con importe lleva "Incentivo por reunión — se paga una sola vez"; la nota, "figura en la carrera N" (N = dueña)', incLineas.length > 0 && incLineas.every(x => x.nota ? x.texto === `Incentivo por reunión: figura en la carrera ${duenoNro[x.benefId]}` : /Incentivo por reunión — se paga una sola vez/.test(x.texto)), incLineas.map(x => x.texto).join(' | '));
+ok('3d) C5: el incentivo con importe lleva "Incentivo por reunión — se paga una sola vez"; la nota, "figura en la carrera N" (N = dueña)', hay(incLineas.length) && incLineas.every(x => x.nota ? x.texto === `Incentivo por reunión: figura en la carrera ${duenoNro[x.benefId]}` : /Incentivo por reunión — se paga una sola vez/.test(x.texto)), incLineas.map(x => x.texto).join(' | '));
 
+if (ESTRICTO) // una sola vez: no depende de la fuente
 // 3e) "la nota de C5 apunta a una carrera donde el incentivo SÍ está, con importe y rótulo": SINTÉTICO. Antes seguía la nota de
 // un jockey real de C5 hasta su carrera dueña; el 02/10 ese incentivo se cobró y la dueña ya no lo muestra con importe (está
 // pagado: es lo correcto). Ahora: un jockey sintético que largó en 1 y 5, con las funciones reales de la vista.
@@ -256,8 +275,8 @@ ok('3d) C5: el incentivo con importe lleva "Incentivo por reunión — se paga u
 }
 
 // 4) misma persona en dos roles → dos sub-bloques, dos Pagar distintos (propietario / profesional)
-const dobles = b5.flatMap(b => { const ids = b.roles.flatMap(r => r.benefs.map(be => be.pagar)); const nombres = b.roles.flatMap(r => r.benefs.map(be => be.nombre)); const rep = nombres.filter((n, i) => nombres.indexOf(n) !== i); return rep.map(n => ({ bloque: b.titulo, nombre: n, tipos: ids.filter((p, i) => nombres[i] === n).map(p => p?.[0]) })); });
-ok('4) C5: una misma persona en dos roles tiene dos botones Pagar (propietario y profesional)', dobles.length === 0 || dobles.every(d => new Set(d.tipos).size === d.tipos.length), dobles.map(d => `${d.nombre}@${d.bloque}: ${d.tipos.join('/')}`).join('; ') || 'sin caso hoy');
+const dobles = b5.flatMap(b => { const conPagar = b.roles.flatMap(r => r.benefs.filter(be => be.pagar)); const ids = conPagar.map(be => be.pagar); const nombres = conPagar.map(be => be.nombre); const rep = nombres.filter((n, i) => nombres.indexOf(n) !== i); return rep.map(n => ({ bloque: b.titulo, nombre: n, tipos: ids.filter((p, i) => nombres[i] === n).map(p => p?.[0]) })); });
+ok('4) C5: una misma persona en dos roles tiene dos botones Pagar (propietario y profesional)', hay(dobles.length) && dobles.every(d => new Set(d.tipos).size === d.tipos.length), dobles.map(d => `${d.nombre} en ${d.bloque}: ${d.tipos.join('/')}`).join('; ') || 'sin caso hoy');
 
 // 5) caballos sin deuda visibles, apagados
 const vacios = b5.filter(b => b.vacio);
@@ -285,7 +304,7 @@ ok(`7) C7 (sin resultado): ${e7.rows.length} bloques con "—", todos sin deuda,
 // 8) "Toda carrera" sigue en modo tarjetas
 const htmlTodas = await buscar('', '');
 const tarjetas = (htmlTodas.match(/class="liq-prof">/g) || []).length;
-ok('8) sin carrera: modo tarjetas por persona intacto (≥ 10 tarjetas, sin cob-vista)', tarjetas >= 10 && !htmlTodas.includes('cob-vista'), `${tarjetas} tarjetas`);
+ok(`8) sin carrera: modo tarjetas por persona intacto (${ESTRICTO ? '≥ 10 tarjetas' : 'tarjetas'}, sin cob-vista)`, (ESTRICTO ? tarjetas >= 10 : true) && !htmlTodas.includes('cob-vista') && (tarjetas > 0 || /Sin deuda pagable/.test(htmlTodas)), `${tarjetas} tarjetas`);
 
 // 9) completitud: ninguna línea pagable de la carrera queda fuera
 const lineasVista5 = b5.reduce((s, b) => s + b.roles.reduce((t, r) => t + r.benefs.reduce((u, be) => u + be.lineas.length, 0), 0), 0);
@@ -304,9 +323,17 @@ const incIds = new Set((incTodos || []).map(l => l.beneficiario_id));
 const casosNL = e4.rows.filter(r => !r.largo && r.jockey_titular_id && incIds.has(r.jockey_titular_id));
 const nlBloques = b4.filter(b => casosNL.some(r => r.caballo === b.titulo.split(' · ')[1]));
 ok(`10) C4: ${casosNL.length} caballo(s) NL cuyo jockey tiene incentivo pagable → el incentivo NO aparece bajo el NL`,
-   casosNL.length === 0 || nlBloques.every(b => !b.roles.some(r => r.benefs.some(be => be.lineas.some(l => /incentivo jockey/i.test(l.texto))))),
+   hay(casosNL.length) && nlBloques.every(b => !b.roles.some(r => r.benefs.some(be => be.lineas.some(l => /incentivo jockey/i.test(l.texto))))),
    casosNL.map(r => `${r.caballo} (${nombreProf(r.jockey_titular_id)})`).join(', ') || 'sin caso hoy');
 ok('10b) C4: los bloques van por posición ASC', b4.map(b => b.titulo.split(' · ')[1]).join('|') === [...e4.rows].sort((a, b) => (a.posicion ?? 999) - (b.posicion ?? 999) || (a.numero_partidor ?? 999) - (b.numero_partidor ?? 999)).map(r => r.caballo).join('|'), b4.map(b => b.titulo).join(' | '));
+
+}
+
+await usar(sbFixture(reunionPagosSintetica(CLUB_ID), REL_PAGOS), RS, true, 'S');
+await seccion();
+await usar(sbReal, R9_REAL, false, 'R9');
+await seccion();
+ETQ = 'texto';
 
 // 11) texto: la selección no usa Set.has sobre inscripcion_id a secas para los incentivos
 const srcSel = extractFn(SRC, 'function cobLineasDeCarrera(lineas, carreraId, reunionId, inscs)');

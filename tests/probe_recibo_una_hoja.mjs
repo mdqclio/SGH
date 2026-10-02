@@ -8,12 +8,15 @@
  * Parte 1 — SIN browser (código real extraído de liquidaciones.html):
  *   CSS de impresión: la copia ya no tiene break-after:page y sí break-inside:avoid; el pie sigue
  *   atómico; body margin:0; no vuelve el min-height:100vh / margin-top:auto del bug del 28/08;
- *   existe .recibo-corte. HTML real de imprimirReciboCobro (recibo real, Supabase con secret key):
- *   2 copias, 1 corte entre las dos, total + Retira + firma dentro del pie en las dos copias.
+ *   existe .recibo-corte. HTML real de imprimirReciboCobro sobre un recibo SINTÉTICO (tests/lib/pagos_sintetico.mjs
+ *   reciboSintetico, cliente en memoria): 2 copias, 1 corte entre las dos, total + Retira + firma dentro del pie en
+ *   las dos copias; y la variante TRANSFERENCIA (sin firma, con la leyenda del comprobante, también dentro del pie).
+ *   Hasta el 02/10 se usaba "el recibo con más líneas de los últimos 60": ese día pasó a ser una transferencia
+ *   (no lleva firma) y 2c/3d dieron rojo sin que el código cambiara. Con `[numero_recibo]` se mide uno real.
  * Parte 2 — CON Chromium (se saltea con aviso si no está ~/chromium-libs o el headless shell):
  *   23/09 — corte a la mitad (Valeria corta la hoja por la mitad): la 1ª copia lleva min-height en mm
  *   para que .recibo-corte caiga a ~133,5 mm (mitad de 267): 1h y 3a'/3d/3e.
- *   tests/render_recibo_pdf.mjs sobre un recibo real: 4 líneas → 1 página; 9 → 1; 10 y 12 → 2 páginas;
+ *   tests/render_recibo_pdf.mjs --fixture sobre el recibo sintético (efectivo, 4 líneas): 4 líneas → 1 página; 9 → 1; 10 y 12 → 2 páginas;
  *   40 líneas → ≥ 3 páginas. La verificación de que el duplicado sale ENTERO en la hoja 2 es
  *   visual: mirar <out>/recibo_<n>_x12_pdf_p2.png.
  *
@@ -29,7 +32,7 @@
  *
  * Uso:
  *   set -a; . ./.env; set +a; export LD_LIBRARY_PATH=$HOME/chromium-libs/usr/lib/x86_64-linux-gnu
- *   node tests/probe_recibo_una_hoja.mjs [numero_recibo]      # default: el recibo con más líneas de Dolores
+ *   node tests/probe_recibo_una_hoja.mjs [numero_recibo]      # default: recibo SINTÉTICO (efectivo, 4 líneas); con número, uno real
  *   node tests/probe_recibo_una_hoja.mjs --mutantes
  *   LIQUIDACIONES_HTML=https://sigh.com.ar/liquidaciones.html node tests/probe_recibo_una_hoja.mjs
  */
@@ -39,12 +42,15 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { tmpdir, homedir } from 'node:os';
 import { spawnSync } from 'node:child_process';
+import { sbFixture } from './lib/sb_fixture.mjs';
+import { reciboSintetico, REL_PAGOS } from './lib/pagos_sintetico.mjs';
 
 const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
 const CLUB_ID = '0649e9c5-9e87-4aad-842f-101458e6b33c';
 const KEY = process.env.SUPABASE_SECRET_KEY;
-if (!KEY) { console.error('Falta SUPABASE_SECRET_KEY (set -a; . ./.env; set +a)'); process.exit(2); }
-const sb = createClient(SUPABASE_URL, KEY, { auth: { autoRefreshToken: false, persistSession: false } });
+const reciboArgTop = process.argv.slice(2).find(a => /^\d+$/.test(a));
+if (!KEY && reciboArgTop) { console.error('Falta SUPABASE_SECRET_KEY (set -a; . ./.env; set +a) — hace falta para medir un recibo real'); process.exit(2); }
+const sbReal = KEY ? createClient(SUPABASE_URL, KEY, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SELF = fileURLToPath(import.meta.url);
 
@@ -119,40 +125,52 @@ ok('1h) corte a la mitad: UNA regla con min-height, selector .recibo-copia:first
    conMin.length === 1 && conMin[0].sel === '.recibo-copia:first-child' && (() => { const v = conMin[0].body.match(/min-height\s*:\s*([\d.]+)mm/); return !!v && +v[1] >= 120 && +v[1] <= 135; })()
    && !reglasCopia.some(r => /vh/.test(r.body)), conMin.map(r => `${r.sel} {${r.body.trim()}}`).join(' | ') || 'sin min-height');
 
-// ═══ Parte 2: el HTML real de imprimirReciboCobro sobre un recibo real ═══
-let reciboRow;
-if (reciboArg) ({ data: reciboRow } = await sb.from('recibos').select('*').eq('club_id', CLUB_ID).eq('numero_recibo', +reciboArg).maybeSingle());
-else {
-  const { data: rs } = await sb.from('recibos').select('*').eq('club_id', CLUB_ID).eq('estado', 'emitido').order('emitido_at', { ascending: false }).limit(60);
-  let best = null, bestN = -1;
-  for (const r of rs || []) { const { count } = await sb.from('liquidacion_detalle').select('id', { count: 'exact', head: true }).eq('recibo_id', r.id); if ((count || 0) > bestN) { best = r; bestN = count || 0; } }
-  reciboRow = best;
+// ═══ Parte 2: el HTML real de imprimirReciboCobro sobre el recibo sintético (o uno real con [numero_recibo]) ═══
+// fixture = { tablas, recibo, lineaIds, cobBenef } (el mismo formato que render_recibo_pdf.mjs --fixture)
+async function fixtureReal(numero) {
+  const { data: recibo } = await sbReal.from('recibos').select('*').eq('club_id', CLUB_ID).eq('numero_recibo', +numero).maybeSingle();
+  if (!recibo) throw new Error(`no hay recibo N° ${numero}`);
+  const benefId = recibo.propietario_id || recibo.profesional_id;
+  const benefTipo = recibo.propietario_id ? 'propietario' : 'profesional';
+  const { data: benef } = benefTipo === 'propietario' ? await sbReal.from('propietarios').select('nombre').eq('id', benefId).single() : await sbReal.from('profesionales').select('nombre,apellido').eq('id', benefId).single();
+  const { data: lns } = await sbReal.from('liquidacion_detalle').select('id').eq('recibo_id', recibo.id);
+  return { recibo, lineaIds: (lns || []).map(l => l.id), cobBenef: { tipo: benefTipo, id: benefId, nombre: benefTipo === 'propietario' ? benef.nombre : `${benef.apellido}, ${benef.nombre}` } };
 }
-if (!reciboRow) throw new Error('no hay recibo para probar');
-const benefId = reciboRow.propietario_id || reciboRow.profesional_id;
-const benefTipo = reciboRow.propietario_id ? 'propietario' : 'profesional';
-const { data: benef } = benefTipo === 'propietario' ? await sb.from('propietarios').select('nombre').eq('id', benefId).single() : await sb.from('profesionales').select('nombre,apellido').eq('id', benefId).single();
-const cobBenef = { tipo: benefTipo, id: benefId, nombre: benefTipo === 'propietario' ? benef.nombre : `${benef.apellido}, ${benef.nombre}` };
-const { data: lns } = await sb.from('liquidacion_detalle').select('id').eq('recibo_id', reciboRow.id);
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-const nodos = {}; const document = { getElementById: id => (nodos[id] ||= { innerHTML: '' }) };
 const src = [SRC.slice(SRC.indexOf('const ROL_POR_BENEFICIARIO'), SRC.indexOf('\n', SRC.indexOf('const ROL_POR_BENEFICIARIO'))),
   extractFn(SRC, 'function rolDeLinea(l)'), extractFn(SRC, 'function subRolDeLinea(l)'), extractFn(SRC, 'function conceptoDeLinea(l)'),
   extractFn(SRC, 'function escapeHtml(s)'), extractFn(SRC, 'async function imprimirReciboCobro(recibo, lineaIds, opts)')].join('\n\n');
-let printed = 0;
-await new AsyncFunction('sb', 'CLUB_ID', 'document', 'window', 'fmt', 'cobBenef', 'precargarLogo', 'recibo', 'lineaIds',
-  `${src}\n await imprimirReciboCobro(recibo, lineaIds, {});`)(sb, CLUB_ID, document, { print: () => { printed++; } }, n => '$' + Number(n).toFixed(2), cobBenef, async () => {}, reciboRow, (lns || []).map(l => l.id));
-const html = nodos['recibo-print'].innerHTML;
+async function imprimir(fx) {
+  const nodos = {}; const document = { getElementById: id => (nodos[id] ||= { innerHTML: '' }) };
+  let printed = 0;
+  await new AsyncFunction('sb', 'CLUB_ID', 'document', 'window', 'fmt', 'cobBenef', 'precargarLogo', 'recibo', 'lineaIds',
+    `${src}\n await imprimirReciboCobro(recibo, lineaIds, {});`)(fx.tablas ? sbFixture(fx.tablas, REL_PAGOS) : sbReal, CLUB_ID, document, { print: () => { printed++; } }, n => '$' + Number(n).toFixed(2), fx.cobBenef, async () => {}, fx.recibo, fx.lineaIds);
+  return { html: nodos['recibo-print'].innerHTML, printed };
+}
+const FX = reciboArg ? await fixtureReal(reciboArg) : reciboSintetico(CLUB_ID, { lineas: 4, forma: 'efectivo' });
+const reciboRow = FX.recibo, cobBenef = FX.cobBenef, lns = FX.lineaIds;
+const esTransfer = reciboRow.forma_pago === 'transferencia';
+const { html, printed } = await imprimir(FX);
 const copias = html.split('<div class="recibo-copia">').slice(1);
-ok(`2a) recibo N° ${reciboRow.numero_recibo} (${cobBenef.nombre}, ${(lns || []).length} línea(s)): un solo window.print(), 2 copias ORIGINAL y DUPLICADO`,
+ok(`2a) recibo N° ${reciboRow.numero_recibo} (${reciboArg ? 'real' : 'sintético'}, ${reciboRow.forma_pago}, ${lns.length} línea(s)): un solo window.print(), 2 copias ORIGINAL y DUPLICADO`,
    printed === 1 && copias.length === 2 && /ORIGINAL/.test(copias[0]) && /DUPLICADO/.test(copias[1]));
 const iOrig = html.indexOf('ORIGINAL'), iCorte = html.indexOf('<div class="recibo-corte"></div>'), iDup = html.indexOf('DUPLICADO');
 ok('2b) hay exactamente UN .recibo-corte, entre ORIGINAL y DUPLICADO', (html.match(/class="recibo-corte"/g) || []).length === 1 && iOrig < iCorte && iCorte < iDup);
 const pieDe = c => { const i = c.indexOf('<div class="recibo-pie">'); if (i < 0) return ''; let d = 0; for (let k = i; k < c.length; k++) { if (c.startsWith('<div', k)) d++; else if (c.startsWith('</div>', k)) { d--; if (!d) return c.slice(i, k + 6); } } return c.slice(i); };
 const pies = copias.map(pieDe);
-ok('2c) en las 2 copias el pie contiene total (NETO A COBRAR), "Retira:" y la firma (Firma/Aclaración/DNI) — todo dentro de .recibo-pie',
-   pies.every(p => /NETO A COBRAR/.test(p) && /Retira:/.test(p) && /Firma/.test(p) && /Aclaración/.test(p) && /DNI/.test(p)), pies[0] ? `${pies[0].length} chars` : 'sin pie');
-ok('2d) "A nombre de:" en las 2 copias, mismas filas en las 2', copias.every(c => /A nombre de:/.test(c)) && (copias[0].match(/<tr><td>/g) || []).length === (copias[1].match(/<tr><td>/g) || []).length && (copias[0].match(/<tr><td>/g) || []).length === (lns || []).length);
+const firmaEn = p => /Firma/.test(p) && /Aclaración/.test(p) && /DNI/.test(p);
+const transferEn = p => /TRANSFERENCIA — no requiere firma/.test(p);
+ok(esTransfer ? '2c) (transferencia) en las 2 copias el pie contiene total (NETO A COBRAR), "Retira:" y la leyenda de transferencia, sin firma — todo dentro de .recibo-pie'
+              : '2c) en las 2 copias el pie contiene total (NETO A COBRAR), "Retira:" y la firma (Firma/Aclaración/DNI) — todo dentro de .recibo-pie',
+   pies.every(p => /NETO A COBRAR/.test(p) && /Retira:/.test(p) && (esTransfer ? transferEn(p) && !firmaEn(p) : firmaEn(p))), pies[0] ? `${pies[0].length} chars` : 'sin pie');
+if (!reciboArg) {
+  // 2c') la otra forma de pago, sintética: transferencia → sin firma, leyenda + comprobante dentro del pie
+  const t = await imprimir(reciboSintetico(CLUB_ID, { lineas: 4, forma: 'transferencia' }));
+  const piesT = t.html.split('<div class="recibo-copia">').slice(1).map(pieDe);
+  ok("2c') transferencia (sintético): en las 2 copias el pie lleva NETO A COBRAR, \"Retira:\", la leyenda \"TRANSFERENCIA — no requiere firma\" y el comprobante; NO lleva Firma/Aclaración",
+     piesT.length === 2 && piesT.every(p => /NETO A COBRAR/.test(p) && /Retira:/.test(p) && transferEn(p) && /Comprobante:/.test(p) && !firmaEn(p)), piesT[0] ? `${piesT[0].length} chars` : 'sin pie');
+}
+ok('2d) "A nombre de:" en las 2 copias, mismas filas en las 2', copias.every(c => /A nombre de:/.test(c)) && (copias[0].match(/<tr><td>/g) || []).length === (copias[1].match(/<tr><td>/g) || []).length && (copias[0].match(/<tr><td>/g) || []).length === lns.length);
 ok('2e) el HTML del recibo no trae la clase .recibo-container (resto de otra época; no envuelve al recibo)', !html.includes('recibo-container'));
 
 // ═══ Parte 3: Chromium (opcional) ═══
@@ -163,17 +181,19 @@ if (!hayChromium) console.log('⚠ Parte 3 salteada: sin Chromium headless (ver 
 else {
   const out = mkdtempSync(join(tmpdir(), 'recibo-probe-'));
   const htmlPath = join(out, 'liquidaciones_bajo_prueba.html'); writeFileSync(htmlPath, SRC);   // mismo HTML (con mutante, si hay)
+  const fxPath = join(out, 'recibo_fixture.json');
+  if (!reciboArg) writeFileSync(fxPath, JSON.stringify(FX));
   const render = (n, extra = []) => {
-    const r = spawnSync(process.execPath, [join(HERE, 'render_recibo_pdf.mjs'), String(reciboRow.numero_recibo), out, `--html=${htmlPath}`, ...extra], { encoding: 'utf8', env: { ...process.env, LD_LIBRARY_PATH: process.env.LD_LIBRARY_PATH || libs } });
+    const r = spawnSync(process.execPath, [join(HERE, 'render_recibo_pdf.mjs'), String(reciboRow.numero_recibo), out, `--html=${htmlPath}`, ...(reciboArg ? [] : [`--fixture=${fxPath}`]), ...extra], { encoding: 'utf8', env: { ...process.env, LD_LIBRARY_PATH: process.env.LD_LIBRARY_PATH || libs } });
     if (r.status !== 0) { console.log('   render falló:', (r.stderr || r.stdout).trim().split('\n').slice(-2).join(' | ')); return null; }
     try { return JSON.parse(r.stdout.slice(r.stdout.indexOf('{'))); } catch { return null; }
   };
   const real = render(0);
-  ok(`3a) recibo real (${real?.filas_render} línea(s)) → PDF de 1 página; fin del duplicado ${real?.copias?.[1] ? (real.copias[1].top_mm + real.copias[1].alto_mm).toFixed(1) : '?'} mm ≤ ${real?.alto_util_mm} mm`,
+  ok(`3a) recibo ${reciboArg ? 'real' : 'sintético'} (${real?.filas_render} línea(s)) → PDF de 1 página; fin del duplicado ${real?.copias?.[1] ? (real.copias[1].top_mm + real.copias[1].alto_mm).toFixed(1) : '?'} mm ≤ ${real?.alto_util_mm} mm`,
      !!real && real.paginas_pdf === 1 && real.entran_en_una_hoja, real ? `pdf: ${real.pdf}` : '');
   const cerca = (v, obj) => Math.abs(v - obj) <= 0.5;
   const corteDe = r => r?.cortes?.[0]?.top_mm;
-  ok(`3a') recibo real: la línea de corte cae a la mitad del área útil (${corteDe(real)} mm ≈ ${real ? real.alto_util_mm / 2 : '?'} mm)`, !!real && cerca(corteDe(real), real.alto_util_mm / 2));
+  ok(`3a') recibo ${reciboArg ? 'real' : 'sintético'}: la línea de corte cae a la mitad del área útil (${corteDe(real)} mm ≈ ${real ? real.alto_util_mm / 2 : '?'} mm)`, !!real && cerca(corteDe(real), real.alto_util_mm / 2));
   const x9 = render(9, ['--lineas=9']);
   ok(`3d) 9 líneas → 1 página, corte a la mitad (${corteDe(x9)} mm), fin del duplicado ${x9?.copias?.[1] ? (x9.copias[1].top_mm + x9.copias[1].alto_mm).toFixed(1) : '?'} mm ≤ ${x9?.alto_util_mm}`,
      !!x9 && x9.paginas_pdf === 1 && x9.entran_en_una_hoja && cerca(corteDe(x9), x9.alto_util_mm / 2));

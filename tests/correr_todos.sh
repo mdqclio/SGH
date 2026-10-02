@@ -52,6 +52,8 @@ probe_fmtinput_onblur|
 probe_forfait_anulada|
 probe_ganadas_carta_llamados|
 probe_inscripcion_editar_carrera|
+probe_inscripciones_alta_studbook|
+probe_inscripciones_listado|
 probe_mandil_colores|
 probe_montas_reales|
 probe_motor_chequeo_errores|
@@ -66,6 +68,7 @@ probe_portal_carta|
 probe_portal_validacion|
 probe_programa_null_estado|
 probe_programa_r8_imprenta|
+probe_ratificacion_aviso_revision|
 probe_recibo_rol|
 probe_recibo_una_hoja|
 probe_regex_datos_personales|

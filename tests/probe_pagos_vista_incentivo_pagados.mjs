@@ -11,11 +11,15 @@
  *    no cuenta. Rótulo del caballo sin pagable: "Sin deuda pagable · todo pagado (N transferencia,
  *    M efectivo)" o "Sin deuda pagable" a secas.
  *
- * Código REAL extraído de liquidaciones.html (bloque VISTA POR CARRERA + cobrosBuscar) con DOM stub
- * y la secret key. SOLO LECTURA: no escribe nada en la base. Lo esperado sale de la BASE, no de otra
- * pantalla (GOTCHA #93). Los chips de transferencia/anulado no existen hoy en la base (los 44
- * recibos son efectivo, 0 anulados): esos casos van con líneas sintéticas por las funciones puras
- * del mismo bloque (cobMarcarPagadas → cobArmarVistaCarrera → cobHtmlVistaCarrera).
+ * Código REAL extraído de liquidaciones.html (bloque VISTA POR CARRERA + cobrosBuscar) con DOM stub.
+ * SOLO LECTURA: no escribe nada en la base. Lo esperado sale de la BASE, no de otra pantalla (GOTCHA #93).
+ * Las reglas sobre una reunión entera (§ 1–4) corren DOS veces:
+ *   [S]  reunión SINTÉTICA (tests/lib/pagos_sintetico.mjs + cliente en memoria tests/lib/sb_fixture.mjs),
+ *        estricta: hay incentivos impagos con una y con varias montas, uno pagado por transferencia,
+ *        chips de efectivo / transferencia / regularizado;
+ *   [R9] R9 real con la secret key: las mismas reglas, con "si hay, está bien" en lo que necesita algo
+ *        IMPAGO — el 02/10 se cobraron todos los incentivos de jockey de R9 y 2c/2d/3 quedaron sin caso.
+ * Los chips de recibo anulado y los casos de una línea van por las funciones puras (§ 5–7).
  *
  * MUTANTES (`--mutante=<nombre>` / `--mutantes`): ver MUTANTES abajo, uno por regla.
  *
@@ -30,13 +34,15 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { sbFixture } from './lib/sb_fixture.mjs';
+import { reunionPagosSintetica, REL_PAGOS, RS } from './lib/pagos_sintetico.mjs';
 
 const SUPABASE_URL = 'https://unlhcuanfrtpatoipwve.supabase.co';
 const CLUB_ID = '0649e9c5-9e87-4aad-842f-101458e6b33c';
-const R9 = 'cafa37d6-89f4-45cb-a0d9-835bc27407e9';
+const R9_REAL = 'cafa37d6-89f4-45cb-a0d9-835bc27407e9';
 const KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!KEY) { console.error('Falta SUPABASE_SECRET_KEY (set -a; . ./.env; set +a)'); process.exit(2); }
-const sb = createClient(SUPABASE_URL, KEY, { auth: { autoRefreshToken: false, persistSession: false } });
+const sbReal = createClient(SUPABASE_URL, KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SELF = fileURLToPath(import.meta.url);
 
@@ -93,7 +99,8 @@ if (mutArg) {
 }
 
 const results = [];
-const ok = (t, c, n = '') => { results.push({ t, s: c ? '✅' : '❌', n }); return c; };
+let ETQ = '';
+const ok = (t, c, n = '') => { results.push({ t: `[${ETQ}] ${t}`, s: c ? '✅' : '❌', n }); return c; };
 function extractFn(src, firma) {
   const i = src.indexOf(firma);
   if (i < 0) throw new Error(`no encontré: ${firma}`);
@@ -111,12 +118,18 @@ const bloque = (ini, fin) => {
 };
 
 // ── arnés: cobrosBuscar real + la vista, con DOM stub (mismo que probe_pagos_vista_carrera) ──
-const [{ data: profs }, { data: props }] = await Promise.all([
-  sb.from('profesionales').select('id,nombre,apellido,tipo,documento_nro').eq('club_id', CLUB_ID),
-  sb.from('propietarios').select('id,nombre,nombre_stud,documento_nro').eq('activo', true),
-]);
-const profesionales = {}, propietariosMap = {};
-profs.forEach(p => { profesionales[p.id] = p; }); props.forEach(p => { propietariosMap[p.id] = p; });
+// sb / R9 / profesionales / propietariosMap son los de la corrida en curso ([S] o [R9]).
+let sb, R9, ESTRICTO, profesionales = {}, propietariosMap = {};
+async function usar(cliente, reunion, estricto, etq) {
+  sb = cliente; R9 = reunion; ESTRICTO = estricto; ETQ = etq;
+  const [{ data: profs }, { data: props }] = await Promise.all([
+    sb.from('profesionales').select('id,nombre,apellido,tipo,documento_nro').eq('club_id', CLUB_ID),
+    sb.from('propietarios').select('id,nombre,nombre_stud,documento_nro').eq('activo', true),
+  ]);
+  profesionales = {}; propietariosMap = {};
+  profs.forEach(p => { profesionales[p.id] = p; }); props.forEach(p => { propietariosMap[p.id] = p; });
+}
+const hay = n => !ESTRICTO || n > 0;   // [R9]: un caso que hoy no existe (todo cobrado) no es rojo; [S]: tiene que existir
 const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const unescape = s => String(s).replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
 const fmt = n => '$' + Number(n).toFixed(2);
@@ -147,7 +160,9 @@ async function modulo(document) {
 }
 async function buscar(carreraId, rid = R9) {
   const document = mkDocument({ 'cob-q': '', 'cob-reunion': rid, 'cob-carrera': carreraId });
-  await (await modulo(document)).cobrosBuscar();
+  const warnReal = console.warn;   // la línea de otro club del fixture avisa ISSUE-060: es lo esperado
+  console.warn = (...a) => { if (!/ISSUE-060/.test(a.join(' '))) warnReal(...a); };
+  try { await (await modulo(document)).cobrosBuscar(); } finally { console.warn = warnReal; }
   return document._n['cob-beneficiarios'].innerHTML;
 }
 // parser: bloques { titulo, info, pagable, benefs:[{rol, nombre, pagar, lineas:[{texto,monto}], notas:[], chips:[]}] }
@@ -173,6 +188,7 @@ function parsear(html) {
 const round2 = n => Math.round(n * 100) / 100;
 const esIncentivo = l => /se paga una sola vez/.test(l.texto);
 
+async function seccion() {
 // ═════════ datos de la BASE (independientes de la pantalla) ═════════
 const { data: carrs } = await sb.from('carreras').select('id,numero_turno,numero_carrera_programa,estado').eq('reunion_id', R9);
 const carrsVivas = carrs.filter(c => c.estado == null || c.estado !== 'anulada');
@@ -194,7 +210,6 @@ const delClub = todasR9.filter(l => l.liquidaciones?.club_id === CLUB_ID && l.be
 // Lo que la solapa Resumen llama "Pendiente de cobrar": impago, no club (recalculado acá desde la base)
 const pendienteBase = round2(delClub.filter(l => l.estado_linea === 'impago' && !l.recibo_id).reduce((s, l) => s + parseFloat(l.monto_neto), 0));
 const nombreProf = id => profesionales[id] ? `${profesionales[id].apellido}, ${profesionales[id].nombre}` : id;
-const jockeyPorNombre = (ap, nom) => profs.find(p => p.tipo === 'jockey' && p.apellido === ap && p.nombre.startsWith(nom))?.id;
 
 // ═════════ render de las carreras vivas de R9 ═════════
 const vistas = [];
@@ -204,11 +219,11 @@ const conResultado = vistas.filter(v => v.b.some(b => /^\d+°/.test(b.titulo)));
 // 1) suma de lo pagable mostrado = pendiente de la base
 const sumaPagable = round2(vistas.reduce((s, v) => s + v.b.reduce((t, b) => t + b.pagable, 0), 0));
 const sumaLineas = round2(vistas.reduce((s, v) => s + v.b.reduce((t, b) => t + b.benefs.reduce((u, be) => u + be.lineas.reduce((w, l) => w + l.monto, 0), 0), 0), 0));
-ok(`1) R9: suma del "Pagable" de las ${vistas.length} carreras (${conResultado.length} con resultado) = pendiente en la base (Resumen)`, sumaPagable === pendienteBase, `${sumaPagable.toFixed(2)} vs ${pendienteBase.toFixed(2)}`);
-ok('1b) R9: suma de los importes de todas las líneas mostradas = pendiente en la base', sumaLineas === pendienteBase, `${sumaLineas.toFixed(2)}`);
+ok(`1) suma del "Pagable" de las ${vistas.length} carreras (${conResultado.length} con resultado) = pendiente en la base (Resumen)`, sumaPagable === pendienteBase, `${sumaPagable.toFixed(2)} vs ${pendienteBase.toFixed(2)}`);
+ok('1b) suma de los importes de todas las líneas mostradas = pendiente en la base', sumaLineas === pendienteBase, `${sumaLineas.toFixed(2)}`);
 const idsPendientes = delClub.filter(l => l.estado_linea === 'impago' && !l.recibo_id);
 const nLineasVista = vistas.reduce((s, v) => s + v.b.reduce((t, b) => t + b.benefs.reduce((u, be) => u + be.lineas.length, 0), 0), 0);
-ok('1c) R9: cantidad de líneas pagables mostradas = líneas impagas de la base (ninguna dos veces, ninguna afuera)', nLineasVista === idsPendientes.length, `${nLineasVista} vs ${idsPendientes.length}`);
+ok('1c) cantidad de líneas pagables mostradas = líneas impagas de la base (ninguna dos veces, ninguna afuera)', nLineasVista === idsPendientes.length, `${nLineasVista} vs ${idsPendientes.length}`);
 
 // 2/2b/2p) caso de un jockey que largó en dos carreras: pasaron a SINTÉTICOS (§ 7, al final). Antes usaban un jockey real de
 // R9 cuyo incentivo estaba impago; el 02/10 se cobró por transferencia y el caso dejó de existir (mismo motivo que P2/P5 de
@@ -226,21 +241,24 @@ function apariciones(jid) {
 // 2c) regla general: todo incentivo pagable aparece con importe exactamente una vez, en min(carreras donde largó)
 const incPend = delClub.filter(l => l.concepto_tipo === 'incentivo_jockey' && l.estado_linea === 'impago' && !l.recibo_id);
 const malUbicados = incPend.filter(l => { const a = apariciones(l.beneficiario_id); return !(a.lin.length === 1 && a.lin[0] === minNro(l.beneficiario_id)); });
-ok(`2c) R9: los ${incPend.length} incentivos pagables aparecen con importe una sola vez, en la carrera de número más bajo`, incPend.length > 0 && malUbicados.length === 0, malUbicados.map(l => nombreProf(l.beneficiario_id)).join(', '));
+ok(`2c) los ${incPend.length} incentivos pagables aparecen con importe una sola vez, en la carrera de número más bajo`, hay(incPend.length) && malUbicados.length === 0, malUbicados.map(l => nombreProf(l.beneficiario_id)).join(', '));
 // 2d) la línea lleva la etiqueta
 const lineasInc = vistas.flatMap(v => v.b.flatMap(b => b.benefs.flatMap(be => be.lineas.filter(l => /incentivo jockey/i.test(l.texto)))));
-ok('2d) cada incentivo con importe lleva "Incentivo por reunión — se paga una sola vez"', lineasInc.length > 0 && lineasInc.every(esIncentivo), lineasInc[0]?.texto);
+ok('2d) cada incentivo con importe lleva "Incentivo por reunión — se paga una sola vez"', hay(lineasInc.length) && lineasInc.every(esIncentivo), lineasInc[0]?.texto);
 
 // 3) jockey con una sola monta: sin nota
 const unaMonta = Object.keys(largoEn).filter(j => largoEn[j].size === 1 && delClub.some(l => l.concepto_tipo === 'incentivo_jockey' && l.beneficiario_id === j));
 const conNotaIndebida = unaMonta.filter(j => apariciones(j).notas.length);
-const aguirre = jockeyPorNombre('AGUIRRE', 'HUGO');
-ok(`3) AGUIRRE HUGO (una monta, incentivo pagable): con importe en su carrera y sin nota`, apariciones(aguirre).lin.length === 1 && apariciones(aguirre).notas.length === 0, JSON.stringify(apariciones(aguirre)));
-ok(`3b) R9: ninguno de los ${unaMonta.length} jockeys de una sola monta lleva nota`, unaMonta.length > 0 && conNotaIndebida.length === 0, conNotaIndebida.map(nombreProf).join(', '));
+// 3) antes: un jockey real con nombre propio (una monta, incentivo pagable); el 02/10 lo cobró. Ahora la regla: TODOS los
+// de una monta con incentivo pagable lo muestran con importe una vez y sin nota.
+const unaMontaPag = unaMonta.filter(j => incPend.some(l => l.beneficiario_id === j));
+const unaMontaMal = unaMontaPag.filter(j => !(apariciones(j).lin.length === 1 && apariciones(j).notas.length === 0));
+ok(`3) los ${unaMontaPag.length} jockeys de una monta con incentivo pagable: con importe en su carrera y sin nota`, hay(unaMontaPag.length) && unaMontaMal.length === 0, unaMontaMal.map(j => JSON.stringify(apariciones(j))).join('; '));
+ok(`3b) ninguno de los ${unaMonta.length} jockeys de una sola monta lleva nota`, hay(unaMonta.length) && conNotaIndebida.length === 0, conNotaIndebida.map(nombreProf).join(', '));
 // 3c) varias montas → nota en todas menos la dueña (pagado o no)
 const variasMontas = Object.keys(largoEn).filter(j => largoEn[j].size > 1 && delClub.some(l => l.concepto_tipo === 'incentivo_jockey' && l.beneficiario_id === j));
 const notasMal = variasMontas.filter(j => { const n = apariciones(j).notas; return n.length !== largoEn[j].size - 1 || n.some(x => x.nro === minNro(j)); });
-ok(`3c) R9: los ${variasMontas.length} jockeys con varias montas llevan nota en todas menos la dueña`, variasMontas.length > 0 && notasMal.length === 0, notasMal.map(nombreProf).join(', '));
+ok(`3c) los ${variasMontas.length} jockeys con varias montas llevan nota en todas menos la dueña`, hay(variasMontas.length) && notasMal.length === 0, notasMal.map(nombreProf).join(', '));
 
 // 4) chips reales de R9 contra la base: por carrera, los recibos (no anulados) de sus líneas
 //    — premio/bono/etc. por inscripción + incentivo en su carrera dueña — y los regularizados
@@ -258,9 +276,17 @@ for (const v of conResultado) {
   if (JSON.stringify(espRec) !== JSON.stringify(vistos) || regEsp !== regVis) malChips.push(`C${v.nro}: rec ${vistos.length}/${espRec.length}, reg ${regVis}/${regEsp}`);
 }
 const totalChipsR9 = conResultado.reduce((s, v) => s + v.b.reduce((t, b) => t + b.benefs.reduce((u, be) => u + be.chips.length, 0), 0), 0);
-ok(`4) R9: en cada carrera con resultado, los chips de recibo = recibos de la base y los "regularizado" = saldados sin recibo (${totalChipsR9} chips)`, totalChipsR9 > 0 && malChips.length === 0, malChips.join('; '));
-ok('4b) R9: ningún importe pagado entra al "Pagable" (ver 1) y ningún beneficiario sólo-pagado tiene botón Pagar',
+ok(`4) en cada carrera con resultado, los chips de recibo = recibos de la base y los "regularizado" = saldados sin recibo (${totalChipsR9} chips)`, hay(totalChipsR9) && malChips.length === 0, malChips.join('; '));
+ok('4b) ningún importe pagado entra al "Pagable" (ver 1) y ningún beneficiario sólo-pagado tiene botón Pagar',
    conResultado.every(v => v.b.every(b => b.benefs.every(be => be.lineas.length || !be.pagar))));
+
+}
+
+await usar(sbFixture(reunionPagosSintetica(CLUB_ID), REL_PAGOS), RS, true, 'S');
+await seccion();
+await usar(sbReal, R9_REAL, false, 'R9');
+await seccion();
+ETQ = 'puras';
 
 // ═════════ 5) casos sintéticos por las funciones puras (sin base) ═════════
 const api = await modulo(mkDocument({}));

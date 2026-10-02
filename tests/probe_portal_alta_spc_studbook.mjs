@@ -1,5 +1,6 @@
 /**
- * Probe — alta de SPC desde el portal (migrations/portal_alta_spc_studbook.sql). SÓLO SANDBOX:
+ * Probe — alta de SPC desde el portal (migrations/portal_alta_spc_studbook.sql) y, desde el 02/10, también
+ * desde la secretaría (migrations/rpc_spc_alta_studbook_staff.sql = v2 de la RPC, aplicada ENCIMA). SÓLO SANDBOX:
  * crea ejemplares, y en prod no se crean ejemplares (GOTCHA #101 / pedido del 01/10).
  *
  * Arma, en el Postgres del sandbox (contenedor sgh-local-pg), una base TEMPLATE con
@@ -13,6 +14,9 @@
  *   PSQL_BASE="docker exec -i sgh-local-pg psql -v ON_ERROR_STOP=1 -U postgres -q -tA" (default)
  *
  * Casos:
+ * Cada corrida aplica: previa → portal_alta_spc_studbook.sql → rpc_spc_alta_studbook_staff.sql (v2). Los casos
+ * del portal (S*, P*) corren contra la v2: el portal tiene que seguir igual.
+ *
  *   S1  portal trae un caballo nuevo e inscribe de corrido (rpc_inscribir real con su sesión): ficha
  *       portal / alta_por / pendiente / activo / club NULL / entrenador NULL; inscripción canal portal;
  *       auditoría del INSERT con alta_por
@@ -31,7 +35,7 @@
  *   P1  authenticated (portal) llamando la RPC → permission denied (sin EXECUTE)
  *   P1c postgres sin JWT (tiene EXECUTE) → 42501 del guard 0
  *   P4  EXECUTE: anon no, authenticated no, service_role sí
- *   P5  G1: inactivo / sin entidad / staff / uuid desconocido / NULL → 42501 "esta operación es para usuarios del portal"
+ *   P5  G1: inactivo / sin entidad / operador inactivo / uuid desconocido / NULL → 42501 "…del portal o de la secretaría"
  *   P2  portal: INSERT directo a spcs y a inscripciones rechazados por RLS; UPDATE directo a spcs → 0 filas
  *   P6  staff (spcs.html): INSERT con alta_origen='portal' → la base lo deja en 'secretaria' y alta_por = staff;
  *       marcar revisado con revisado_por/alta_por falsos → revisado_por = staff, alta_por y motivos intactos;
@@ -43,6 +47,18 @@
  *       anon y authenticated sin ningún privilegio, conteos 2/67/148
  *   B2  anon no puede leer ninguna de las 3 (permission denied)
  *   B3  rollback_merge_duplicados_spc.sql (jsonb_populate_record) reinserta las 2 fichas, ya con las columnas nuevas
+ *
+ * Staff (v2, alta desde el modal "Inscribir SPC" de inscripciones.html):
+ *   E1  secretaría trae un caballo nuevo en T1 y lo inscribe con su sesión (INSERT directo, RLS de staff): ficha
+ *       'secretaria', alta_por = staff, NO pendiente, notas "alta desde Inscripciones por Staff"; auditoría
+ *   E2  turno con la inscripción CERRADA → OK (sin ventana)
+ *   E3  turno anulado / reunión cancelada / turno inexistente → rechazo
+ *   E4  turno de otro club → 42501; super_admin de otro club → OK; operador de Dolores → OK
+ *   E5  sin cupo: 4 altas seguidas OK
+ *   E6  D1 / D2 reusan, D3 rechaza (igual que el portal)
+ *   E7  edad < 2 rechaza; > 12 y homónimo → crea con los motivos guardados, sin pendiente
+ *   E8  el portal no puede hacerse pasar: un portal con el cupo lleno sigue frenado (R1 intacto con la v2)
+ *   R1v rollback_rpc_spc_alta_studbook_staff.sql deja el md5 de la v1 y el staff vuelve a 42501
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -51,6 +67,9 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MIG = readFileSync(join(HERE, '..', 'migrations', 'portal_alta_spc_studbook.sql'), 'utf8');
+// v2 (02/10): misma RPC con la rama de la secretaría. Se aplica encima de MIG en cada corrida.
+const MIG_V2 = readFileSync(join(HERE, '..', 'migrations', 'rpc_spc_alta_studbook_staff.sql'), 'utf8');
+const ROLLBACK_V2 = readFileSync(join(HERE, '..', 'migrations', 'rollback_rpc_spc_alta_studbook_staff.sql'), 'utf8');
 // Previa obligatoria (2026-10-02): sin ella la migración falla en prod con 0A000 (ver B0).
 const PREVIA = readFileSync(join(HERE, '..', 'migrations', 'cerrar_tablas_bak_publicas.sql'), 'utf8');
 const ROLLBACK_MERGE = readFileSync(join(HERE, '..', 'migrations', 'rollback_merge_duplicados_spc.sql'), 'utf8');
@@ -86,6 +105,10 @@ const U1 = 'a0000000-0000-0000-0000-000000000001', U2 = 'a0000000-0000-0000-0000
       PROP = 'a0000000-0000-0000-0000-000000000003', INACT = 'a0000000-0000-0000-0000-000000000004',
       SINENT = 'a0000000-0000-0000-0000-000000000005', STAFF = 'a0000000-0000-0000-0000-000000000006';
 const USU1 = 'e0000000-0000-0000-0000-000000000001', USU_STAFF = 'e0000000-0000-0000-0000-000000000006';
+const STAFF2 = 'a0000000-0000-0000-0000-000000000007', ADMIN = 'a0000000-0000-0000-0000-000000000008',
+      OPER = 'a0000000-0000-0000-0000-000000000009', OPERX = 'a0000000-0000-0000-0000-000000000010';
+const USU_ADMIN = 'e0000000-0000-0000-0000-000000000008', USU_OPER = 'e0000000-0000-0000-0000-000000000009';
+const T5_CANCELADA = 'b1000000-0000-0000-0000-000000000005', T6_OTRO = 'b1000000-0000-0000-0000-000000000006';
 const T1 = 'b1000000-0000-0000-0000-000000000001', T2 = 'b1000000-0000-0000-0000-000000000002',
       T3 = 'b1000000-0000-0000-0000-000000000003';
 const CAB = 'c0000000-0000-0000-0000-000000000001', ENT = 'd0000000-0000-0000-0000-000000000001';
@@ -109,7 +132,7 @@ function P(o = {}) {
 const ALTA = (o) => `select row_to_json(t) from ${P(o)} t;\n`;
 
 // ── casos ────────────────────────────────────────────────────────────────────────────────────
-async function correrCasos(db, pre) {
+async function correrCasos(db, pre, md5v1) {
   const res = [];
   const ok = (t, c, n = '') => { res.push({ t, s: c ? '✅' : '❌', n }); return c; };
   const enTx = (body) => psql(db, `begin;\n${body}\nrollback;\n`);
@@ -225,8 +248,8 @@ async function correrCasos(db, pre) {
   ok('P4 EXECUTE: anon no, authenticated no, service_role sí', j?.anon === false && j?.authenticated === false && j?.service_role === true, JSON.stringify(j));
 
   // P5 G1
-  const MSG_G1 = 'No autorizado: esta operación es para usuarios del portal.';
-  for (const [lbl, a] of [['inactivo', INACT], ['sin entidad', SINENT], ['staff', STAFF], ['uuid desconocido', '99999999-9999-9999-9999-999999999999'], ['NULL', null]]) {
+  const MSG_G1 = 'No autorizado: esta operación es para usuarios del portal o de la secretaría.';
+  for (const [lbl, a] of [['inactivo', INACT], ['sin entidad', SINENT], ['operador inactivo', OPERX], ['uuid desconocido', '99999999-9999-9999-9999-999999999999'], ['NULL', null]]) {
     r = enTx(`${SR}${ALTA({ auth: a })}`);
     ok(`P5 G1 usuario ${lbl} → "${MSG_G1}"`, rechaza(r, MSG_G1), r.err || r.out);
   }
@@ -260,6 +283,72 @@ async function correrCasos(db, pre) {
   ok('P6 staff marca revisado con revisado_por/alta_por/origen/motivos falsos → base impone staff+now, conserva alta y motivos', j?.s?.revision_pendiente === false && j?.s?.revisado_por === USU_STAFF && j?.s?.at_ok === true
     && j?.s?.alta_por === USU1 && j?.s?.alta_origen === 'portal' && (j?.s?.revision_motivos || []).length === 1, JSON.stringify(j?.s));
   ok('P6 las dos ediciones del staff quedan auditadas con su usuario', JSON.stringify(j?.aud) === JSON.stringify([USU_STAFF, USU_STAFF]), JSON.stringify(j?.aud));
+
+  // ── E · secretaría (v2) ────────────────────────────────────────────────────────────────────
+  // E1
+  r = enTx(`${SR}select spc_id as nuevo from ${P({ auth: STAFF, sb: '510001', nombre: 'TRAIDO STAFF', padre: 'PADRE ST' })} \\gset\n${RESET}${AS(STAFF, 'staff@probe')}`
+    + `insert into inscripciones (carrera_id, spc_id, caballeriza_id, estado) values ('${T1}', :'nuevo', '${CAB}', 'inscripto') returning id as insc_id \\gset\n${RESET}`
+    + `select json_build_object('s', (select row_to_json(s) from (select alta_origen, alta_por, revision_pendiente, revision_motivos, estado, club_id, studbook_id, notas from spcs where id = :'nuevo') s),
+        'i', (select row_to_json(i) from (select canal, estado, spc_id = :'nuevo' as mismo from inscripciones where id = :'insc_id') i),
+        'a', (select json_agg(json_build_object('accion', accion, 'alta_por', datos_despues->>'alta_por')) from auditoria where tabla = 'spcs' and registro_id = :'nuevo'));`);
+  j = json(r);
+  ok('E1 secretaría trae caballo nuevo y lo inscribe con su sesión (INSERT directo)', r.ok && j?.i?.mismo === true && j?.i?.canal === 'manual', r.ok ? JSON.stringify(j?.i) : r.err);
+  ok('E1 ficha: secretaria, alta_por = staff, NO pendiente, sin motivos, activo, studbook_id', j?.s?.alta_origen === 'secretaria' && j?.s?.alta_por === USU_STAFF
+    && j?.s?.revision_pendiente === false && j?.s?.revision_motivos === null && j?.s?.estado === 'activo' && j?.s?.studbook_id === '510001', JSON.stringify(j?.s));
+  ok('E1 notas "alta desde Inscripciones por Staff"', /^SB 510001 · https:\/\/.+ · alta desde Inscripciones por Staff \d\d\/\d\d\/\d{4} · /.test(j?.s?.notas ?? ''), j?.s?.notas);
+  ok('E1 auditoría del INSERT con alta_por = staff', j?.a?.length === 1 && j.a[0].accion === 'INSERT' && j.a[0].alta_por === USU_STAFF, JSON.stringify(j?.a));
+  // E2
+  r = enTx(`${SR}${ALTA({ auth: STAFF, carrera: T2 })}`); j = json(r);
+  ok('E2 secretaría en turno con la inscripción CERRADA → OK (sin ventana)', r.ok && j?.ya_existia === false, r.err || r.out);
+  // E3
+  for (const [lbl, c, frag] of [['anulado', T3, 'Ese turno está anulado o la reunión está cancelada.'],
+                                ['de reunión cancelada', T5_CANCELADA, 'Ese turno está anulado o la reunión está cancelada.'],
+                                ['inexistente', '99999999-0000-0000-0000-000000000000', 'Ese turno no existe.']]) {
+    r = enTx(`${SR}${ALTA({ auth: STAFF, carrera: c })}`);
+    ok(`E3 secretaría, turno ${lbl} → rechazo`, rechaza(r, frag), r.err || r.out);
+  }
+  // E4
+  r = enTx(`${SR}${ALTA({ auth: STAFF, carrera: T6_OTRO })}`);
+  ok('E4 secretaría de Dolores, turno de OTRO club → 42501', rechaza(r, 'No autorizado: el turno es de otro hipódromo.'), r.err || r.out);
+  r = enTx(`${SR}${ALTA({ auth: STAFF2, carrera: T1 })}`);
+  ok('E4 secretaría de otro club, turno de Dolores → 42501', rechaza(r, 'No autorizado: el turno es de otro hipódromo.'), r.err || r.out);
+  r = enTx(`${SR}select row_to_json(t) from ${P({ auth: ADMIN })} t \\gset r_\nselect json_build_object('ya', :'r_row_to_json'::json->>'ya_existia', 'por', (select alta_por from spcs where id = (:'r_row_to_json'::json->>'spc_id')::uuid));`);
+  j = json(r);
+  ok('E4 super_admin de otro club, turno de Dolores → OK, alta_por = super_admin', r.ok && j?.ya === 'false' && j?.por === USU_ADMIN, r.ok ? JSON.stringify(j) : r.err);
+  r = enTx(`${SR}select row_to_json(t) from ${P({ auth: OPER })} t \\gset r_\nselect json_build_object('ya', :'r_row_to_json'::json->>'ya_existia', 'por', (select alta_por from spcs where id = (:'r_row_to_json'::json->>'spc_id')::uuid));`);
+  j = json(r);
+  ok('E4 operador de Dolores → OK, alta_por = operador', r.ok && j?.ya === 'false' && j?.por === USU_OPER, r.ok ? JSON.stringify(j) : r.err);
+  // E5
+  const cuatro = [1, 2, 3, 4].map((k) => ALTA({ auth: STAFF, sb: `91000${k}`, nombre: `STAFF CUPO ${k}`, padre: `ST CUPO P${k}` })).join('');
+  r = enTx(`${SR}${cuatro}select count(*) from spcs where alta_por = '${USU_STAFF}';`);
+  ok('E5 secretaría sin cupo: 4 altas seguidas OK', r.ok && ultima(r.out) === '4', r.err || r.out);
+  // E6
+  r = enTx(`${SR}${ALTA({ auth: STAFF, sb: '400001', nombre: 'CON SB PROBE', fecha: '2020-09-01', padre: 'PADRE D1', madre: 'MADRE D1' })}`); j = json(r);
+  ok('E6 D1 (mismo nº SB) → reusa', r.ok && j?.ya_existia === true && j?.spc_id === '5c000000-0000-0000-0000-000000000001', r.err || r.out);
+  r = enTx(`${SR}${ALTA({ auth: STAFF, sb: '700002', nombre: 'FICHA VIEJA PROBE', fecha: '2019-10-10', padre: 'Padre D2', madre: 'madre d2 ', sexo: 'hembra' })}`); j = json(r);
+  ok('E6 D2 (fecha + padres) → reusa la ficha sin nº', r.ok && j?.ya_existia === true && j?.spc_id === D2_ID, r.err || r.out);
+  r = enTx(`${SR}${ALTA({ auth: STAFF, sb: '397805', nombre: 'WAVE RIMOUT', fecha: '2017-08-08', padre: 'Remote (GB)', madre: 'Holiday Wave' })}`);
+  ok('E6 D3 (Wave Rimout ×2) → rechazo', rechaza(r, 'Ese caballo ya está cargado más de una vez en el padrón'), r.err || r.out);
+  // E7
+  r = enTx(`${SR}${ALTA({ auth: STAFF, fecha: nacParaEdadMenorA2 })}`);
+  ok('E7 edad < 2 → rechazo', rechaza(r, 'revisá que hayas elegido el correcto'), r.err || r.out);
+  r = enTx(`${SR}select row_to_json(t) from ${P({ auth: STAFF, sb: '810001', nombre: 'Bien Coqueta', fecha: nacEdad15, padre: 'OTRO ST', madre: 'OTRA ST', sexo: 'hembra' })} t \\gset r_\n`
+    + `select json_build_object('r', :'r_row_to_json'::json, 's', (select row_to_json(s) from (select revision_pendiente, revision_motivos, alta_origen from spcs where id = (:'r_row_to_json'::json->>'spc_id')::uuid) s));`);
+  j = json(r);
+  ok('E7 edad > 12 + homónimo → crea, devuelve y GUARDA los 2 motivos, sin pendiente, secretaria', r.ok && j?.s?.revision_pendiente === false && j?.s?.alta_origen === 'secretaria'
+    && (j?.s?.revision_motivos || []).length === 2 && j.s.revision_motivos.some((m) => m.startsWith('edad > 12')) && j.s.revision_motivos.some((m) => m.startsWith('homónimo de BIEN COQUETA'))
+    && JSON.stringify(j?.r?.revision_motivos) === JSON.stringify(j?.s?.revision_motivos), r.ok ? JSON.stringify(j) : r.err);
+  // E8
+  r = enTx(`${SR}${tres}${ALTA({ auth: PROP, sb: '900006', nombre: 'CUPO 6', padre: 'CUPO P6' })}`);
+  ok('E8 con la v2, el portal con el cupo lleno sigue frenado (R1)', rechaza(r, 'Ya trajiste 3 caballos nuevos hoy'), r.err || r.out);
+  r = enTx(`${SR}${tres}${ALTA({ auth: STAFF, sb: '900007', nombre: 'CUPO 7', padre: 'CUPO P7' })}select alta_origen || '|' || revision_pendiente from spcs where studbook_id = '900007';`);
+  ok('E8 las altas de la secretaría no tocan el cupo del portal ni nacen como portal', r.ok && ultima(r.out) === 'secretaria|false', r.err || r.out);
+
+  // R1v — rollback de la v2: vuelve la v1 exacta y la secretaría vuelve a 42501
+  r = enTx(`${ROLLBACK_V2.replace(/^\s*BEGIN;\s*$/m, '').replace(/^\s*COMMIT;\s*$/m, '')}\nselect md5(pg_get_functiondef('public.rpc_spc_alta_studbook_portal'::regproc));`);
+  ok('R1v rollback de la v2 → md5 = v1 medido en esta corrida', r.ok && ultima(r.out) === md5v1, `${ultima(r.out)} vs ${md5v1} ${r.err}`);
+  r = enTx(`${ROLLBACK_V2.replace(/^\s*BEGIN;\s*$/m, '').replace(/^\s*COMMIT;\s*$/m, '')}\n${SR}${ALTA({ auth: STAFF })}`);
+  ok('R1v con la v1, la secretaría → 42501 "…del portal."', rechaza(r, 'No autorizado: esta operación es para usuarios del portal.'), r.err || r.out);
 
   // B1 / B2 / B3 — la previa
   r = psql(db, `select json_build_object(
@@ -303,7 +392,7 @@ function prepararTemplate() {
   r = psql(TPL, FIXTURE);
   if (!r.ok) throw new Error('fixture: ' + r.err);
 }
-async function corrida(migSql, previaSql = PREVIA) {
+async function corrida(migSql, previaSql = PREVIA, v2Sql = MIG_V2) {
   let r = psql('postgres', `drop database if exists ${RUN};\ncreate database ${RUN} template ${TPL};\n`);
   if (!r.ok) throw new Error('createdb: ' + r.err);
   // B0: sin la previa la migración tiene que fallar como en prod (0A000) y no dejar nada.
@@ -314,15 +403,19 @@ async function corrida(migSql, previaSql = PREVIA) {
   const pre = foto(RUN);
   r = psql(RUN, migSql);
   if (!r.ok) return { aplica: false, err: r.err, res: [] };
-  const md5 = psql(RUN, `select json_object_agg(p.proname, md5(pg_get_functiondef(p.oid))) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname in ('rpc_spc_alta_studbook_portal', 'fn_spcs_alta_revision');`);
-  const res = await correrCasos(RUN, pre);
+  const md5q = `select json_object_agg(p.proname, md5(pg_get_functiondef(p.oid))) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname in ('rpc_spc_alta_studbook_portal', 'fn_spcs_alta_revision');`;
+  const md5v1 = json(psql(RUN, md5q));
+  r = psql(RUN, v2Sql);
+  if (!r.ok) return { aplica: false, err: 'v2: ' + r.err, res: [] };
+  const md5 = psql(RUN, md5q);
+  const res = await correrCasos(RUN, pre, md5v1?.rpc_spc_alta_studbook_portal);
   res.unshift({ t: 'B0 sin la previa la migración falla con 0A000 ("uses its row type") y no deja nada', s: b0ok ? '✅' : '❌', n: b0.err || b0.out });
-  return { aplica: true, md5: json(md5), res };
+  return { aplica: true, md5: json(md5), md5v1, res };
 }
 
 const MUT = [
   ['M1 sin guard 0', `  IF coalesce(auth.role(), '') <> 'service_role' THEN\n    RAISE EXCEPTION 'rpc_spc_alta_studbook_portal: sin permiso' USING ERRCODE = '42501';\n  END IF;`, ''],
-  ['M2 G1 sin "activo"', `     AND u.activo\n     AND u.rol IN ('profesional', 'propietario')`, `     AND u.rol IN ('profesional', 'propietario')`],
+  ['M2 G1 sin "activo"', `     AND u.activo\n     AND (   (    u.rol IN ('profesional', 'propietario')`, `     AND (   (    u.rol IN ('profesional', 'propietario')`],
   ['M3 V1 sin ventana', `     OR now() > v_carrera.cierre_inscripcion\n  THEN`, `\n  THEN`],
   ['M4 V3 raza libre', `IF p_raza IS DISTINCT FROM 4 THEN`, `IF false THEN`],
   ['M5 V5 sin control de fecha', `IF p_fecha_nacimiento IS NULL OR p_fecha_nacimiento > current_date THEN`, `IF false THEN`],
@@ -336,12 +429,25 @@ const MUT = [
   ['M13 sin D4 (homónimo)', `    v_motivos := v_motivos || format('homónimo de %s (nac. %s, id %s)',\n                   v_homonimo.nombre, to_char(v_homonimo.fecha_nacimiento, 'DD/MM/YYYY'), v_homonimo.id);`, `    NULL;`],
   ['M14 sin ON CONFLICT', `  ON CONFLICT (studbook_id) WHERE studbook_id IS NOT NULL DO NOTHING\n`, ``],
   ['M15 sin lock por nombre', `  PERFORM pg_advisory_xact_lock(hashtext('spc_alta_portal:' || v_nn));`, ``],
-  ['M16 nace sin revisión pendiente', `    'portal', v_usuario.id, true, CASE`, `    'portal', v_usuario.id, false, CASE`],
+  ['M16 nace sin revisión pendiente', `v_usuario.id, NOT v_staff, CASE`, `v_usuario.id, false, CASE`],
   ['M17 GRANT a authenticated', `\nCOMMIT;`, `\nGRANT EXECUTE ON FUNCTION public.rpc_spc_alta_studbook_portal(uuid, uuid, text, text, date, text, text, text, text, text, text, text, text, integer, text[]) TO authenticated;\nCOMMIT;`],
   ['M18 trigger INSERT no impone secretaria', `    NEW.alta_origen        := 'secretaria';\n    NEW.alta_por           := v_usuario;\n    NEW.revision_pendiente := false;\n    NEW.revision_motivos   := NULL;`, ``],
   ['M19 trigger UPDATE no impone revisado_por', `      NEW.revisado_por := v_usuario;\n      NEW.revisado_at  := now();`, ``],
   ['M20 trigger UPDATE deja cambiar alta_por', `  NEW.alta_por         := OLD.alta_por;\n`, ``],
   ['M21 sin auditoría de spcs', `CREATE TRIGGER trg_audit_spcs AFTER INSERT OR DELETE OR UPDATE ON public.spcs\n  FOR EACH ROW EXECUTE FUNCTION public.fn_auditoria_log();`, ``],
+  // mutantes de la rama de la secretaría (v2)
+  ['MS1 sin el guard de club del staff', `    IF v_usuario.rol <> 'super_admin' AND v_carrera.reunion_club IS DISTINCT FROM v_usuario.club_id THEN`, `    IF false THEN`],
+  ['MS2 staff con ventana (como el portal)', `  IF v_staff THEN\n    -- Staff: sin ventana`, `  IF false THEN\n    -- Staff: sin ventana`],
+  // (cupo con IF true y el filtro alta_origen='portal' intacto es EQUIVALENTE: las altas del staff nacen
+  // 'secretaria' y nunca cuentan. El que rompe algo es el cupo aplicado al staff contando todas sus altas.)
+  ['MS3 cupo también para el staff (contando todas sus altas)', `  IF NOT v_staff THEN\n    SELECT count(*) INTO v_altas\n      FROM spcs s\n     WHERE s.alta_por = v_usuario.id AND s.alta_origen = 'portal'`, `  IF true THEN\n    SELECT count(*) INTO v_altas\n      FROM spcs s\n     WHERE s.alta_por = v_usuario.id`],
+  ['MS4 staff nace pendiente', `v_usuario.id, NOT v_staff, CASE`, `v_usuario.id, true, CASE`],
+  ['MS5 staff nace como portal', `CASE WHEN v_staff THEN 'secretaria' ELSE 'portal' END, v_usuario.id`, `'portal', v_usuario.id`],
+  ['MS6 staff acepta turno anulado / reunión cancelada', `    IF v_carrera.estado IS NOT DISTINCT FROM 'anulada' OR v_carrera.reunion_estado IN ('cancelada', 'suspendida') THEN`, `    IF false THEN`],
+  ['MS7 operador fuera de la lista', `          OR u.rol IN ('super_admin', 'secretario_carreras', 'operador'));`, `          OR u.rol IN ('super_admin', 'secretario_carreras'));`],
+  ['MS8 super_admin atado a su club', `IF v_usuario.rol <> 'super_admin' AND v_carrera.reunion_club`, `IF v_carrera.reunion_club`],
+  ['MS9 staff sin motivos guardados', `CASE WHEN v_staff THEN 'secretaria' ELSE 'portal' END, v_usuario.id, NOT v_staff, CASE WHEN cardinality(v_motivos) > 0 THEN v_motivos END`, `CASE WHEN v_staff THEN 'secretaria' ELSE 'portal' END, v_usuario.id, NOT v_staff, CASE WHEN NOT v_staff AND cardinality(v_motivos) > 0 THEN v_motivos END`],
+  ['MS10 notas del staff dicen "el portal"', `CASE WHEN v_staff THEN 'Inscripciones' ELSE 'el portal' END`, `'el portal'`],
   // mutantes de la PREVIA (4º elemento = 'previa')
   ['M22 previa sin REVOKE de bak_r8_propietario', `REVOKE ALL ON public.bak_r8_propietario        FROM anon, authenticated;`, ``, 'previa'],
   ['M23 previa sin RLS en _gate41_backfill_tenencia', `ALTER TABLE public._gate41_backfill_tenencia ENABLE ROW LEVEL SECURITY;`, ``, 'previa'],
@@ -353,15 +459,19 @@ if (!base.aplica) { console.error('La migración NO aplica en el sandbox:\n' + b
 for (const x of base.res) console.log(`${x.s} ${x.t}${x.s === '❌' && x.n ? '  → ' + x.n : ''}`);
 const fails = base.res.filter((x) => x.s === '❌').length;
 console.log(`\n${base.res.length - fails}/${base.res.length} asserts OK`);
-console.log(`md5(pg_get_functiondef) en el sandbox: ${JSON.stringify(base.md5)}`);
+console.log(`md5(pg_get_functiondef) en el sandbox, v1 (portal_alta_spc_studbook.sql): ${JSON.stringify(base.md5v1)}`);
+console.log(`md5(pg_get_functiondef) en el sandbox, v2 (rpc_spc_alta_studbook_staff.sql): ${JSON.stringify(base.md5)}`);
 
 let vivos = 0;
 if (MUTANTES) {
   console.log('\n── mutantes ──');
   for (const [nombre, de, a, cual] of MUT) {
-    const src = cual === 'previa' ? PREVIA : MIG;
+    // La RPC vive en la v2 (se aplica encima): sus mutantes van sobre MIG_V2. Trigger/auditoría sobre MIG.
+    const cualReal = cual || (/^M(1[89]|2[01]) /.test(nombre) ? 'mig' : 'v2');
+    const src = cualReal === 'previa' ? PREVIA : cualReal === 'mig' ? MIG : MIG_V2;
     if (src.split(de).length !== 2) { console.log(`⚠️  ${nombre}: el ancla no aparece UNA vez — mutante roto`); vivos++; continue; }
-    const m = cual === 'previa' ? await corrida(MIG, PREVIA.replace(de, a)) : await corrida(MIG.replace(de, a));
+    const m = cualReal === 'previa' ? await corrida(MIG, PREVIA.replace(de, a))
+      : cualReal === 'mig' ? await corrida(MIG.replace(de, a)) : await corrida(MIG, PREVIA, MIG_V2.replace(de, a));
     const muertos = m.aplica ? m.res.filter((x) => x.s === '❌').map((x) => x.t.split(' ')[0]) : ['(no aplica)'];
     const vive = m.aplica && muertos.length === 0;
     if (vive) vivos++;

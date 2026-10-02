@@ -189,7 +189,9 @@ for (const [r, m, t, jockey] of SIN_COLISION) {
 
 // ═══════════════════ A — inscripciones.html renderInscripciones ═════════════
 {
-  const src = extractFn(INSC, 'function renderInscripciones() {');
+  // Desde el listado continuo (02/10) las filas salen de filasInscripciones(lista) / tablaInscripciones(lista).
+  const src = extractFn(INSC, 'function filasInscripciones(lista) {') + '\n' + extractFn(INSC, 'function tablaInscripciones(lista) {')
+    + '\n' + extractFn(INSC, 'function renderInscripciones() {');
   ok('A0) inscripciones.html carga jockey-repetido.js', /<script src="jockey-repetido\.js"><\/script>/.test(INSC));
   // escapeHtml real (escape-html.js): la celda "Cargada por" la usa desde ISSUE-018; faltaba acá.
   const escapeHtml = new Function(rd('escape-html.js') + '\nreturn escapeHtml;')();
@@ -206,8 +208,8 @@ for (const [r, m, t, jockey] of SIN_COLISION) {
   ok('A3) turno ×3: ALHENA S (jockey único) sin badge', /<tr>\s*<td><div class="spc-name">ALHENA S<\/div>/.test(htmlTres));
   ok('A4) turno limpio: 0 badges', (render(ST.limpio).match(/badge-jockey-dup/g) || []).length === 0);
   ok('A5) ratificado + forfait con el mismo jockey: 0 badges', (render(ST.forfait).match(/badge-jockey-dup/g) || []).length === 0);
-  ok('A6) saveRecord llama avisarJockeyRepetido (toast, no return antes del insert)', /await loadInscripciones\(\);\s*avisarJockeyRepetido\(payload\.jockey_titular_id\);/.test(INSC));
-  const av = extractFn(INSC, 'function avisarJockeyRepetido(jockeyId) {');
+  ok('A6) saveRecord llama avisarJockeyRepetido con el turno (toast, no return antes del insert)', /await recargarInscripciones\(\);\s*avisarJockeyRepetido\(payload\.jockey_titular_id, carreraId\);/.test(INSC));
+  const av = extractFn(INSC, 'function avisarJockeyRepetido(jockeyId, carreraId = null) {');
   const toasts = [];
   new Function('inscripciones', 'getProf', 'toast', 'conteoJockeysActivos', av + "\navisarJockeyRepetido(arguments[4]);")(ST.tres, (id) => profsMap[id], (m, t) => toasts.push([m, t]), H.conteoJockeysActivos, SJ.gonz);
   ok('A7) toast de aviso al guardar con el jockey ×3, tipo warning', toasts.length === 1 && /SINT-GONZALEZ, LUCAS queda en 3 caballos/.test(toasts[0][0]) && toasts[0][1] === 'warning', JSON.stringify(toasts));

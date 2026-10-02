@@ -31,12 +31,16 @@
 //               En spcs.html el INSERT lo sigue haciendo la pantalla con el cliente del usuario (RLS,
 //               rpc_spcs_duplicados, índice único spcs_studbook_id_uniq).
 //
-//   { accion: 'traer', sb_id, nombre, carrera_id }  — TRAER (sólo portal). El navegador manda SÓLO qué
+//   { accion: 'traer', sb_id, nombre, carrera_id }  — TRAER (portal y, desde v3 del 02/10, secretaría desde el modal
+//               "Inscribir SPC" de inscripciones.html). El navegador manda SÓLO qué
 //               caballo eligió; los datos los vuelve a pedir ESTA función al Stud Book (`nombre` como
 //               término, y se queda con el hit cuyo id === sb_id). Con eso llama a la RPC
 //               rpc_spc_alta_studbook_portal con la key secreta (service_role): es la ÚNICA que la
 //               puede ejecutar. La RPC valida, reusa o crea la ficha (pendiente de revisión) y
-//               devuelve el id; la inscripción sigue en el portal por rpc_inscribir, sin cambios.
+//               devuelve el id; la inscripción sigue en el portal por rpc_inscribir, sin cambios. Para la
+//               secretaría la RPC (v2, migrations/rpc_spc_alta_studbook_staff.sql) decide el modo por el rol del
+//               usuario: sin ventana ni cupo, la ficha nace 'secretaria' y sin revisión pendiente; el modal
+//               selecciona el caballo y la inscripción la guarda la pantalla como siempre.
 //               Diseño y decisiones: docs/diagnosticos/2026-10-01_portal-alta-spc-studbook.md (reports),
 //               migrations/portal_alta_spc_studbook.sql.
 //
@@ -45,7 +49,7 @@
 // SUPABASE_SERVICE_ROLE_KEY, descartando las legacy `eyJ…`, muertas desde 2026-06-07).
 //
 // Auth: verify_jwt=true en el deploy + getUser(jwt) server-side + rol por RPC con el JWT del caller
-// (fn_is_staff / fn_is_portal_user). Buscar: staff o portal; traer: sólo portal; el resto → 403.
+// (fn_is_staff / fn_is_portal_user). Buscar y traer: staff o portal; el resto → 403.
 // ============================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -297,8 +301,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ ok: true, term, exactos, parciales, fuente: FUENTE }, 200, origin);
     }
 
-    // ── TRAER ── sólo portal: la secretaría da de alta desde spcs.html, revisando antes de guardar.
-    if (!esPortal) return fail(403, 'solo_portal', 'Esta acción es para usuarios del portal.', origin);
+    // ── TRAER ── portal o secretaría. Qué reglas se aplican lo decide la RPC por el rol del usuario.
+    if (!esPortal && !esStaff) return fail(403, 'solo_staff', 'Esta acción es para la secretaría y los usuarios del portal.', origin);
     const sbId = String(body.sb_id), nombre = String(body.nombre).trim(), carreraId = String(body.carrera_id);
     let hitsT: any[];
     try {

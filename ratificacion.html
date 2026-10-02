@@ -171,6 +171,7 @@
     }
 
     tr.jockey-duplicado td { background: rgba(245,158,11,0.06) !important; }
+    .badge-revision { display: inline-block; margin-top: 2px; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.4); }
     .badge-jockey-dup { display: inline-block; margin-left: 4px; font-size: 10px; font-weight: 700; color: #f59e0b; vertical-align: middle; }
     .cierre-status { font-size: 13px; font-weight: 600; margin-left: auto; white-space: nowrap; }
     .cierre-abierta { color: var(--success); }
@@ -201,6 +202,7 @@
   <script src="active-reunion.js"></script>
   <script src="renumerar-chapas.js"></script>
   <script src="jockey-repetido.js"></script>
+  <script src="escape-html.js"></script>
 </head>
 <body>
 <div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;"></div></div>
@@ -512,7 +514,7 @@ async function init() {
   const [{ data: reuns }, { data: profs }, { data: sprcs }, { data: cabs }, { data: cats }] = await Promise.all([
     sb.from('reuniones').select('id,numero,numero_publico,fecha,estado,hora_cierre_ratificacion,observaciones,sorteo_partidores,hipodromos(nombre)').eq('club_id', CLUB_ID).order('fecha', {ascending:false}),
     sb.from('profesionales').select('id,nombre,apellido,tipo').eq('club_id', CLUB_ID).eq('activo', true).order('apellido'),
-    sb.from('spcs').select('id,nombre').order('nombre'),
+    sb.from('spcs').select('id,nombre,revision_pendiente,revision_motivos').order('nombre'),
     sb.from('caballerizas').select('id,nombre').eq('club_id', CLUB_ID).eq('activo', true).order('nombre'),
     sb.from('categorias_carrera').select('id,nombre,codigo,es_oficial,es_computable').eq('club_id', CLUB_ID).eq('activo', true).order('orden_display'),
   ]);
@@ -592,6 +594,16 @@ async function loadReunion() {
 }
 
 function getSpc(id) { return spcs.find(s=>s.id===id); }
+
+// SPC dado de alta desde el portal que la secretaría todavía no revisó en Stud Book (SPCs).
+// Es un AVISO: se ve en la fila y se pide confirmación al ratificar; no bloquea.
+function motivosRevision(spc) {
+  const m = (spc?.revision_motivos || []).filter(Boolean);
+  return m.length ? m.join(' · ') : 'alta desde el portal';
+}
+function badgeRevision(spc) {
+  return `<span class="badge-revision" title="${escapeHtml('Pendiente de revisión en Stud Book (SPCs): ' + motivosRevision(spc))}">⚠ Por revisar</span>`;
+}
 function getProf(id) { return profesionales.find(p=>p.id===id); }
 function getCab(id) { return caballerizas.find(c=>c.id===id); }
 
@@ -629,9 +641,9 @@ function renderAll(carreras, inscripciones) {
       const isMalInsc = i.estado==='mal_inscrito';
       const hasColision = !carCerrada && !!i.jockey_titular_id && jockeyCount[i.jockey_titular_id] >= 2;
       const dc = `disabled title="${car.estado === 'confirmada' ? 'Carrera cerrada' : car.estado === 'anulada' ? 'Carrera anulada' : 'Ratificación cerrada'}" style="opacity:0.4;cursor:not-allowed;"`;
-      return `<tr id="row-${i.id}" data-carrera="${car.id}" data-jockey="${i.jockey_titular_id||''}" data-caballeriza="${i.caballeriza_id||''}" class="${isRat?'':'no-ratificado'}${hasColision?' jockey-duplicado':''}">
+      return `<tr id="row-${i.id}" data-carrera="${car.id}" data-spc="${i.spc_id}" data-jockey="${i.jockey_titular_id||''}" data-caballeriza="${i.caballeriza_id||''}" class="${isRat?'':'no-ratificado'}${hasColision?' jockey-duplicado':''}">
         <td class="num-part print-hide">${chapaMap[i.id] || ''}</td>
-        <td><div class="spc-name">${spc?.nombre||i.spc_id}</div></td>
+        <td><div class="spc-name">${escapeHtml(spc?.nombre||i.spc_id)}</div>${spc?.revision_pendiente?badgeRevision(spc):''}</td>
         <td style="font-size:12px;color:var(--muted)">${cab?.nombre||'—'}</td>
         <td class="jockey-cell">${buildJockeySelect(i, carCerrada)}${hasColision?badgeJockeyDup(jockeyCount[i.jockey_titular_id]):''}</td>
         <td class="col-peso-display">${i.peso_final?`<strong>${i.peso_final} kg</strong>`:i.peso_declarado?`${i.peso_declarado} kg`:'—'}</td>
@@ -906,6 +918,8 @@ async function onJockeyChange(sel) {
 
 async function ratificar(inscId) {
   const row = document.getElementById(`row-${inscId}`);
+  const spc = getSpc(row?.dataset.spc);
+  if (spc?.revision_pendiente && !confirm(`${spc.nombre} está pendiente de revisión en Stud Book (SPCs).\nMotivo: ${motivosRevision(spc)}.\n\n¿Ratificar igual?`)) return;
   const pesoEl = document.getElementById(`peso-${inscId}`);
   const peso = parseFloat(pesoEl?.value) || null;
   const { error } = await sb.from('inscripciones').update({ estado:'ratificado', peso_final: peso }).eq('id', inscId);

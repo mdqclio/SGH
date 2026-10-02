@@ -5,3 +5,7 @@
 #    where n.nspname='public' and p.proname in ('rpc_spc_alta_studbook_portal','fn_spcs_alta_revision') order by 1;
 fn_spcs_alta_revision          cd33a7683698ccf0704683e678bdc623
 rpc_spc_alta_studbook_portal   704f4762eb9ce373aecd4be9abdd0a78
+
+# v2 = migrations/rpc_spc_alta_studbook_staff.sql (rama staff), medido en el sandbox 2026-10-02 (probe_portal_alta_spc_studbook --mutantes 33/33):
+v2 rpc_spc_alta_studbook_portal   aa39e36a72f6a802700ef42acd1e2221
+v2 fn_spcs_alta_revision          cd33a7683698ccf0704683e678bdc623   (sin cambios)
