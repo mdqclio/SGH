@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-10-02] — Ratificación: aviso al ratificar un SPC pendiente de revisión
+
+- `ratificacion.html`: un SPC dado de alta desde el portal que la secretaría todavía no revisó (`spcs.revision_pendiente`)
+  muestra **"⚠ Por revisar"** en la fila (los motivos en el tooltip), y **Ratificar** pide confirmación con el nombre y el
+  motivo ("¿Ratificar igual?"). Es aviso, no bloqueo: cancelar no escribe nada; aceptar ratifica como siempre. La revisión
+  se sigue haciendo en Stud Book (SPCs).
+- Nombre del SPC y motivos escapados con `escape-html.js` en esa celda (ISSUE-018; los nombres del portal son de terceros).
+- Probe `tests/probe_ratificacion_aviso_revision.mjs` (jsdom + sb stub, datos sintéticos, sin red ni base): 9/9, 7/7 mutantes;
+  contra `main` previo 3/9. Entra a `correr_todos.sh`.
+
 ## [2026-10-02] — SEGURIDAD: `v_inscriptos_carrera` cerrada para anon (ISSUE-098) — migración **aplicada**
 
 - `migrations/cerrar_v_inscriptos_carrera.sql` (`20261002193945`): `security_invoker=true` + `REVOKE SELECT … FROM anon`;

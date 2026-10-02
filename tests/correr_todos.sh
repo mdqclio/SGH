@@ -66,6 +66,7 @@ probe_portal_carta|
 probe_portal_validacion|
 probe_programa_null_estado|
 probe_programa_r8_imprenta|
+probe_ratificacion_aviso_revision|
 probe_recibo_rol|
 probe_recibo_una_hoja|
 probe_regex_datos_personales|
