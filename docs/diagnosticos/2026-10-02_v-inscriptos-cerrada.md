@@ -197,4 +197,13 @@ las que quedaron `mal_inscrito` o `forfait`.
 
 ## Verificación de push
 
-Va en el commit siguiente al de este informe.
+El grep de datos personales sobre lo agregado dio una coincidencia en el primer intento: un `@` usado como separador entre
+la rama y el SHA en el encabezado. **No se pusheó**: se reescribió la línea y el grep dio vacío.
+
+```
+$ git push -q origin reports && git ls-remote origin reports && git rev-parse HEAD
+52f620229db63837df3dcf74cfd3337ba7249062	refs/heads/reports
+52f620229db63837df3dcf74cfd3337ba7249062
+```
+
+Esta sección va en un commit posterior: su SHA es el HEAD de `origin/reports` al leerla.
