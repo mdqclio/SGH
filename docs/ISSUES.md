@@ -47,7 +47,7 @@ Estado: ✅ RESUELTO COMPLETAMENTE (14/05/2026) — RLS implementada en 26 tabla
 ## ALTOS
 
 ### ISSUE-104 (ver detalle al final): el motor de liquidación puede duplicar líneas (plata) — DELETE y lecturas sin chequeo de error, recálculos concurrentes sin lock, sin UNIQUE
-Estado: 🔴 ABIERTO, prioridad ALTA (2026-10-02). Detalle y plan en la entrada ISSUE-104 al final del archivo.
+Estado: 🔴 ABIERTO, prioridad ALTA (2026-10-02). Decisión: sólo chequeos de error (2a, PR #38); sin UNIQUE ni RPC con lock. Detalle al final del archivo.
 
 ### ISSUE-003: PDF inscriptos no similar al modelo Palermo
 Descripción: Falta columnas orden partidor + alfabético/gatera, bolsa por carrera, indicadores H y punto negro
@@ -2934,3 +2934,13 @@ select (select count(*) from (select reunion_id, beneficiario_id from liquidacio
        (select count(*) from (select reunion_id, club_id, coalesce(profesional_id,propietario_id) from liquidaciones group by 1,2,3 having count(*)>1) z) header_dup;
 ```
 **Plan**: fase 1 de lectura del arreglo en `docs/diagnosticos/2026-10-02_motor-liquidacion-duplicados-fase1.md` (reports).
+**Decisión (2026-10-02, Leo)**:
+- **2a — se hace**: sólo los chequeos de error. El motor corta y devuelve el error si falla una lectura, el DELETE o un INSERT
+  (antes de escribir: "no se cambió nada"; después: "quedó INCOMPLETA — volvé a recalcular"). PR #38, probe
+  `tests/probe_motor_chequeo_errores.mjs`. Sin apuro de fecha.
+- **Índices UNIQUE: no por ahora.**
+- **2b (persistencia en una RPC con transacción y advisory lock; `emitir_recibo` con el mismo lock) — NO se hace.** Motivo: el motor
+  es paid-safe por diseño desde junio (borra sólo lo no comprometido y no regenera lo pagado, por `lineKey`) y no hubo ningún
+  duplicado (0 en 64 incentivos y en 709 líneas al 2026-10-02). Los caminos 2 (recálculos concurrentes) y 3 (recibo en medio de un
+  recálculo) quedan **abiertos y aceptados**; si alguna vez aparece un duplicado, la query de arriba lo muestra y se reabre.
+- **Barrido de la query de control antes de cada jornada de pagos: no por ahora.**
