@@ -46,6 +46,9 @@ Estado: ✅ RESUELTO COMPLETAMENTE (14/05/2026) — RLS implementada en 26 tabla
 
 ## ALTOS
 
+### ISSUE-104 (ver detalle al final): el motor de liquidación puede duplicar líneas (plata) — DELETE y lecturas sin chequeo de error, recálculos concurrentes sin lock, sin UNIQUE
+Estado: 🔴 ABIERTO, prioridad ALTA (2026-10-02). Detalle y plan en la entrada ISSUE-104 al final del archivo.
+
 ### ISSUE-003: PDF inscriptos no similar al modelo Palermo
 Descripción: Falta columnas orden partidor + alfabético/gatera, bolsa por carrera, indicadores H y punto negro
 Módulo: inscripciones.html
@@ -2354,6 +2357,17 @@ marca de recibo manual, y cobrarles por Pagos)** — medido el 21/09:
   reclama, Yesi carga el jockey en la inscripción primero.
 - Tope: 9 jockeys más (2 + 7), no 11 como decía el plan del 20/09 (contaba inscripciones).
 
+**⚠ Al crear la línea a mano (2026-10-02, ver ISSUE-104): `concepto` tiene que ser EXACTAMENTE `Incentivo jockey`**
+(mayúscula sólo la I, sin espacios ni texto extra; lo que haga falta aclarar va en `descripcion`), y `concepto_tipo =
+'incentivo_jockey'`, `inscripcion_id` y `posicion` NULL. El motor reconoce lo ya pagado por la clave
+`beneficiario|concepto_tipo|inscripcion|posicion|concepto` (`liquidaciones-engine.js:40`, `lineKey`): con otro `concepto`
+(p. ej. "Incentivo Jockey" o "Incentivo jockey R9"), si el jockey además largó, el próximo recálculo genera **otra** línea
+impaga del mismo incentivo → doble pago. Las tres de hoy están bien (medido 2026-10-02: 0 de 64 con otro `concepto`).
+Control: `select id, concepto from liquidacion_detalle where concepto_tipo='incentivo_jockey' and concepto is distinct from 'Incentivo jockey';` → 0 filas.
+**Ojo también**: una línea creada a mano **impaga** (como dice el pendiente de abajo) la **borra el próximo recálculo** de la
+reunión (el motor borra todo lo no comprometido y no la regenera, porque ese jockey no largó). Crearla y cobrarla en la misma
+sentada, o no recalcular R9 entre medio.
+
 **No se generan ahora** (decisión del 21/09): plata que se muestra como pagable a quien tal vez no
 venga es un vector de doble pago; se crea cuando la persona está en la ventanilla.
 
@@ -2887,3 +2901,36 @@ Políticas de escritura de `resultados` y `resultado_posiciones` con `fn_is_staf
 (b) arreglar la escritura de `performances` (que la haga una RPC o el motor con permisos, y con error visible) y que el impreso la
 use. Mientras tanto, sacar o arreglar el `delete/insert` silencioso de `oficializar()`.
 **Cómo se verifica**: `select count(*) from performances;` → hoy 0.
+
+### ISSUE-104: el motor de liquidación puede duplicar líneas — errores sin chequear, recálculos concurrentes sin lock, sin UNIQUE en la base
+**Estado**: 🔴 **ABIERTO — prioridad ALTA (es plata)** (registrado 2026-10-02). **Hoy no hay ningún duplicado** (medido 2026-10-02: 0 pares
+reunión-jockey repetidos en 64 incentivos; 0 claves `lineKey` repetidas en 709 líneas; 0 headers repetidos por actor). Es un riesgo,
+no un daño.
+**Dónde**: `liquidaciones-engine.js`, `generarLiquidacionesReunion` — lo llaman Recalcular reunión (`liquidaciones.html:2463`),
+oficializar / desoficializar (`resultados.html:1685`, `:1720`) y el cambio de monta (`resultados.html:2153`, después de `rpc_cambiar_monta`).
+La persistencia son **varios pedidos sueltos por PostgREST, sin transacción**: (1) leer headers + líneas de la reunión, (2) borrar las
+líneas no comprometidas, (3) insertar headers y líneas nuevas salteando las ya pagadas por `lineKey`, (4) recalcular totales.
+**Los caminos a un duplicado real**:
+1. **Errores sin chequear.** El DELETE del paso 2 (`:338`) no mira `error`: si falla (red, timeout), el paso 3 inserta igual y todas las
+   líneas no pagadas de la reunión quedan **dobles**. Peor, la lectura del paso 1 (`:311`) tampoco mira `error`: si falla, el motor cree
+   que no hay nada pagado → no borra nada y regenera **también lo ya pagado como impago** (doble pago directo). Los INSERT de header
+   (`:400`) y de líneas (`:411`) sólo hacen `console.error` y el motor devuelve éxito: la pantalla dice "recalculado" con líneas borradas
+   y no repuestas.
+2. **Recálculos concurrentes sin lock.** Dos corridas sobre la misma reunión (Recalcular en una pestaña + oficializar en otra, o dos
+   usuarios) leen, borran e insertan intercaladas → líneas dobles y hasta dos headers por actor (las dos ven "no hay header" y crean uno).
+   Un lock no se puede tomar desde el cliente a través de varios pedidos PostgREST.
+3. **Recibo emitido en medio de un recálculo.** Si `emitir_recibo` marca una línea como pagada entre la lectura (paso 1) y el
+   DELETE (paso 2), el DELETE ya no la borra (el filtro se reevalúa sobre la fila actualizada) pero el motor no la tiene entre las
+   pagadas → la vuelve a insertar impaga → **doble pago**. Es el mismo hueco que el 2 (sin lock), con Pagos de un lado y el motor del otro.
+4. **Sin UNIQUE en la base.** `liquidacion_detalle` sólo tiene la PK y tres índices no únicos; `liquidaciones`, la PK y
+   `(reunion_id, club_id)`. Nada ataja una segunda línea del mismo concepto ni un segundo header del mismo actor.
+**Relacionado**: ISSUE-085 (incentivo creado a mano con otro `concepto` → el recálculo no lo reconoce como pagado y genera otro).
+**Origen del hallazgo**: informe del 2026-09-24 sobre el incentivo de jockey en R9, publicado anonimizado el 2026-10-02:
+`docs/diagnosticos/2026-09-24_incentivo-jockey-r9-duplicado-anonimizado.md` (reports), § 5.
+**Cómo se verifica que sigue sin duplicados** (tiene que dar 0 las tres):
+```sql
+select (select count(*) from (select reunion_id, beneficiario_id from liquidacion_detalle where concepto_tipo='incentivo_jockey' group by 1,2 having count(*)>1) x) inc_dup,
+       (select count(*) from (select reunion_id, beneficiario_tipo, beneficiario_id, concepto_tipo, coalesce(inscripcion_id::text,''), coalesce(posicion::text,''), coalesce(concepto,'') from liquidacion_detalle group by 1,2,3,4,5,6,7 having count(*)>1) y) linekey_dup,
+       (select count(*) from (select reunion_id, club_id, coalesce(profesional_id,propietario_id) from liquidaciones group by 1,2,3 having count(*)>1) z) header_dup;
+```
+**Plan**: fase 1 de lectura del arreglo en `docs/diagnosticos/2026-10-02_motor-liquidacion-duplicados-fase1.md` (reports).
