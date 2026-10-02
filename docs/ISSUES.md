@@ -2812,7 +2812,14 @@ mano con lo que diga la secretaría, por migración y con nota.
 
 
 ### ISSUE-098: `v_inscriptos_carrera` es una vista SECURITY DEFINER
-**Estado**: abierto (registrado 2026-10-02; tarea aparte por decisión del 02/10).
+**Estado**: 🟢 **CERRADO 2026-10-02** — `migrations/cerrar_v_inscriptos_carrera.sql` (`20261002193945`): `security_invoker=true` +
+`REVOKE SELECT … FROM anon`. **Era más que un WARN**: anon (sin login, con la publishable key pública) leía las 425 inscripciones
+de la base con propietario, entrenador, jockeys, caballeriza e `info_adicional`, **desde el 27/08** — el `CREATE OR REPLACE VIEW` de
+`fn_edad_reglamentaria.sql` le borró el `security_invoker` que tenía desde el 07/06 (GOTCHA #102). `info_adicional`: 2 textos en
+427, ambos motivos administrativos de `mal_inscrito`, nada sensible. Lectores en el código: 0. Probe `tests/probe_v_inscriptos_cerrada.mjs`
+6/6 (antes del apply C1 rojo), 7/7 mutantes; advisor sin `security_definer_view`. Informes:
+`docs/diagnosticos/2026-10-02_issue-099-funciones-anon-y-v-inscriptos-fase1.md` y `…_v-inscriptos-cerrada.md` (reports).
+**Registro original (abierto, 2026-10-02)**:
 **Qué pasa**: `get_advisors security` → `security_definer_view` (ERROR): la vista corre con los permisos de su dueño y no
 con los de quien consulta, así que salta la RLS de las tablas que lee. Es el único ERROR que quedó en los advisors
 después de `cerrar_tablas_bak_publicas.sql` (02/10).

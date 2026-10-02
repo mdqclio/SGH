@@ -76,6 +76,7 @@ probe_spcs_r9_tanda_1|
 probe_studbook_buscar_fn|
 probe_studbook_v2|
 probe_tapa_flyer|
+probe_v_inscriptos_cerrada|
 '
 CONOCIDOS="${CONOCIDOS:-tests/correr_todos.rojos_conocidos}"   # se puede apuntar a otra lista (ruta absoluta)
 SALIDA="${SALIDA:-$(mktemp -d)}"; mkdir -p "$SALIDA"
