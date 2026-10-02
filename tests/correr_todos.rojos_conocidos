@@ -2,7 +2,7 @@
 # Formato: <probe>  <motivo>. Medido el 2026-10-02 sobre main 054d70b945d0982a3dd57c659cf00efc472ed449, en el checkout principal.
 # Cuando uno pase a verde el script lo avisa: sacarlo de acá en el mismo PR.
 probe_activacion_pendiente          drift del probe: su stub de sb no tiene .select() después de update().eq() (TypeError)
-probe_alineado_programa             drift: "color conserva su @page 10mm 8mm" — el CSS de impresión cambió desde que se escribió
+probe_alineado_programa             drift: el check de márgenes de página (10mm 8mm) del programa color no coincide — el CSS de impresión cambió desde que se escribió
 probe_apuestas_especiales           drift: 9 checks de tarjetas (cantidad, número, nombre, rango) no coinciden con la pantalla actual
 probe_cuerpos_oficial               drift de datos: espera 8 carreras oficiales en R6 y hay 7 (C3 está provisional desde el 14/08)
 probe_edad_display                  drift: no encuentra el ancla de fin del bloque de edad en el HTML
