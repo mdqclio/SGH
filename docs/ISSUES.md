@@ -2947,7 +2947,7 @@ select (select count(*) from (select reunion_id, beneficiario_id from liquidacio
 - **Barrido de la query de control antes de cada jornada de pagos: no por ahora.**
 
 ### ISSUE-105: `usuarios.password_hash` es un vestigio pre-Supabase-Auth — 2 filas con un placeholder, 31 vacías, nadie lo lee
-**Estado**: 🟡 ABIERTO, prioridad baja (registrado 2026-10-02; relevado sólo lectura, no se tocó nada).
+**Estado**: 🟡 ABIERTO, prioridad baja — anotado; por decisión del 02/10 no se toca la columna por ahora (registrado 2026-10-02; relevado sólo lectura).
 **Qué hay** (medido 2026-10-02 sobre las 33 filas de `usuarios`):
 - **2 filas con valor** — los dos usuarios originales de producción, creados el **2026-04-22** (`3a685a1a-3ff7-45dc-8af3-88f5c5f29377`,
   super_admin; `9ac2d140-faec-424c-9437-0cedeb8b8b82`, secretario_carreras). El valor es **exactamente** el texto `managed_by_supabase_auth`
@@ -2966,3 +2966,4 @@ select (select count(*) from (select reunion_id, beneficiario_id from liquidacio
 los lugares de arriba ajustados (Edge Function `invite-user`, `rpc_aprobar_solicitud`, `fn_auditoria_log`, probes, DDL de los sandbox de
 `tests/local/`); (3) con la columna fuera, decidir si `sgh_lectura` lee `usuarios` (tiene emails y teléfonos: datos personales).
 **Cómo se verifica**: `select count(*) filter (where coalesce(password_hash,'')<>'') from usuarios;` → hoy 2 (las dos con el placeholder).
+**Decisión (2026-10-02, Leo)**: queda anotado; **no se borra la columna por ahora** (ni default ni DROP).
