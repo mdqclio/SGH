@@ -361,3 +361,16 @@ index 283c936..20ae568 100644
          await recomputeHeaderTotals(sb, hid);
          headers++;
 ```
+
+## Verificación de push
+
+Chequeo de datos personales sobre lo agregado: 1 coincidencia en la primera pasada (la nota que nombraba los arrobas del hunk),
+reescrita; segunda pasada **0**.
+
+```
+$ git push -q origin HEAD:reports && git ls-remote origin reports && git rev-parse HEAD
+8b80199be58e4751f024217f2445ef017630c80b	refs/heads/reports
+8b80199be58e4751f024217f2445ef017630c80b
+```
+
+Este anexo va en un commit posterior; su SHA es el tip de `origin/reports`.
