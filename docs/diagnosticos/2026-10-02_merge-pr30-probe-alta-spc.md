@@ -33,3 +33,14 @@ No se aplicó nada en la base ni se deployó ninguna función.
 ## Pendientes (sin cambios)
 
 ISSUE-098, ISSUE-099, ISSUE-100 como tareas aparte; el aviso al ratificar un caballo pendiente lo ves con Yesi.
+
+## Verificación de push
+
+```
+$ git ls-remote origin reports
+4963a188cf3c812c7da721b6e89ef24c68bb9aaf	refs/heads/reports
+$ git rev-parse HEAD
+4963a188cf3c812c7da721b6e89ef24c68bb9aaf
+```
+
+Coinciden. Este bloque va en un commit posterior.
