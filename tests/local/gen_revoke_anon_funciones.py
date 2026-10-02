@@ -100,7 +100,11 @@ mig = [ENC, """-- SEGURIDAD ISSUE-099 — las 31 funciones de `public` que `anon
 --      No toca los defaults de supabase_admin (los administra la plataforma) ni los de tablas/secuencias.
 --
 -- No cambia ningún pg_get_functiondef (un GRANT/REVOKE no toca la definición): el probe compara el md5 de las 31
--- antes y después. Rollback: migrations/rollback_revoke_anon_funciones_publicas.sql (ACL exacto anterior).
+-- antes y después.
+--
+-- ESTADO EN PRODUCCIÓN: APLICADA 2026-10-02 (`20261002225113`). Verificado: anon 0/31, PUBLIC 0/31, grupo A authenticated
+-- 25/25, grupo B authenticated 0/6, service_role 31/31; md5 de las 31 = antes; probe --prod 26/26; advisor sin
+-- anon_security_definer_function_executable. Rollback: migrations/rollback_revoke_anon_funciones_publicas.sql (ACL exacto anterior).
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
 BEGIN;
 

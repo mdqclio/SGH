@@ -1,6 +1,6 @@
 # Changelog
 
-## [2026-10-02] — SEGURIDAD ISSUE-099: las 31 funciones de `public` que anon podía ejecutar + default privileges — migración **sin aplicar**
+## [2026-10-02] — SEGURIDAD ISSUE-099: las 31 funciones de `public` que anon podía ejecutar + default privileges — migración **aplicada**
 
 - `migrations/revoke_anon_funciones_publicas.sql` (GENERADA por `tests/local/gen_revoke_anon_funciones.py` desde las firmas y el
   `proacl` medidos en prod): **25** → REVOKE de PUBLIC y anon, GRANT explícito a authenticated + service_role; **6** (los 5 de
