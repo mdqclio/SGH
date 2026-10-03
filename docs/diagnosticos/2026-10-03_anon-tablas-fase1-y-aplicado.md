@@ -240,3 +240,13 @@ Salida completa de cada probe: <tmpdir>/<probe>.txt
 - **Programa oficial abierto sin sesión:** hoy da error de permiso. Antes mostraba la página vacía. Si se quisiera un programa público sin login,
   haría falta una vista o RPC de lectura acotada y explícita, no permisos de tabla. No lo propongo sin un pedido.
 - `tools/studbook_reunion_json.mjs`: conviene sacarle el fallback a la publishable key. Ya hoy no servía, porque leía 0 filas.
+
+## Verificación de push
+
+```
+$ git ls-remote origin reports
+fef016356d78d9dee831f476e6f38a272d8df016
+$ git rev-parse HEAD
+fef016356d78d9dee831f476e6f38a272d8df016
+```
+Chequeo de datos personales sobre lo agregado: vacío.
