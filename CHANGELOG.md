@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-10-03] — SEGURIDAD: anon sin privilegios en ninguna tabla ni vista de `public` — migraciones **aplicadas**
+
+- `migrations/revoke_anon_tablas_publicas.sql` (`20261003150157`, GENERADA por `tests/local/gen_revoke_anon_tablas.py`): `REVOKE ALL … FROM
+  anon` en las 34 tablas y 3 vistas que lo tenían (anon tenía todo, TRUNCATE incluido; `recibos` sin DELETE). Fase 1: ninguna política
+  alcanza a anon/PUBLIC (anon leía 0 filas, verificado por la API en las 37) y el único camino sin sesión es `programa-oficial(-color).html`
+  abierto por URL directa sin login (antes mostraba vacío; ahora, error de permiso). Desde `programa.html` usan la sesión.
+- `migrations/revoke_anon_v_inscriptos_resto.sql` (`20261003150235`): `v_inscriptos_carrera` conservaba para anon todo menos SELECT.
+- Rollbacks exactos. Ningún objeto de `public` queda con privilegios para anon. authenticated, service_role y sgh_lectura sin cambios.
+- Probe `tests/probe_revoke_anon_tablas.mjs` (sandbox 7/7, 6/6 mutantes; `--prod` 4/4 antes y después). `probe_v_inscriptos_cerrada` C3:
+  las otras 3 vistas ahora rechazan a anon (7/7 mutantes).
+
 ## [2026-10-03] — SEGURIDAD tanda 2: trigger de montas sólo service_role + tablas/secuencias nuevas sin anon — migración **aplicada**
 
 - `migrations/seguridad_tanda_2.sql` (`20261003140631`):

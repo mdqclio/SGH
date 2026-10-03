@@ -8,7 +8,8 @@
  *
  *   C1  anon → v_inscriptos_carrera: rechazado (42501), 0 filas.
  *   C2  service_role → v_inscriptos_carrera: la vista sigue viva (> 0 filas).
- *   C3  anon → las otras 3 vistas (security_invoker): 0 filas.
+ *   C3  anon → las otras 3 vistas: rechazado (42501). Hasta el 03/10 era "0 filas" (RLS); desde revoke_anon_tablas_publicas.sql
+ *       anon no tiene privilegios en ellas.
  *   C4  lint de migrations/*.sql: toda CREATE [OR REPLACE] VIEW lleva security_invoker
  *       (salvo el bloque histórico marcado HISTÓRICO-SIN-INVOKER, aplicado así el 27/08).
  *
@@ -95,7 +96,7 @@ if (process.argv.includes('--mutantes')) {
     ['MU1 vista abierta (200 con filas, como antes del 02/10)', () => chequeoAnonRechazado({ status: 206, body: filasFalsas, total: 425 })],
     ['MU2 anon con 0 filas pero sin rechazo (invoker sin REVOKE)', () => chequeoAnonRechazado({ status: 200, body: [], total: 0 })],
     ['MU3 vista muerta para service_role', () => chequeoViva({ status: 404, body: { code: '42P01' }, total: null })],
-    ['MU4 otra vista abierta a anon', () => chequeoCeroFilas({ status: 200, body: filasFalsas, total: 3 })],
+    ['MU4 otra vista abierta a anon', () => chequeoAnonRechazado({ status: 200, body: filasFalsas, total: 3 })],
     ['MU5 migración nueva con CREATE OR REPLACE VIEW sin la opción', () => lintMigraciones([...migraciones,
       ['migrations/zz_mutante.sql', 'CREATE OR REPLACE VIEW public.v_inscriptos_carrera AS\n SELECT 1;']])],
     ['MU6 se quita el marcador del bloque histórico', () => lintMigraciones(migraciones.map(([n, t]) =>
@@ -119,7 +120,8 @@ assert('C1', 'anon NO lee v_inscriptos_carrera', chequeoAnonRechazado(await get(
 // C2 — service_role
 assert('C2', 'service_role: la vista sigue viva', chequeoViva(await get('v_inscriptos_carrera', SECRET, { conBearer: true })));
 // C3 — otras vistas
-for (const v of OTRAS_VISTAS) assert('C3', `anon → ${v}: 0 filas`, chequeoCeroFilas(await get(v, PUBLISHABLE, { conBearer: false })));
+// desde el 03/10 (revoke_anon_tablas_publicas.sql) anon no tiene privilegios en ninguna vista: rechazado, no sólo 0 filas
+for (const v of OTRAS_VISTAS) assert('C3', `anon → ${v}: rechazado (42501)`, chequeoAnonRechazado(await get(v, PUBLISHABLE, { conBearer: false })));
 // C4 — lint
 assert('C4', 'toda CREATE [OR REPLACE] VIEW de migrations/ lleva security_invoker', lintMigraciones(migraciones));
 
