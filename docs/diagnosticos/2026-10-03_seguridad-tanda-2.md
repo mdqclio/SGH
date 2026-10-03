@@ -231,3 +231,13 @@ Salida completa de cada probe: <tmpdir>/<probe>.txt
 ## Rollback (no usado)
 
 `migrations/rollback_seguridad_tanda_2.sql`: probado en el sandbox (R1, R2).
+
+## Verificación de push
+
+```
+$ git ls-remote origin reports
+3f0cfda7dc1186071a9ca2024c360d603cd8fab6
+$ git rev-parse HEAD
+3f0cfda7dc1186071a9ca2024c360d603cd8fab6
+```
+Chequeo de datos personales sobre lo agregado: vacío.
