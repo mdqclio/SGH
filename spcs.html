@@ -338,6 +338,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="edad-spc.js"></script>
+<script src="studbook-progreso.js"></script>
 <script>
 let sb, CLUB_ID, currentUser;
 async function initAuth(){const{createClient}=supabase;sb=createClient('https://unlhcuanfrtpatoipwve.supabase.co','sb_publishable_gypetSX16kGMXHhG_xqLWA_7wrzWgAK');const{data:{session}}=await sb.auth.getSession();if(!session){window.location.replace('login.html');return false;}const{data:usr}=await sb.from('usuarios').select('club_id,nombre_completo,rol').eq('email',session.user.email).single();if(usr.rol==='super_admin'){const urlClub=new URLSearchParams(window.location.search).get('club');CLUB_ID=urlClub||localStorage.getItem('sgh_selected_club_id')||usr.club_id||null;}else{if(!usr.club_id){await sb.auth.signOut();window.location.replace('login.html');return false;}CLUB_ID=usr.club_id;}currentUser={...session.user,nombre_completo:usr.nombre_completo,rol:usr.rol};const uEl=document.getElementById('user-name');if(uEl)uEl.textContent=usr.nombre_completo||session.user.email;document.getElementById('auth-overlay').style.display='none';return true;}
@@ -639,9 +640,10 @@ async function buscarStudBook() {
   if (term.length < 3) { out.innerHTML = '<div class="sb-msg err">Escribí al menos 3 letras del nombre.</div>'; return; }
   const btn = document.getElementById('sb-btn');
   btn.disabled = true; btn.textContent = 'Buscando…';
-  out.innerHTML = '<div class="sb-msg">Consultando el Stud Book…</div>';
+  const finProgreso = progresoStudBook(out, 'Consultando el Stud Book');
   try {
     const { data, error } = await sb.functions.invoke('studbook-buscar', { body: { term } });
+    finProgreso();
     if (error) {
       const e = await parseFnError(error);
       console.error('[spcs.buscarStudBook]', { term, status: e.status, code: e.code, detalle: e.detalle });

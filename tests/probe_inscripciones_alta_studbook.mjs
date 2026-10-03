@@ -236,7 +236,7 @@ const MUT = [
   ['MU5 traer siempre con el turno del select', `  return document.getElementById('f-id').value ? document.getElementById('f-carrera-id').value : currentCarreraId;`, `  return currentCarreraId;`],
   ['MU6 sin aviso de motivos', `  if (motivos.length) toast(`, `  if (false) toast(`],
   ['MU7 abrir el modal no limpia candidatos', `function openModal(rec=null) {\n  limpiarStudBookStaff();\n`, `function openModal(rec=null) {\n`],
-  ['MU8 sin chequeo de turno antes de traer', `  if (!carreraId) { toast('Seleccionar un turno', 'error'); return; }\n  const out = document.getElementById('spc-sb');\n  out.innerHTML = \`<div class="sb-msg">Trayendo`, `  const out = document.getElementById('spc-sb');\n  out.innerHTML = \`<div class="sb-msg">Trayendo`],
+  ['MU8 sin chequeo de turno antes de traer', `  if (!carreraId) { toast('Seleccionar un turno', 'error'); return; }\n  const out = document.getElementById('spc-sb');\n  const finProgreso = progresoStudBook(out, \`Trayendo`, `  const out = document.getElementById('spc-sb');\n  const finProgreso = progresoStudBook(out, \`Trayendo`],
   ['MU9 error de traer sin mensaje', `    renderCandidatosStudBookStaff({ exactos: sbCandidatosStaff }, mensajeStudBookStaff(e));`, `    renderCandidatosStudBookStaff({ exactos: sbCandidatosStaff });`],
   ['MU10 traer no selecciona el caballo', `  selectSpc(data.spc_id, nombre, '', '', '', false);`, ``],
   ['MU11 Stud Book caído con mensaje genérico', `  if (e.code === 'studbook_no_disponible') return 'El Stud Book no responde ahora. Cargalo a mano en Stud Book (SPCs).';\n`, ``],

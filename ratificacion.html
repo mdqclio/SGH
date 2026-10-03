@@ -203,6 +203,7 @@
   <script src="renumerar-chapas.js"></script>
   <script src="jockey-repetido.js"></script>
   <script src="escape-html.js"></script>
+  <script src="revision-pendiente.js"></script>
 </head>
 <body>
 <div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;"></div></div>
@@ -597,10 +598,7 @@ function getSpc(id) { return spcs.find(s=>s.id===id); }
 
 // SPC dado de alta desde el portal que la secretaría todavía no revisó en Stud Book (SPCs).
 // Es un AVISO: se ve en la fila y se pide confirmación al ratificar; no bloquea.
-function motivosRevision(spc) {
-  const m = (spc?.revision_motivos || []).filter(Boolean);
-  return m.length ? m.join(' · ') : 'alta desde el portal';
-}
+// motivosRevision y el texto del confirm viven en revision-pendiente.js (mismo aviso que inscripciones.html).
 function badgeRevision(spc) {
   return `<span class="badge-revision" title="${escapeHtml('Pendiente de revisión en Stud Book (SPCs): ' + motivosRevision(spc))}">⚠ Por revisar</span>`;
 }
@@ -919,7 +917,7 @@ async function onJockeyChange(sel) {
 async function ratificar(inscId) {
   const row = document.getElementById(`row-${inscId}`);
   const spc = getSpc(row?.dataset.spc);
-  if (spc?.revision_pendiente && !confirm(`${spc.nombre} está pendiente de revisión en Stud Book (SPCs).\nMotivo: ${motivosRevision(spc)}.\n\n¿Ratificar igual?`)) return;
+  if (spc?.revision_pendiente && !confirm(textoConfirmarRatificarRevision(spc))) return;
   const pesoEl = document.getElementById(`peso-${inscId}`);
   const peso = parseFloat(pesoEl?.value) || null;
   const { error } = await sb.from('inscripciones').update({ estado:'ratificado', peso_final: peso }).eq('id', inscId);

@@ -16,6 +16,7 @@
  *   B3  ratificar un normal → sin confirmación, update
  *   B4  pendiente sin motivos → el mensaje dice "alta desde el portal"
  *   C1  init pide revision_pendiente y revision_motivos de spcs
+ *   C2  carga revision-pendiente.js (texto único del aviso, compartido con inscripciones.html)
  */
 import { readFileSync } from 'node:fs';
 import jsdom from 'jsdom';
@@ -49,16 +50,17 @@ function stub() {
   };
   return { log, tablas, sb: { from: qb, rpc: async () => ({ data: null, error: null }), auth: { getSession: async () => ({ data: { session: null } }) } } };
 }
-const interceptor = () => requestInterceptor((request) => {
+const interceptor = (archivos = {}) => requestInterceptor((request) => {
   const u = new URL(request.url);
   let cuerpo = '';
-  if (u.hostname === 'sigh.com.ar') { try { cuerpo = readFileSync(ROOT + u.pathname.replace(/^\//, ''), 'utf8'); } catch { cuerpo = ''; } }
+  const rel = u.pathname.replace(/^\//, '');
+  if (u.hostname === 'sigh.com.ar') { try { cuerpo = archivos[rel] ?? readFileSync(ROOT + rel, 'utf8'); } catch { cuerpo = ''; } }
   return new Response(cuerpo, { headers: { 'Content-Type': 'application/javascript' } });
 });
-async function montar(html) {
+async function montar(html, archivos = {}) {
   const vc = new VirtualConsole(); const errJs = []; vc.on('jsdomError', (e) => errJs.push(String(e.message || e)));
   const dom = new JSDOM(html, { url: 'https://sigh.com.ar/ratificacion.html', runScripts: 'dangerously',
-    resources: { interceptors: [interceptor()] }, virtualConsole: vc, pretendToBeVisual: true });
+    resources: { interceptors: [interceptor(archivos)] }, virtualConsole: vc, pretendToBeVisual: true });
   await new Promise((r) => dom.window.addEventListener('load', r));
   dom.window.alert = () => {};
   return { w: dom.window, errJs };
@@ -81,10 +83,10 @@ const INSC = [
 ];
 const CARRERA = { id: CAR, numero_turno: 1, estado: 'abierta', distancia_metros: 1000 };
 
-async function correr(html) {
+async function correr(html, archivos = {}) {
   const res = [];
   const ok = (t, c, n = '') => { res.push({ t, s: c ? '✅' : '❌', n }); return c; };
-  const { w, errJs } = await montar(html);
+  const { w, errJs } = await montar(html, archivos);
   const d = w.document;
   const s = stub();
   w.__sb = s.sb; w.__datos = { spcs: Object.values(SPC), insc: INSC, car: CARRERA };
@@ -128,6 +130,7 @@ async function correr(html) {
   await tick();
   const selSpcs = s.log.find((l) => l.from === 'spcs')?.ops.find(([m]) => m === 'select')?.[1]?.[0] || '';
   ok('C1) init pide revision_pendiente y revision_motivos de spcs', /revision_pendiente/.test(selSpcs) && /revision_motivos/.test(selSpcs), selSpcs);
+  ok('C2) carga revision-pendiente.js (el texto del aviso es el mismo que en inscripciones.html)', /<script src="revision-pendiente\.js"><\/script>/.test(html));
   ok('E) sin errores de JS', errJs.filter((e) => !/supabase is not defined|Not implemented/.test(e)).length === 0, errJs.join(' | ').slice(0, 300));
   return res;
 }
@@ -147,13 +150,15 @@ if (MUTANTES) {
     ['MU4 nombre sin escapar', (h) => h.replace('${escapeHtml(spc?.nombre||i.spc_id)}', '${spc?.nombre||i.spc_id}')],
     ['MU5 motivos sin escapar en el title', (h) => h.replace("title=\"${escapeHtml('Pendiente de revisión en Stud Book (SPCs): ' + motivosRevision(spc))}\"", "title=\"Pendiente de revisión en Stud Book (SPCs): ${motivosRevision(spc)}\"")],
     ['MU6 confirma siempre (también los revisados)', (h) => h.replace('if (spc?.revision_pendiente && !confirm(', 'if (!confirm(')],
-    ['MU7 sin el texto por defecto', (h) => h.replace(": 'alta desde el portal';", ": '';")],
+    ['MU7 sin el texto por defecto (revision-pendiente.js)', (h) => h, { 'revision-pendiente.js': readFileSync(ROOT + 'revision-pendiente.js', 'utf8').replace(": 'alta desde el portal';", ": '';") }],
+    ['MU8 texto del confirm distinto (revision-pendiente.js)', (h) => h, { 'revision-pendiente.js': readFileSync(ROOT + 'revision-pendiente.js', 'utf8').replace('¿Ratificar igual?', '¿Seguro?') }],
   ];
   console.log('\n── mutantes ──');
-  for (const [n, f] of M) {
+  for (const [n, f, archivos] of M) {
     const h = f(base);
-    if (h === base) { console.log(`⚠ ${n}: el reemplazo no aplicó`); vivos++; continue; }
-    const r = await correr(h);
+    const jsCambio = archivos && Object.entries(archivos).some(([k, v]) => v !== readFileSync(ROOT + k, 'utf8'));
+    if (h === base && !jsCambio) { console.log(`⚠ ${n}: el reemplazo no aplicó`); vivos++; continue; }
+    const r = await correr(h, archivos);
     const muere = r.some((x) => x.s === '❌');
     if (!muere) vivos++;
     console.log(`${muere ? '💀 muere' : '🟢 VIVO '} ${n}`);
