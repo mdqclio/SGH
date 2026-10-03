@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-10-03] — SEGURIDAD tanda 2: trigger de montas sólo service_role + tablas/secuencias nuevas sin anon — migración **aplicada**
+
+- `migrations/seguridad_tanda_2.sql` (`20261003140631`):
+  - `fn_insc_monta_oficial_guard()` (función de trigger, SECURITY DEFINER) pasa al grupo B de ISSUE-099: sólo service_role. El trigger
+    sigue disparando: `probe_montas_post_oficial` 24/24 en prod.
+  - Los default privileges de postgres en `public` para **tablas** y **secuencias** nuevas dejan de darle todo a anon. authenticated y
+    service_role siguen. No toca las tablas existentes (37 con SELECT para anon, protegidas por RLS), ni los defaults de supabase_admin,
+    ni `storage` (decisión del 03/10).
+- `rollback_seguridad_tanda_2.sql`. Probe `tests/probe_seguridad_tanda_2.mjs`: sandbox 14/14, 8/8 mutantes; `--prod` sólo lectura.
+
 ## [2026-10-03] — Aviso de revisión también en el modal de Inscripciones + indicador de progreso del Stud Book
 
 - `inscripciones.html`: elegir **"Ratificado"** en el select de estado del modal con un SPC pendiente de revisión pide la misma
