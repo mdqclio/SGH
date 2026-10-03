@@ -7,7 +7,7 @@
  *
  * Qué prueba. Los usuarios del portal eligen su propio nombre (solicitar-acceso) y pueden
  * reescribir su fila de `usuarios` por la API. Ese texto se renderiza en:
- *   - usuarios.html      renderTable (nombre, teléfono, email) + botón Editar
+ *   - usuarios.html      filaHTML (nombre, teléfono, email) + botón Activar (super_admin; el portal no tiene Editar)
  *   - admin.html         loadPendientes (nombre, email) + botones Aprobar/Rechazar
  *   - inscripciones.html renderInscripciones, columna "Cargada por" (nombre del cargador del portal)
  *
@@ -23,7 +23,7 @@
  *   - la fila se renderiza,
  *   - el texto se ve TAL CUAL se escribió (textContent === valor en la base),
  *   - no aparece ningún elemento inyectado (<script>, <img>, [id^=xss]),
- *   - Editar abre el modal con ESA fila (e-id / e-nombre), Aprobar pregunta por ESE nombre,
+ *   - usuarios: sin "Editar" para el portal (846b7b6, 27/09) y Activar con onclick = sólo el id; Aprobar pregunta por ESE nombre,
  *   - window.__pwn no se setea (ningún payload se ejecuta).
  *
  * Fixture (ESCRIBE en prod): 5 filas en `usuarios` (Dolores, rol profesional, estado
@@ -34,7 +34,8 @@
  * probe, y la 9999 vuelve a las mismas 17 inscripciones (ids) que tenía antes.
  *
  * Mutantes (--mutantes): M1 escape-html.js = identidad · M2 usuarios/admin/inscripciones de
- * `main` (pre-fix) · M3 usuarios.html sin el <script src="escape-html.js">.
+ * `0677222^` (antes del fix) · M3 usuarios.html sin el <script src="escape-html.js"> · M4 el portal
+ * vuelve a tener "Editar" en usuarios.html.
  *
  * Overrides por entorno (ruta a archivo): USUARIOS_HTML, ADMIN_HTML, INSCRIPCIONES_HTML, ESCAPE_JS.
  */
@@ -151,12 +152,13 @@ async function suite(overrides = {}) {
   {
     const { w, d } = await montar('usuarios.html', overrides);
     let cargo = true;
-    try { await w.eval(`sb = __sb; CLUB_ID = '${CLUB_DOLORES}'; load()`); } catch (e) { cargo = false; ok('U0) usuarios.html load() corre', false, e.message); }
+    // super_admin: es el único que ve acciones sobre usuarios del portal (usuarios.html, 846b7b6 del 27/09)
+    try { await w.eval(`sb = __sb; CLUB_ID = '${CLUB_DOLORES}'; currentUser = { id: '00000000-0000-0000-0000-0000000000aa', rol: 'super_admin' }; load()`); } catch (e) { cargo = false; ok('U0) usuarios.html load() corre', false, e.message); }
     const cont = d.getElementById('list-container');
     if (cargo) ok('U0) usuarios.html load() corre', true);
     ok('U1) usuarios.html: 0 elementos inyectados en la lista', inyectados(cont) === 0, `inyectados=${inyectados(cont)}`);
     for (const c of CASOS) {
-      const tr = filaPorId(d, 'button', c.id);
+      const tr = d.querySelector(`tr[data-id="${c.id}"]`);
       ok(`U2.${c.k}) fila renderizada`, !!tr);
       if (!tr) continue;
       const nom = tr.querySelector('.cell-name')?.textContent;
@@ -164,14 +166,14 @@ async function suite(overrides = {}) {
       const subs = [...tr.querySelectorAll('.cell-sub')].map(x => x.textContent);
       ok(`U4.${c.k}) email tal cual`, subs.includes(c.email), JSON.stringify(subs));
       if (c.telefono) ok(`U5.${c.k}) teléfono tal cual`, subs.includes('📞 ' + c.telefono), JSON.stringify(subs));
-      w.__pwn = undefined;
-      w.eval('closeEdit()');
-      d.getElementById('e-id').value = ''; d.getElementById('e-nombre').value = '';
-      const btn = [...tr.querySelectorAll('button')].find(b => b.textContent.includes('Editar'));
-      btn?.click();
-      const abierto = d.getElementById('modal-edit').classList.contains('open');
-      ok(`U6.${c.k}) Editar abre el modal de ESA fila`, abierto && d.getElementById('e-id').value === c.id && d.getElementById('e-nombre').value === c.nombre,
-        `open=${abierto} e-id=${d.getElementById('e-id').value === c.id} e-nombre=${JSON.stringify(d.getElementById('e-nombre').value)}`);
+      // Desde 846b7b6 (27/09) un usuario del portal NO tiene "Editar" (edita su propia cuenta); el super_admin
+      // ve Activar/Desactivar. El onclick lleva sólo el id: el nombre hostil no entra al JS inline.
+      const botones = [...tr.querySelectorAll('button')];
+      const toggle = botones.filter(b => /toggleActivo/.test(b.getAttribute('onclick') || ''));
+      ok(`U6.${c.k}) sin "Editar" y un solo Activar/Desactivar con onclick = sólo el id`,
+        !botones.some(b => b.textContent.includes('Editar')) && toggle.length === 1
+        && toggle[0].getAttribute('onclick') === `toggleActivo('${c.id}',true)`,
+        JSON.stringify(botones.map(b => [b.textContent.trim(), b.getAttribute('onclick')])));
       ok(`U7.${c.k}) nada se ejecutó`, w.__pwn === undefined, `__pwn=${w.__pwn}`);
     }
     w.close();
@@ -244,10 +246,12 @@ async function suite(overrides = {}) {
 const MUTANTES = {
   'M1 escape-html.js = identidad': () => ({
     'escape-html.js': 'function escapeHtml(s) { return s === null || s === undefined ? "" : String(s); }\n' }),
-  'M2 usuarios/admin/inscripciones de main (pre-fix)': () => Object.fromEntries(
-    ['usuarios.html', 'admin.html', 'inscripciones.html'].map(f => [f, execSync(`git -C ${ROOT} show main:${f}`, { encoding: 'utf8' })])),
+  'M2 usuarios/admin/inscripciones antes del fix (0677222^)': () => Object.fromEntries(
+    ['usuarios.html', 'admin.html', 'inscripciones.html'].map(f => [f, execSync(`git -C ${ROOT} show 0677222^:${f}`, { encoding: 'utf8' })])),
   'M3 usuarios.html sin <script src="escape-html.js">': () => ({
     'usuarios.html': readFileSync(ROOT + 'usuarios.html', 'utf8').replace('<script src="escape-html.js"></script>\n', '') }),
+  'M4 usuarios.html: el portal vuelve a tener "Editar" (pre 846b7b6)': () => ({
+    'usuarios.html': readFileSync(ROOT + 'usuarios.html', 'utf8').replace('function puedeEditar(u)     { return !esPortal(u) && puedeModificar(u); }', 'function puedeEditar(u)     { return puedeModificar(u); }') }),
 };
 
 const ENV_OVERRIDES = Object.fromEntries([['usuarios.html', 'USUARIOS_HTML'], ['admin.html', 'ADMIN_HTML'],

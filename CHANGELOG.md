@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-10-03] — Tests: `probe_xss_portal_nombres` al día con usuarios.html (drift del 27/09)
+
+- Desde `846b7b6` (27/09) `usuarios.html` no muestra "Editar" a los usuarios del portal y las acciones dependen del rol: el probe
+  buscaba la fila por ese botón y daba 53/58. Ahora ubica la fila por `tr[data-id]`, corre como super_admin y verifica que el portal
+  no tenga "Editar" y que Activar lleve sólo el id en el `onclick` (U6). M2 fijado a `0677222^` (con `main` ya no era pre-fix);
+  M4 nuevo (el portal vuelve a tener "Editar"). 82/82, 4/4 mutantes.
+
 ## [2026-10-02] — SEGURIDAD ISSUE-099: las 31 funciones de `public` que anon podía ejecutar + default privileges — migración **aplicada**
 
 - `migrations/revoke_anon_funciones_publicas.sql` (GENERADA por `tests/local/gen_revoke_anon_funciones.py` desde las firmas y el
