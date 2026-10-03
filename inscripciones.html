@@ -217,6 +217,8 @@
   <script src="edad-spc.js"></script>
   <script src="jockey-repetido.js"></script>
   <script src="escape-html.js"></script>
+  <script src="revision-pendiente.js"></script>
+  <script src="studbook-progreso.js"></script>
 </head>
 <body>
 <div id="auth-overlay"><div class="spinner" style="width:32px;height:32px;border-width:3px;"></div></div>
@@ -937,8 +939,9 @@ async function buscarEnStudBookStaff() {
   document.getElementById('spc-dropdown').style.display = 'none';
   const out = document.getElementById('spc-sb');
   if (term.length < 3) { out.innerHTML = '<div class="sb-msg sb-err">Escribí al menos 3 letras del nombre.</div>'; return; }
-  out.innerHTML = '<div class="sb-msg">Consultando el Stud Book…</div>';
+  const finProgreso = progresoStudBook(out, 'Consultando el Stud Book');
   const { data, error } = await sb.functions.invoke('studbook-buscar', { body: { term } });
+  finProgreso();
   if (error) {
     const e = await parseFnErrorStaff(error);
     console.error('[inscripciones.buscarEnStudBook]', { term, status: e.status, code: e.code, detalle: e.detalle });
@@ -999,10 +1002,11 @@ async function traerYUsarStaff(idx) {
   const carreraId = carreraDelModal();
   if (!carreraId) { toast('Seleccionar un turno', 'error'); return; }
   const out = document.getElementById('spc-sb');
-  out.innerHTML = `<div class="sb-msg">Trayendo ${escapeHtml(c.nombre)} del Stud Book…</div>`;
+  const finProgreso = progresoStudBook(out, `Trayendo ${c.nombre} del Stud Book`);
   const { data, error } = await sb.functions.invoke('studbook-buscar', {
     body: { accion: 'traer', sb_id: String(c.sb_id), nombre: c.nombre, carrera_id: carreraId },
   });
+  finProgreso();
   if (error) {
     const e = await parseFnErrorStaff(error);
     console.error('[inscripciones.traerYUsar]', { sb_id: c.sb_id, status: e.status, code: e.code, detalle: e.detalle });
@@ -1051,13 +1055,46 @@ function selectSpc(id, nombre, entrenadorId, jockeyId, caballerizaId, tieneCert)
 
 function updateCertBadge() {}
 
-document.getElementById('f-estado').addEventListener('change', () => {
-  const estado = document.getElementById('f-estado').value;
-  document.getElementById('forfait-motivo-group').style.display = estado === 'forfait' ? '' : 'none';
+// ── Aviso al pasar a "ratificado" un SPC pendiente de revisión (mismo texto que ratificacion.html,
+// revision-pendiente.js). Aviso, no bloqueo: si se cancela, el select vuelve al estado anterior.
+let estadoOriginalModal = null;      // estado de la inscripción al abrir el modal (null = alta)
+let estadoPrevioSelect = 'inscripto';
+let revisionAceptadaPara = null;     // spc_id cuyo aviso ya se aceptó en este modal
+
+async function spcRevisionPendiente(spcId) {
+  if (!spcId) return null;
+  const { data, error } = await sb.from('spcs').select('id, nombre, revision_pendiente, revision_motivos').eq('id', spcId).maybeSingle();
+  if (error) { console.error('[inscripciones.spcRevisionPendiente]', error); throw error; }
+  return data?.revision_pendiente ? data : null;
+}
+
+// true = sigue (no hay aviso, o se aceptó). Sólo pregunta al PASAR a ratificado.
+async function confirmarRatificarSiPendiente(spcId) {
+  if (estadoOriginalModal === 'ratificado' || revisionAceptadaPara === spcId) return true;
+  const spc = await spcRevisionPendiente(spcId);
+  if (!spc) return true;
+  if (!confirm(textoConfirmarRatificarRevision(spc))) return false;
+  revisionAceptadaPara = spcId;
+  return true;
+}
+
+document.getElementById('f-estado').addEventListener('change', async () => {
+  const sel = document.getElementById('f-estado');
+  if (sel.value === 'ratificado' && estadoPrevioSelect !== 'ratificado') {
+    let sigue = true;
+    try { sigue = await confirmarRatificarSiPendiente(document.getElementById('f-spc-id').value); }
+    catch (e) { toast('No se pudo verificar la revisión del SPC: ' + e.message, 'error'); sigue = false; }
+    if (!sigue) sel.value = estadoPrevioSelect;
+  }
+  estadoPrevioSelect = sel.value;
+  document.getElementById('forfait-motivo-group').style.display = sel.value === 'forfait' ? '' : 'none';
 });
 
 function openModal(rec=null) {
   limpiarStudBookStaff();
+  estadoOriginalModal = rec?.estado || null;
+  estadoPrevioSelect = rec?.estado || 'inscripto';
+  revisionAceptadaPara = null;
   document.getElementById('modal-title').textContent = rec ? 'Editar Inscripción' : 'Inscribir SPC';
   document.getElementById('f-id').value = rec?.id||'';
   document.getElementById('f-carrera-id').value = rec?.carrera_id||'';
@@ -1112,6 +1149,13 @@ async function saveRecord() {
   if (!spcId) { toast('Seleccionar un SPC','error'); return; }
   if (!carreraId) { toast('Seleccionar un turno','error'); return; }
   const cabId = document.getElementById('f-caballeriza').value || null;
+  // Si se eligió "ratificado" y después se cambió el SPC, el aviso se vuelve a hacer con el SPC final.
+  if (document.getElementById('f-estado').value === 'ratificado') {
+    let sigue = true;
+    try { sigue = await confirmarRatificarSiPendiente(spcId); }
+    catch (e) { toast('No se pudo verificar la revisión del SPC: ' + e.message, 'error'); return; }
+    if (!sigue) return;
+  }
   if (!cabId && !confirm('Esta inscripción no tiene caballeriza asignada.\nSin caballeriza no se podrá ratificar ni derivar el propietario.\n¿Continuar igual?')) return;
   const btn=document.getElementById('btn-save');
   btn.disabled=true; btn.textContent='Guardando…';

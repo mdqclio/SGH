@@ -38,6 +38,7 @@ probe_activacion_pendiente|
 probe_alineado_programa|
 probe_apuestas_especiales|
 probe_aviso_jockey_repetido|
+probe_aviso_revision_modal_y_progreso|
 probe_badge_overlap|
 probe_bolsa_efectiva|
 probe_carta_numero_turno|

@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026-10-03] — Aviso de revisión también en el modal de Inscripciones + indicador de progreso del Stud Book
+
+- `inscripciones.html`: elegir **"Ratificado"** en el select de estado del modal con un SPC pendiente de revisión pide la misma
+  confirmación que `ratificacion.html` ("… está pendiente de revisión en Stud Book (SPCs). Motivo: …. ¿Ratificar igual?"). Cancelar
+  vuelve el select al estado anterior. Guardar vuelve a chequear si después se cambió el SPC. Una inscripción que ya estaba ratificada
+  no pregunta. Es aviso, no bloqueo.
+- `revision-pendiente.js` (nuevo): el texto único del aviso; `ratificacion.html` pasa a usarlo.
+- `studbook-progreso.js` (nuevo): mientras se consulta el Stud Book (~17 s el 02/10) se ve spinner, segundos transcurridos, una barra
+  y "El Stud Book suele tardar unos 20 segundos", en `inscripciones.html` (buscar y traer), `portal.html` (buscar y traer) y
+  `spcs.html` (buscar). Antes era un texto suelto que parecía colgado.
+- Probes: `probe_aviso_revision_modal_y_progreso` nuevo (21/21, 14/14 mutantes; entra a `correr_todos.sh`);
+  `probe_ratificacion_aviso_revision` 10/10, 8/8 (muta también el JS); `probe_inscripciones_alta_studbook` MU8 con el ancla nueva.
+
 ## [2026-10-03] — Tests: `probe_xss_portal_nombres` al día con usuarios.html (drift del 27/09)
 
 - Desde `846b7b6` (27/09) `usuarios.html` no muestra "Editar" a los usuarios del portal y las acciones dependen del rol: el probe
