@@ -301,3 +301,13 @@ RLS: `migrations/sec_rls_fase2b_escritura.sql:46-55`. INSERT/UPDATE/DELETE = `NO
 id, club_id NOT NULL, entidad_tipo (enum entidad_sancionada: profesional, spc, propietario, caballeriza) NOT NULL, entidad_id NOT NULL, tipo_sancion varchar NOT NULL, motivo, codigo_resolucion, fecha_inicio NOT NULL, fecha_fin, alcance varchar NOT NULL default 'club', estado (enum estado_sancion: activa, cumplida, apelada, revocada) default 'activa', resolucion_url, notas, creado_por, created_at, modificado_por, modificado_at. Sin CHECKs propios; FKs a clubs y usuarios. Triggers: `trg_audit_sanciones`, `trg_sanciones_autor`. Políticas: select (staff del club o compartidas, portal las propias), insert/update (staff del club o super_admin), delete (super_admin).
 
 `v_sanciones_vigentes`: `SELECT … FROM sanciones WHERE estado = 'activa' AND (fecha_fin IS NULL OR fecha_fin >= CURRENT_DATE)`.
+
+## Verificación de push
+
+```
+$ git ls-remote origin reports
+7e7fc48c38688af269ef8859f8cd1223ee829dea
+$ git rev-parse HEAD
+7e7fc48c38688af269ef8859f8cd1223ee829dea
+```
+Chequeo de datos personales sobre lo agregado: vacío.
